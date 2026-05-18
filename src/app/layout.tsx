@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import '../styles/tailwind.css';
+import '../styles/globals.css';
+import { AuthProvider } from '@/context/AuthContext';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -16,20 +17,20 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'GloriaOrder — Ordini Online per Ristoranti',
-  description: 'GloriaOrder aiuta i ristoranti italiani a gestire ordini online, menu e consegne da un unico pannello professionale.',
+  title: 'iGOdelivering — Ordini Online per Ristoranti',
+  description:
+    'iGOdelivering aiuta i ristoranti italiani a gestire ordini online, menu e consegne da un unico pannello professionale.',
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    icon: [{ url: '/favicon.ico', type: 'image/png' }],
   },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="it" className={plusJakartaSans.variable}>
-      <body className={plusJakartaSans.className}>{children}
-
-        <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fgloriaorde2845back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.18" />
-        <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" /></body>
+      <body className={plusJakartaSans.className}>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

@@ -1,13 +1,12 @@
 {
-  "name": "gloriaorder",
-  "version": "0.1.0",
+  "name": "igodelivering",
+  "version": "1.0.0",
   "private": true,
   "rocketCritical": {
     "dependencies": [
       "next",
       "react",
       "react-dom",
-      "@dhiwise/component-tagger",
       "@tailwindcss/typography",
       "recharts"
     ],
@@ -40,8 +39,11 @@
   },
   "scripts": {
     "dev": "next dev -p 4028",
+    "release": "standard-version",
+    "update-version": "node scripts/update-version.js",
+    "prebuild": "npm run update-version",
     "build": "next build",
-    "start": "next dev -p 4028",
+    "start": "next start -p 4028",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
@@ -49,7 +51,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@dhiwise/component-tagger": "^1.0.15",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.16",
@@ -75,8 +76,14 @@
     "eslint-plugin-prettier": "^5.2.6",
     "postcss": "8.4.8",
     "prettier": "^3.5.3",
+    "standard-version": "^9.5.0",
     "tailwindcss": "3.4.6",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
+  },
+  "standard-version": {
+    "scripts": {
+      "postbump": "npm run update-version && git add src/version.json"
+    }
   }
 }
