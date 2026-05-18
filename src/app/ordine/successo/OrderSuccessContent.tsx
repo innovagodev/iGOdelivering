@@ -1,7 +1,16 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle, Clock, MapPin, Package, ChevronRight, Receipt, Bike, ShoppingBag } from 'lucide-react';
+import {
+  CheckCircle,
+  Clock,
+  MapPin,
+  Package,
+  ChevronRight,
+  Receipt,
+  Bike,
+  ShoppingBag,
+} from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -39,15 +48,15 @@ const MOCK_ORDER: OrderData = {
   placedAt: '13:28',
   paymentMethod: 'Carta di credito •••• 4242',
   items: [
-    { name: 'Pizza Margherita', qty: 2, price: 9.50 },
-    { name: 'Pizza Diavola', qty: 1, price: 11.00, options: 'Extra piccante' },
-    { name: 'Tiramisù', qty: 2, price: 6.50 },
-    { name: 'Acqua Naturale 75cl', qty: 2, price: 2.50 },
+    { name: 'Pizza Margherita', qty: 2, price: 9.5 },
+    { name: 'Pizza Diavola', qty: 1, price: 11.0, options: 'Extra piccante' },
+    { name: 'Tiramisù', qty: 2, price: 6.5 },
+    { name: 'Acqua Naturale 75cl', qty: 2, price: 2.5 },
   ],
-  subtotal: 47.50,
-  deliveryFee: 2.50,
+  subtotal: 47.5,
+  deliveryFee: 2.5,
   discount: 0,
-  total: 50.00,
+  total: 50.0,
 };
 
 const REDIRECT_SECONDS = 8;
@@ -102,14 +111,16 @@ export default function OrderSuccessContent() {
 
       {/* Card */}
       <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-
         {/* ── Success Header ── */}
         <div className="bg-[var(--success-bg)] border-b border-[#bbf7d0] px-6 py-8 flex flex-col items-center text-center gap-3">
           <div className="w-16 h-16 rounded-full bg-[var(--success)] flex items-center justify-center shadow-md">
             <CheckCircle size={34} className="text-white" strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--font-sans)' }}>
+            <h1
+              className="text-xl font-bold text-foreground"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
               Ordine confermato!
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -140,9 +151,7 @@ export default function OrderSuccessContent() {
                 <span className="text-2xl font-bold text-foreground tabular-nums">
                   {order.estimatedMinutes} min
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  · entro le {estimatedArrival}
-                </span>
+                <span className="text-sm text-muted-foreground">· entro le {estimatedArrival}</span>
               </div>
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded-lg px-2.5 py-1.5 border border-border">
@@ -257,8 +266,8 @@ export default function OrderSuccessContent() {
 
       {/* Footer note */}
       <p className="mt-6 text-xs text-muted-foreground text-center max-w-sm">
-        Riceverai una notifica quando il tuo ordine sarà in preparazione.
-        Controlla la tua email per la ricevuta completa.
+        Riceverai una notifica quando il tuo ordine sarà in preparazione. Controlla la tua email per
+        la ricevuta completa.
       </p>
     </div>
   );

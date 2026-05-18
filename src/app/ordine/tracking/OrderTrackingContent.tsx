@@ -1,7 +1,16 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle, Clock, ChefHat, Bike, Home, MapPin, Phone, MessageCircle } from 'lucide-react';
+import {
+  CheckCircle,
+  Clock,
+  ChefHat,
+  Bike,
+  Home,
+  MapPin,
+  Phone,
+  MessageCircle,
+} from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Link from 'next/link';
 
@@ -19,14 +28,45 @@ interface TrackingStep {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STEPS: TrackingStep[] = [
-  { id: 'confirmed',  label: 'Confermato',      description: 'Il ristorante ha ricevuto il tuo ordine',  icon: <CheckCircle size={18} /> },
-  { id: 'preparing',  label: 'In preparazione', description: 'I tuoi piatti sono in cucina',              icon: <ChefHat size={18} /> },
-  { id: 'ready',      label: 'Pronto',           description: 'Il tuo ordine è pronto per la consegna',   icon: <Clock size={18} /> },
-  { id: 'delivering', label: 'In consegna',      description: 'Il corriere è in viaggio verso di te',     icon: <Bike size={18} /> },
-  { id: 'delivered',  label: 'Consegnato',       description: 'Buon appetito! 🎉',                        icon: <Home size={18} /> },
+  {
+    id: 'confirmed',
+    label: 'Confermato',
+    description: 'Il ristorante ha ricevuto il tuo ordine',
+    icon: <CheckCircle size={18} />,
+  },
+  {
+    id: 'preparing',
+    label: 'In preparazione',
+    description: 'I tuoi piatti sono in cucina',
+    icon: <ChefHat size={18} />,
+  },
+  {
+    id: 'ready',
+    label: 'Pronto',
+    description: 'Il tuo ordine è pronto per la consegna',
+    icon: <Clock size={18} />,
+  },
+  {
+    id: 'delivering',
+    label: 'In consegna',
+    description: 'Il corriere è in viaggio verso di te',
+    icon: <Bike size={18} />,
+  },
+  {
+    id: 'delivered',
+    label: 'Consegnato',
+    description: 'Buon appetito! 🎉',
+    icon: <Home size={18} />,
+  },
 ];
 
-const STATUS_ORDER: TrackingStatus[] = ['confirmed', 'preparing', 'ready', 'delivering', 'delivered'];
+const STATUS_ORDER: TrackingStatus[] = [
+  'confirmed',
+  'preparing',
+  'ready',
+  'delivering',
+  'delivered',
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -40,9 +80,19 @@ export default function OrderTrackingContent() {
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => setCurrentStatus('preparing'), 4000));
-    timers.push(setTimeout(() => { setCurrentStatus('ready'); setEstimatedMinutes(10); }, 10000));
+    timers.push(
+      setTimeout(() => {
+        setCurrentStatus('ready');
+        setEstimatedMinutes(10);
+      }, 10000)
+    );
     timers.push(setTimeout(() => setCurrentStatus('delivering'), 16000));
-    timers.push(setTimeout(() => { setCurrentStatus('delivered'); setEstimatedMinutes(0); }, 24000));
+    timers.push(
+      setTimeout(() => {
+        setCurrentStatus('delivered');
+        setEstimatedMinutes(0);
+      }, 24000)
+    );
     return () => timers.forEach(clearTimeout);
   }, []);
 
@@ -57,19 +107,24 @@ export default function OrderTrackingContent() {
       </div>
 
       <div className="w-full max-w-lg space-y-4">
-
         {/* ── Header Card ── */}
         <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Ordine</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                Ordine
+              </p>
               <h1 className="text-base font-bold text-foreground">{orderId}</h1>
               <p className="text-sm text-muted-foreground mt-0.5">Pizzeria Bella Napoli</p>
             </div>
             {!isDelivered && (
               <div className="flex-shrink-0 text-right">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Arrivo stimato</p>
-                <p className="text-2xl font-bold text-primary tabular-nums">{estimatedMinutes} min</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                  Arrivo stimato
+                </p>
+                <p className="text-2xl font-bold text-primary tabular-nums">
+                  {estimatedMinutes} min
+                </p>
               </div>
             )}
             {isDelivered && (
@@ -105,8 +160,8 @@ export default function OrderTrackingContent() {
                         isDone
                           ? 'bg-[var(--success)] text-white'
                           : isActive
-                          ? 'bg-primary text-white shadow-md ring-4 ring-primary/20'
-                          : 'bg-muted text-muted-foreground border border-border'
+                            ? 'bg-primary text-white shadow-md ring-4 ring-primary/20'
+                            : 'bg-muted text-muted-foreground border border-border'
                       }`}
                     >
                       {step.icon}
@@ -129,7 +184,9 @@ export default function OrderTrackingContent() {
                     >
                       {step.label}
                     </p>
-                    <p className={`text-xs mt-0.5 ${isPending ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>
+                    <p
+                      className={`text-xs mt-0.5 ${isPending ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
+                    >
                       {step.description}
                     </p>
                     {isActive && !isDelivered && (
@@ -147,7 +204,9 @@ export default function OrderTrackingContent() {
 
         {/* ── Support ── */}
         <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-4">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">Assistenza</p>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">
+            Assistenza
+          </p>
           <div className="flex gap-3">
             <button className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors">
               <Phone size={15} className="text-primary" />
@@ -163,7 +222,7 @@ export default function OrderTrackingContent() {
         {/* ── Back link ── */}
         <div className="text-center pt-2">
           <Link
-            href="/restaurant-management-dashboard"
+            href="/ristoratore/dashboard"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
           >
             Torna alla dashboard

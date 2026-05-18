@@ -1,9 +1,24 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import RestaurantSidebar from '@/components/RestaurantSidebar';
-import { Plus, Search, Store, MapPin, Clock, CheckCircle, PauseCircle, Settings, Bell, Users, PauseOctagon, PlayCircle, Trash2, X, AlertTriangle } from 'lucide-react';
-
+import Sidebar from '@/components/layout/Sidebar';
+import {
+  Plus,
+  Search,
+  Store,
+  MapPin,
+  Clock,
+  CheckCircle,
+  PauseCircle,
+  Settings,
+  Bell,
+  Users,
+  PauseOctagon,
+  PlayCircle,
+  Trash2,
+  X,
+  AlertTriangle,
+} from 'lucide-react';
 
 interface Restaurant {
   id: string;
@@ -88,17 +103,25 @@ const statusConfig = {
 export default function SuperAdminRestaurantsPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'suspended'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'suspended'>(
+    'all'
+  );
   const [restaurants, setRestaurants] = useState<Restaurant[]>(mockRestaurants);
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null);
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('gloriaorder_restaurants') || '[]') as Array<Record<string, unknown>>;
+      const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]') as Array<
+        Record<string, unknown>
+      >;
       if (saved.length > 0) {
         const normalized = saved.map((r) => ({
           ...r,
-          menuItems: Array.isArray(r.menuItems) ? (r.menuItems as unknown[]).length : (typeof r.menuItems === 'number' ? r.menuItems : 0),
+          menuItems: Array.isArray(r.menuItems)
+            ? (r.menuItems as unknown[]).length
+            : typeof r.menuItems === 'number'
+              ? r.menuItems
+              : 0,
         })) as Restaurant[];
         setRestaurants((prev) => {
           const existingIds = new Set(prev.map((r) => r.id));
@@ -136,7 +159,7 @@ export default function SuperAdminRestaurantsPage() {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <RestaurantSidebar
+      <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-ristoranti"
@@ -155,10 +178,12 @@ export default function SuperAdminRestaurantsPage() {
               <Bell size={18} />
             </button>
             <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">A</div>
+              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                A
+              </div>
               <div className="hidden md:block">
                 <p className="text-sm font-semibold text-foreground leading-none">Super Admin</p>
-                <p className="text-xs text-muted-foreground mt-0.5">admin@gloriaorder.it</p>
+                <p className="text-xs text-muted-foreground mt-0.5">admin@iGOdelivering.it</p>
               </div>
             </div>
           </div>
@@ -170,7 +195,9 @@ export default function SuperAdminRestaurantsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Ristoranti</h1>
-                <p className="text-sm text-muted-foreground mt-1">{restaurants.length} ristoranti registrati</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {restaurants.length} ristoranti registrati
+                </p>
               </div>
               <Link
                 href="/superadmin/restaurants/new"
@@ -184,14 +211,39 @@ export default function SuperAdminRestaurantsPage() {
             {/* Stats row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'Totale', value: restaurants.length, color: 'text-foreground', bg: 'bg-card' },
-                { label: 'Pubblicati', value: restaurants.filter((r) => r.status === 'published').length, color: 'text-[var(--success)]', bg: 'bg-[var(--success-bg)]' },
-                { label: 'Bozze', value: restaurants.filter((r) => r.status === 'draft').length, color: 'text-muted-foreground', bg: 'bg-muted' },
-                { label: 'Sospesi', value: restaurants.filter((r) => r.status === 'suspended').length, color: 'text-[var(--warning)]', bg: 'bg-[var(--warning-bg)]' },
+                {
+                  label: 'Totale',
+                  value: restaurants.length,
+                  color: 'text-foreground',
+                  bg: 'bg-card',
+                },
+                {
+                  label: 'Pubblicati',
+                  value: restaurants.filter((r) => r.status === 'published').length,
+                  color: 'text-[var(--success)]',
+                  bg: 'bg-[var(--success-bg)]',
+                },
+                {
+                  label: 'Bozze',
+                  value: restaurants.filter((r) => r.status === 'draft').length,
+                  color: 'text-muted-foreground',
+                  bg: 'bg-muted',
+                },
+                {
+                  label: 'Sospesi',
+                  value: restaurants.filter((r) => r.status === 'suspended').length,
+                  color: 'text-[var(--warning)]',
+                  bg: 'bg-[var(--warning-bg)]',
+                },
               ].map((stat) => (
-                <div key={`stat-${stat.label}`} className={`${stat.bg} rounded-xl border border-border p-4 shadow-card`}>
+                <div
+                  key={`stat-${stat.label}`}
+                  className={`${stat.bg} rounded-xl border border-border p-4 shadow-card`}
+                >
                   <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-                  <p className={`text-2xl font-bold tabular-nums mt-1 ${stat.color}`}>{stat.value}</p>
+                  <p className={`text-2xl font-bold tabular-nums mt-1 ${stat.color}`}>
+                    {stat.value}
+                  </p>
                 </div>
               ))}
             </div>
@@ -199,13 +251,16 @@ export default function SuperAdminRestaurantsPage() {
             {/* Filters */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="relative flex-1 max-w-sm">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <input
                   type="text"
                   placeholder="Cerca ristorante, città, proprietario..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -214,10 +269,18 @@ export default function SuperAdminRestaurantsPage() {
                     key={`filter-${s}`}
                     onClick={() => setFilterStatus(s)}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                      filterStatus === s ? 'bg-primary text-white' : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                      filterStatus === s
+                        ? 'bg-primary text-white'
+                        : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   >
-                    {s === 'all' ? 'Tutti' : s === 'published' ? 'Pubblicati' : s === 'draft' ? 'Bozze' : 'Sospesi'}
+                    {s === 'all'
+                      ? 'Tutti'
+                      : s === 'published'
+                        ? 'Pubblicati'
+                        : s === 'draft'
+                          ? 'Bozze'
+                          : 'Sospesi'}
                   </button>
                 ))}
               </div>
@@ -229,13 +292,27 @@ export default function SuperAdminRestaurantsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ristorante</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Proprietario</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Città</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stato</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Menu</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden xl:table-cell">Ordini oggi</th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Azioni</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Ristorante
+                      </th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                        Proprietario
+                      </th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
+                        Città
+                      </th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Stato
+                      </th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
+                        Menu
+                      </th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden xl:table-cell">
+                        Ordini oggi
+                      </th>
+                      <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Azioni
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -273,21 +350,29 @@ export default function SuperAdminRestaurantsPage() {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                              r.status === 'published' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
-                              r.status === 'draft' ? 'bg-muted text-muted-foreground' :
-                              'bg-[var(--warning-bg)] text-[var(--warning)]'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                r.status === 'published'
+                                  ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                                  : r.status === 'draft'
+                                    ? 'bg-muted text-muted-foreground'
+                                    : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+                              }`}
+                            >
                               {sc.icon}
                               {sc.label}
                             </span>
                           </td>
                           <td className="px-5 py-4 hidden lg:table-cell">
-                            <span className="text-sm font-semibold tabular-nums text-foreground">{r.menuItems}</span>
+                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                              {r.menuItems}
+                            </span>
                             <span className="text-xs text-muted-foreground ml-1">voci</span>
                           </td>
                           <td className="px-5 py-4 hidden xl:table-cell">
-                            <span className="text-sm font-semibold tabular-nums text-foreground">{r.ordersToday}</span>
+                            <span className="text-sm font-semibold tabular-nums text-foreground">
+                              {r.ordersToday}
+                            </span>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-1">
@@ -314,7 +399,11 @@ export default function SuperAdminRestaurantsPage() {
                                 }`}
                                 title={isSuspended ? 'Riattiva ristorante' : 'Sospendi ristorante'}
                               >
-                                {isSuspended ? <PlayCircle size={15} /> : <PauseOctagon size={15} />}
+                                {isSuspended ? (
+                                  <PlayCircle size={15} />
+                                ) : (
+                                  <PauseOctagon size={15} />
+                                )}
                               </button>
                               <button
                                 onClick={() => setDeleteTarget(r)}
@@ -339,7 +428,10 @@ export default function SuperAdminRestaurantsPage() {
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setDeleteTarget(null)}
+          />
           <div className="relative bg-card rounded-2xl border border-border shadow-xl w-full max-w-md p-6 space-y-5">
             <button
               onClick={() => setDeleteTarget(null)}
@@ -354,7 +446,9 @@ export default function SuperAdminRestaurantsPage() {
               <div>
                 <h2 className="text-base font-bold text-foreground">Elimina ristorante</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Sei sicuro di voler eliminare <span className="font-semibold text-foreground">{deleteTarget.name}</span>? Questa azione è irreversibile.
+                  Sei sicuro di voler eliminare{' '}
+                  <span className="font-semibold text-foreground">{deleteTarget.name}</span>? Questa
+                  azione è irreversibile.
                 </p>
               </div>
             </div>

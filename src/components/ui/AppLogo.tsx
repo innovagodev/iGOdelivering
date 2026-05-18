@@ -13,9 +13,9 @@ interface AppLogoProps {
 }
 
 const AppLogo = memo(function AppLogo({
-  src = '/assets/images/igo-button-ok-1778308077635.png',
+  src = '/assets/images/logo_admin2.png',
   iconName = 'SparklesIcon',
-  size = 64,
+  size = 256,
   className = '',
   onClick,
 }: AppLogoProps) {
@@ -33,12 +33,13 @@ const AppLogo = memo(function AppLogo({
       {src ? (
         <AppImage
           src={src}
-          alt="Logo" 
+          alt="Logo"
           width={size}
           height={size}
           className="flex-shrink-0"
           priority={true}
           unoptimized={src.endsWith('.svg')}
+          transparent={true}
         />
       ) : (
         <AppIcon name={iconName} size={size} className="flex-shrink-0" />
