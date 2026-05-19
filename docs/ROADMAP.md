@@ -40,13 +40,16 @@
 - [x] Modal Checkout con flusso a 3 step (Dettagli → Pagamento → Conferma)
 - [x] Tracking ordine simulato (Confermato → In Preparazione → In Consegna → Consegnato)
 - [x] Modal prenotazione tavolo (data, ora, ospiti, nome, telefono)
+- [x] **Redesign UX Carrello e Personalizzazione Piatto**: pannello singolo con navigazione a due viste interne scivolanti per carrello e personalizzazione.
+- [x] **Costo Consegna nel Carrello**: spesa di spedizione dinamica visibile solo per consegna a domicilio, azzerabile per asporto e calcolata sul totale.
+- [x] **Soglia Consegna Gratuita (dal pannello ristoratore)**: barra di completamento progressiva animata e condizionale basata sulle impostazioni dinamiche del ristoratore.
+- [x] **Guest Checkout con Persistenza `localStorage`**: salvataggio automatico del recapito cliente basato sulla spunta "Ricordami" legata al ristorante.
+- [x] **Contatore Carrello Mobile**: badge numerico nel float button del carrello mobile integrato nella sticky bar di fondo.
 
 ### Da Completare — PRIORITÀ ALTA
-- [ ] **Guest Checkout con Persistenza `localStorage`**: Aggiungere checkbox "Ricordami su questo dispositivo" nel modal checkout. Al click, salvare `{ nome, telefono, indirizzo }` nel `localStorage` con chiave `iGO_guest_[slug]`. Al caricamento successivo pre-compilare automaticamente i campi.
 - [ ] **Modalità Tavolo nel Checkout**: Aggiungere una terza opzione "Ordina al Tavolo" (oltre a Domicilio e Asporto) con campo per il numero del tavolo. Opzione attivabile/disattivabile dal pannello ristoratore.
 - [ ] **Validazione Orari di Apertura**: Leggere gli orari di apertura del ristorante (in futuro da Supabase, ora da dati mock) e mostrare un banner "Siamo chiusi — prossima apertura alle 12:00" impedendo il checkout immediato ma permettendo ordini programmati.
 - [ ] **Gestione Codice Promo Reale**: Il codice promo attivo (es. `BELLANAPOLI10`) deve essere configurabile dal pannello ristoratore. Attualmente è hardcoded nella vetrina.
-- [ ] **Contatore Carrello Mobile**: Mostrare il numero di articoli nel carrello sull'icona del carrello fisso in basso su mobile (FAB floating button).
 
 ### Da Completare — PRIORITÀ MEDIA
 - [ ] **Pagina Prodotto Espansa**: Al click su una card prodotto aprire un bottom-sheet/modal con foto grande, descrizione completa, lista allergeni completa, e varianti/modificatori (es. "senza cipolla", "piccante extra").
@@ -132,6 +135,9 @@
 - [ ] **Orari di Apertura**: Griglia settimanale (Lun–Dom) con toggle aperto/chiuso e input orario apertura/chiusura per fascia pranzo e cena.
 - [ ] **Logo & Copertina**: Gestione del Logo del ristorante e dell'Immagine Hero della vetrina cliente, permettendo al ristoratore di personalizzare e brandizzare integralmente la propria pagina pubblica (in futuro integrato con Supabase Storage).
 - [ ] **Preferenze Ordini**: Toggle per abilitare/disabilitare Domicilio, Asporto e Ordine al Tavolo.
+- [ ] **Impostazioni Consegna**:
+  - [ ] Costo spedizione fisso (€) configurabile dal ristoratore e mostrato al cliente nel riepilogo carrello (solo per Domicilio).
+  - [ ] Toggle *"Consegna Gratuita sopra soglia"*: se attivo, inserire l'importo minimo (es. €25). Se disattivato, la barra di progresso nella vetrina non compare.
 - [ ] **Link Vetrina & QR Code**: Mostrare il link diretto `igodelivering.it/menu/[slug]` con pulsante copia e visualizzazione del QR Code generato dal link.
 - [ ] **Persistenza Mock**: Salvataggio in `localStorage` con chiave `iGO_settings_[restaurantId]`.
 
@@ -215,19 +221,75 @@
 
 | Priorità | Area | Task |
 |---|---|---|
-| 🔴 1 | A1 Consumer | Guest Checkout con persistenza `localStorage` |
-| 🔴 2 | B1 Ristoratore | Zone di Consegna `/ristoratore/zone` |
-| 🔴 3 | A1 Consumer | Modalità Tavolo + Validazione Orari |
-| 🟡 4 | B1 Ristoratore | Impostazioni Ristorante `/ristoratore/impostazioni` |
-| 🟡 5 | B1 Ristoratore | Promozioni & Codici Sconto `/ristoratore/promozioni` |
-| 🟡 6 | B2 Admin | Gestione Utenti `/admin/utenti` |
-| 🟡 7 | A1 Consumer | Pagina Prodotto Espansa + Sezione "Più Ordinati" |
-| 🟢 8 | B1 Ristoratore | Prenotazioni Tavoli `/ristoratore/prenotazioni` |
-| 🟢 9 | B2 Admin | Dashboard Globale `/admin/dashboard` |
-| 🟢 10 | A3 Consumer | Storico Ordini Guest + Ricevuta Digitale |
-| ⚪ 11+ | Blocco C | Integrazione Supabase reale |
-| ⚪ 12+ | Blocco D | PWA & Performance Audit |
+| 🔴 1 | A1 Consumer | Redesign UX Carrello (pannello singolo con slide-in) |
+| 🔴 2 | A1 Consumer | Costo consegna + Soglia consegna gratuita nel carrello |
+| 🔴 3 | B1 Ristoratore | Zone di Consegna `/ristoratore/zone` |
+| 🔴 4 | A1 Consumer | Guest Checkout con persistenza `localStorage` |
+| 🔴 5 | A1 Consumer | Modalità Tavolo + Validazione Orari |
+| 🟡 6 | B1 Ristoratore | Impostazioni Ristorante `/ristoratore/impostazioni` (incl. consegna gratuita) |
+| 🟡 7 | B1 Ristoratore | Promozioni & Codici Sconto `/ristoratore/promozioni` |
+| 🟡 8 | B2 Admin | Gestione Utenti `/admin/utenti` |
+| 🟡 9 | A1 Consumer | Pagina Prodotto Espansa + Sezione "Più Ordinati" |
+| 🟢 10 | B1 Ristoratore | Prenotazioni Tavoli `/ristoratore/prenotazioni` |
+| 🟢 11 | B2 Admin | Dashboard Globale `/admin/dashboard` |
+| 🟢 12 | A3 Consumer | Storico Ordini Guest + Ricevuta Digitale |
+| ⚪ 13+ | Blocco C | Integrazione Supabase reale |
+| ⚪ 14+ | Blocco D | PWA & Performance Audit |
 
 ---
 
-*Ultimo aggiornamento: 19 Maggio 2026 — Versione: Beta Roadmap v1.2.0*
+---
+
+## 📝 Note UX — Proposta Redesign Carrello e Personalizzazione Piatto
+
+> ⚠️ **Da approvare prima dell'implementazione.**
+
+### Problema attuale
+Il flusso ha due livelli di modal sovrapposti: prima si apre il carrello, poi sopra appare la schermata di personalizzazione del piatto. Su desktop lo scroll del mouse scorre la pagina sotto invece del modal attivo. Su mobile il comportamento è spesso imprevedibile.
+
+### Proposta: Esperienza a Pannello Singolo con Navigazione Interna & Personalizzazione Avanzata "Pro"
+
+Invece di impilare modali, il carrello diventa un **pannello laterale full-height** (su desktop) o un **bottom sheet full-screen** (su mobile) con una navigazione interna a due "viste", integrando una logica di personalizzazione ispirata ai migliori standard (tipo Glovo/McDonalds) ma estremamente più potente e visiva:
+
+#### 🟢 Vista 1 — Il Carrello (Default)
+- **Lista prodotti** con quantità (+ / -), nome, prezzo e icona matita per la personalizzazione.
+- **Riepilogo Prezzi**:
+  - Subtotale articoli.
+  - Consegna (calcolata dinamicamente se selezionato *Domicilio* e inserito l'indirizzo/CAP).
+  - Soglia Consegna Gratuita: barra di progresso interattiva se abilitata dal ristoratore.
+- **CTA principale** "Procedi al Checkout".
+
+#### 🟠 Vista 2 — Personalizzazione "Super-Customizer" (Slide-in)
+Quando il cliente clicca sulla matita nel carrello (o clicca su un prodotto dal menu per aprirne la scheda), la schermata di personalizzazione scivola in avanti **all'interno dello stesso pannello** con una fluidità incredibile. Offre:
+
+1. **Intestazione Dinamica**:
+   - Freccia "← Torna al carrello" (o "Chiudi").
+   - Immagine del piatto e descrizione degli ingredienti di base.
+
+2. **Ingredienti Base (Esperienza di Rimozione Rimotivata)**:
+   - Una lista di tutti gli ingredienti standard del piatto con checkbox personalizzate.
+   - **UX Avanzata**: Togliere la spunta a un ingrediente non lo fa sparire, ma lo contrassegna visivamente (es. sbarrato, semitrasparente con badge *"RIMOSSO"* in rosso soft). In questo modo il cliente ha sempre sott'occhio la ricetta modificata.
+
+3. **Ingredienti Extra & Aggiunte (Strutturata per Categorie)**:
+   - Ingredienti aggiuntivi ordinati in sezioni collassabili (es. 🧀 Formaggi, 🥓 Salumi, 🍅 Verdure, 🍯 Salse).
+   - Ogni ingrediente mostra chiaramente il sovrapprezzo (+ €1.50) e può essere aggiunto con un click.
+
+4. **Opzioni Singole o Multiple (Impasti & Cotture)**:
+   - Sezione dedicata per selezionare il tipo di cottura (es. *Ben cotta*, *Poco cotta*, *Al forno*) o la variante del piatto (es. *A Calzone* + €0.00, *A Schiacciata* + €1.50), implementata tramite chip moderni o radio-button eleganti.
+
+5. **Note per la Cucina Interattive (Quick Tags)**:
+   - Invece di far solo digitare testo, forniamo dei **Quick Tags cliccabili** per le richieste più comuni (es. 🏷️ *"Salse a parte"*, 🏷️ *"Ben cotto"*, 🏷️ *"No sale"*). Cliccandoci, il testo si autocompila istantaneamente nell'area note, risparmiando tempo su mobile.
+
+6. **Pulsante di Conferma Bottom-Sticky**:
+   - Un footer fisso in basso con il prezzo totale del piatto che si aggiorna in tempo reale con una micro-animazione numerica quando si aggiungono/rimuovono ingredienti.
+   - Pulsante grande *"Conferma Modifiche"* o *"Aggiungi al Carrello"* con transizione fluida.
+
+---
+
+### Vantaggi Rispetto al Modello Base delle Altre App:
+- **Zero Scroll Conflict**: Tutto avviene all'interno dello stesso contenitore con overflow isolato. Lo sfondo del sito rimane bloccato per evitare scorrimenti fastidiosi.
+- **Altissimo Impatto Visivo**: I cambi degli ingredienti base (il testo sbarrato) e i prezzi delle aggiunte sono facilissimi da leggere a colpo d'occhio.
+- **Velocità su Mobile**: I Quick Tags e le categorie collassabili riducono al minimo i tocchi e la scrittura da tastiera.
+- **Transizioni GSAP**: L'ingresso della personalizzazione e il ritorno al carrello avvengono con uno slide orizzontale fluidissimo gestito da GSAP.
+
+*Ultimo aggiornamento: 19 Maggio 2026 — Versione: Beta Roadmap v1.2.2*

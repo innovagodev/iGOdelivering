@@ -68,6 +68,8 @@ interface RestaurantType {
   image: string;
   imageAlt: string;
   logoUrl: string;
+  freeDeliveryActive?: boolean;
+  freeDeliveryThreshold?: number;
 }
 
 // ─── Dynamic Restaurant Resolver ──────────────────────────────
@@ -385,6 +387,16 @@ function CartSidebar({
   restaurant,
   showClose = false,
   onClose,
+  deliveryType,
+  setDeliveryType,
+  address,
+  setAddress,
+  minOrder,
+  deliveryFee,
+  freeDeliveryActive,
+  freeDeliveryThreshold,
+  actualDeliveryFee,
+  onClear,
 }: {
   cart: CartItem[];
   onAdd: (item: MenuItemType) => void;
@@ -399,31 +411,97 @@ function CartSidebar({
   restaurant: RestaurantType;
   showClose?: boolean;
   onClose?: () => void;
+  deliveryType: 'domicilio' | 'asporto';
+  setDeliveryType: (v: 'domicilio' | 'asporto') => void;
+  address: string;
+  setAddress: (v: string) => void;
+  minOrder: number;
+  deliveryFee: number;
+  freeDeliveryActive: boolean;
+  freeDeliveryThreshold: number;
+  actualDeliveryFee: number;
+  onClear?: () => void;
 }) {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const discount = promoApplied ? subtotal * 0.1 : 0;
-  const total = subtotal - discount + restaurant.deliveryFee;
-  const meetsMin = subtotal >= restaurant.minOrder;
+  const total = subtotal - discount + actualDeliveryFee;
+  const meetsMin = subtotal >= minOrder;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 flex-shrink-0">
         <div className="flex items-center gap-2">
           <ShoppingCart size={18} className="text-primary" />
-          <h3 className="font-bold text-foreground">Il tuo ordine</h3>
-          <span className="bg-primary/10 text-primary text-xs font-extrabold px-2 py-0.5 rounded-full ml-1">
+          <h3 className="font-bold text-foreground text-sm">Il tuo ordine</h3>
+          <span className="bg-primary/10 text-primary text-[10px] font-extrabold px-2 py-0.5 rounded-full ml-1">
             {cart.reduce((s, i) => s + i.qty, 0)}
           </span>
         </div>
-        {showClose && onClose && (
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full bg-muted/65 hover:bg-muted text-muted-foreground hover:text-foreground transition-all active:scale-90"
-          >
-            <X size={15} />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {cart.length > 0 && onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-[10px] font-black text-muted-foreground hover:text-red-500 uppercase tracking-wide px-2.5 py-1.5 rounded-xl hover:bg-red-50/60 transition-all duration-150 active:scale-95 border border-transparent hover:border-red-100"
+            >
+              Svuota
+            </button>
+          )}
+          {showClose && onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full bg-muted/65 hover:bg-muted text-muted-foreground hover:text-foreground transition-all active:scale-90"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Delivery Type Selector */}
+      {cart.length > 0 && (
+        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/10 flex-shrink-0">
+          <div className="grid grid-cols-2 gap-1 bg-muted/60 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setDeliveryType('domicilio')}
+              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${deliveryType === 'domicilio'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <Bike size={13} />
+              Domicilio
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeliveryType('asporto')}
+              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${deliveryType === 'asporto'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+              <Package size={13} />
+              Asporto
+            </button>
+          </div>
+
+          {/* Inline Address Prompt if Domicilio */}
+          {deliveryType === 'domicilio' && (
+            <div className="mt-2 relative">
+              <MapPin size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Inserisci indirizzo per la consegna"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full pl-7 pr-2.5 py-1.5 text-[11px] bg-card border border-border rounded-lg focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/70"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {cart.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
@@ -437,7 +515,7 @@ function CartSidebar({
         <>
           <ul className="flex-1 overflow-y-auto py-3 px-4 space-y-3 scrollbar-hide">
             {cart.map((item) => (
-              <li key={`cart-${item.cartId || item.id}`} className="flex items-start gap-3">
+              <li key={`cart-${item.cartId || item.id}`} className="flex items-start gap-3 border-b border-border/10 pb-3 last:border-0 last:pb-0">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold text-foreground leading-tight truncate">
@@ -454,25 +532,27 @@ function CartSidebar({
                   {((item.addedIngredients && item.addedIngredients.length > 0) ||
                     (item.removedIngredients && item.removedIngredients.length > 0) ||
                     item.note) && (
-                      <div className="text-[10px] text-muted-foreground mt-0.5 space-y-0.5">
+                      <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
                         {item.addedIngredients?.map((ext) => (
-                          <div key={ext.name} className="text-primary font-medium">
-                            + {ext.name} (+€ {ext.price.toFixed(2)})
+                          <div key={ext.name} className="text-primary font-semibold flex justify-between">
+                            <span>+ {ext.name}</span>
+                            <span className="text-[9px] text-muted-foreground font-normal">€ {ext.price.toFixed(2)}</span>
                           </div>
                         ))}
                         {item.removedIngredients?.map((rem) => (
-                          <div key={rem} className="text-muted-foreground">
-                            - Senza {rem}
+                          <div key={rem} className="text-red-500 font-semibold flex justify-between">
+                            <span>- Senza {rem}</span>
+                            <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
                           </div>
                         ))}
                         {item.note && (
-                          <div className="italic text-muted-foreground">
+                          <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
                             Note: "{item.note}"
                           </div>
                         )}
                       </div>
                     )}
-                  <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                  <p className="text-xs font-bold text-foreground mt-1 tabular-nums">
                     € {(item.price * item.qty).toFixed(2)}
                   </p>
                 </div>
@@ -501,7 +581,7 @@ function CartSidebar({
             ))}
           </ul>
 
-          <div className="px-4 py-3 border-t border-border space-y-3">
+          <div className="px-4 py-3 border-t border-border space-y-3 flex-shrink-0 bg-card">
             {/* Promo */}
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -514,26 +594,50 @@ function CartSidebar({
                   placeholder="Codice promo"
                   value={promoCode}
                   onChange={(e) => onPromoChange(e.target.value.toUpperCase())}
-                  className="w-full pl-7 pr-2 py-2 text-base bg-muted border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
+                  className="w-full pl-7 pr-2 py-1.5 text-xs bg-muted border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
                 />
               </div>
               <button
                 onClick={onApplyPromo}
                 disabled={!promoCode}
-                className="px-3 py-2 bg-secondary text-primary text-xs font-semibold rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors border border-orange-200"
+                className="px-3 py-1.5 bg-secondary text-primary text-xs font-semibold rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors border border-orange-200"
               >
                 Applica
               </button>
             </div>
             {promoApplied && (
-              <div className="flex items-center gap-1.5 text-xs text-[var(--success)] bg-[var(--success-bg)] rounded-lg px-3 py-2">
-                <CheckCircle size={13} />
+              <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-lg px-2.5 py-1.5">
+                <CheckCircle size={12} />
                 Promo WELCOME10 applicata: −10%
               </div>
             )}
 
+            {/* Dynamic Free Delivery Progress Bar */}
+            {deliveryType === 'domicilio' && freeDeliveryActive && (
+              <div className="bg-muted/30 border border-border/40 rounded-xl p-2.5 space-y-1">
+                {subtotal < freeDeliveryThreshold ? (
+                  <>
+                    <p className="text-[10px] font-bold text-muted-foreground flex justify-between">
+                      <span>Ti mancano <strong>€ {(freeDeliveryThreshold - subtotal).toFixed(2)}</strong> per la consegna gratuita!</span>
+                      <span className="text-primary font-extrabold">{Math.round((subtotal / freeDeliveryThreshold) * 100)}%</span>
+                    </p>
+                    <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-primary h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, (subtotal / freeDeliveryThreshold) * 100)}%` }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[10px] font-extrabold text-[var(--success)] flex items-center gap-1">
+                    🎉 Consegna gratuita raggiunta!
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Totals */}
-            <div className="space-y-1.5 text-sm">
+            <div className="space-y-1.5 text-xs border-t border-border/40 pt-2">
               <div className="flex justify-between text-muted-foreground">
                 <span>Subtotale</span>
                 <span className="tabular-nums">€ {subtotal.toFixed(2)}</span>
@@ -544,27 +648,35 @@ function CartSidebar({
                   <span className="tabular-nums">−€ {discount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-muted-foreground">
-                <span>Consegna</span>
-                <span className="tabular-nums">€ {restaurant.deliveryFee.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-bold text-foreground pt-1.5 border-t border-border">
+              {deliveryType === 'domicilio' && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Consegna</span>
+                  <span className="tabular-nums font-semibold">
+                    {actualDeliveryFee === 0 ? (
+                      <span className="text-[var(--success)] font-extrabold">Gratis</span>
+                    ) : (
+                      `€ ${actualDeliveryFee.toFixed(2)}`
+                    )}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between font-extrabold text-foreground pt-1.5 border-t border-border text-sm">
                 <span>Totale</span>
-                <span className="tabular-nums">€ {total.toFixed(2)}</span>
+                <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
               </div>
             </div>
 
             {!meetsMin && (
-              <p className="text-[11px] text-[var(--warning)] bg-[var(--warning-bg)] rounded-lg px-3 py-2">
-                Ordine minimo € {restaurant.minOrder.toFixed(2)} — aggiungi ancora €{' '}
-                {(restaurant.minOrder - subtotal).toFixed(2)}
+              <p className="text-[10px] text-[var(--warning)] bg-[var(--warning-bg)] rounded-lg px-2.5 py-1.5 leading-snug">
+                Ordine minimo € {minOrder.toFixed(2)} — aggiungi ancora €{' '}
+                {(minOrder - subtotal).toFixed(2)}
               </p>
             )}
 
             <button
               onClick={onCheckout}
               disabled={!meetsMin}
-              className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-sm"
+              className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
               Procedi al pagamento → € {total.toFixed(2)}
             </button>
@@ -711,54 +823,56 @@ function CheckoutModal({
   onClose,
   cart,
   total,
+  deliveryType,
+  setDeliveryType,
+  name,
+  setName,
+  address,
+  setAddress,
+  phone,
+  setPhone,
+  rememberMe,
+  setRememberMe,
+  actualDeliveryFee,
+  slug,
 }: {
   open: boolean;
   onClose: () => void;
   cart: CartItem[];
   total: number;
+  deliveryType: 'domicilio' | 'asporto';
+  setDeliveryType: (v: 'domicilio' | 'asporto') => void;
+  name: string;
+  setName: (v: string) => void;
+  address: string;
+  setAddress: (v: string) => void;
+  phone: string;
+  setPhone: (v: string) => void;
+  rememberMe: boolean;
+  setRememberMe: (v: boolean) => void;
+  actualDeliveryFee: number;
+  slug: string;
 }) {
   const [step, setStep] = useState<'details' | 'payment' | 'tracking'>('details');
-  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto'>('domicilio');
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [payMethod, setPayMethod] = useState<'card' | 'cash' | 'online'>('card');
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-
-  useEffect(() => {
-    if (open) {
-      try {
-        const saved = localStorage.getItem('iGO_guest_info');
-        if (saved) {
-          const data = JSON.parse(saved);
-          if (data.name) setName(data.name);
-          if (data.phone) setPhone(data.phone);
-          if (data.address) setAddress(data.address);
-          if (data.deliveryType) setDeliveryType(data.deliveryType);
-        }
-      } catch (err) {
-        console.error('Error loading saved guest info:', err);
-      }
-    }
-  }, [open]);
 
   const handleOrder = () => {
     setLoading(true);
     if (rememberMe) {
       try {
-        localStorage.setItem(
-          'iGO_guest_info',
-          JSON.stringify({ name, phone, address, deliveryType })
-        );
+        const guestData = JSON.stringify({ name, phone, address, deliveryType });
+        localStorage.setItem(`iGO_guest_${slug}`, guestData);
+        localStorage.setItem('iGO_guest_info', guestData);
       } catch (err) {
         console.error('Error saving guest info:', err);
       }
     } else {
       try {
+        localStorage.removeItem(`iGO_guest_${slug}`);
         localStorage.removeItem('iGO_guest_info');
       } catch { }
     }
@@ -1174,16 +1288,14 @@ const getCategoryIcon = (category: string) => {
   return '🏷️';
 };
 
-function CustomizationModal({
+function CustomizationView({
   item,
   cartItem,
-  open,
   onClose,
   onConfirm,
 }: {
   item: MenuItemType | null;
   cartItem?: CartItem | null;
-  open: boolean;
   onClose: () => void;
   onConfirm: (
     qty: number,
@@ -1196,22 +1308,40 @@ function CustomizationModal({
   const [added, setAdded] = useState<{ name: string; price: number }[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  const [expandedCategory, setExpandedCategory] = useState<string | null>('cheese');
+  const [cookingStyle, setCookingStyle] = useState<'classico' | 'ben-cotto' | 'calzone' | 'schiacciata'>('classico');
 
   useEffect(() => {
-    if (open && item) {
+    if (item) {
       if (cartItem) {
         setQty(cartItem.qty);
-        setAdded(cartItem.addedIngredients || []);
+        // filter out preparazioni/stili from added list to keep it visual
+        const baseAdded = (cartItem.addedIngredients || []).filter(
+          (e) => !e.name.startsWith('Stile:') && !e.name.startsWith('Cottura:')
+        );
+        setAdded(baseAdded);
         setRemoved(cartItem.removedIngredients || []);
         setNote(cartItem.note || '');
+
+        const styleItem = (cartItem.addedIngredients || []).find(
+          (e) => e.name.startsWith('Stile:') || e.name.startsWith('Cottura:')
+        );
+        if (styleItem) {
+          if (styleItem.name.includes('Schiacciata')) setCookingStyle('schiacciata');
+          else if (styleItem.name.includes('Calzone')) setCookingStyle('calzone');
+          else if (styleItem.name.includes('Ben Cotto')) setCookingStyle('ben-cotto');
+        } else {
+          setCookingStyle('classico');
+        }
       } else {
         setQty(1);
         setAdded([]);
         setRemoved([]);
         setNote('');
+        setCookingStyle('classico');
       }
     }
-  }, [open, item, cartItem]);
+  }, [item, cartItem]);
 
   if (!item) return null;
 
@@ -1231,34 +1361,92 @@ function CustomizationModal({
     );
   };
 
-  const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0);
+  const handleQuickTag = (tag: string) => {
+    const cleaned = tag.replace('🏷️ ', '');
+    setNote((prev) => {
+      if (prev.includes(cleaned)) return prev;
+      return prev ? `${prev}, ${cleaned}` : cleaned;
+    });
+  };
+
+  // Categorize extras dynamically based on keywords or categories:
+  const categories = [
+    {
+      id: 'cheese',
+      title: '🧀 Formaggi & Latticini',
+      items: extras.filter(e => e.name.toLowerCase().includes('bufala') || e.name.toLowerCase().includes('mozzarella') || e.name.toLowerCase().includes('parmigiano') || e.name.toLowerCase().includes('cheddar') || e.name.toLowerCase().includes('grana') || e.name.toLowerCase().includes('formagg'))
+    },
+    {
+      id: 'meat',
+      title: '🥓 Salumi & Carni',
+      items: extras.filter(e => e.name.toLowerCase().includes('crudo') || e.name.toLowerCase().includes('salame') || e.name.toLowerCase().includes('pancetta') || e.name.toLowerCase().includes('bacon') || e.name.toLowerCase().includes('cotto') || e.name.toLowerCase().includes('uovo') || e.name.toLowerCase().includes('pollo') || e.name.toLowerCase().includes('manzo'))
+    },
+    {
+      id: 'veg',
+      title: '🍅 Verdure & Condimenti',
+      items: extras.filter(e => e.name.toLowerCase().includes('funghi') || e.name.toLowerCase().includes('basilico') || e.name.toLowerCase().includes('tartufo') || e.name.toLowerCase().includes('olive') || e.name.toLowerCase().includes('cipolla') || e.name.toLowerCase().includes('insalata') || e.name.toLowerCase().includes('pomodor') || e.name.toLowerCase().includes('limone'))
+    },
+    {
+      id: 'sauce',
+      title: '🍯 Salse & Altro',
+      items: extras.filter(e => !e.name.toLowerCase().includes('bufala') && !e.name.toLowerCase().includes('mozzarella') && !e.name.toLowerCase().includes('parmigiano') && !e.name.toLowerCase().includes('cheddar') && !e.name.toLowerCase().includes('grana') && !e.name.toLowerCase().includes('formagg') && !e.name.toLowerCase().includes('crudo') && !e.name.toLowerCase().includes('salame') && !e.name.toLowerCase().includes('pancetta') && !e.name.toLowerCase().includes('bacon') && !e.name.toLowerCase().includes('cotto') && !e.name.toLowerCase().includes('uovo') && !e.name.toLowerCase().includes('pollo') && !e.name.toLowerCase().includes('manzo') && !e.name.toLowerCase().includes('funghi') && !e.name.toLowerCase().includes('basilico') && !e.name.toLowerCase().includes('tartufo') && !e.name.toLowerCase().includes('olive') && !e.name.toLowerCase().includes('cipolla') && !e.name.toLowerCase().includes('insalata') && !e.name.toLowerCase().includes('pomodor') && !e.name.toLowerCase().includes('limone'))
+    }
+  ].filter(c => c.items.length > 0);
+
+  const stylePrice = cookingStyle === 'schiacciata' ? 1.50 : 0.00;
+  const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0) + stylePrice;
   const totalPrice = unitPrice * qty;
 
+  const handleConfirm = () => {
+    let finalAdded = [...added];
+    if (cookingStyle === 'schiacciata') {
+      finalAdded.push({ name: 'Stile: A Schiacciata', price: 1.50 });
+    } else if (cookingStyle === 'calzone') {
+      finalAdded.push({ name: 'Stile: A Calzone', price: 0.00 });
+    } else if (cookingStyle === 'ben-cotto') {
+      finalAdded.push({ name: 'Cottura: Ben Cotto', price: 0.00 });
+    }
+    onConfirm(qty, finalAdded, removed, note);
+  };
+
   return (
-    <Modal open={open} onClose={onClose} title={cartItem ? `Modifica ${item.name}` : `Personalizza ${item.name}`}>
-      <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1">
-        <div className="relative h-44 w-full rounded-xl overflow-hidden border border-border">
-          <AppImage
-            src={item.image}
-            alt={item.imageAlt}
-            fill
-            className="object-cover"
-          />
+    <div className="flex flex-col h-full bg-white animate-slide-in">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/50 hover:bg-muted text-[10px] font-black text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-95 border border-border/20"
+        >
+          <span className="text-[12px] font-bold">←</span>
+          <span>CARRELLO</span>
+        </button>
+        <h3 className="font-bold text-foreground text-xs truncate max-w-[180px]">
+          {cartItem ? `Modifica ${item.name}` : `Personalizza ${item.name}`}
+        </h3>
+        <span className="w-16" /> {/* spacer to balance the back button */}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 scrollbar-hide">
+        {/* Info panel */}
+        <div className="flex gap-3 bg-muted/20 p-3 rounded-2xl border border-border/20">
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+            <AppImage src={item.image} alt={item.imageAlt} fill className="object-cover" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-foreground text-sm truncate">{item.name}</h4>
+            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+              {item.description}
+            </p>
+          </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-bold text-foreground">{item.name}</h3>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {item.description}
-          </p>
-        </div>
-
+        {/* 1. Base Ingredients */}
         {removes.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Rimuovi Ingredienti
+              Rimuovi Ingredienti standard
             </h4>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {removes.map((rem) => {
                 const isRemoved = removed.includes(rem);
                 return (
@@ -1266,48 +1454,114 @@ function CustomizationModal({
                     key={`remove-${rem}`}
                     type="button"
                     onClick={() => toggleRemove(rem)}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${isRemoved
-                      ? 'border-red-200 bg-red-50/50 text-red-700'
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${isRemoved
+                      ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
                       : 'border-border bg-card text-foreground hover:bg-muted'
                       }`}
                   >
-                    <span>Senza {rem}</span>
-                    <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
-                      {isRemoved && '✓'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {extras.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Aggiungi Ingredienti (Extra)
-            </h4>
-            <div className="space-y-1.5">
-              {extras.map((ext) => {
-                const isAdded = added.some((e) => e.name === ext.name);
-                return (
-                  <button
-                    key={`extra-${ext.name}`}
-                    type="button"
-                    onClick={() => toggleExtra(ext)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-xs font-semibold transition-all ${isAdded
-                      ? 'border-primary/30 bg-primary/5 text-primary'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
-                      }`}
-                  >
-                    <div className="flex flex-col items-start">
-                      <span>{ext.name}</span>
-                      <span className="text-[10px] text-muted-foreground mt-0.5">
-                        + € {ext.price.toFixed(2)}
+                    <div className="flex items-center gap-2">
+                      <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] transition-all ${isRemoved ? 'bg-red-500 border-red-500 text-white' : 'border-border bg-white text-transparent'}`}>
+                        ✓
+                      </span>
+                      <span className={isRemoved ? 'line-through text-red-500 font-medium' : 'text-foreground'}>
+                        {rem}
                       </span>
                     </div>
-                    <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">
-                      {isAdded && '✓'}
+                    {isRemoved && (
+                      <span className="bg-red-100/70 text-red-700 text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                        Rimosso
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Extra Ingredients Accordion */}
+        {categories.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Aggiungi Extra
+            </h4>
+            <div className="space-y-2">
+              {categories.map((category) => {
+                const isOpen = expandedCategory === category.id;
+                return (
+                  <div key={category.id} className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCategory(isOpen ? null : category.id)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/80 transition-colors text-xs font-bold text-foreground"
+                    >
+                      <span className="flex items-center gap-1.5">{category.title}</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        {isOpen ? '▲' : '▼'}
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="p-2 space-y-1.5 bg-card border-t border-border/40 max-h-[25vh] overflow-y-auto">
+                        {category.items.map((ext) => {
+                          const isAdded = added.some((e) => e.name === ext.name);
+                          return (
+                            <button
+                              key={`extra-${ext.name}`}
+                              type="button"
+                              onClick={() => toggleExtra(ext)}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAdded
+                                ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                                : 'border-border bg-card text-foreground hover:bg-muted'
+                                }`}
+                            >
+                              <div className="flex flex-col items-start">
+                                <span>{ext.name}</span>
+                                <span className="text-[9px] text-muted-foreground mt-0.5 font-normal">
+                                  + € {ext.price.toFixed(2)}
+                                </span>
+                              </div>
+                              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[8px] transition-all ${isAdded ? 'bg-primary border-primary text-white' : 'border-border bg-white text-transparent'}`}>
+                                ✓
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Style / Cooking */}
+        {(item.category.toLowerCase().includes('pizz') || item.category.toLowerCase().includes('panin') || item.category.toLowerCase().includes('burger')) && (
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Impasti & Cotture
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'classico', label: 'Classico', price: 0.00 },
+                { id: 'ben-cotto', label: 'Ben Cotto', price: 0.00 },
+                { id: 'calzone', label: 'A Calzone', price: 0.00 },
+                { id: 'schiacciata', label: 'A Schiacciata', price: 1.50 },
+              ].map((style) => {
+                const isSelected = cookingStyle === style.id;
+                return (
+                  <button
+                    key={style.id}
+                    type="button"
+                    onClick={() => setCookingStyle(style.id as any)}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${isSelected
+                      ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                      : 'border-border bg-card text-foreground hover:bg-muted'
+                      }`}
+                  >
+                    <span>{style.label}</span>
+                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
+                      {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
                     </span>
                   </button>
                 );
@@ -1316,50 +1570,77 @@ function CustomizationModal({
           </div>
         )}
 
-        <div className="space-y-1.5">
+        {/* 4. Notes */}
+        <div className="space-y-2">
           <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
             Note speciali per la cucina
           </label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Es. ben cotta, senza pepe, allergie particolari..."
-            className="w-full p-3 text-base bg-muted border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors h-20 resize-none"
+            placeholder="Es. ben cotta, senza pepe, allergie..."
+            className="w-full p-2.5 text-xs bg-muted/60 border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors h-14 resize-none placeholder:text-muted-foreground/75"
           />
+          {/* Quick tags */}
+          <div className="flex flex-wrap gap-1 mt-1">
+            {[
+              '🏷️ Salse a parte',
+              '🏷️ Ben cotto',
+              '🏷️ Ben caldo',
+              '🏷️ Poco sale',
+              '🏷️ No posate',
+            ].map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => handleQuickTag(tag)}
+                className="text-[9px] bg-muted hover:bg-border border border-border/50 text-muted-foreground hover:text-foreground rounded-full px-2 py-0.5 font-bold transition-all active:scale-95"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-border gap-4">
-          <div className="flex items-center gap-3 bg-muted border border-border px-3 py-1.5 rounded-xl">
+      {/* Footer Sticky Bar */}
+      <div className="px-4 py-3 border-t border-border flex-shrink-0 bg-card space-y-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-muted-foreground">Prezzo Piatto:</span>
+          <span className="text-sm font-extrabold text-foreground tabular-nums">€ {totalPrice.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 bg-muted border border-border px-2.5 py-1 rounded-xl">
             <button
               type="button"
               onClick={() => setQty((q) => Math.max(1, q - 1))}
               disabled={qty <= 1}
-              className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors p-0.5"
             >
-              <Minus size={15} />
+              <Minus size={12} />
             </button>
-            <span className="w-6 text-center text-sm font-bold tabular-nums">
+            <span className="w-5 text-center text-xs font-bold tabular-nums">
               {qty}
             </span>
             <button
               type="button"
               onClick={() => setQty((q) => q + 1)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
             >
-              <Plus size={15} />
+              <Plus size={12} />
             </button>
           </div>
 
           <button
             type="button"
-            onClick={() => onConfirm(qty, added, removed, note)}
-            className="flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10 text-sm"
+            onClick={handleConfirm}
+            className="flex-1 py-2 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10 text-xs"
           >
             {cartItem ? 'Salva Modifiche' : 'Aggiungi'} — € {totalPrice.toFixed(2)}
           </button>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -1367,8 +1648,9 @@ function CustomizationModal({
 export default function CustomerStorefront() {
   const params = useParams();
   const slug = (params?.slug as string) || 'pizzeria-bella-napoli';
-  const restaurant = getRestaurantBySlug(slug);
+  const baseRestaurant = getRestaurantBySlug(slug);
 
+  const [restaurantSettings, setRestaurantSettings] = useState(baseRestaurant);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('Promozioni');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1384,12 +1666,56 @@ export default function CustomerStorefront() {
   const [bookingPhone, setBookingPhone] = useState('');
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+
+  // Lifted customer and delivery type states
+  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto'>('domicilio');
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [cartView, setCartView] = useState<'cart' | 'customize'>('cart');
+
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
   const headerRef = useRef<HTMLElement>(null);
   const headerBgSolidRef = useRef<HTMLDivElement>(null);
   const headerBgGradRef = useRef<HTMLDivElement>(null);
   const headerContentRef = useRef<HTMLDivElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
+
+  // Load custom settings override from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`iGO_settings_${slug}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setRestaurantSettings((prev) => ({
+          ...prev,
+          minOrder: parsed.minOrder !== undefined ? parseFloat(parsed.minOrder) : prev.minOrder,
+          deliveryFee: parsed.deliveryFee !== undefined ? parseFloat(parsed.deliveryFee) : prev.deliveryFee,
+          freeDeliveryActive: parsed.freeDeliveryActive !== undefined ? !!parsed.freeDeliveryActive : prev.freeDeliveryActive,
+          freeDeliveryThreshold: parsed.freeDeliveryThreshold !== undefined ? parseFloat(parsed.freeDeliveryThreshold) : prev.freeDeliveryThreshold,
+        }));
+      }
+    } catch (e) {
+      console.error('Error loading restaurant settings:', e);
+    }
+  }, [slug]);
+
+  // Load saved guest and delivery info from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`iGO_guest_${slug}`) || localStorage.getItem('iGO_guest_info');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.name) setName(data.name);
+        if (data.phone) setPhone(data.phone);
+        if (data.address) setAddress(data.address);
+        if (data.deliveryType) setDeliveryType(data.deliveryType);
+      }
+    } catch (err) {
+      console.error('Error loading saved guest info:', err);
+    }
+  }, [slug]);
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -1485,13 +1811,21 @@ export default function CustomerStorefront() {
 
   // Dynamic Browser Tab Title Update
   useEffect(() => {
-    if (restaurant?.name) {
-      document.title = `${restaurant.name} | iGOdelivering`;
+    if (restaurantSettings?.name) {
+      document.title = `${restaurantSettings.name} | iGOdelivering`;
     }
-  }, [restaurant]);
+  }, [restaurantSettings]);
 
   const [customizingItem, setCustomizingItem] = useState<MenuItemType | null>(null);
   const [customizingCartItem, setCustomizingCartItem] = useState<CartItem | null>(null);
+
+  // Sync customize view open
+  useEffect(() => {
+    if (customizingItem) {
+      setCartView('customize');
+      setCartOpen(true);
+    }
+  }, [customizingItem]);
 
   const addToCartCustom = (
     item: MenuItemType,
@@ -1600,7 +1934,11 @@ export default function CustomerStorefront() {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const discount = promoApplied ? subtotal * 0.1 : 0;
-  const total = subtotal - discount + restaurant.deliveryFee;
+
+  // Delivery Fee is applied conditionally based on delivery method and promo threshold
+  const isFreeDeliveryEligible = !!restaurantSettings.freeDeliveryActive && subtotal >= (restaurantSettings.freeDeliveryThreshold || 0);
+  const actualDeliveryFee = deliveryType === 'domicilio' && !isFreeDeliveryEligible ? restaurantSettings.deliveryFee : 0;
+  const total = subtotal - discount + actualDeliveryFee;
 
   const filteredItems = menuItems.filter(
     (item) =>
@@ -1656,17 +1994,17 @@ export default function CustomerStorefront() {
         >
           {/* Restaurant Logo and Name instead of iGO */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            {restaurant.logoUrl ? (
+            {restaurantSettings.logoUrl ? (
               <div className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-white/20' : 'border-border/30'}`}>
                 <img
-                  src={restaurant.logoUrl}
-                  alt={`Logo ${restaurant.name}`}
+                  src={restaurantSettings.logoUrl}
+                  alt={`Logo ${restaurantSettings.name}`}
                   className="w-full h-full object-contain"
                 />
               </div>
             ) : (
               <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-base flex-shrink-0 shadow-sm">
-                {restaurant.name.charAt(0)}
+                {restaurantSettings.name.charAt(0)}
               </div>
             )}
           </div>
@@ -1728,8 +2066,8 @@ export default function CustomerStorefront() {
       {/* Restaurant Hero */}
       <div className="relative h-[22rem] sm:h-[26rem] md:h-[30rem] overflow-hidden">
         <AppImage
-          src={restaurant.image}
-          alt={restaurant.imageAlt}
+          src={restaurantSettings.image}
+          alt={restaurantSettings.imageAlt}
           fill
           sizes="100vw"
           priority
@@ -1747,29 +2085,29 @@ export default function CustomerStorefront() {
 
             <div className="flex-1 min-w-0">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2 leading-none">
-                {restaurant.name}
+                {restaurantSettings.name}
               </h1>
               <p className="text-white/80 text-sm sm:text-base font-medium mb-4 max-w-2xl leading-relaxed">
-                {restaurant.tagline}
+                {restaurantSettings.tagline}
               </p>
 
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Star size={14} className="fill-amber-400 text-amber-400" />
-                  <strong>{restaurant.rating}</strong>
-                  <span className="text-white/75">({restaurant.reviews} recensioni)</span>
+                  <strong>{restaurantSettings.rating}</strong>
+                  <span className="text-white/75">({restaurantSettings.reviews} recensioni)</span>
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Clock size={14} />
-                  {restaurant.deliveryTime}
+                  {restaurantSettings.deliveryTime}
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Bike size={14} />
-                  Consegna € {restaurant.deliveryFee.toFixed(2)}
+                  Consegna € {restaurantSettings.deliveryFee.toFixed(2)}
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <MapPin size={14} />
-                  {restaurant.address}
+                  {restaurantSettings.address}
                 </span>
               </div>
             </div>
@@ -1918,30 +2256,77 @@ export default function CustomerStorefront() {
           {/* Backdrop glassmorphism overlay */}
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-300 pointer-events-auto"
-            onClick={() => setCartOpen(false)}
+            onClick={() => {
+              setCartOpen(false);
+              setCartView('cart');
+              setCustomizingItem(null);
+              setCustomizingCartItem(null);
+            }}
           />
 
           {/* Cart Card Container */}
-          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col h-[80vh] z-10 animate-fade-in overflow-hidden">
+          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col h-[80vh] z-10 animate-pop-in overflow-hidden">
             <div className="flex-1 overflow-hidden">
-              <CartSidebar
-                cart={cart}
-                onAdd={addToCart}
-                onRemove={removeFromCart}
-                onDelete={deleteFromCart}
-                onEdit={handleEditCartItem}
-                onCheckout={() => {
-                  setCartOpen(false);
-                  setCheckoutOpen(true);
-                }}
-                promoCode={promoCode}
-                onPromoChange={setPromoCode}
-                promoApplied={promoApplied}
-                onApplyPromo={applyPromo}
-                restaurant={restaurant}
-                showClose={true}
-                onClose={() => setCartOpen(false)}
-              />
+              {cartView === 'cart' ? (
+                <CartSidebar
+                  cart={cart}
+                  onAdd={addToCart}
+                  onRemove={removeFromCart}
+                  onDelete={deleteFromCart}
+                  onEdit={(cartItem) => {
+                    handleEditCartItem(cartItem);
+                    setCartView('customize');
+                  }}
+                  onCheckout={() => {
+                    setCartOpen(false);
+                    setCheckoutOpen(true);
+                  }}
+                  promoCode={promoCode}
+                  onPromoChange={setPromoCode}
+                  promoApplied={promoApplied}
+                  onApplyPromo={applyPromo}
+                  restaurant={restaurantSettings}
+                  showClose={true}
+                  onClose={() => {
+                    setCartOpen(false);
+                    setCartView('cart');
+                    setCustomizingItem(null);
+                    setCustomizingCartItem(null);
+                  }}
+                  deliveryType={deliveryType}
+                  setDeliveryType={setDeliveryType}
+                  address={address}
+                  setAddress={setAddress}
+                  minOrder={restaurantSettings.minOrder}
+                  deliveryFee={restaurantSettings.deliveryFee}
+                  freeDeliveryActive={restaurantSettings.freeDeliveryActive || false}
+                  freeDeliveryThreshold={restaurantSettings.freeDeliveryThreshold || 0}
+                  actualDeliveryFee={actualDeliveryFee}
+                  onClear={() => setCart([])}
+                />
+              ) : (
+                <CustomizationView
+                  item={customizingItem}
+                  cartItem={customizingCartItem}
+                  onClose={() => {
+                    setCartView('cart');
+                    setCustomizingItem(null);
+                    setCustomizingCartItem(null);
+                  }}
+                  onConfirm={(qty, added, removed, note) => {
+                    if (customizingItem) {
+                      if (customizingCartItem) {
+                        updateCartItem(customizingCartItem.cartId!, qty, added, removed, note);
+                      } else {
+                        addToCartCustom(customizingItem, qty, added, removed, note);
+                      }
+                      setCustomizingItem(null);
+                      setCustomizingCartItem(null);
+                      setCartView('cart');
+                    }
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -1953,28 +2338,18 @@ export default function CustomerStorefront() {
         onClose={() => setCheckoutOpen(false)}
         cart={cart}
         total={total}
-      />
-
-      {/* Customization modal */}
-      <CustomizationModal
-        item={customizingItem}
-        cartItem={customizingCartItem}
-        open={customizingItem !== null}
-        onClose={() => {
-          setCustomizingItem(null);
-          setCustomizingCartItem(null);
-        }}
-        onConfirm={(qty, added, removed, note) => {
-          if (customizingItem) {
-            if (customizingCartItem) {
-              updateCartItem(customizingCartItem.cartId!, qty, added, removed, note);
-            } else {
-              addToCartCustom(customizingItem, qty, added, removed, note);
-            }
-            setCustomizingItem(null);
-            setCustomizingCartItem(null);
-          }
-        }}
+        deliveryType={deliveryType}
+        setDeliveryType={setDeliveryType}
+        name={name}
+        setName={setName}
+        address={address}
+        setAddress={setAddress}
+        phone={phone}
+        setPhone={setPhone}
+        rememberMe={rememberMe}
+        setRememberMe={setRememberMe}
+        actualDeliveryFee={actualDeliveryFee}
+        slug={slug}
       />
 
       {/* Booking modal */}
