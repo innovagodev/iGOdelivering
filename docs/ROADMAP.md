@@ -98,7 +98,12 @@
 - [ ] **Nome Ristorante da Context**: Il nome "Pizzeria Bella Napoli" nell'header topbar deve venire dall'`AuthContext` e non essere hardcoded.
 - [ ] **Badge Notifiche Reali**: Il badge `3` sulla voce "Ordini Live" nella sidebar e il campanello devono riflettere il numero reale di ordini in attesa nel Kanban.
 
-### B1.2 — Gestione Menu `/ristoratore/menu` — Completata
+### B1.2 — Gestione Menu `/ristoratore/menu` — Parzialmente Completata
+- [ ] **Configurazione Avanzata Piatti**:
+  - [ ] Contrassegnare un piatto come *"In Promozione"* (mostrato nel carosello offerte).
+  - [ ] Toggle *"Prodotto Personalizzabile"*: per abilitare/disabilitare ingredienti extra e note.
+  - [ ] Gestione personalizzata delle categorie del menu.
+
 - [x] Lista prodotti con categorie collassabili
 - [x] Aggiunta, modifica, eliminazione di prodotti
 - [x] Gestione immagine (URL), descrizione, prezzo, allergeni
@@ -125,7 +130,7 @@
 - [ ] **Pagina dedicata `/ristoratore/impostazioni`** accessibile dalla sidebar.
 - [ ] **Sezione Profilo**: Modifica nome ristorante, indirizzo, telefono, email, categoria (Pizzeria, Trattoria, etc.).
 - [ ] **Orari di Apertura**: Griglia settimanale (Lun–Dom) con toggle aperto/chiuso e input orario apertura/chiusura per fascia pranzo e cena.
-- [ ] **Logo & Copertina**: Upload URL per logo del ristorante e immagine di copertina della vetrina (in futuro Supabase Storage).
+- [ ] **Logo & Copertina**: Gestione del Logo del ristorante e dell'Immagine Hero della vetrina cliente, permettendo al ristoratore di personalizzare e brandizzare integralmente la propria pagina pubblica (in futuro integrato con Supabase Storage).
 - [ ] **Preferenze Ordini**: Toggle per abilitare/disabilitare Domicilio, Asporto e Ordine al Tavolo.
 - [ ] **Link Vetrina & QR Code**: Mostrare il link diretto `igodelivering.it/menu/[slug]` con pulsante copia e visualizzazione del QR Code generato dal link.
 - [ ] **Persistenza Mock**: Salvataggio in `localStorage` con chiave `iGO_settings_[restaurantId]`.

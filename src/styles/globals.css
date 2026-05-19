@@ -35,16 +35,43 @@
   * {
     box-sizing: border-box;
     border-color: var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) transparent;
   }
+
+  /* Custom Webkit Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--primary);
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--foreground);
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+
   html {
     scroll-behavior: smooth;
   }
+
   h1,
   h2,
   h3,
@@ -54,19 +81,44 @@
   p {
     margin: 0;
   }
+
+  /* Minimalist focus style - removes annoying double rings globally */
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  input[type="tel"]:focus,
+  input[type="number"]:focus,
+  input[type="date"]:focus,
+  input[type="time"]:focus,
+  input[type="search"]:focus,
+  textarea:focus,
+  select:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-width: 0px !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    box-shadow: none !important;
+    border-color: var(--primary);
+  }
 }
 
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .text-balance {
     text-wrap: balance;
   }
