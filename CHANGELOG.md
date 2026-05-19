@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/innovagodev/iGOdelivering/compare/v1.2.2...v1.3.0) (2026-05-19)
+
+
+### Features
+
+* **app:** restyling completo UX/UI vetrina, separazione admin/login e smooth scrolling ([2216cae](https://github.com/innovagodev/iGOdelivering/commit/2216cae50a893ef01f1ff99a979d4ca4ac5d5e0e))
+
 ### [1.2.2](https://github.com/innovagodev/iGOdelivering/compare/v1.2.1...v1.2.2) (2026-05-19)
 
 ### [1.2.1](https://github.com/innovagodev/iGOdelivering/compare/v1.2.0...v1.2.1) (2026-05-19)
