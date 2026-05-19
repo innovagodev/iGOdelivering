@@ -5,13 +5,13 @@ import Sidebar from '@/components/layout/Sidebar';
 import { ArrowLeft, Bell, Check } from 'lucide-react';
 
 // Wizard Components
-import RestaurantInfoStep from '@/components/superadmin/restaurant-wizard/RestaurantInfoStep';
-import DeliveryZonesStep from '@/components/superadmin/restaurant-wizard/DeliveryZonesStep';
-import HoursStep from '@/components/superadmin/restaurant-wizard/HoursStep';
-import ScheduledOrdersStep from '@/components/superadmin/restaurant-wizard/ScheduledOrdersStep';
-import MenuStep from '@/components/superadmin/restaurant-wizard/MenuStep';
-import ReviewStep from '@/components/superadmin/restaurant-wizard/ReviewStep';
-import PublishedSuccess from '@/components/superadmin/restaurant-wizard/PublishedSuccess';
+import RestaurantInfoStep from '@/components/admin/restaurant-wizard/RestaurantInfoStep';
+import DeliveryZonesStep from '@/components/admin/restaurant-wizard/DeliveryZonesStep';
+import HoursStep from '@/components/admin/restaurant-wizard/HoursStep';
+import ScheduledOrdersStep from '@/components/admin/restaurant-wizard/ScheduledOrdersStep';
+import MenuStep from '@/components/admin/restaurant-wizard/MenuStep';
+import ReviewStep from '@/components/admin/restaurant-wizard/ReviewStep';
+import PublishedSuccess from '@/components/admin/restaurant-wizard/PublishedSuccess';
 
 import {
   MenuItemWizardDraft,
@@ -262,7 +262,7 @@ export default function NewRestaurantPage() {
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           activeSection="nav-ristoranti"
           onSectionChange={() => {}}
-          role="superadmin"
+          role="admin"
         />
         <PublishedSuccess restaurantName={info.name} email={info.email} />
       </div>
@@ -276,12 +276,12 @@ export default function NewRestaurantPage() {
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         activeSection="nav-ristoranti"
         onSectionChange={() => {}}
-        role="superadmin"
+        role="admin"
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
           <Link
-            href="/superadmin/restaurants"
+            href="/admin/restaurants"
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm font-medium"
           >
             <ArrowLeft size={16} />

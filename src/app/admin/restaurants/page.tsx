@@ -100,7 +100,7 @@ const statusConfig = {
   suspended: { label: 'Sospeso', variant: 'warning' as const, icon: <PauseCircle size={12} /> },
 };
 
-export default function SuperAdminRestaurantsPage() {
+export default function AdminRestaurantsPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'suspended'>(
@@ -164,13 +164,13 @@ export default function SuperAdminRestaurantsPage() {
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-ristoranti"
         onSectionChange={() => {}}
-        role="superadmin"
+        role="admin"
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
         <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
           <div className="flex items-center gap-2 flex-1">
-            <span className="font-bold text-foreground text-base">Super Admin</span>
+            <span className="font-bold text-foreground text-base">Admin</span>
             <span className="text-muted-foreground text-sm">/ Ristoranti</span>
           </div>
           <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export default function SuperAdminRestaurantsPage() {
                 A
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-foreground leading-none">Super Admin</p>
+                <p className="text-sm font-semibold text-foreground leading-none">Admin</p>
                 <p className="text-xs text-muted-foreground mt-0.5">admin@iGOdelivering.it</p>
               </div>
             </div>
@@ -200,7 +200,7 @@ export default function SuperAdminRestaurantsPage() {
                 </p>
               </div>
               <Link
-                href="/superadmin/restaurants/new"
+                href="/admin/restaurants/new"
                 className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm"
               >
                 <Plus size={16} />
@@ -377,14 +377,14 @@ export default function SuperAdminRestaurantsPage() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-1">
                               <Link
-                                href={`/superadmin/restaurants/${r.id}/configure`}
+                                href={`/admin/restaurants/${r.id}/configure`}
                                 className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                 title="Configura ristorante"
                               >
                                 <Settings size={15} />
                               </Link>
                               <Link
-                                href={`/superadmin/restaurants/${r.id}/access`}
+                                href={`/admin/restaurants/${r.id}/access`}
                                 className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                 title="Gestisci accessi"
                               >

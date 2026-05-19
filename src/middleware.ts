@@ -12,24 +12,24 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 2. Protezione area Superadmin
-  if (pathname.startsWith('/superadmin')) {
-    if (role !== 'superadmin') {
-      return NextResponse.redirect(new URL('/login', request.url));
+  // 2. Protezione area Admin
+  if (pathname.startsWith('/admin') && pathname !== '/admin') {
+    if (role !== 'admin') {
+      return NextResponse.redirect(new URL('/admin', request.url));
     }
   }
 
   // 3. Redirect se già loggato (opzionale)
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/admin') {
     if (role === 'ristoratore')
       return NextResponse.redirect(new URL('/ristoratore/dashboard', request.url));
-    if (role === 'superadmin')
-      return NextResponse.redirect(new URL('/superadmin/restaurants', request.url));
+    if (role === 'admin')
+      return NextResponse.redirect(new URL('/admin/restaurants', request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/ristoratore/:path*', '/superadmin/:path*', '/login'],
+  matcher: ['/ristoratore/:path*', '/admin/:path*', '/login'],
 };

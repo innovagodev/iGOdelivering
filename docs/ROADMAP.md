@@ -7,13 +7,13 @@
 ## 🏁 Fondamenta Completate
 
 ### ✅ Fase 1 — Refactoring & Modularità
-- [x] Wizard Nuovo Ristorante scomposto in 6 sotto-componenti (`src/components/superadmin/restaurant-wizard/`)
+- [x] Wizard Nuovo Ristorante scomposto in 6 sotto-componenti (`src/components/admin/restaurant-wizard/`)
 - [x] Gestione Menu Ristoratore modulare (`src/components/ristoratore/menu-management/`)
 - [x] Pulizia rotte legacy: rimosso `/auth`, unificato su `/login`
-- [x] Sidebar dinamica per ruolo (`superadmin` / `ristoratore`)
+- [x] Sidebar dinamica per ruolo (`admin` / `ristoratore`)
 
 ### ✅ Fase 2 — Sicurezza & Accessi
-- [x] Middleware di autenticazione su `/ristoratore/*` e `/superadmin/*`
+- [x] Middleware di autenticazione su `/ristoratore/*` e `/admin/*`
 - [x] AuthContext globale con persistenza Cookie (compatibile middleware)
 - [x] Login Ristoratore con logica primo accesso e cambio password obbligatorio
 - [x] Login unificato su `/login` → redirect basato sul ruolo
@@ -138,18 +138,18 @@
 
 ---
 
-## 🏢 B2 — Pannello Superadmin (PARZIALMENTE COMPLETATO)
+## 🏢 B2 — Pannello Admin (PARZIALMENTE COMPLETATO)
 
-### B2.1 — Gestione Ristoranti `/superadmin/restaurants` — Quasi Completa
+### B2.1 — Gestione Ristoranti `/admin/restaurants` — Quasi Completa
 - [x] Tabella ristoranti con ricerca, filtri per stato (Pubblicato/Bozza/Sospeso)
 - [x] Statistiche rapide: totale, pubblicati, bozze, sospesi
 - [x] Azioni per ristorante: Configura, Gestisci Accessi, Sospendi/Riattiva, Elimina
 - [x] Modal di conferma eliminazione con avviso
 - [x] Caricamento ristoranti nuovi da `localStorage` (creati col wizard)
 - [ ] **Link Vetrina dalla Tabella**: Aggiungere una colonna/link "Apri Vetrina" che porta a `/menu/[slug]` per ogni ristorante pubblicato.
-- [ ] **Pagina Dettaglio Ristorante `/superadmin/restaurants/[id]`**: Schermata di riepilogo del singolo ristorante (tutti i dati, menu count, ordini totali, status).
+- [ ] **Pagina Dettaglio Ristorante `/admin/restaurants/[id]`**: Schermata di riepilogo del singolo ristorante (tutti i dati, menu count, ordini totali, status).
 
-### B2.2 — Wizard Nuovo Ristorante `/superadmin/restaurants/new` — Completo
+### B2.2 — Wizard Nuovo Ristorante `/admin/restaurants/new` — Completo
 - [x] Step 1: Info base (nome, indirizzo, categoria, telefono, email)
 - [x] Step 2: Credenziali ristoratore (email login, password temporanea)
 - [x] Step 3: Configurazione zone di consegna iniziali
@@ -157,26 +157,26 @@
 - [x] Step 5: Impostazioni ordini (domicilio/asporto/tavolo toggle)
 - [x] Step 6: Riepilogo e conferma con salvataggio in `localStorage`
 
-### B2.3 — Gestione Utenti `/superadmin/utenti` — DA CREARE 🟡
-- [ ] **Pagina dedicata `/superadmin/utenti`** con voce sidebar (attualmente punta a restaurants).
+### B2.3 — Gestione Utenti `/admin/utenti` — DA CREARE 🟡
+- [ ] **Pagina dedicata `/admin/utenti`** con voce sidebar (attualmente punta a restaurants).
 - [ ] **Tabella Utenti**: Lista di tutti i ristoratori registrati con nome, email, ristorante associato, data creazione, stato account (Attivo/Sospeso).
 - [ ] **Azioni**: Reset password, sospensione account, cambio email.
 - [ ] **Crea Utente Manuale**: Form rapido per creare un nuovo ristoratore indipendentemente dal wizard (utile per ristoranti già esistenti).
 
-### B2.4 — Dashboard Globale Piattaforma `/superadmin/dashboard` — DA CREARE 🟢
-- [ ] **Pagina dedicata `/superadmin/dashboard`** come landing del superadmin (attualmente atterra su restaurants).
+### B2.4 — Dashboard Globale Piattaforma `/admin/dashboard` — DA CREARE 🟢
+- [ ] **Pagina dedicata `/admin/dashboard`** come landing dell'admin (attualmente atterra su restaurants).
 - [ ] **KPI Globali**: Totale ristoranti attivi, totale ordini della piattaforma oggi, fatturato aggregato, nuovi partner del mese.
 - [ ] **Grafico Crescita Partner**: Andamento storico del numero di ristoranti attivi nel tempo.
 - [ ] **Ultimi Ordini Globali**: Feed degli ultimi 10 ordini ricevuti su tutta la piattaforma.
 
-### B2.5 — Impostazioni Piattaforma `/superadmin/impostazioni` — DA CREARE 🟢
-- [ ] **Pagina dedicata `/superadmin/impostazioni`** con voce sidebar.
+### B2.5 — Impostazioni Piattaforma `/admin/impostazioni` — DA CREARE 🟢
+- [ ] **Pagina dedicata `/admin/impostazioni`** con voce sidebar.
 - [ ] **Parametri Globali**: Commissioni di default, valuta, lingua piattaforma.
 - [ ] **Contatti di Supporto**: Email e telefono Innovago visualizzati ai ristoratori nell'area "Assistenza".
 - [ ] **Testo dei Template Email**: Editor semplice per personalizzare i messaggi automatici (benvenuto, reset password).
 
-### B2.6 — Log & Sicurezza `/superadmin/sicurezza` — DA CREARE 🟢
-- [ ] **Pagina dedicata `/superadmin/sicurezza`** con voce sidebar.
+### B2.6 — Log & Sicurezza `/admin/sicurezza` — DA CREARE 🟢
+- [ ] **Pagina dedicata `/admin/sicurezza`** con voce sidebar.
 - [ ] **Log degli Accessi**: Tabella con data/ora, utente, IP, azione (login, logout, modifica password) per tutti i ristoratori.
 - [ ] **Sessioni Attive**: Visualizzazione e chiusura forzata delle sessioni aperte.
 
@@ -215,14 +215,14 @@
 | 🔴 3 | A1 Consumer | Modalità Tavolo + Validazione Orari |
 | 🟡 4 | B1 Ristoratore | Impostazioni Ristorante `/ristoratore/impostazioni` |
 | 🟡 5 | B1 Ristoratore | Promozioni & Codici Sconto `/ristoratore/promozioni` |
-| 🟡 6 | B2 Superadmin | Gestione Utenti `/superadmin/utenti` |
+| 🟡 6 | B2 Admin | Gestione Utenti `/admin/utenti` |
 | 🟡 7 | A1 Consumer | Pagina Prodotto Espansa + Sezione "Più Ordinati" |
 | 🟢 8 | B1 Ristoratore | Prenotazioni Tavoli `/ristoratore/prenotazioni` |
-| 🟢 9 | B2 Superadmin | Dashboard Globale `/superadmin/dashboard` |
+| 🟢 9 | B2 Admin | Dashboard Globale `/admin/dashboard` |
 | 🟢 10 | A3 Consumer | Storico Ordini Guest + Ricevuta Digitale |
 | ⚪ 11+ | Blocco C | Integrazione Supabase reale |
 | ⚪ 12+ | Blocco D | PWA & Performance Audit |
 
 ---
 
-*Ultimo aggiornamento: 18 Maggio 2026 — Versione: Beta Roadmap v1.0*
+*Ultimo aggiornamento: 19 Maggio 2026 — Versione: Beta Roadmap v1.2.0*

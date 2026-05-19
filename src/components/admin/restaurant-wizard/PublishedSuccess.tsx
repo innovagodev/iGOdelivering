@@ -41,13 +41,13 @@ export default function PublishedSuccess({ restaurantName, email }: PublishedSuc
         </div>
         <div className="flex flex-col gap-3">
           <Link
-            href={`/superadmin/restaurants/r-new/access`}
+            href={`/admin/restaurants/r-new/access`}
             className="w-full flex items-center justify-center gap-2 bg-primary text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all"
           >
             Gestisci Accessi
           </Link>
           <Link
-            href="/superadmin/restaurants"
+            href="/admin/restaurants"
             className="w-full flex items-center justify-center gap-2 bg-muted text-foreground px-4 py-3 rounded-xl text-sm font-semibold hover:bg-border transition-all"
           >
             Torna alla lista ristoranti

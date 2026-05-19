@@ -32,12 +32,6 @@ const demoCredentials = [
     password: 'Ristoro2026!',
     isFirstLogin: true,
   },
-  {
-    role: 'superadmin',
-    email: 'admin@igodelivering.it',
-    password: 'Admin2026!',
-    isFirstLogin: false,
-  },
 ];
 
 function CopyButton({ value }: { value: string }) {
@@ -92,12 +86,8 @@ export default function LoginPage() {
         setIsFirstLogin(true);
         setTempToken('temp-session-token');
       } else {
-        login(data.email, match.role as any);
-        if (match.role === 'superadmin') {
-          window.location.href = '/superadmin/restaurants';
-        } else {
-          window.location.href = '/ristoratore/dashboard';
-        }
+        login(data.email, 'ristoratore');
+        window.location.href = '/ristoratore/dashboard';
       }
     }, 1400);
   });
@@ -187,7 +177,7 @@ export default function LoginPage() {
               <div className="mb-8">
                 <h1 className="text-2xl font-bold text-foreground mb-2">Accesso Ristoratore</h1>
                 <p className="text-muted-foreground text-sm">
-                  Inserisci le credenziali fornite dal Superadmin per gestire il tuo locale.
+                  Inserisci le credenziali fornite dall'Admin per gestire il tuo locale.
                 </p>
               </div>
 
@@ -302,26 +292,20 @@ export default function LoginPage() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 text-center">
                   Account di test
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="max-w-xs mx-auto">
                   {demoCredentials.map((creds) => (
-                    <div key={creds.role} className="bg-muted p-3 rounded-xl border border-border">
-                      <p className="text-[10px] font-bold text-primary uppercase mb-1">
-                        {creds.role}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-mono text-foreground">{creds.email}</p>
-                          <p className="text-[10px] font-mono text-muted-foreground">
-                            {creds.password}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => autofill(creds.email, creds.password)}
-                          className="text-[10px] font-bold text-primary hover:underline"
-                        >
-                          Usa
-                        </button>
+                    <div key={creds.role} className="bg-muted p-3 rounded-xl border border-border flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-primary uppercase mb-0.5">Ristoratore Demo</p>
+                        <p className="text-[10px] font-mono text-foreground">{creds.email}</p>
+                        <p className="text-[10px] font-mono text-muted-foreground">{creds.password}</p>
                       </div>
+                      <button
+                        onClick={() => autofill(creds.email, creds.password)}
+                        className="text-[10px] font-bold text-primary hover:underline px-2.5 py-1 bg-background border border-border rounded-lg"
+                      >
+                        Usa
+                      </button>
                     </div>
                   ))}
                 </div>

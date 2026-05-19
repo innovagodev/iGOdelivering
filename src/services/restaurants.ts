@@ -6,7 +6,7 @@ import { Restaurant } from '@/types';
  */
 export const RestaurantService = {
   /**
-   * Recupera tutti i ristoranti (per Superadmin)
+   * Recupera tutti i ristoranti (per Admin)
    */
   async getAll(): Promise<Restaurant[]> {
     // Per ora restituiamo un array vuoto o mock

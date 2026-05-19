@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import AppLogo from '@/components/ui/AppLogo';
 import AppVersion from '@/components/ui/AppVersion';
+import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -34,7 +35,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const superAdminNavGroups: NavGroup[] = [
+const adminNavGroups: NavGroup[] = [
   {
     label: 'Piattaforma',
     items: [
@@ -42,13 +43,13 @@ const superAdminNavGroups: NavGroup[] = [
         id: 'nav-ristoranti',
         label: 'Ristoranti',
         icon: <Store size={18} />,
-        href: '/superadmin/restaurants',
+        href: '/admin/restaurants',
       },
       {
         id: 'nav-utenti',
         label: 'Utenti',
         icon: <Users size={18} />,
-        href: '/superadmin/restaurants',
+        href: '/admin/restaurants',
       },
     ],
   },
@@ -59,13 +60,13 @@ const superAdminNavGroups: NavGroup[] = [
         id: 'nav-impostazioni',
         label: 'Impostazioni',
         icon: <Settings size={18} />,
-        href: '/superadmin/restaurants',
+        href: '/admin/restaurants',
       },
       {
         id: 'nav-sicurezza',
         label: 'Sicurezza',
         icon: <Shield size={18} />,
-        href: '/superadmin/restaurants',
+        href: '/admin/restaurants',
       },
     ],
   },
@@ -137,7 +138,7 @@ interface SidebarProps {
   onToggle: () => void;
   activeSection: string;
   onSectionChange: (section: string) => void;
-  role?: 'superadmin' | 'ristoratore';
+  role?: 'admin' | 'ristoratore';
 }
 
 export default function Sidebar({
@@ -147,7 +148,8 @@ export default function Sidebar({
   onSectionChange,
   role = 'ristoratore',
 }: SidebarProps) {
-  const navGroups = role === 'superadmin' ? superAdminNavGroups : ristoratoreNavGroups;
+  const { logout } = useAuth();
+  const navGroups = role === 'admin' ? adminNavGroups : ristoratoreNavGroups;
 
   return (
     <aside
@@ -163,9 +165,9 @@ export default function Sidebar({
         {!collapsed && (
           <div>
             <span className="font-bold text-lg text-foreground tracking-tight">iGOdelivering</span>
-            {role === 'superadmin' && (
+            {role === 'admin' && (
               <p className="text-[10px] text-primary font-semibold uppercase tracking-wide leading-none mt-0.5">
-                Super Admin
+                Admin
               </p>
             )}
           </div>
@@ -231,14 +233,14 @@ export default function Sidebar({
           <Bell size={18} />
           {!collapsed && <span className="font-medium">Notifiche</span>}
         </button>
-        <Link
-          href="/login"
+        <button
+          onClick={logout}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${collapsed ? 'justify-center' : ''}`}
           title={collapsed ? 'Esci' : undefined}
         >
           <LogOut size={18} />
           {!collapsed && <span className="font-medium">Esci</span>}
-        </Link>
+        </button>
         {!collapsed && (
           <div className="px-3 py-2 border-t border-border/50">
             <AppVersion />

@@ -67,7 +67,7 @@ const roleColors: Record<string, string> = {
 function CopyBtn({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    navigator.clipboard.writeText(value).catch(() => {});
+    navigator.clipboard.writeText(value).catch(() => { });
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -150,14 +150,14 @@ export default function RestaurantAccessPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-ristoranti"
-        onSectionChange={() => {}}
-        role="superadmin"
+        onSectionChange={() => { }}
+        role="admin"
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
         <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
           <Link
-            href="/superadmin/restaurants"
+            href="/admin/restaurants"
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
           >
             <ArrowLeft size={16} />
@@ -176,8 +176,8 @@ export default function RestaurantAccessPage() {
               A
             </div>
             <div className="hidden md:block">
-              <p className="text-sm font-semibold text-foreground leading-none">Super Admin</p>
-              <p className="text-xs text-muted-foreground mt-0.5">admin@gloriaorder.it</p>
+              <p className="text-sm font-semibold text-foreground leading-none">Admin</p>
+              <p className="text-xs text-muted-foreground mt-0.5">admin@igodelivering.it</p>
             </div>
           </div>
         </header>
@@ -341,11 +341,10 @@ export default function RestaurantAccessPage() {
                             {roleLabels[user.role]}
                           </span>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                              user.status === 'active'
+                            className={`text-xs px-2 py-0.5 rounded-full font-semibold ${user.status === 'active'
                                 ? 'bg-[var(--success-bg)] text-[var(--success)]'
                                 : 'bg-[var(--warning-bg)] text-[var(--warning)]'
-                            }`}
+                              }`}
                           >
                             {user.status === 'active' ? 'Attivo' : 'Sospeso'}
                           </span>
@@ -383,11 +382,10 @@ export default function RestaurantAccessPage() {
                         </button>
                         <button
                           onClick={() => toggleSuspend(user.id)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            user.status === 'active'
+                          className={`p-2 rounded-lg transition-colors ${user.status === 'active'
                               ? 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
                               : 'hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)]'
-                          }`}
+                            }`}
                           title={user.status === 'active' ? 'Sospendi accesso' : 'Riattiva accesso'}
                         >
                           <Shield size={14} />

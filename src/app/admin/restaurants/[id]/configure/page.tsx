@@ -984,13 +984,13 @@ export default function RestaurantConfigurePage() {
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-ristoranti"
         onSectionChange={() => {}}
-        role="superadmin"
+        role="admin"
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
           <Link
-            href="/superadmin/restaurants"
+            href="/admin/restaurants"
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
           >
             <ArrowLeft size={16} />
@@ -1002,7 +1002,7 @@ export default function RestaurantConfigurePage() {
           <span className="text-sm text-muted-foreground">Configura</span>
           <div className="flex-1" />
           <Link
-            href={`/superadmin/restaurants/${restaurantId}/access`}
+            href={`/admin/restaurants/${restaurantId}/access`}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border"
           >
             <Users size={15} />

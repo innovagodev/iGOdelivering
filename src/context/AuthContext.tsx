@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Role = 'ristoratore' | 'superadmin' | 'cliente' | null;
+type Role = 'ristoratore' | 'admin' | 'cliente' | null;
 
 interface User {
   id: string;
@@ -47,10 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    const isAdmin = user?.role === 'admin';
     setUser(null);
     localStorage.removeItem('igodelivering_auth');
     document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    window.location.href = '/login';
+    window.location.href = isAdmin ? '/admin' : '/login';
   };
 
   return (
