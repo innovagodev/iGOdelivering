@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/innovagodev/iGOdelivering/compare/v1.4.0...v1.5.0) (2026-05-20)
+
+
+### Features
+
+* **checkout:** ottimizzazione UX mobile-first del checkout, prevenzione auto-zoom campi input iOS, rimozione subtotale e riepilogo piatti Step 1, design minimale coupon e allungamento orari test ([80fd026](https://github.com/innovagodev/iGOdelivering/commit/80fd026624c4498f61b870c313a5a5f845b06531))
+
 ## [1.4.0](https://github.com/innovagodev/iGOdelivering/compare/v1.3.0...v1.4.0) (2026-05-19)
 
 
