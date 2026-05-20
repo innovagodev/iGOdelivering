@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { gsap } from 'gsap';
 import Lenis from 'lenis';
 import {
@@ -21,9 +21,15 @@ import {
   CheckCircle,
   ChefHat,
   Package,
-  Calendar,
   CalendarCheck,
+  Calendar,
   Edit2,
+  Settings,
+  ChevronDown,
+  Mail,
+  CreditCard,
+  Banknote,
+  Wallet,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -70,6 +76,9 @@ interface RestaurantType {
   logoUrl: string;
   freeDeliveryActive?: boolean;
   freeDeliveryThreshold?: number;
+  paymentMethods?: { cash: boolean; card: boolean; paypal: boolean };
+  openingHours?: { start: string; end: string }[];
+  deliveryHours?: { start: string; end: string }[];
 }
 
 // ─── Dynamic Restaurant Resolver ──────────────────────────────
@@ -90,6 +99,9 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       image: 'https://images.unsplash.com/photo-1579751626657-72bc17010498',
       imageAlt: 'Pizza margherita appena sfornata da forno a legna in una pizzeria napoletana',
       logoUrl: '/assets/images/logo_pizzeria.png',
+      paymentMethods: { cash: true, card: true, paypal: true },
+      openingHours: [{ start: '00:00', end: '23:59' }],
+      deliveryHours: [{ start: '00:00', end: '23:59' }],
     };
   } else if (normalizedSlug === 'sushi-zen') {
     return {
@@ -105,6 +117,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c',
       imageAlt: 'Splendido set di sushi e sashimi assortito servito su ardesia scura',
       logoUrl: '/assets/images/logo_sushi.png',
+      paymentMethods: { cash: true, card: true, paypal: false },
     };
   } else if (normalizedSlug === 'burger-house') {
     return {
@@ -120,6 +133,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd',
       imageAlt: 'Un hamburger gourmet gigante con formaggio fuso, bacon e cipolla caramellata',
       logoUrl: '/assets/images/logo_burger.png',
+      paymentMethods: { cash: true, card: true, paypal: true },
     };
   }
 
@@ -142,6 +156,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
     imageAlt: 'Sala interna di un ristorante moderno ed accogliente',
     logoUrl: '',
+    paymentMethods: { cash: true, card: true, paypal: true },
   };
 };
 
@@ -388,15 +403,15 @@ function CartSidebar({
   showClose = false,
   onClose,
   deliveryType,
-  setDeliveryType,
-  address,
-  setAddress,
   minOrder,
   deliveryFee,
   freeDeliveryActive,
   freeDeliveryThreshold,
   actualDeliveryFee,
   onClear,
+  tableNumber,
+  guests,
+  setGuests,
 }: {
   cart: CartItem[];
   onAdd: (item: MenuItemType) => void;
@@ -411,20 +426,20 @@ function CartSidebar({
   restaurant: RestaurantType;
   showClose?: boolean;
   onClose?: () => void;
-  deliveryType: 'domicilio' | 'asporto';
-  setDeliveryType: (v: 'domicilio' | 'asporto') => void;
-  address: string;
-  setAddress: (v: string) => void;
+  deliveryType: 'domicilio' | 'asporto' | 'tavolo';
   minOrder: number;
   deliveryFee: number;
   freeDeliveryActive: boolean;
   freeDeliveryThreshold: number;
   actualDeliveryFee: number;
   onClear?: () => void;
+  tableNumber?: string | null;
+  guests?: number;
+  setGuests?: (v: number) => void;
 }) {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const discount = promoApplied ? subtotal * 0.1 : 0;
-  const total = subtotal - discount + actualDeliveryFee;
+  const total = subtotal - discount;
   const meetsMin = subtotal >= minOrder;
 
   return (
@@ -459,47 +474,29 @@ function CartSidebar({
         </div>
       </div>
 
-      {/* Delivery Type Selector */}
-      {cart.length > 0 && (
-        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/10 flex-shrink-0">
-          <div className="grid grid-cols-2 gap-1 bg-muted/60 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setDeliveryType('domicilio')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${deliveryType === 'domicilio'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Bike size={13} />
-              Domicilio
-            </button>
-            <button
-              type="button"
-              onClick={() => setDeliveryType('asporto')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all ${deliveryType === 'asporto'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-              <Package size={13} />
-              Asporto
-            </button>
-          </div>
 
-          {/* Inline Address Prompt if Domicilio */}
-          {deliveryType === 'domicilio' && (
-            <div className="mt-2 relative">
-              <MapPin size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Inserisci indirizzo per la consegna"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full pl-7 pr-2.5 py-1.5 text-[11px] bg-card border border-border rounded-lg focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground/70"
-              />
+
+      {/* Table info */}
+      {cart.length > 0 && deliveryType === 'tavolo' && (
+        <div className="px-5 py-3 border-b border-border/40 bg-primary/5 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 text-primary font-bold">
+            <MapPin size={16} />
+            <span>Tavolo {tableNumber}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-muted-foreground">Ospiti:</label>
+            <div className="flex items-center bg-card border border-border rounded-lg overflow-hidden">
+              <button 
+                onClick={() => setGuests?.(Math.max(1, (guests || 1) - 1))}
+                className="w-6 h-6 flex items-center justify-center bg-muted/50 hover:bg-muted active:bg-muted/80 transition-colors"
+              >-</button>
+              <span className="w-6 text-center text-xs font-bold">{guests || 1}</span>
+              <button 
+                onClick={() => setGuests?.((guests || 1) + 1)}
+                className="w-6 h-6 flex items-center justify-center bg-muted/50 hover:bg-muted active:bg-muted/80 transition-colors"
+              >+</button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -582,38 +579,10 @@ function CartSidebar({
           </ul>
 
           <div className="px-4 py-3 border-t border-border space-y-3 flex-shrink-0 bg-card">
-            {/* Promo */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Tag
-                  size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="text"
-                  placeholder="Codice promo"
-                  value={promoCode}
-                  onChange={(e) => onPromoChange(e.target.value.toUpperCase())}
-                  className="w-full pl-7 pr-2 py-1.5 text-xs bg-muted border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
-                />
-              </div>
-              <button
-                onClick={onApplyPromo}
-                disabled={!promoCode}
-                className="px-3 py-1.5 bg-secondary text-primary text-xs font-semibold rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors border border-orange-200"
-              >
-                Applica
-              </button>
-            </div>
-            {promoApplied && (
-              <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-lg px-2.5 py-1.5">
-                <CheckCircle size={12} />
-                Promo WELCOME10 applicata: −10%
-              </div>
-            )}
+
 
             {/* Dynamic Free Delivery Progress Bar */}
-            {deliveryType === 'domicilio' && freeDeliveryActive && (
+            {deliveryType !== 'tavolo' && freeDeliveryActive && (
               <div className="bg-muted/30 border border-border/40 rounded-xl p-2.5 space-y-1">
                 {subtotal < freeDeliveryThreshold ? (
                   <>
@@ -637,31 +606,15 @@ function CartSidebar({
             )}
 
             {/* Totals */}
-            <div className="space-y-1.5 text-xs border-t border-border/40 pt-2">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotale</span>
-                <span className="tabular-nums">€ {subtotal.toFixed(2)}</span>
-              </div>
+            <div className="space-y-1.5 text-xs">
               {promoApplied && (
                 <div className="flex justify-between text-[var(--success)]">
                   <span>Sconto 10%</span>
-                  <span className="tabular-nums">−€ {discount.toFixed(2)}</span>
+                  <span className="tabular-nums font-semibold">−€ {discount.toFixed(2)}</span>
                 </div>
               )}
-              {deliveryType === 'domicilio' && (
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Consegna</span>
-                  <span className="tabular-nums font-semibold">
-                    {actualDeliveryFee === 0 ? (
-                      <span className="text-[var(--success)] font-extrabold">Gratis</span>
-                    ) : (
-                      `€ ${actualDeliveryFee.toFixed(2)}`
-                    )}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between font-extrabold text-foreground pt-1.5 border-t border-border text-sm">
-                <span>Totale</span>
+              <div className="flex justify-between font-extrabold text-foreground text-sm pt-0.5">
+                <span>Prezzo</span>
                 <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
               </div>
             </div>
@@ -678,7 +631,7 @@ function CartSidebar({
               disabled={!meetsMin}
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
-              Procedi al pagamento → € {total.toFixed(2)}
+              {deliveryType === 'tavolo' ? 'Invia ordine' : 'Procedi'}
             </button>
           </div>
         </>
@@ -831,46 +784,179 @@ function CheckoutModal({
   setAddress,
   phone,
   setPhone,
+  email,
+  setEmail,
   rememberMe,
   setRememberMe,
   actualDeliveryFee,
   slug,
+  tableNumber,
+  paymentMethods,
+  autoSubmit,
+  currentTimeStr,
+  openingHours,
+  deliveryHours,
+  promoCode,
+  setPromoCode,
+  promoApplied,
+  applyPromo,
 }: {
   open: boolean;
   onClose: () => void;
   cart: CartItem[];
   total: number;
-  deliveryType: 'domicilio' | 'asporto';
-  setDeliveryType: (v: 'domicilio' | 'asporto') => void;
+  deliveryType: 'domicilio' | 'asporto' | 'tavolo';
+  setDeliveryType: (v: 'domicilio' | 'asporto' | 'tavolo') => void;
   name: string;
   setName: (v: string) => void;
   address: string;
   setAddress: (v: string) => void;
   phone: string;
   setPhone: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
   rememberMe: boolean;
   setRememberMe: (v: boolean) => void;
   actualDeliveryFee: number;
   slug: string;
+  tableNumber?: string | null;
+  paymentMethods?: { cash: boolean; card: boolean; paypal: boolean };
+  autoSubmit?: boolean;
+  currentTimeStr: string;
+  openingHours?: { start: string; end: string }[];
+  deliveryHours?: { start: string; end: string }[];
+  promoCode: string;
+  setPromoCode: (v: string) => void;
+  promoApplied: boolean;
+  applyPromo: () => void;
 }) {
-  const [step, setStep] = useState<'details' | 'payment' | 'tracking'>('details');
+  const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
   const [notes, setNotes] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [payMethod, setPayMethod] = useState<'card' | 'cash' | 'online'>('card');
   const [loading, setLoading] = useState(false);
+  const itemsTotal = total - actualDeliveryFee;
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [needRest, setNeedRest] = useState<boolean | null>(null);
+  const [restAmount, setRestAmount] = useState('');
+  const [cardError, setCardError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCardError(null);
+  }, [payMethod]);
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const parts = [];
+    for (let i = 0; i < v.length; i += 4) {
+      parts.push(v.substring(i, i + 4));
+    }
+    return parts.join(' ').slice(0, 19);
+  };
+
+  const formatExpiry = (value: string) => {
+    const clean = value.replace(/[^0-9]/g, '');
+    if (clean.length > 2) {
+      return `${clean.slice(0, 2)}/${clean.slice(2, 4)}`.slice(0, 5);
+    }
+    return clean;
+  };
+
+  const timeSlots = React.useMemo(() => {
+    if (deliveryType === 'tavolo') return [];
+    const activeRanges = deliveryType === 'domicilio' ? (deliveryHours || openingHours || []) : (openingHours || []);
+    const slots: string[] = [];
+    if (activeRanges.length === 0) return [];
+
+    // Parse current time in minutes
+    const [currH, currM] = (currentTimeStr || '00:00').split(':').map(Number);
+    const currMin = currH * 60 + currM;
+
+    // Prep/delivery buffer (in minutes): 30 mins
+    const buffer = 30;
+    const minTimeStart = currMin + buffer;
+
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const slotMin = h * 60 + m;
+        const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+        const inRange = activeRanges.some(
+          (r) => timeStr >= r.start && timeStr <= r.end
+        );
+
+        if (inRange && slotMin >= minTimeStart) {
+          slots.push(timeStr);
+        }
+      }
+    }
+    return slots;
+  }, [deliveryType, openingHours, deliveryHours, currentTimeStr]);
+
+  useEffect(() => {
+    if (timeSlots.length > 0) {
+      if (!deliveryTime || !timeSlots.includes(deliveryTime)) {
+        setDeliveryTime(timeSlots[0]);
+      }
+    } else {
+      setDeliveryTime('');
+    }
+  }, [timeSlots, deliveryTime, setDeliveryTime]);
+
+  useEffect(() => {
+    if (open && paymentMethods) {
+      if (paymentMethods.card !== false) {
+        setPayMethod('card');
+      } else if (paymentMethods.paypal !== false) {
+        setPayMethod('online');
+      } else if (paymentMethods.cash !== false) {
+        setPayMethod('cash');
+      }
+    }
+  }, [open, paymentMethods]);
+
+  useEffect(() => {
+    if (open) {
+      if (autoSubmit) {
+        setStep('details'); // Reset
+        handleOrder();
+      } else {
+        setStep('details');
+        setLoading(false);
+      }
+    }
+  }, [open, autoSubmit]);
 
   const handleOrder = () => {
+    if (payMethod === 'card') {
+      const cleanCard = cardNumber.replace(/\s+/g, '');
+      if (cleanCard.length !== 16 || !/^\d+$/.test(cleanCard)) {
+        setCardError('Numero carta non valido (inserisci 16 cifre).');
+        return;
+      }
+      if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
+        setCardError('Scadenza non valida (usa il formato MM/AA).');
+        return;
+      }
+      if (cardCvv.length !== 3 || !/^\d+$/.test(cardCvv)) {
+        setCardError('CVV non valido (inserisci 3 cifre).');
+        return;
+      }
+      setCardError(null);
+    }
+
     setLoading(true);
-    if (rememberMe) {
+    if (rememberMe && deliveryType !== 'tavolo') {
       try {
-        const guestData = JSON.stringify({ name, phone, address, deliveryType });
+        const guestData = JSON.stringify({ name, phone, email, address, deliveryType });
         localStorage.setItem(`iGO_guest_${slug}`, guestData);
         localStorage.setItem('iGO_guest_info', guestData);
       } catch (err) {
         console.error('Error saving guest info:', err);
       }
-    } else {
+    } else if (deliveryType !== 'tavolo') {
       try {
         localStorage.removeItem(`iGO_guest_${slug}`);
         localStorage.removeItem('iGO_guest_info');
@@ -878,54 +964,86 @@ function CheckoutModal({
     }
     setTimeout(() => {
       setLoading(false);
-      setStep('tracking');
-    }, 1800);
+      setStep('success');
+    }, payMethod === 'online' ? 2200 : 1500);
   };
 
-  const detailsValid = deliveryType === 'asporto' ? !!name && !!phone : !!name && !!address && !!phone;
+  const detailsValid = deliveryType === 'tavolo' 
+    ? true 
+    : deliveryType === 'asporto' 
+      ? !!name && !!phone && !!deliveryTime 
+      : !!name && !!address && !!phone && !!email && email.includes('@') && !!deliveryTime;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       size="lg"
-      title={step === 'tracking' ? 'Ordine in corso' : 'Checkout'}
+      title={step === 'success' ? 'Ordine Confermato' : 'Checkout'}
     >
       {step === 'details' && (
-        <div className="space-y-4">
-          {/* Delivery type selector */}
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-2">
-              Modalità di consegna
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDeliveryType('domicilio')}
-                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all ${deliveryType === 'domicilio'
-                  ? 'border-primary bg-secondary text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                <Bike size={16} />
-                Consegna a domicilio
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeliveryType('asporto')}
-                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all ${deliveryType === 'asporto'
-                  ? 'border-primary bg-secondary text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                <Package size={16} />
-                Asporto
-              </button>
+        <div className="space-y-4 relative">
+          {loading && autoSubmit && (
+            <div className="absolute inset-0 bg-card/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-lg">
+               <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-3" />
+               <p className="text-sm font-bold text-primary animate-pulse">Invio ordine in cucina...</p>
             </div>
+          )}
+          {/* Delivery type selector */}
+          {deliveryType !== 'tavolo' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-2">
+                Modalità di consegna
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType('domicilio')}
+                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'domicilio'
+                    ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                    : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                    }`}
+                >
+                  Consegna a domicilio
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType('asporto')}
+                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
+                    ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                    : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                    }`}
+                >
+                  Asporto
+                </button>
+              </div>
           </div>
+          )}
 
-          {/* Name */}
-          <div>
+          {/* Table info - only for tavolo */}
+          {deliveryType === 'tavolo' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                Tavolo Numero
+              </label>
+              <div className="relative">
+                <MapPin
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="text"
+                  value={tableNumber || ''}
+                  readOnly
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-muted border border-border/80 rounded-lg focus:outline-none focus:ring-0 font-bold text-foreground"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Name - hidden for tavolo */}
+          {deliveryType !== 'tavolo' && (
+            <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
               Nome e Cognome *
             </label>
@@ -939,10 +1057,11 @@ function CheckoutModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Mario Rossi"
-                className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
+                className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
               />
             </div>
           </div>
+          )}
 
           {/* Address — only for home delivery */}
           {deliveryType === 'domicilio' && (
@@ -960,69 +1079,89 @@ function CheckoutModal({
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Via, numero civico, città"
-                  className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
                 />
               </div>
             </div>
           )}
 
-          {/* Phone */}
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-              Numero di telefono *
-            </label>
-            <div className="relative">
-              <Phone
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+39 333 000 0000"
-                className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
-              />
+          {/* Phone - hidden for tavolo */}
+          {deliveryType !== 'tavolo' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                Numero di telefono *
+              </label>
+              <div className="relative">
+                <Phone
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+39 333 000 0000"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Date & time — only for home delivery */}
+          {/* Email — only for home delivery */}
           {deliveryType === 'domicilio' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Data di consegna
-                </label>
-                <div className="relative">
-                  <Calendar
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                  />
-                  <input
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
-                  />
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                Indirizzo Email *
+              </label>
+              <div className="relative">
+                <Mail
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="mario.rossi@email.com"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Orario di consegna / ritiro */}
+          {deliveryType !== 'tavolo' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Clock size={12} />
+                Orario di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
+              </label>
+              <div className="relative">
+                <Clock
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
+                />
+                <select
+                  value={deliveryTime}
+                  onChange={(e) => setDeliveryTime(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all appearance-none font-semibold text-foreground cursor-pointer"
+                >
+                  <option value="">Seleziona orario...</option>
+                  {timeSlots.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                  <ChevronDown size={14} />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Ora di consegna
-                </label>
-                <div className="relative">
-                  <Clock
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                  />
-                  <input
-                    type="time"
-                    value={deliveryTime}
-                    onChange={(e) => setDeliveryTime(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
-                  />
-                </div>
-              </div>
+              {timeSlots.length === 0 && (
+                <p className="text-xs text-red-500 font-semibold mt-1">
+                  Nessun orario disponibile per oggi (il locale è in chiusura).
+                </p>
+              )}
             </div>
           )}
 
@@ -1037,192 +1176,359 @@ function CheckoutModal({
               placeholder={
                 deliveryType === 'domicilio'
                   ? 'Allergie, preferenze, istruzioni per la consegna...'
-                  : 'Allergie, preferenze, orario di ritiro...'
+                  : deliveryType === 'tavolo'
+                    ? 'Allergie, preferenze...'
+                    : 'Allergie, preferenze, orario di ritiro...'
               }
               rows={2}
-              className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors resize-none"
+              className="w-full px-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
             />
           </div>
 
-          <div className="bg-muted rounded-xl p-4 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Riepilogo ordine</p>
-            {cart.map((item) => (
-              <div key={`checkout-${item.id}`} className="flex justify-between text-sm">
-                <span className="text-foreground">
-                  {item.name} ×{item.qty}
-                </span>
-                <span className="tabular-nums font-semibold">
-                  € {(item.price * item.qty).toFixed(2)}
-                </span>
-              </div>
-            ))}
-            <div className="flex justify-between font-bold text-foreground pt-2 border-t border-border">
-              <span>Totale</span>
-              <span className="tabular-nums">€ {total.toFixed(2)}</span>
+          <div className="flex justify-between items-center py-2.5 border-t border-border/40 mt-4 text-sm font-bold text-foreground">
+            <span>Prezzo</span>
+            <span className="tabular-nums text-primary text-base">€ {itemsTotal.toFixed(2)}</span>
+          </div>
+
+          {/* Remember me checkbox - hidden for tavolo */}
+          {deliveryType !== 'tavolo' && (
+            <div className="flex items-center gap-2.5 py-1">
+              <input
+                type="checkbox"
+                id="remember-me"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-primary focus:ring-1 focus:ring-primary/20 focus:ring-offset-0 cursor-pointer"
+              />
+              <label
+                htmlFor="remember-me"
+                className="text-xs text-muted-foreground font-medium cursor-pointer select-none"
+              >
+                Ricordami su questo dispositivo
+              </label>
             </div>
-          </div>
-
-          {/* Remember me checkbox */}
-          <div className="flex items-center gap-2.5 py-1">
-            <input
-              type="checkbox"
-              id="remember-me"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded text-primary focus:ring-0 border-border cursor-pointer"
-            />
-            <label
-              htmlFor="remember-me"
-              className="text-xs text-muted-foreground font-medium cursor-pointer select-none"
-            >
-              Ricordami su questo dispositivo (autocompila i prossimi ordini)
-            </label>
-          </div>
+          )}
 
           <button
-            onClick={() => setStep('payment')}
-            disabled={!detailsValid}
-            className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+            onClick={() => deliveryType === 'tavolo' ? handleOrder() : setStep('payment')}
+            disabled={!detailsValid || loading}
+            className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
           >
-            Continua al pagamento →
+            {loading ? 'Elaborazione...' : deliveryType === 'tavolo' ? 'Invia ordine' : 'Procedi'}
           </button>
         </div>
       )}
 
       {step === 'payment' && (
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-2">
-              Metodo di pagamento
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['card', 'online', 'cash'] as const).map((m) => (
-                <button
-                  key={`pay-${m}`}
-                  onClick={() => setPayMethod(m)}
-                  className={`py-3 rounded-xl border text-xs font-semibold transition-all ${payMethod === m
-                    ? 'border-primary bg-secondary text-primary'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                    }`}
-                >
-                  {m === 'card' ? '💳 Carta' : m === 'online' ? '📱 Online' : '💵 Contanti'}
-                </button>
-              ))}
-            </div>
-          </div>
-          {payMethod === 'card' && (
-            <div className="space-y-3">
+          {(() => {
+            const payOptions = [
+              {
+                id: 'card',
+                title: 'Carta di Credito / Debito',
+                desc: 'Visa, Mastercard, Maestro, PostePay',
+                icon: <CreditCard size={18} className={payMethod === 'card' ? 'text-primary' : 'text-muted-foreground'} />,
+                enabled: paymentMethods?.card !== false
+              },
+              {
+                id: 'online',
+                title: 'Pagamento Online',
+                desc: 'PayPal, Satispay, Apple/Google Pay',
+                icon: <Wallet size={18} className={payMethod === 'online' ? 'text-primary' : 'text-muted-foreground'} />,
+                enabled: paymentMethods?.paypal !== false
+              },
+              {
+                id: 'cash',
+                title: deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna',
+                desc: deliveryType === 'asporto' ? 'Paga direttamente in cassa' : 'Paga all\'arrivo del corriere',
+                icon: <Banknote size={18} className={payMethod === 'cash' ? 'text-primary' : 'text-muted-foreground'} />,
+                enabled: paymentMethods?.cash !== false
+              }
+            ].filter(opt => opt.enabled);
+
+            return (
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                <label className="block text-xs font-semibold text-muted-foreground mb-2">
+                  Metodo di pagamento
+                </label>
+                <div className="space-y-2">
+                  {payOptions.map((opt) => {
+                    const active = payMethod === opt.id;
+                    return (
+                      <button
+                        key={`pay-${opt.id}`}
+                        type="button"
+                        onClick={() => setPayMethod(opt.id as any)}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
+                          active
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                            : 'border-border/60 hover:border-muted-foreground/30 bg-card'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-md ${active ? 'bg-primary/10' : 'bg-muted'}`}>
+                            {opt.icon}
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-foreground">
+                              {opt.title}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {opt.desc}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                          active ? 'border-primary' : 'border-border'
+                        }`}>
+                          {active && (
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {payMethod === 'card' && (
+            <div className="space-y-3 bg-muted/20 border border-border/40 rounded-lg p-3">
+              <div>
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                   Numero carta
                 </label>
-                <input
-                  type="text"
-                  placeholder="1234 5678 9012 3456"
-                  className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors font-mono"
-                />
+                <div className="relative">
+                  <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="1234 5678 9012 3456"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                    className="w-full pl-9 pr-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                     Scadenza
                   </label>
                   <input
                     type="text"
                     placeholder="MM/AA"
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors font-mono"
+                    value={cardExpiry}
+                    onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                    className="w-full px-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-center"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                     CVV
                   </label>
                   <input
                     type="text"
                     placeholder="123"
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors font-mono"
+                    value={cardCvv}
+                    onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+                    className="w-full px-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-center"
                   />
                 </div>
               </div>
+              {cardError && (
+                <p className="text-xs text-red-500 font-semibold mt-1">{cardError}</p>
+              )}
             </div>
           )}
+
           {payMethod === 'cash' && (
-            <div className="bg-[var(--warning-bg)] border border-amber-200 rounded-xl p-4 text-sm text-[var(--warning)]">
-              Il corriere porterà il resto. Assicurati di avere il contante pronto alla consegna.
+            <div className="space-y-3">
+              <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
+                Assicurati di avere il contante pronto {deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.
+              </div>
+              {deliveryType === 'domicilio' && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-muted-foreground">
+                    Hai bisogno di resto?
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'No, precisi', value: 'no' },
+                      { label: 'Sì, da €20', value: '20' },
+                      { label: 'Sì, da €50', value: '50' }
+                    ].map((opt) => (
+                      <button
+                        key={`rest-${opt.value}`}
+                        type="button"
+                        onClick={() => {
+                          if (opt.value !== 'no') {
+                            setRestAmount(opt.value);
+                            setNeedRest(true);
+                          } else {
+                            setRestAmount('');
+                            setNeedRest(false);
+                          }
+                        }}
+                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
+                          (opt.value === 'no' && needRest === false) || (opt.value !== 'no' && needRest === true && restAmount === opt.value)
+                            ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                            : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          <div className="flex justify-between font-bold text-foreground bg-muted rounded-xl p-4">
-            <span>Totale da pagare</span>
-            <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
-          </div>
+
+          {payMethod === 'online' && (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  📱 Pagamento Online
+                </span>
+                <span className="text-xs font-black tracking-tighter text-blue-600 dark:text-blue-400 italic">
+                  Pay<span className="text-cyan-500">Pal</span>
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Verrai reindirizzato al portale sicuro di PayPal per autorizzare la transazione in modo protetto.
+              </p>
+            </div>
+          )}
+
+          {/* Promo Code Input Block */}
+          {deliveryType !== 'tavolo' && (
+            <div className="space-y-1.5 pt-1">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Codice promozionale"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    className="w-full pl-9 pr-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all uppercase font-semibold placeholder:text-muted-foreground/50 text-foreground"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={applyPromo}
+                  disabled={!promoCode || promoApplied}
+                  className="px-4 py-2 bg-secondary text-primary text-xs sm:text-sm font-bold rounded-lg hover:bg-orange-100 disabled:opacity-50 disabled:hover:bg-secondary transition-colors border border-orange-200"
+                >
+                  {promoApplied ? 'Applicato' : 'Applica'}
+                </button>
+              </div>
+              {promoApplied && (
+                <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-md px-2.5 py-1 font-semibold">
+                  <CheckCircle size={12} />
+                  Sconto promozionale del 10% applicato!
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Checkout Finale breakdown display */}
+          {deliveryType === 'domicilio' ? (
+            <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Articoli</span>
+                <span className="tabular-nums font-semibold">€ {(total - actualDeliveryFee).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Consegna</span>
+                <span className="tabular-nums font-semibold">
+                  {actualDeliveryFee === 0 ? (
+                    <span className="text-[var(--success)] font-bold">Gratis</span>
+                  ) : (
+                    `€ ${actualDeliveryFee.toFixed(2)}`
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between font-extrabold text-foreground pt-2 border-t border-border/60 text-sm">
+                <span>Prezzo</span>
+                <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card border border-border/60 rounded-lg p-4 flex justify-between font-extrabold text-foreground text-sm">
+              <span>Prezzo</span>
+              <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => setStep('details')}
-              className="flex-1 py-3 border border-border text-foreground font-semibold rounded-xl hover:bg-muted transition-colors text-sm"
+              className="flex-1 py-3 border border-border/80 text-foreground font-bold rounded-lg hover:bg-muted transition-colors text-xs sm:text-sm"
             >
-              ← Indietro
+              Indietro
             </button>
-            <button
-              onClick={handleOrder}
-              disabled={loading}
-              className="flex-2 flex-1 py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-sm disabled:opacity-70 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Invio ordine...
-                </>
-              ) : (
-                'Conferma Ordine 🍕'
-              )}
-            </button>
+            {payMethod === 'online' ? (
+              <button
+                onClick={handleOrder}
+                disabled={loading}
+                className="flex-[2_2_0%] py-3 bg-[#FFC439] hover:bg-[#F5B100] text-[#003087] font-extrabold rounded-lg transition-all active:scale-95 text-xs sm:text-sm disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm font-sans whitespace-nowrap"
+              >
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-[#003087]/30 border-t-[#003087] rounded-full animate-spin" />
+                    Connessione...
+                  </>
+                ) : (
+                  <span>
+                    Paga con <span className="font-black italic text-[#003087]">Pay<span className="text-[#0079C1]">Pal</span></span>
+                  </span>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={handleOrder}
+                disabled={loading}
+                className="flex-[2_2_0%] py-3 bg-primary text-white font-extrabold rounded-lg hover:bg-[#d43d22] transition-all active:scale-95 text-xs sm:text-sm disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+              >
+                {loading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {payMethod === 'card' ? 'Autorizzazione...' : 'Invio...'}
+                  </>
+                ) : (
+                  payMethod === 'card' ? 'Conferma pagamento' : 'Conferma ordine'
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {step === 'tracking' && (
-        <div className="space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-[var(--success-bg)] rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckCircle size={32} className="text-[var(--success)]" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground">Ordine confermato!</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Stima consegna: <strong>25–40 minuti</strong>
-            </p>
+      {step === 'success' && (
+        <div className="space-y-6 text-center py-6">
+          <div className="w-20 h-20 bg-[var(--success-bg)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <CheckCircle size={40} className="text-[var(--success)]" />
           </div>
-          <div className="relative">
-            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-border" />
-            <ul className="space-y-4">
-              {orderSteps.map((step) => (
-                <li key={step.id} className="flex items-center gap-4 relative">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${step.done
-                      ? 'bg-[var(--success)] text-white'
-                      : step.active
-                        ? 'bg-primary text-white animate-pulse-soft'
-                        : 'bg-muted text-muted-foreground'
-                      }`}
-                  >
-                    {step.icon}
-                  </div>
-                  <div>
-                    <p
-                      className={`text-sm font-semibold ${step.done || step.active ? 'text-foreground' : 'text-muted-foreground'}`}
-                    >
-                      {step.label}
-                    </p>
-                    {step.active && <p className="text-xs text-primary mt-0.5">In corso...</p>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <h3 className="text-2xl font-black text-foreground">Ordine ricevuto!</h3>
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto leading-relaxed">
+            {deliveryType === 'tavolo' 
+              ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato in cucina. Inizieremo subito a prepararlo!`
+              : 'Abbiamo ricevuto il tuo ordine. Lo prepareremo al più presto.'}
+          </p>
           <button
-            onClick={onClose}
-            className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-sm"
+            onClick={() => {
+              onClose();
+              setTimeout(() => window.location.reload(), 300);
+            }}
+            className="w-full mt-6 py-3.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-sm shadow-lg shadow-primary/20"
           >
-            Chiudi
+            Torna al menu
           </button>
         </div>
       )}
@@ -1420,10 +1726,6 @@ function CustomizationView({
           <span className="text-[12px] font-bold">←</span>
           <span>CARRELLO</span>
         </button>
-        <h3 className="font-bold text-foreground text-xs truncate max-w-[180px]">
-          {cartItem ? `Modifica ${item.name}` : `Personalizza ${item.name}`}
-        </h3>
-        <span className="w-16" /> {/* spacer to balance the back button */}
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 scrollbar-hide">
@@ -1604,11 +1906,7 @@ function CustomizationView({
       </div>
 
       {/* Footer Sticky Bar */}
-      <div className="px-4 py-3 border-t border-border flex-shrink-0 bg-card space-y-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-muted-foreground">Prezzo Piatto:</span>
-          <span className="text-sm font-extrabold text-foreground tabular-nums">€ {totalPrice.toFixed(2)}</span>
-        </div>
+      <div className="px-4 py-3 border-t border-border flex-shrink-0 bg-card shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2.5 bg-muted border border-border px-2.5 py-1 rounded-xl">
             <button
@@ -1656,6 +1954,8 @@ export default function CustomerStorefront() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | null>(null);
+  const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -1668,10 +1968,14 @@ export default function CustomerStorefront() {
   const [isScrolled, setIsScrolled] = useState(false);
 
   // Lifted customer and delivery type states
-  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto'>('domicilio');
+  const searchParams = useSearchParams();
+  const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto' | 'tavolo'>('domicilio');
+  const [tableNumber, setTableNumber] = useState<string | null>(null);
+  const [guests, setGuests] = useState<number>(2);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [cartView, setCartView] = useState<'cart' | 'customize'>('cart');
 
@@ -1681,6 +1985,15 @@ export default function CustomerStorefront() {
   const headerBgGradRef = useRef<HTMLDivElement>(null);
   const headerContentRef = useRef<HTMLDivElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
+
+  // Table Order Detection
+  useEffect(() => {
+    const tavoloParam = searchParams?.get('tavolo');
+    if (tavoloParam) {
+      setDeliveryType('tavolo');
+      setTableNumber(tavoloParam);
+    }
+  }, [searchParams]);
 
   // Load custom settings override from localStorage
   useEffect(() => {
@@ -1709,6 +2022,7 @@ export default function CustomerStorefront() {
         const data = JSON.parse(saved);
         if (data.name) setName(data.name);
         if (data.phone) setPhone(data.phone);
+        if (data.email) setEmail(data.email);
         if (data.address) setAddress(data.address);
         if (data.deliveryType) setDeliveryType(data.deliveryType);
       }
@@ -1716,6 +2030,33 @@ export default function CustomerStorefront() {
       console.error('Error loading saved guest info:', err);
     }
   }, [slug]);
+
+  // Immediate Availability Check on Page Load & Config Changes
+  useEffect(() => {
+    const tavoloParam = searchParams?.get('tavolo');
+    if (tavoloParam) return; // Skip closed/delivery popups for table ordering
+
+    const currentStr = getCurrentTimeStr();
+    
+    // Check if open
+    const isOpen = !restaurantSettings.openingHours || restaurantSettings.openingHours.length === 0 || 
+      restaurantSettings.openingHours.some(h => currentStr >= h.start && currentStr <= h.end);
+    
+    if (!isOpen) {
+      setAvailabilityError('closed');
+      return;
+    }
+
+    // Check delivery hours
+    if (deliveryType === 'domicilio') {
+      const canDeliver = !restaurantSettings.deliveryHours || restaurantSettings.deliveryHours.length === 0 ||
+        restaurantSettings.deliveryHours.some(h => currentStr >= h.start && currentStr <= h.end);
+      if (!canDeliver) {
+        setAvailabilityError('no_delivery');
+        return;
+      }
+    }
+  }, [simulatedTime, deliveryType, restaurantSettings, searchParams]);
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -1913,8 +2254,10 @@ export default function CustomerStorefront() {
       );
       return;
     }
-    // Immediate insertion for standard menu cards
-    addToCartCustom(item, 1, [], [], '');
+    // Always open customizer for new items
+    setCustomizingItem(item);
+    setCartView('customize');
+    setCartOpen(true);
   };
 
   const removeFromCart = (cartId: string) => {
@@ -1927,6 +2270,59 @@ export default function CustomerStorefront() {
   };
 
   const deleteFromCart = (cartId: string) => setCart((prev) => prev.filter((c) => c.cartId !== cartId));
+
+  const getCurrentTimeStr = () => {
+    if (simulatedTime) return simulatedTime;
+    const now = new Date();
+    return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  };
+
+  const getRestaurantStatus = () => {
+    const currentStr = getCurrentTimeStr();
+    const isOpen = !restaurantSettings.openingHours || restaurantSettings.openingHours.length === 0 || 
+      restaurantSettings.openingHours.some(h => currentStr >= h.start && currentStr <= h.end);
+    
+    if (!isOpen) return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
+    
+    const canDeliver = !restaurantSettings.deliveryHours || restaurantSettings.deliveryHours.length === 0 ||
+      restaurantSettings.deliveryHours.some(h => currentStr >= h.start && currentStr <= h.end);
+      
+    if (!canDeliver) return { label: 'SOLO ASPORTO', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
+    
+    return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
+  };
+
+  const status = getRestaurantStatus();
+
+  const handleCheckoutClick = () => {
+    if (deliveryType === 'tavolo') {
+      setCartOpen(false);
+      setCheckoutOpen(true);
+      return;
+    }
+
+    const currentStr = getCurrentTimeStr();
+
+    const isOpen = !restaurantSettings.openingHours || restaurantSettings.openingHours.length === 0 || 
+      restaurantSettings.openingHours.some(h => currentStr >= h.start && currentStr <= h.end);
+    
+    if (!isOpen) {
+      setAvailabilityError('closed');
+      return;
+    }
+
+    if (deliveryType === 'domicilio') {
+      const canDeliver = !restaurantSettings.deliveryHours || restaurantSettings.deliveryHours.length === 0 ||
+        restaurantSettings.deliveryHours.some(h => currentStr >= h.start && currentStr <= h.end);
+      if (!canDeliver) {
+        setAvailabilityError('no_delivery');
+        return;
+      }
+    }
+
+    setCartOpen(false);
+    setCheckoutOpen(true);
+  };
 
   const applyPromo = () => {
     if (promoCode === 'WELCOME10') setPromoApplied(true);
@@ -2021,7 +2417,7 @@ export default function CustomerStorefront() {
                 placeholder="Cerca nel menu..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 h-10 text-sm rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
+                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
                   ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
                   : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
                   }`}
@@ -2032,16 +2428,18 @@ export default function CustomerStorefront() {
           {/* Desktop Booking & Cart Button */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Desktop Booking Button */}
-            <button
-              onClick={() => setShowBookingModal(true)}
-              className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
-                : 'bg-[var(--success)] text-white hover:bg-green-700'
-                }`}
-            >
-              <CalendarCheck size={14} />
-              PRENOTA TAVOLO
-            </button>
+            {deliveryType !== 'tavolo' && (
+              <button
+                onClick={() => setShowBookingModal(true)}
+                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
+                  ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                  : 'bg-[var(--success)] text-white hover:bg-green-700'
+                  }`}
+              >
+                <CalendarCheck size={14} />
+                PRENOTA TAVOLO
+              </button>
+            )}
 
             {/* Cart Button (Visible on both desktop & mobile) */}
             <button
@@ -2092,6 +2490,9 @@ export default function CustomerStorefront() {
               </p>
 
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
+                <span className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}>
+                  {status.label}
+                </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Star size={14} className="fill-amber-400 text-amber-400" />
                   <strong>{restaurantSettings.rating}</strong>
@@ -2113,29 +2514,33 @@ export default function CustomerStorefront() {
             </div>
 
             {/* Mobile/Desktop Booking Button */}
-            <div className="flex sm:hidden mt-2">
-              <button
-                onClick={() => setShowBookingModal(true)}
-                className="flex items-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white px-5 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg"
-              >
-                <CalendarCheck size={16} />
-                PRENOTA UN TAVOLO
-              </button>
-            </div>
+            {deliveryType !== 'tavolo' && (
+              <div className="flex sm:hidden mt-2">
+                <button
+                  onClick={() => setShowBookingModal(true)}
+                  className="flex items-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white px-5 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg"
+                >
+                  <CalendarCheck size={16} />
+                  PRENOTA UN TAVOLO
+                </button>
+              </div>
+            )}
 
           </div>
         </div>
       </div>
 
       {/* Promo banner */}
-      <div className="bg-secondary border-b border-orange-200">
-        <div className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-2.5 flex items-center gap-3">
-          <Tag size={14} className="text-primary flex-shrink-0" />
-          <p className="text-sm text-primary font-semibold">
-            🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo ordine!
-          </p>
+      {deliveryType !== 'tavolo' && (
+        <div className="bg-secondary border-b border-orange-200">
+          <div className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-2.5 flex items-center gap-3">
+            <Tag size={14} className="text-primary flex-shrink-0" />
+            <p className="text-sm text-primary font-semibold">
+              🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo ordine!
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sticky category nav */}
       <div className="sticky top-16 z-30 bg-card border-b border-border shadow-card">
@@ -2265,7 +2670,7 @@ export default function CustomerStorefront() {
           />
 
           {/* Cart Card Container */}
-          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col h-[80vh] z-10 animate-pop-in overflow-hidden">
+          <div className={`relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col z-10 animate-pop-in overflow-hidden ${cartView === 'cart' ? 'max-h-[85vh] h-auto' : 'h-[85vh]'}`}>
             <div className="flex-1 overflow-hidden">
               {cartView === 'cart' ? (
                 <CartSidebar
@@ -2277,10 +2682,7 @@ export default function CustomerStorefront() {
                     handleEditCartItem(cartItem);
                     setCartView('customize');
                   }}
-                  onCheckout={() => {
-                    setCartOpen(false);
-                    setCheckoutOpen(true);
-                  }}
+                  onCheckout={handleCheckoutClick}
                   promoCode={promoCode}
                   onPromoChange={setPromoCode}
                   promoApplied={promoApplied}
@@ -2294,15 +2696,15 @@ export default function CustomerStorefront() {
                     setCustomizingCartItem(null);
                   }}
                   deliveryType={deliveryType}
-                  setDeliveryType={setDeliveryType}
-                  address={address}
-                  setAddress={setAddress}
                   minOrder={restaurantSettings.minOrder}
                   deliveryFee={restaurantSettings.deliveryFee}
                   freeDeliveryActive={restaurantSettings.freeDeliveryActive || false}
                   freeDeliveryThreshold={restaurantSettings.freeDeliveryThreshold || 0}
                   actualDeliveryFee={actualDeliveryFee}
                   onClear={() => setCart([])}
+                  tableNumber={tableNumber}
+                  guests={guests}
+                  setGuests={setGuests}
                 />
               ) : (
                 <CustomizationView
@@ -2317,12 +2719,14 @@ export default function CustomerStorefront() {
                     if (customizingItem) {
                       if (customizingCartItem) {
                         updateCartItem(customizingCartItem.cartId!, qty, added, removed, note);
+                        setCartView('cart');
                       } else {
                         addToCartCustom(customizingItem, qty, added, removed, note);
+                        setCartOpen(false);
+                        setTimeout(() => setCartView('cart'), 300);
                       }
                       setCustomizingItem(null);
                       setCustomizingCartItem(null);
-                      setCartView('cart');
                     }
                   }}
                 />
@@ -2346,11 +2750,75 @@ export default function CustomerStorefront() {
         setAddress={setAddress}
         phone={phone}
         setPhone={setPhone}
+        email={email}
+        setEmail={setEmail}
         rememberMe={rememberMe}
         setRememberMe={setRememberMe}
         actualDeliveryFee={actualDeliveryFee}
         slug={slug}
+        tableNumber={tableNumber}
+        paymentMethods={restaurantSettings.paymentMethods}
+        autoSubmit={deliveryType === 'tavolo'}
+        currentTimeStr={getCurrentTimeStr()}
+        openingHours={restaurantSettings.openingHours}
+        deliveryHours={restaurantSettings.deliveryHours}
+        promoCode={promoCode}
+        setPromoCode={setPromoCode}
+        promoApplied={promoApplied}
+        applyPromo={applyPromo}
       />
+
+      {/* Availability Error Modal */}
+      <Modal
+        open={!!availabilityError}
+        onClose={() => setAvailabilityError(null)}
+        hideClose={true}
+        size="sm"
+      >
+        <div className="space-y-4 text-center py-1">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'}`}>
+            {availabilityError === 'closed' ? <Clock size={22} /> : <Bike size={22} />}
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-foreground tracking-tight">
+              {availabilityError === 'closed' ? 'Locale Chiuso' : 'Consegna Non Disponibile'}
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed px-2">
+              {availabilityError === 'closed'
+                ? 'Ci dispiace, il ristorante è chiuso in questo momento. Puoi consultare il menu ma non ordinare.'
+                : 'La consegna a domicilio non è attiva in questa fascia oraria. Puoi comunque ordinare con ritiro da asporto!'}
+            </p>
+          </div>
+          <div className="space-y-1.5 pt-2">
+            {availabilityError === 'no_delivery' ? (
+              <>
+                <button
+                  onClick={() => {
+                    setDeliveryType('asporto');
+                    setAvailabilityError(null);
+                  }}
+                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
+                >
+                  Ordina da Asporto
+                </button>
+                <button
+                  onClick={() => setAvailabilityError(null)}
+                  className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-semibold rounded-xl transition-all active:scale-95"
+                >
+                  Consulta il Menu
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setAvailabilityError(null)}
+                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
+              >
+                Consulta il Menu
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* Booking modal */}
       {showBookingModal && (
@@ -2511,24 +2979,55 @@ export default function CustomerStorefront() {
         </div>
       </footer>
 
-      {/* Mobile Sticky Bottom Bar for Cart */}
-      {cartCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-card/85 backdrop-blur-md border-t border-border z-30 lg:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.05)] flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Il tuo ordine</span>
-            <span className="text-sm font-bold text-foreground tabular-nums">
-              € {total.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">({cartCount} prod.)</span>
-            </span>
-          </div>
+      {/* Floating Test controller for Simulation */}
+      <div className="fixed bottom-24 right-6 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-64 transition-all duration-300">
+        <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
+          <Settings size={12} className="text-primary animate-spin" style={{ animationDuration: '4s' }} /> Test Orari & Disponibilità
+        </h4>
+        <div className="grid grid-cols-1 gap-1 text-[11px]">
           <button
-            onClick={() => setCartOpen(true)}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/20"
+            onClick={() => setSimulatedTime(null)}
+            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
+              simulatedTime === null
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+            }`}
           >
-            <ShoppingCart size={16} />
-            Vedi Carrello
+            <span>Ora Reale ({new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })})</span>
+            <span className={`w-2 h-2 rounded-full ${simulatedTime === null ? 'bg-green-500' : 'bg-zinc-400'}`} />
+          </button>
+          
+          <button
+            onClick={() => setSimulatedTime('16:00')}
+            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
+              simulatedTime === '16:00'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+            }`}
+          >
+            <span>Locale Chiuso (Simula 16:00)</span>
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+          </button>
+
+          <button
+            onClick={() => setSimulatedTime('12:15')}
+            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
+              simulatedTime === '12:15'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+            }`}
+          >
+            <span>Solo Asporto (Simula 12:15)</span>
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
           </button>
         </div>
-      )}
+        <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 text-center leading-normal">
+          Modifica il tempo simulato per vedere cambiare lo stato nell'header o testare i blocchi nel checkout!
+        </p>
+      </div>
+
+      {/* Mobile Sticky Bottom Bar for Cart */}
+
     </div>
   );
 }

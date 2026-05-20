@@ -46,10 +46,13 @@
 - [x] **Guest Checkout con Persistenza `localStorage`**: salvataggio automatico del recapito cliente basato sulla spunta "Ricordami" legata al ristorante.
 - [x] **Contatore Carrello Mobile**: badge numerico nel float button del carrello mobile integrato nella sticky bar di fondo.
 
+- [x] **Modalità Tavolo nel Checkout (QR Code)**: Supporto ordine al tavolo con `?tavolo=XX`, checkout semplificato che salta nome/indirizzo/pagamento e invia l'ordine direttamente.
+- [x] **Metodi di Pagamento Condizionali**: Il ristorante può configurare (Carta, PayPal, Contanti) e il checkout cliente mostrerà solo quelli abilitati (attualmente mockati in localStorage).
+
 ### Da Completare — PRIORITÀ ALTA
-- [ ] **Modalità Tavolo nel Checkout**: Aggiungere una terza opzione "Ordina al Tavolo" (oltre a Domicilio e Asporto) con campo per il numero del tavolo. Opzione attivabile/disattivabile dal pannello ristoratore.
-- [ ] **Validazione Orari di Apertura**: Leggere gli orari di apertura del ristorante (in futuro da Supabase, ora da dati mock) e mostrare un banner "Siamo chiusi — prossima apertura alle 12:00" impedendo il checkout immediato ma permettendo ordini programmati.
-- [ ] **Gestione Codice Promo Reale**: Il codice promo attivo (es. `BELLANAPOLI10`) deve essere configurabile dal pannello ristoratore. Attualmente è hardcoded nella vetrina.
+- [x] **Validazione Orari di Apertura & Fasce Consegna**: Leggere gli orari di apertura del ristorante. Mostrare un popup/banner "Locale Chiuso" se fuori orario. Se aperto, verificare le fasce orarie di consegna specifiche: mostrare "Consegna non disponibile" se fuori orario di consegna stabilito.
+- [ ] **Integrazione Reale PayPal**: Configurazione account PayPal Developer, setup account sandbox, variabili d'ambiente, ed implementazione del client SDK `@paypal/react-paypal-js` per ricevere pagamenti reali, con cattura dei pagamenti ed endpoint API server-side per la validazione sicura del carrello.
+- [ ] **Gestione Codice Promo Reale**: Il codice promo attivo (es. `WELCOME10`) deve essere configurabile dal pannello ristoratore. Attualmente è hardcoded nella vetrina.
 
 ### Da Completare — PRIORITÀ MEDIA
 - [ ] **Pagina Prodotto Espansa**: Al click su una card prodotto aprire un bottom-sheet/modal con foto grande, descrizione completa, lista allergeni completa, e varianti/modificatori (es. "senza cipolla", "piccante extra").
@@ -104,7 +107,7 @@
 ### B1.2 — Gestione Menu `/ristoratore/menu` — Parzialmente Completata
 - [ ] **Configurazione Avanzata Piatti**:
   - [ ] Contrassegnare un piatto come *"In Promozione"* (mostrato nel carosello offerte).
-  - [ ] Toggle *"Prodotto Personalizzabile"*: per abilitare/disabilitare ingredienti extra e note.
+  - [ ] Toggle *"Prodotto Personalizzabile"*: per abilitare/disabilitare ingredienti extra (es. carbonara = no modifiche, solo note testuali).
   - [ ] Gestione personalizzata delle categorie del menu.
 
 - [x] Lista prodotti con categorie collassabili
@@ -125,6 +128,7 @@
 ### B1.4 — Promozioni & Codici Sconto `/ristoratore/promozioni` — DA CREARE 🟡
 - [ ] **Pagina dedicata `/ristoratore/promozioni`** accessibile dalla sidebar.
 - [ ] **Creazione Codice Promo**: Form per creare codice (stringa testuale), tipo sconto (% o €), valore, data di scadenza, numero massimo utilizzi.
+- [ ] **Regole di Validità Coupon**: Il coupon si applica solo per Domicilio/Asporto (non al tavolo) e solo al primo ordine di un nuovo utente (controllo su email o numero di telefono). Il ristoratore può attivarlo/mostrarlo o nasconderlo dal pannello.
 - [ ] **Lista Codici Attivi**: Tabella con codice, tipo, valore, utilizzi/max, scadenza, stato (Attivo/Scaduto) e pulsante disattiva.
 - [ ] **Integrazione Vetrina**: Il codice promo creato qui deve essere quello controllato nel checkout della vetrina cliente.
 - [ ] **Persistenza Mock**: Salvataggio in `localStorage` con chiave `iGO_promos_[restaurantId]`.
@@ -135,10 +139,11 @@
 - [ ] **Orari di Apertura**: Griglia settimanale (Lun–Dom) con toggle aperto/chiuso e input orario apertura/chiusura per fascia pranzo e cena.
 - [ ] **Logo & Copertina**: Gestione del Logo del ristorante e dell'Immagine Hero della vetrina cliente, permettendo al ristoratore di personalizzare e brandizzare integralmente la propria pagina pubblica (in futuro integrato con Supabase Storage).
 - [ ] **Preferenze Ordini**: Toggle per abilitare/disabilitare Domicilio, Asporto e Ordine al Tavolo.
+- [ ] **Metodi di Pagamento**: Checkbox per abilitare/disabilitare pagamenti (Carta di Credito, PayPal, Contanti).
 - [ ] **Impostazioni Consegna**:
   - [ ] Costo spedizione fisso (€) configurabile dal ristoratore e mostrato al cliente nel riepilogo carrello (solo per Domicilio).
   - [ ] Toggle *"Consegna Gratuita sopra soglia"*: se attivo, inserire l'importo minimo (es. €25). Se disattivato, la barra di progresso nella vetrina non compare.
-- [ ] **Link Vetrina & QR Code**: Mostrare il link diretto `igodelivering.it/menu/[slug]` con pulsante copia e visualizzazione del QR Code generato dal link.
+- [ ] **Link Vetrina & QR Code**: Mostrare il link diretto `igodelivering.it/menu/[slug]` con pulsante copia e visualizzazione del QR Code generato dal link (anche per QR Code tavolo).
 - [ ] **Persistenza Mock**: Salvataggio in `localStorage` con chiave `iGO_settings_[restaurantId]`.
 
 ### B1.6 — Prenotazioni Tavoli `/ristoratore/prenotazioni` — DA CREARE 🟢
