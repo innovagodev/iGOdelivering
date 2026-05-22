@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/innovagodev/iGOdelivering/compare/v1.8.2...v1.9.0) (2026-05-22)
+
+
+### Features
+
+* uniformata la gestione degli orari di apertura tra admin e ristoratore con layout responsive mobile-first ([9872d35](https://github.com/innovagodev/iGOdelivering/commit/9872d351db21482b87ac7edeaaab178f2efc7d52))
+
 ### [1.8.2](https://github.com/innovagodev/iGOdelivering/compare/v1.8.1...v1.8.2) (2026-05-22)
 
 
