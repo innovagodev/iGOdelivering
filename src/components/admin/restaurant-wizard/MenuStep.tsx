@@ -104,10 +104,60 @@ export default function MenuStep({
   allergensList,
 }: MenuStepProps) {
   const [isPromo, setIsPromo] = React.useState(!!newItem.originalPrice);
+  const [availableAllergens, setAvailableAllergens] = React.useState<string[]>([]);
+  const [customAllergen, setCustomAllergen] = React.useState('');
 
   React.useEffect(() => {
     setIsPromo(!!newItem.originalPrice);
   }, [newItem.originalPrice]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('iGO_allergens_list');
+      let list: string[] = [];
+      if (stored) {
+        try {
+          list = JSON.parse(stored);
+        } catch (e) {
+          list = [];
+        }
+      }
+      const initialSet = new Set([...list, ...(newItem.allergens || [])]);
+      const merged = Array.from(initialSet).filter(Boolean);
+      setAvailableAllergens(merged);
+    }
+  }, [newItem.allergens]);
+
+  const saveAllergensToLocalStorage = (list: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iGO_allergens_list', JSON.stringify(list));
+    }
+  };
+
+  const handleAddAllergen = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    setAvailableAllergens((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      const next = [...prev, trimmed];
+      saveAllergensToLocalStorage(next);
+      return next;
+    });
+    if (!newItem.allergens.includes(trimmed)) {
+      toggleAllergen(trimmed);
+    }
+  };
+
+  const handleDeleteAllergen = (a: string) => {
+    setAvailableAllergens((prev) => {
+      const next = prev.filter((x) => x !== a);
+      saveAllergensToLocalStorage(next);
+      return next;
+    });
+    if (newItem.allergens.includes(a)) {
+      toggleAllergen(a);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -349,11 +399,7 @@ export default function MenuStep({
                     €{parseFloat(item.price || '0').toFixed(2)}
                   </p>
                 )}
-                {item.visibility.mode !== 'always' && (
-                  <span className="inline-flex items-center gap-1 text-[9px] bg-orange-100 text-primary px-1.5 py-0.5 rounded mt-1 font-bold">
-                    VISIBILITÀ LIMITATA
-                  </span>
-                )}
+                {/* Visibility logic removed */}
               </div>
             </div>
           ))}
@@ -526,121 +572,101 @@ export default function MenuStep({
                 </div>
               </div>
               <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                  Allergeni
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {allergensList.map((a) => (
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Allergeni
+                  </p>
+                  <div className="flex items-center gap-1.5">
                     <button
-                      key={a}
-                      onClick={() => toggleAllergen(a)}
-                      className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${newItem.allergens.includes(a) ? 'bg-[var(--danger-bg)] border-[var(--danger)] text-[var(--danger)]' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}
+                      type="button"
+                      onClick={() => {
+                        setNewItem((p) => ({ ...p, allergens: [] }));
+                      }}
+                      className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
                     >
-                      {a}
+                      Pulisci
                     </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Visibility Panel */}
-            <div className="pt-4 border-t border-border">
-              <button
-                onClick={() => setShowVisibilityPanel(!showVisibilityPanel)}
-                className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
-              >
-                {showVisibilityPanel ? (
-                  <ChevronDown size={14} className="rotate-180" />
-                ) : (
-                  <ChevronDown size={14} />
-                )}
-                VISIBILITÀ E DISPONIBILITÀ AVANZATA
-              </button>
-              {showVisibilityPanel && (
-                <div className="mt-4 p-4 bg-card border border-border rounded-xl space-y-5 animate-in fade-in slide-in-from-top-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                        Modalità
-                      </p>
-                      <div className="space-y-2">
-                        {[
-                          { id: 'always', label: 'Sempre visibile' },
-                          { id: 'time_range', label: 'In determinate fasce orarie' },
-                          { id: 'date_range', label: 'In un periodo specifico' },
-                          { id: 'hidden', label: 'Nascosto (Bozza)' },
-                        ].map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() =>
-                              setNewItem((p) => ({
-                                ...p,
-                                visibility: { ...p.visibility, mode: m.id as any },
-                              }))
-                            }
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${newItem.visibility.mode === m.id ? 'bg-primary/10 border-primary text-primary' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
-                          >
-                            {m.label}
-                            {newItem.visibility.mode === m.id && <Eye size={12} />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {newItem.visibility.mode === 'time_range' && (
-                      <div className="space-y-4">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                          Seleziona Giorni e Orari
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {days.map((d) => (
-                            <button
-                              key={d}
-                              onClick={() => toggleVisibilityDay(d)}
-                              className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${newItem.visibility.days.includes(d) ? 'bg-primary text-white border-primary' : 'bg-muted border-border text-muted-foreground'}`}
-                            >
-                              {d.substring(0, 3)}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <label className="block text-[10px] font-bold text-muted-foreground mb-1">
-                              Dalle
-                            </label>
-                            <input
-                              type="time"
-                              value={newItem.visibility.timeFrom}
-                              onChange={(e) =>
-                                setNewItem((p) => ({
-                                  ...p,
-                                  visibility: { ...p.visibility, timeFrom: e.target.value },
-                                }))
-                              }
-                              className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-[10px] font-bold text-muted-foreground mb-1">
-                              Alle
-                            </label>
-                            <input
-                              type="time"
-                              value={newItem.visibility.timeTo}
-                              onChange={(e) =>
-                                setNewItem((p) => ({
-                                  ...p,
-                                  visibility: { ...p.visibility, timeTo: e.target.value },
-                                }))
-                              }
-                              className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <span className="text-[9px] text-muted-foreground">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewItem((p) => ({ ...p, allergens: [...availableAllergens] }));
+                      }}
+                      className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                    >
+                      Tutti
+                    </button>
                   </div>
                 </div>
-              )}
+                
+                <div className="flex flex-wrap gap-2 mb-3 max-h-36 overflow-y-auto pr-1">
+                  {availableAllergens.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
+                  )}
+                  {availableAllergens.map((a) => {
+                    const isActive = newItem.allergens.includes(a);
+                    return (
+                      <div
+                        key={a}
+                        onClick={() => toggleAllergen(a)}
+                        className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
+                          isActive
+                            ? 'bg-amber-100 border-amber-300 text-amber-800'
+                            : 'bg-card border-border text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {a}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAllergen(a);
+                          }}
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95"
+                          style={{ fontSize: '7px', lineHeight: '1' }}
+                          title={`Elimina ${a}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customAllergen}
+                    onChange={(e) => setCustomAllergen(e.target.value)}
+                    placeholder="Nuovo allergene (es. Arachidi)"
+                    className="flex-1 px-3 py-2 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring min-w-0"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = customAllergen.trim();
+                        if (val) {
+                          handleAddAllergen(val);
+                          setCustomAllergen('');
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = customAllergen.trim();
+                      if (val) {
+                        handleAddAllergen(val);
+                        setCustomAllergen('');
+                      }
+                    }}
+                    className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                  >
+                    <Plus size={10} />
+                    Aggiungi
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 pt-4">

@@ -64,6 +64,7 @@ export default function ItemForm({
   const [draft, setDraft] = useState<MenuItemDraft>({
     ...item,
     optionGroups: item.optionGroups ? [...item.optionGroups] : [],
+    visibility: 'always',
   });
   const [isPromo, setIsPromo] = useState(!!item.originalPrice);
   const [newCategoryInput, setNewCategoryInput] = useState('');
@@ -76,15 +77,34 @@ export default function ItemForm({
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [modalOptionGroups, setModalOptionGroups] = useState<OptionGroup[]>([]);
   const [customAllergen, setCustomAllergen] = useState('');
+  const [availableAllergens, setAvailableAllergens] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDraft({
       ...item,
       optionGroups: item.optionGroups ? [...item.optionGroups] : [],
+      visibility: 'always',
     });
     setIsPromo(!!item.originalPrice);
   }, [item]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('iGO_allergens_list');
+      let list: string[] = [];
+      if (stored) {
+        try {
+          list = JSON.parse(stored);
+        } catch (e) {
+          list = [];
+        }
+      }
+      const initialSet = new Set([...list, ...(item.allergens || [])]);
+      const merged = Array.from(initialSet).filter(Boolean);
+      setAvailableAllergens(merged);
+    }
+  }, [item.allergens]);
 
   useEffect(() => {
     if (isSupplementsModalOpen) {
@@ -93,6 +113,35 @@ export default function ItemForm({
       setSelectedGroupId(groups.length > 0 ? groups[0].id : null);
     }
   }, [isSupplementsModalOpen, draft.optionGroups]);
+
+  const saveAllergensToLocalStorage = (list: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iGO_allergens_list', JSON.stringify(list));
+    }
+  };
+
+  const handleAddAllergen = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    setAvailableAllergens((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      const next = [...prev, trimmed];
+      saveAllergensToLocalStorage(next);
+      return next;
+    });
+    if (!draft.allergens.includes(trimmed)) {
+      setDraft((p) => ({ ...p, allergens: [...p.allergens, trimmed] }));
+    }
+  };
+
+  const handleDeleteAllergen = (a: string) => {
+    setAvailableAllergens((prev) => {
+      const next = prev.filter((x) => x !== a);
+      saveAllergensToLocalStorage(next);
+      return next;
+    });
+    setDraft((p) => ({ ...p, allergens: p.allergens.filter((x) => x !== a) }));
+  };
 
   const toggleAllergen = (a: string) => {
     setDraft((p) => ({
@@ -179,9 +228,7 @@ export default function ItemForm({
     );
   };
 
-  const allAvailableAllergens = Array.from(
-    new Set([...allergensList, ...draft.allergens])
-  );
+  // availableAllergens is managed state-side
 
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
@@ -212,16 +259,12 @@ export default function ItemForm({
               <select
                 value={draft.category}
                 onChange={(e) => setDraft((p) => ({ ...p, category: e.target.value }))}
-                className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer"
+                className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
               >
                 {categories.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-              />
             </div>
             <button
               type="button"
@@ -299,70 +342,7 @@ export default function ItemForm({
           )}
         </div>
 
-        {/* Visibility */}
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-            Visibilità
-          </label>
-          <div className="relative">
-            <select
-              value={draft.visibility}
-              onChange={(e) => setDraft((p) => ({ ...p, visibility: e.target.value as VisibilityType }))}
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer"
-            >
-              <option value="always">Sempre visibile</option>
-              <option value="hidden">Nascosto</option>
-              <option value="scheduled">Orario programmato</option>
-            </select>
-            <ChevronDown
-              size={14}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-            />
-          </div>
-        </div>
 
-        {/* Scheduled visibility parameters */}
-        {draft.visibility === 'scheduled' && (
-          <div className="sm:col-span-2 bg-muted/20 border border-border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Clock size={16} className="text-primary flex-shrink-0" />
-              <span className="text-xs text-muted-foreground font-semibold">Orario Programmato:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">da</span>
-              <input
-                type="time"
-                value={draft.visibilitySchedule?.from || ''}
-                onChange={(e) =>
-                  setDraft((p) => ({
-                    ...p,
-                    visibilitySchedule: {
-                      ...p.visibilitySchedule,
-                      from: e.target.value,
-                      to: p.visibilitySchedule?.to || '',
-                    },
-                  }))
-                }
-                className="w-[180px] max-w-full px-2.5 py-1.5 text-base bg-input border border-border rounded-lg focus:outline-none"
-              />
-              <span className="text-xs text-muted-foreground">a</span>
-              <input
-                type="time"
-                value={draft.visibilitySchedule?.to || ''}
-                onChange={(e) =>
-                  setDraft((p) => ({
-                    ...p,
-                    visibilitySchedule: {
-                      from: p.visibilitySchedule?.from || '',
-                      to: e.target.value,
-                    },
-                  }))
-                }
-                className="w-[180px] max-w-full px-2.5 py-1.5 text-base bg-input border border-border rounded-lg focus:outline-none"
-              />
-            </div>
-          </div>
-        )}
 
         {/* Image Drag-and-Drop Dropzone */}
         <div className="sm:col-span-2">
@@ -468,22 +448,25 @@ export default function ItemForm({
               <span className="text-[10px] text-muted-foreground">|</span>
               <button
                 type="button"
-                onClick={() => setDraft((p) => ({ ...p, allergens: [...allergensList] }))}
+                onClick={() => setDraft((p) => ({ ...p, allergens: [...availableAllergens] }))}
                 className="text-[10px] font-bold text-primary hover:underline uppercase cursor-pointer"
               >
                 Seleziona Tutti
               </button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5 p-3 bg-muted/20 border border-border rounded-xl">
-            {allAvailableAllergens.map((a) => {
+          
+          <div className="flex flex-wrap gap-2.5 p-3 bg-muted/20 border border-border rounded-xl">
+            {availableAllergens.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
+            )}
+            {availableAllergens.map((a) => {
               const isActive = draft.allergens.includes(a);
               return (
-                <button
+                <div
                   key={a}
-                  type="button"
                   onClick={() => toggleAllergen(a)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer active:scale-95 ${
+                  className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-7 ${
                     isActive
                       ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm shadow-amber-300/10'
                       : 'bg-card border-border text-muted-foreground hover:border-amber-300 hover:text-foreground'
@@ -491,7 +474,19 @@ export default function ItemForm({
                 >
                   {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 mr-1.5 animate-pulse" />}
                   {a}
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteAllergen(a);
+                    }}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95"
+                    style={{ fontSize: '8px', lineHeight: '1' }}
+                    title={`Elimina ${a}`}
+                  >
+                    ✕
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -502,16 +497,14 @@ export default function ItemForm({
               type="text"
               value={customAllergen}
               onChange={(e) => setCustomAllergen(e.target.value)}
-              placeholder="Aggiungi allergeni personalizzati (es. Anacardi)"
+              placeholder="Aggiungi nuovo allergene (es. Arachidi)"
               className="flex-1 px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   const val = customAllergen.trim();
                   if (val) {
-                    if (!draft.allergens.includes(val)) {
-                      setDraft((p) => ({ ...p, allergens: [...p.allergens, val] }));
-                    }
+                    handleAddAllergen(val);
                     setCustomAllergen('');
                   }
                 }
@@ -522,9 +515,7 @@ export default function ItemForm({
               onClick={() => {
                 const val = customAllergen.trim();
                 if (val) {
-                  if (!draft.allergens.includes(val)) {
-                    setDraft((p) => ({ ...p, allergens: [...p.allergens, val] }));
-                  }
+                  handleAddAllergen(val);
                   setCustomAllergen('');
                 }
               }}

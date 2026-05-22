@@ -102,13 +102,12 @@ export default function RestaurantInfoStep({
                 <select
                   value={info.category}
                   onChange={(e) => setInfo((p) => ({ ...p, category: e.target.value }))}
-                  className={`${inputCls} pl-9 pr-8 appearance-none`}
+                  className={`${inputCls} pl-9 pr-8`}
                 >
                   {allCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-                <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
               <button
                 type="button"

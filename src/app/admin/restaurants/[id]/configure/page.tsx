@@ -1100,16 +1100,12 @@ export default function RestaurantConfigurePage() {
                 <select
                   value={restaurantStatus}
                   onChange={(e) => setRestaurantStatus(e.target.value)}
-                  className="px-3.5 py-2.5 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring appearance-none pr-8 font-medium text-base"
+                  className="px-3.5 py-2.5 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring pr-8 font-medium text-base"
                 >
                   <option value="published">Pubblicato</option>
                   <option value="draft">Bozza</option>
                   <option value="suspended">Sospeso</option>
                 </select>
-                <ChevronDown
-                  size={13}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                />
               </div>
             </div>
 
