@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.8.2](https://github.com/innovagodev/iGOdelivering/compare/v1.8.1...v1.8.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* risolto blocco dello scroll su carrello, checkout e foglio di personalizzazione piatto ([819f2ee](https://github.com/innovagodev/iGOdelivering/commit/819f2ee78d272e2a158fa450f8b728cab73e737b))
+
 ### [1.8.1](https://github.com/innovagodev/iGOdelivering/compare/v1.8.0...v1.8.1) (2026-05-22)
 
 ## [1.8.0](https://github.com/innovagodev/iGOdelivering/compare/v1.7.0...v1.8.0) (2026-05-22)
