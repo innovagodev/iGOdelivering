@@ -58,7 +58,7 @@ export default function ImpostazioniPage() {
   const [tableMode, setTableMode] = useState(true);
 
   const [fixedFee, setFixedFee] = useState('2.5');
-  const [minOrder, setMinOrder] = useState('10');
+  const [minOrder, setMinOrder] = useState('0');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('25');
   const [freeDeliveryActive, setFreeDeliveryActive] = useState(true);
 
@@ -113,7 +113,7 @@ export default function ImpostazioniPage() {
             },
             deliveryConfig: {
               fixedFee: 2.5,
-              minOrder: 10,
+              minOrder: 0,
               freeDeliveryThreshold: 25,
               freeDeliveryActive: true,
             },

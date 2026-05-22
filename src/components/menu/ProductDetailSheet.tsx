@@ -186,23 +186,7 @@ export default function ProductDetailSheet({
           {/* Cover image */}
           <div className="relative h-48 w-full rounded-2xl overflow-hidden shadow-xs">
             <AppImage src={item.image} alt={item.imageAlt} fill className="object-cover" />
-            <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10">
-              {item.popular && (
-                <Badge variant="primary" className="shadow-sm font-bold bg-amber-500 border-none">
-                  ⭐ POPOLARE
-                </Badge>
-              )}
-              {item.veg && (
-                <Badge variant="success" className="shadow-sm font-bold bg-green-600 border-none">
-                  🌿 VEG
-                </Badge>
-              )}
-              {item.spicy && (
-                <Badge variant="danger" className="shadow-sm font-bold bg-red-600 border-none">
-                  🌶️ SPICY
-                </Badge>
-              )}
-            </div>
+
           </div>
 
           {/* Details */}

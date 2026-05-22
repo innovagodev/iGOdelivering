@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { PauseCircle, PlayCircle, Zap, Store } from 'lucide-react';
@@ -90,7 +90,6 @@ export default function RistoratoreMenuPage() {
   const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [items, setItems] = useState<MenuItem[]>(initialMenuItems);
   const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tutti');
@@ -100,6 +99,62 @@ export default function RistoratoreMenuPage() {
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+  const slugify = (text: string) => {
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\-]+/g, '')
+      .replace(/\-\-+/g, '-');
+  };
+
+  const restaurantId = user?.restaurantId || 'r-001';
+  const slug = slugify(user?.restaurantName || 'Pizzeria Bella Napoli');
+
+  const [items, setItems] = useState<MenuItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('igodelivering_auth');
+      let rId = 'r-001';
+      let rName = 'Pizzeria Bella Napoli';
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          rId = parsedUser.restaurantId || 'r-001';
+          rName = parsedUser.restaurantName || 'Pizzeria Bella Napoli';
+        } catch {}
+      }
+      const slg = ((text: string) => {
+        return text
+          .toString()
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/[^\w\-]+/g, '')
+          .replace(/\-\-+/g, '-');
+      })(rName);
+      const stored =
+        localStorage.getItem(`iGO_menu_items_${slg}`) ||
+        localStorage.getItem(`iGO_menu_items_${rId}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch {}
+      }
+    }
+    return initialMenuItems;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(items));
+      localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(items));
+    }
+  }, [items, restaurantId, slug]);
 
   const showFeedback = (msg: string) => {
     setBulkActionFeedback(msg);
@@ -122,11 +177,16 @@ export default function RistoratoreMenuPage() {
     });
 
   const addMenuItem = (draft: MenuItemDraft) => {
+    const isPromoActive = !!draft.originalPrice && parseFloat(draft.originalPrice) > 0;
+    const listPrice = parseFloat(draft.price) || 0;
+    const promoPrice = isPromoActive ? parseFloat(draft.originalPrice!) : undefined;
+
     const newItem: MenuItem = {
       id: `mi-${Date.now()}`,
       name: draft.name,
       category: draft.category,
-      price: parseFloat(draft.price) || 0,
+      price: isPromoActive ? promoPrice! : listPrice,
+      originalPrice: isPromoActive ? listPrice : undefined,
       description: draft.description,
       available: draft.available,
       image: draft.imageUrl,
@@ -143,6 +203,10 @@ export default function RistoratoreMenuPage() {
   };
 
   const saveEditItem = (draft: MenuItemDraft) => {
+    const isPromoActive = !!draft.originalPrice && parseFloat(draft.originalPrice) > 0;
+    const listPrice = parseFloat(draft.price) || 0;
+    const promoPrice = isPromoActive ? parseFloat(draft.originalPrice!) : undefined;
+
     setItems((p) =>
       p.map((m) =>
         m.id === draft.id
@@ -150,7 +214,8 @@ export default function RistoratoreMenuPage() {
               ...m,
               name: draft.name,
               category: draft.category,
-              price: parseFloat(draft.price) || 0,
+              price: isPromoActive ? promoPrice! : listPrice,
+              originalPrice: isPromoActive ? listPrice : undefined,
               description: draft.description,
               available: draft.available,
               image: draft.imageUrl || m.image,
@@ -166,25 +231,30 @@ export default function RistoratoreMenuPage() {
     showFeedback(`"${draft.name}" aggiornato`);
   };
 
-  const itemToDraft = (i: MenuItem): MenuItemDraft => ({
-    id: i.id,
-    name: i.name,
-    category: i.category,
-    price: i.price.toString(),
-    description: i.description,
-    available: i.available,
-    imageUrl: i.image,
-    allergens: i.allergens,
-    visibility: i.visibility,
-    visibilitySchedule: i.visibilitySchedule || { from: '', to: '' },
-    optionGroups: i.optionGroups || [],
-  });
+  const itemToDraft = (i: MenuItem): MenuItemDraft => {
+    const isPromoActive = i.originalPrice !== undefined && i.originalPrice > i.price;
+    return {
+      id: i.id,
+      name: i.name,
+      category: i.category,
+      price: isPromoActive ? i.originalPrice!.toString() : i.price.toString(),
+      originalPrice: isPromoActive ? i.price.toString() : '',
+      description: i.description,
+      available: i.available,
+      imageUrl: i.image,
+      allergens: i.allergens,
+      visibility: i.visibility,
+      visibilitySchedule: i.visibilitySchedule || { from: '', to: '' },
+      optionGroups: i.optionGroups || [],
+    };
+  };
 
   const emptyDraft = (): MenuItemDraft => ({
     id: '',
     name: '',
     category: 'Pizza',
     price: '',
+    originalPrice: '',
     description: '',
     available: true,
     imageUrl: '',

@@ -58,7 +58,8 @@ import {
   WizardOptionGroup,
   WizardOptionChoice,
   MenuItemDraft,
-  OptionGroup
+  OptionGroup,
+  MenuItem
 } from '@/types';
 
 import {
@@ -190,7 +191,7 @@ export default function RestaurantConfigurePage() {
       id: 'z-1',
       name: 'Zona Centro',
       radius: 3,
-      minOrder: 15,
+      minOrder: 0,
       deliveryFee: 2.5,
       freeDeliveryThreshold: 35,
       enabled: true,
@@ -256,6 +257,7 @@ export default function RestaurantConfigurePage() {
     name: '',
     category: 'Pizza',
     price: '',
+    originalPrice: '',
     description: '',
     available: true,
     imageUrl: '',
@@ -463,7 +465,7 @@ export default function RestaurantConfigurePage() {
           id: 'z-1',
           name: 'Zona Centro',
           radius: 3,
-          minOrder: 15,
+          minOrder: 0,
           deliveryFee: 2.5,
           freeDeliveryThreshold: 35,
           enabled: true,
@@ -617,14 +619,19 @@ export default function RestaurantConfigurePage() {
 
         const itemOptionGroupIds = item.optionGroups ? item.optionGroups.map((g) => g.id) : [];
 
+        const hasPromo = item.originalPrice !== undefined && item.originalPrice !== null && Number(item.originalPrice) > 0;
+        const draftPrice = hasPromo ? item.originalPrice!.toString() : item.price.toString();
+        const draftOriginalPrice = hasPromo ? item.price.toString() : '';
+
         return {
           id: item.id,
           name: item.name,
           category: item.category,
-          price: item.price,
-          description: item.description,
+          price: draftPrice,
+          originalPrice: draftOriginalPrice,
+          description: item.description || '',
           available: item.available,
-          imageUrl: item.imageUrl,
+          imageUrl: (item as any).image || item.imageUrl || '',
           allergens: item.allergens || [],
           imageFile: null,
           optionGroups: itemOptionGroupIds,
@@ -654,7 +661,7 @@ export default function RestaurantConfigurePage() {
       const slug = slugify(info.name);
 
       // 1. Wizard items to domain items
-      const domainMenuItems: MenuItemDraft[] = menuItems.map((item) => {
+      const domainMenuItems: MenuItem[] = menuItems.map((item) => {
         let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
         let visibilitySchedule: { from: string; to: string } | undefined = undefined;
 
@@ -682,15 +689,22 @@ export default function RestaurantConfigurePage() {
           };
         }).filter((g): g is OptionGroup => g !== null);
 
+        const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
+        const listPrice = parseFloat(item.price) || 0;
+        const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
+
         return {
-          id: item.id,
+          id: item.id || `mi-${Date.now()}-${Math.random()}`,
           name: item.name,
           category: item.category,
-          price: item.price.toString(),
+          price: isPromoActive ? promoPrice! : listPrice,
+          originalPrice: isPromoActive ? listPrice : undefined,
           description: item.description,
           available: item.available,
-          imageUrl: item.imageUrl,
-          allergens: item.allergens,
+          image: item.imageUrl,
+          imageAlt: item.name,
+          allergens: item.allergens || [],
+          orders: 0,
           visibility,
           visibilitySchedule,
           optionGroups: mappedOptionGroups,
@@ -837,7 +851,7 @@ export default function RestaurantConfigurePage() {
         id: `z-${Date.now()}`,
         name: 'Nuova Zona',
         radius: 5,
-        minOrder: 20,
+        minOrder: 0,
         deliveryFee: 3,
         freeDeliveryThreshold: 40,
         enabled: true,
@@ -876,6 +890,29 @@ export default function RestaurantConfigurePage() {
     if (!newItem.name || !newItem.price) return;
     setMenuItems((p) => [...p, { ...newItem, id: `mi-${Date.now()}` }]);
     setShowAddItem(false);
+    setNewItem({
+      id: '',
+      name: '',
+      category: menuCategories[0] || 'Pizza',
+      price: '',
+      originalPrice: '',
+      description: '',
+      available: true,
+      imageUrl: '',
+      imageFile: null,
+      allergens: [],
+      optionGroups: [],
+      visibility: {
+        mode: 'always',
+        timeFrom: '10:00',
+        timeTo: '15:00',
+        days: [...DAYS],
+        dateFrom: '',
+        dateFromTime: '10:00',
+        dateTo: '',
+        dateToTime: '15:00',
+      },
+    });
   };
   const toggleAllergen = (a: string) =>
     setNewItem((p) => ({

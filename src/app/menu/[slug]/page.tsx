@@ -25,7 +25,6 @@ import {
   Calendar,
   Edit2,
   Settings,
-  ChevronDown,
   Mail,
   CreditCard,
   Banknote,
@@ -101,7 +100,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       rating: 4.8,
       reviews: 312,
       deliveryTime: '25–40 min',
-      minOrder: 12,
+      minOrder: 0,
       deliveryFee: 2.5,
       phone: '+39 02 1234567',
       image: 'https://images.unsplash.com/photo-1579751626657-72bc17010498',
@@ -119,7 +118,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       rating: 4.9,
       reviews: 184,
       deliveryTime: '30–50 min',
-      minOrder: 20,
+      minOrder: 0,
       deliveryFee: 3.5,
       phone: '+39 02 7654321',
       image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c',
@@ -135,7 +134,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       rating: 4.7,
       reviews: 245,
       deliveryTime: '20–35 min',
-      minOrder: 10,
+      minOrder: 0,
       deliveryFee: 2.0,
       phone: '+39 02 9876543',
       image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd',
@@ -158,7 +157,7 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
     rating: 4.6,
     reviews: 42,
     deliveryTime: '30–45 min',
-    minOrder: 15,
+    minOrder: 0,
     deliveryFee: 2.9,
     phone: '+39 02 0000000',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
@@ -719,32 +718,7 @@ function MenuItemCard({
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
-          <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10">
-            {item.popular && (
-              <Badge
-                variant="primary"
-                className={`shadow-sm font-bold bg-amber-500 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}
-              >
-                ⭐ POPOLARE
-              </Badge>
-            )}
-            {item.veg && (
-              <Badge
-                variant="success"
-                className={`shadow-sm font-bold bg-green-600 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}
-              >
-                🌿 VEG
-              </Badge>
-            )}
-            {item.spicy && (
-              <Badge
-                variant="danger"
-                className={`shadow-sm font-bold bg-red-600 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}
-              >
-                🌶️ SPICY
-              </Badge>
-            )}
-          </div>
+
         </div>
         <div className={`${compact ? 'p-3 pb-1' : 'p-4'} flex-1`}>
           <h4
@@ -1269,7 +1243,7 @@ function CheckoutModal({
                 <select
                   value={deliveryTime}
                   onChange={(e) => setDeliveryTime(e.target.value)}
-                  className="w-[240px] max-w-full pl-9 pr-8 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all appearance-none font-semibold text-foreground cursor-pointer"
+                  className="w-full pl-9 pr-10 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-foreground cursor-pointer"
                 >
                   <option value="">Seleziona orario...</option>
                   {timeSlots.map((slot) => (
@@ -1278,9 +1252,6 @@ function CheckoutModal({
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                  <ChevronDown size={14} />
-                </div>
               </div>
               {timeSlots.length === 0 && (
                 <p className="text-xs text-red-500 font-semibold mt-1">
@@ -2145,6 +2116,40 @@ export default function CustomerStorefront() {
   const [promoError, setPromoError] = useState<string | null>(null);
   const [appliedPromoDetail, setAppliedPromoDetail] = useState<any>(null);
 
+  const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>(menuItems);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && slug) {
+      const getRestaurantId = (s: string): string => {
+        if (s.startsWith('r-')) return s;
+        if (s === 'pizzeria-bella-napoli') return 'r-001';
+        if (s === 'trattoria-da-mario') return 'r-002';
+        if (s === 'sushi-zen') return 'r-003';
+        if (s === 'osteria-del-porto') return 'r-004';
+        if (s === 'burger-house') return 'r-005';
+        return 'r-001';
+      };
+      const restaurantId = getRestaurantId(slug);
+      const stored = localStorage.getItem(`iGO_menu_items_${slug}`) || localStorage.getItem(`iGO_menu_items_${restaurantId}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMenuItemsList(parsed);
+          }
+        } catch (e) {
+          console.error('Error parsing stored menu items:', e);
+        }
+      }
+    }
+  }, [slug]);
+
+  // Dynamic categories list based on loaded menu items
+  const categories = [
+    'Promozioni',
+    ...Array.from(new Set(menuItemsList.map((item) => item.category).filter((cat) => cat !== 'Promozioni')))
+  ];
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('Promozioni');
   const [searchQuery, setSearchQuery] = useState('');
@@ -2275,6 +2280,30 @@ export default function CustomerStorefront() {
       lenis.destroy();
     };
   }, []);
+
+  // Lock scroll and stop Lenis when any modal or sheet is open
+  useEffect(() => {
+    const isAnyModalOpen = isDetailSheetOpen || checkoutOpen || !!availabilityError || cartOpen;
+
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+      if (lenisRef.current) {
+        lenisRef.current.stop();
+      }
+    } else {
+      document.body.style.overflow = '';
+      if (lenisRef.current) {
+        lenisRef.current.start();
+      }
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      if (lenisRef.current) {
+        lenisRef.current.start();
+      }
+    };
+  }, [isDetailSheetOpen, checkoutOpen, availabilityError, cartOpen]);
 
   // GSAP Navbar Smooth Transition
   useEffect(() => {
@@ -2411,7 +2440,7 @@ export default function CustomerStorefront() {
       prev.map((c) => {
         if (c.cartId !== cartId) return c;
         const extraPrice = addedIngredients.reduce((sum, ext) => sum + ext.price, 0);
-        const baseItem = menuItems.find((m) => m.id === c.id) || c;
+        const baseItem = menuItemsList.find((m) => m.id === c.id) || c;
         return {
           ...c,
           qty,
@@ -2425,7 +2454,7 @@ export default function CustomerStorefront() {
   };
 
   const handleEditCartItem = (cartItem: CartItem) => {
-    const baseItem = menuItems.find((i) => i.id === cartItem.id) || cartItem;
+    const baseItem = menuItemsList.find((i) => i.id === cartItem.id) || cartItem;
     setCustomizingCartItem(cartItem);
     setCustomizingItem(baseItem);
   };
@@ -2564,14 +2593,14 @@ export default function CustomerStorefront() {
       : 0;
   const total = subtotal - discount + actualDeliveryFee;
 
-  const filteredItems = menuItems.filter(
+  const filteredItems = menuItemsList.filter(
     (item) =>
       searchQuery === '' ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const promoItems = menuItems.filter(
+  const promoItems = menuItemsList.filter(
     (item) => item.originalPrice && item.originalPrice > item.price
   );
 
@@ -2579,7 +2608,7 @@ export default function CustomerStorefront() {
     ? filteredItems
     : activeCategory === 'Promozioni'
       ? promoItems
-      : menuItems.filter((i) => i.category === activeCategory);
+      : menuItemsList.filter((i) => i.category === activeCategory);
 
   const handleCategoryClick = (cat: string) => {
     setActiveCategory(cat);
@@ -2877,20 +2906,7 @@ export default function CustomerStorefront() {
                 </div>
               )}
 
-              {/* Popular section */}
-              {!searchQuery && menuItems.filter((i) => i.popular).length > 0 && (
-                <div className="mb-8 border-b border-border/40 pb-6">
-                  <PopularSection
-                    items={menuItems.filter((i) => i.popular)}
-                    cart={cart}
-                    onAdd={addToCart}
-                    onCustomize={(item) => {
-                      setCustomizingItem(item);
-                    }}
-                    onRemove={removeFromCart}
-                  />
-                </div>
-              )}
+
 
               <div className="flex items-center gap-3 mb-5">
                 <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">

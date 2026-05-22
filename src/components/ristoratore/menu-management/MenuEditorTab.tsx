@@ -218,9 +218,22 @@ export default function MenuEditorTab({
                             {item.name}
                           </h3>
                         </div>
-                        <p className="text-sm sm:text-base font-extrabold text-foreground whitespace-nowrap">
-                          € {item.price.toFixed(2)}
-                        </p>
+                        <div className="text-right">
+                          {item.originalPrice && item.originalPrice > item.price ? (
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                                € {item.originalPrice.toFixed(2)}
+                              </span>
+                              <span className="text-sm sm:text-base font-extrabold text-primary whitespace-nowrap">
+                                € {item.price.toFixed(2)}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm sm:text-base font-extrabold text-foreground whitespace-nowrap">
+                              € {item.price.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                         {item.description}

@@ -19,6 +19,7 @@ export interface MenuItem {
   name: string;
   category: string;
   price: number;
+  originalPrice?: number;
   description: string;
   available: boolean;
   image: string;
@@ -35,6 +36,7 @@ export interface MenuItemDraft {
   name: string;
   category: string;
   price: string;
+  originalPrice?: string;
   description: string;
   available: boolean;
   imageUrl: string;

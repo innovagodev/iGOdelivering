@@ -103,6 +103,12 @@ export default function MenuStep({
   days,
   allergensList,
 }: MenuStepProps) {
+  const [isPromo, setIsPromo] = React.useState(!!newItem.originalPrice);
+
+  React.useEffect(() => {
+    setIsPromo(!!newItem.originalPrice);
+  }, [newItem.originalPrice]);
+
   return (
     <div className="space-y-8">
       <div>
@@ -329,9 +335,20 @@ export default function MenuStep({
                   </button>
                 </div>
                 <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
-                <p className="text-sm font-bold text-foreground mt-1">
-                  €{parseFloat(item.price || '0').toFixed(2)}
-                </p>
+                {item.originalPrice ? (
+                  <div className="mt-1 flex flex-col">
+                    <span className="text-xs text-muted-foreground line-through">
+                      €{parseFloat(item.price || '0').toFixed(2)}
+                    </span>
+                    <span className="text-sm font-bold text-foreground">
+                      €{parseFloat(item.originalPrice || '0').toFixed(2)}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm font-bold text-foreground mt-1">
+                    €{parseFloat(item.price || '0').toFixed(2)}
+                  </p>
+                )}
                 {item.visibility.mode !== 'always' && (
                   <span className="inline-flex items-center gap-1 text-[9px] bg-orange-100 text-primary px-1.5 py-0.5 rounded mt-1 font-bold">
                     VISIBILITÀ LIMITATA
@@ -378,6 +395,45 @@ export default function MenuStep({
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                       Prezzo (€) *
                     </label>
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex-1">
+                        <Euro
+                          size={14}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <input
+                          type="number"
+                          value={newItem.price}
+                          onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))}
+                          placeholder="7.50"
+                          step="0.1"
+                          className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none py-2">
+                        <input
+                          type="checkbox"
+                          checked={isPromo}
+                          onChange={(e) => {
+                            setIsPromo(e.target.checked);
+                            if (!e.target.checked) {
+                              setNewItem((p) => ({ ...p, originalPrice: '' }));
+                            }
+                          }}
+                          className="w-4 h-4 text-primary border-border rounded focus:ring-ring cursor-pointer"
+                        />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Promo
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                {isPromo && (
+                  <div className="animate-in fade-in duration-200">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                      Prezzo Scontato (€) *
+                    </label>
                     <div className="relative">
                       <Euro
                         size={14}
@@ -385,15 +441,15 @@ export default function MenuStep({
                       />
                       <input
                         type="number"
-                        value={newItem.price}
-                        onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))}
-                        placeholder="7.50"
-                        step="0.5"
+                        value={newItem.originalPrice || ''}
+                        onChange={(e) => setNewItem((p) => ({ ...p, originalPrice: e.target.value }))}
+                        placeholder="5.50"
+                        step="0.1"
                         className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   </div>
-                </div>
+                )}
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     Descrizione

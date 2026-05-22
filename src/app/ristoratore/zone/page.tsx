@@ -14,7 +14,7 @@ const defaultZones: DeliveryZoneConfig[] = [
     id: 'zone-1',
     name: 'Zona Centro (Vicino)',
     radius: 2,
-    minOrder: 10,
+    minOrder: 0,
     deliveryFee: 2.0,
     freeDeliveryThreshold: 25,
     enabled: true,
@@ -23,7 +23,7 @@ const defaultZones: DeliveryZoneConfig[] = [
     id: 'zone-2',
     name: 'Zona Periferia (Medio)',
     radius: 5,
-    minOrder: 15,
+    minOrder: 0,
     deliveryFee: 4.0,
     freeDeliveryThreshold: 35,
     enabled: true,
@@ -32,7 +32,7 @@ const defaultZones: DeliveryZoneConfig[] = [
     id: 'zone-3',
     name: 'Fuori Comune (Lontano)',
     radius: 10,
-    minOrder: 25,
+    minOrder: 0,
     deliveryFee: 6.0,
     freeDeliveryThreshold: 50,
     enabled: false,
@@ -54,7 +54,7 @@ export default function DeliveryZonesPage() {
   // Form states
   const [name, setName] = useState('');
   const [radius, setRadius] = useState('2');
-  const [minOrder, setMinOrder] = useState('10');
+  const [minOrder, setMinOrder] = useState('0');
   const [deliveryFee, setDeliveryFee] = useState('2');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('25');
   const [isEnabled, setIsEnabled] = useState(true);
@@ -111,7 +111,7 @@ export default function DeliveryZonesPage() {
     setEditingZone(null);
     setName('');
     setRadius('2');
-    setMinOrder('10');
+    setMinOrder('0');
     setDeliveryFee('2.5');
     setFreeDeliveryThreshold('25');
     setIsEnabled(true);

@@ -30,6 +30,7 @@ interface MenuItemDraft {
   name: string;
   category: string;
   price: string;
+  originalPrice?: string;
   description: string;
   available: boolean;
   imageUrl: string;
@@ -64,6 +65,7 @@ export default function ItemForm({
     ...item,
     optionGroups: item.optionGroups ? [...item.optionGroups] : [],
   });
+  const [isPromo, setIsPromo] = useState(!!item.originalPrice);
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -75,6 +77,14 @@ export default function ItemForm({
   const [modalOptionGroups, setModalOptionGroups] = useState<OptionGroup[]>([]);
   const [customAllergen, setCustomAllergen] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraft({
+      ...item,
+      optionGroups: item.optionGroups ? [...item.optionGroups] : [],
+    });
+    setIsPromo(!!item.originalPrice);
+  }, [item]);
 
   useEffect(() => {
     if (isSupplementsModalOpen) {
@@ -224,26 +234,69 @@ export default function ItemForm({
           </div>
         </div>
 
-        {/* Price */}
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-            Prezzo (€) *
-          </label>
-          <div className="relative">
-            <Euro
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="number"
-              value={draft.price}
-              onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
-              placeholder="9.50"
-              min={0}
-              step={0.5}
-              className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
+        {/* Price & Promotion */}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Prezzo di Listino (€) *
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Euro
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="number"
+                  value={draft.price}
+                  onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
+                  placeholder="9.50"
+                  min={0}
+                  step={0.1}
+                  className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none py-2 px-1">
+                <input
+                  type="checkbox"
+                  checked={isPromo}
+                  onChange={(e) => {
+                    setIsPromo(e.target.checked);
+                    if (!e.target.checked) {
+                      setDraft((p) => ({ ...p, originalPrice: '' }));
+                    }
+                  }}
+                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Promozione
+                </span>
+              </label>
+            </div>
           </div>
+
+          {isPromo && (
+            <div className="animate-fadeIn">
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Prezzo Scontato (€) *
+              </label>
+              <div className="relative">
+                <Euro
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="number"
+                  value={draft.originalPrice || ''}
+                  onChange={(e) => setDraft((p) => ({ ...p, originalPrice: e.target.value }))}
+                  placeholder="7.50"
+                  min={0}
+                  step={0.1}
+                  className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Visibility */}
@@ -550,7 +603,11 @@ export default function ItemForm({
         <button
           onClick={() => {
             if (!draft.name || !draft.price) return;
-            onSave(draft);
+            const finalDraft = {
+              ...draft,
+              originalPrice: isPromo ? (draft.originalPrice || '') : '',
+            };
+            onSave(finalDraft);
           }}
           className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all cursor-pointer shadow-md shadow-primary/10"
         >

@@ -51,6 +51,8 @@ import {
   ScheduledOrdersConfig,
   WizardOptionGroup,
   WizardOptionChoice,
+  MenuItem,
+  OptionGroup,
 } from '@/types';
 import {
   DAYS,
@@ -112,7 +114,7 @@ export default function NewRestaurantPage() {
       id: 'z-1',
       name: 'Zona Centro',
       radius: 3,
-      minOrder: 15,
+      minOrder: 0,
       deliveryFee: 2.5,
       freeDeliveryThreshold: 35,
       enabled: true,
@@ -173,6 +175,7 @@ export default function NewRestaurantPage() {
     name: '',
     category: 'Pizza',
     price: '',
+    originalPrice: '',
     description: '',
     available: true,
     imageUrl: '',
@@ -212,7 +215,7 @@ export default function NewRestaurantPage() {
         id: `z-${Date.now()}`,
         name: 'Nuova Zona',
         radius: 5,
-        minOrder: 20,
+        minOrder: 0,
         deliveryFee: 3,
         freeDeliveryThreshold: 40,
         enabled: true,
@@ -251,6 +254,29 @@ export default function NewRestaurantPage() {
     if (!newItem.name || !newItem.price) return;
     setMenuItems((p) => [...p, { ...newItem, id: `mi-${Date.now()}` }]);
     setShowAddItem(false);
+    setNewItem({
+      id: '',
+      name: '',
+      category: menuCategories[0] || 'Pizza',
+      price: '',
+      originalPrice: '',
+      description: '',
+      available: true,
+      imageUrl: '',
+      imageFile: null,
+      allergens: [],
+      optionGroups: [],
+      visibility: {
+        mode: 'always',
+        timeFrom: '10:00',
+        timeTo: '15:00',
+        days: [...DAYS],
+        dateFrom: '',
+        dateFromTime: '10:00',
+        dateTo: '',
+        dateToTime: '15:00',
+      },
+    });
   };
   const toggleAllergen = (a: string) =>
     setNewItem((p) => ({
@@ -320,6 +346,59 @@ export default function NewRestaurantPage() {
     };
 
     try {
+      const domainMenuItems: MenuItem[] = menuItems.map((item) => {
+        let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
+        let visibilitySchedule: { from: string; to: string } | undefined = undefined;
+
+        if (item.visibility.mode === 'hidden') {
+          visibility = 'hidden';
+        } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
+          visibility = 'scheduled';
+          visibilitySchedule = {
+            from: item.visibility.timeFrom,
+            to: item.visibility.timeTo,
+          };
+        }
+
+        const mappedOptionGroups: OptionGroup[] = item.optionGroups.map((groupId) => {
+          const matchedGroup = optionGroups.find((g) => g.id === groupId);
+          if (!matchedGroup) return null;
+          return {
+            id: matchedGroup.id,
+            name: matchedGroup.name,
+            choices: matchedGroup.choices.map((c) => ({
+              id: c.id,
+              name: c.name,
+              price: c.price.toString(),
+            })),
+          };
+        }).filter((g): g is OptionGroup => g !== null);
+
+        const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
+        const listPrice = parseFloat(item.price) || 0;
+        const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
+
+        return {
+          id: item.id || `mi-${Date.now()}-${Math.random()}`,
+          name: item.name,
+          category: item.category,
+          price: isPromoActive ? promoPrice! : listPrice,
+          originalPrice: isPromoActive ? listPrice : undefined,
+          description: item.description,
+          available: item.available,
+          image: item.imageUrl,
+          imageAlt: item.name,
+          allergens: item.allergens,
+          orders: 0,
+          visibility,
+          visibilitySchedule,
+          optionGroups: mappedOptionGroups,
+        };
+      });
+
+      localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
+      localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
+
       const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
       saved.push(newRestaurant);
       localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(saved));
