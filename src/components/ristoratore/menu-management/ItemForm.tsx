@@ -205,9 +205,9 @@ export default function ItemForm({
       prev.map((g) =>
         g.id === gid
           ? {
-              ...g,
-              choices: [...g.choices, newChoice],
-            }
+            ...g,
+            choices: [...g.choices, newChoice],
+          }
           : g
       )
     );
@@ -220,9 +220,9 @@ export default function ItemForm({
       prev.map((g) =>
         g.id === gid
           ? {
-              ...g,
-              choices: g.choices.filter((c) => c.id !== cid),
-            }
+            ...g,
+            choices: g.choices.filter((c) => c.id !== cid),
+          }
           : g
       )
     );
@@ -233,7 +233,7 @@ export default function ItemForm({
   return (
     <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
       <p className="text-base font-bold text-foreground">{title}</p>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {/* Name */}
         <div>
@@ -277,70 +277,74 @@ export default function ItemForm({
           </div>
         </div>
 
-        {/* Price & Promotion */}
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Prezzo di Listino (€) *
-            </label>
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Euro
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="number"
-                  value={draft.price}
-                  onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
-                  placeholder="9.50"
-                  min={0}
-                  step={0.1}
-                  className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer select-none py-2 px-1">
-                <input
-                  type="checkbox"
-                  checked={isPromo}
-                  onChange={(e) => {
-                    setIsPromo(e.target.checked);
-                    if (!e.target.checked) {
-                      setDraft((p) => ({ ...p, originalPrice: '' }));
-                    }
-                  }}
-                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer"
-                />
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Promozione
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {isPromo && (
-            <div className="animate-fadeIn">
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                Prezzo Scontato (€) *
-              </label>
-              <div className="relative">
-                <Euro
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="number"
-                  value={draft.originalPrice || ''}
-                  onChange={(e) => setDraft((p) => ({ ...p, originalPrice: e.target.value }))}
-                  placeholder="7.50"
-                  min={0}
-                  step={0.1}
-                  className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
-              </div>
-            </div>
-          )}
+        {/* Price & Promotion Section */}
+<div className="w-full">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+    
+    {/* COLONNA SINISTRA: Layout originale (Prezzo + Checkbox) */}
+    <div className="flex items-end gap-4">
+      <div className="flex-1">
+        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+          Prezzo di Listino (€) *
+        </label>
+        <div className="relative">
+          <Euro
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            type="number"
+            value={draft.price}
+            onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
+            placeholder="9.50"
+            className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
         </div>
+      </div>
+
+      {/* Checkbox Promozione (allineata all'input) */}
+      <label className="flex items-center gap-2 cursor-pointer select-none mb-3.5">
+        <input
+          type="checkbox"
+          checked={isPromo}
+          onChange={(e) => {
+            setIsPromo(e.target.checked);
+            if (!e.target.checked) setDraft((p) => ({ ...p, originalPrice: '' }));
+          }}
+          className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer"
+        />
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+          Promozione
+        </span>
+      </label>
+    </div>
+
+    {/* COLONNA DESTRA: Prezzo Scontato (appare nella parte vuota) */}
+    <div className="min-h-[70px] flex flex-col justify-end">
+      {isPromo && (
+        <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+            Prezzo Scontato (€) *
+          </label>
+          <div className="relative">
+            <Euro
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="number"
+              value={draft.originalPrice || ''}
+              onChange={(e) => setDraft((p) => ({ ...p, originalPrice: e.target.value }))}
+              placeholder="7.50"
+              className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+
+  </div>
+</div>
 
 
 
@@ -365,11 +369,10 @@ export default function ItemForm({
               }
             }}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 transition-all cursor-pointer select-none min-h-[140px] relative overflow-hidden ${
-              isDragging
+            className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 transition-all cursor-pointer select-none min-h-[140px] relative overflow-hidden ${isDragging
                 ? 'border-primary bg-primary/5'
                 : 'border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20'
-            }`}
+              }`}
           >
             {draft.imageUrl ? (
               <>
@@ -406,7 +409,7 @@ export default function ItemForm({
                 <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Oppure clicca per sfogliare i file (PNG, JPG, WEBP)</p>
               </div>
             )}
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -455,7 +458,7 @@ export default function ItemForm({
               </button>
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-2.5 p-3 bg-muted/20 border border-border rounded-xl">
             {availableAllergens.length === 0 && (
               <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
@@ -466,11 +469,10 @@ export default function ItemForm({
                 <div
                   key={a}
                   onClick={() => toggleAllergen(a)}
-                  className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-7 ${
-                    isActive
+                  className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-7 ${isActive
                       ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm shadow-amber-300/10'
                       : 'bg-card border-border text-muted-foreground hover:border-amber-300 hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 mr-1.5 animate-pulse" />}
                   {a}
@@ -738,11 +740,10 @@ export default function ItemForm({
                           <div
                             key={g.id}
                             onClick={() => setSelectedGroupId(g.id)}
-                            className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                              isSelected
+                            className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isSelected
                                 ? 'bg-primary/5 border-primary text-primary font-semibold shadow-sm'
                                 : 'bg-card border-border hover:border-primary/30 text-foreground'
-                            }`}
+                              }`}
                           >
                             <span className="text-xs truncate font-medium">{g.name}</span>
                             <div className="flex items-center gap-2 flex-shrink-0">
@@ -874,16 +875,16 @@ export default function ItemForm({
                                       p.map((g) =>
                                         g.id === gid
                                           ? {
-                                              ...g,
-                                              choices: g.choices.map((c) => (c.id === choice.id ? { ...c, name: val } : c)),
-                                            }
+                                            ...g,
+                                            choices: g.choices.map((c) => (c.id === choice.id ? { ...c, name: val } : c)),
+                                          }
                                           : g
                                       )
                                     );
                                   }}
                                   className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
                                 />
-                                
+
                                 <div className="relative w-24 flex-shrink-0">
                                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">+€</span>
                                   <input
@@ -895,9 +896,9 @@ export default function ItemForm({
                                         p.map((g) =>
                                           g.id === gid
                                             ? {
-                                                ...g,
-                                                choices: g.choices.map((c) => (c.id === choice.id ? { ...c, price: val } : c)),
-                                              }
+                                              ...g,
+                                              choices: g.choices.map((c) => (c.id === choice.id ? { ...c, price: val } : c)),
+                                            }
                                             : g
                                         )
                                       );

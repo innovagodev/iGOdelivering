@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
-import { PauseCircle, PlayCircle, Zap, Store } from 'lucide-react';
+import { PauseCircle, Plus, PlayCircle, Zap, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 import MenuEditorTab from '@/components/ristoratore/menu-management/MenuEditorTab';
@@ -336,14 +336,14 @@ export default function RistoratoreMenuPage() {
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Menu</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {items.filter((i) => i.available).length} disponibili ·{' '}
-                  {items.filter((i) => !i.available).length} sospesi
-                </p>
+                  {items.filter((i) => i.available).length} {items.filter((i) => i.available).length === 1 ? "disponibile" : "disponibili"} ·{' '}
+                  {items.filter((i) => !i.available).length} {items.filter((i) => !i.available).length === 1 ? "sospeso" : "sospesi"}</p>
               </div>
               <button
                 onClick={() => setShowAddItem(true)}
-                className="bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22]"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22]"
               >
+                <Plus size={14} />
                 Aggiungi Piatto
               </button>
             </div>

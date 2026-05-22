@@ -2793,16 +2793,6 @@ export default function CustomerStorefront() {
                 <Share2 size={16} />
                 CONDIVIDI
               </button>
-
-              {deliveryType !== 'tavolo' && (
-                <button
-                  onClick={() => setShowBookingModal(true)}
-                  className="flex items-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95 shadow-lg"
-                >
-                  <CalendarCheck size={16} />
-                  PRENOTA UN TAVOLO
-                </button>
-              )}
             </div>
           </div>
         </div>
