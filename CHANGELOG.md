@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/innovagodev/iGOdelivering/compare/v1.7.0...v1.8.0) (2026-05-22)
+
+
+### Features
+
+* **menu:** risoluzione doppio chevron, rimozione visibilita avanzata e nuova gestione allergeni in localStorage ([930ca97](https://github.com/innovagodev/iGOdelivering/commit/930ca9789baeb8778e7c012ef54f325acef4a806))
+
 ## [1.7.0](https://github.com/innovagodev/iGOdelivering/compare/v1.6.0...v1.7.0) (2026-05-22)
 
 
