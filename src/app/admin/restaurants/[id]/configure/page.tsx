@@ -1123,7 +1123,7 @@ export default function RestaurantConfigurePage() {
           </div>
 
           {/* Step Content */}
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
             {/* ── Page Header / Status dropdown ── */}
             <div className="flex items-start justify-between gap-4">
               <div>

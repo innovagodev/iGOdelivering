@@ -69,7 +69,7 @@ function DayRow({
     <div className={`px-5 py-4 ${!isLast ? 'border-b border-border' : ''}`}>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Day name & toggle header */}
-        <div className="flex items-center justify-between lg:justify-start gap-3 flex-shrink-0">
+        <div className="flex items-center justify-between lg:justify-start gap-3 flex-shrink-0 w-full lg:w-40">
           <div className="flex items-center gap-3">
             <Toggle checked={dayData.open} onChange={onToggle} size="sm" />
             <span
@@ -98,7 +98,6 @@ function DayRow({
                   onChange={() => onToggleSlot('lunch')}
                   className="w-4 h-4 rounded text-primary focus:ring-primary border-border cursor-pointer"
                 />
-                <Sun size={14} className="text-amber-500 flex-shrink-0" />
                 <span className="text-xs font-bold text-foreground">Pranzo</span>
               </div>
               <div className="flex items-center gap-2">
@@ -138,7 +137,6 @@ function DayRow({
                   onChange={() => onToggleSlot('dinner')}
                   className="w-4 h-4 rounded text-primary focus:ring-primary border-border cursor-pointer"
                 />
-                <Moon size={14} className="text-indigo-400 flex-shrink-0" />
                 <span className="text-xs font-bold text-foreground">Cena</span>
               </div>
               <div className="flex items-center gap-2">
