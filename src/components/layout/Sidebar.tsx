@@ -1,10 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-import AppLogo from '@/components/ui/AppLogo';
-import AppVersion from '@/components/ui/AppVersion';
 import { useAuth } from '@/context/AuthContext';
+import AppLogo from '@/components/ui/AppLogo';
+import versionData from '@/version.json';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -14,12 +13,12 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Bell,
-  LogOut,
-  TrendingUp,
   Store,
   Users,
-  Shield,
+  Activity,
+  Calendar,
+  X,
+  Clock,
 } from 'lucide-react';
 
 interface NavItem {
@@ -30,106 +29,88 @@ interface NavItem {
   badge?: number;
 }
 
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const adminNavGroups: NavGroup[] = [
+const adminNavItems: NavItem[] = [
   {
-    label: 'Piattaforma',
-    items: [
-      {
-        id: 'nav-ristoranti',
-        label: 'Ristoranti',
-        icon: <Store size={18} />,
-        href: '/admin/restaurants',
-      },
-      {
-        id: 'nav-utenti',
-        label: 'Utenti',
-        icon: <Users size={18} />,
-        href: '/admin/restaurants',
-      },
-    ],
+    id: 'nav-dashboard',
+    label: 'Dashboard',
+    icon: <LayoutDashboard size={18} />,
+    href: '/admin/dashboard',
   },
   {
-    label: 'Sistema',
-    items: [
-      {
-        id: 'nav-impostazioni',
-        label: 'Impostazioni',
-        icon: <Settings size={18} />,
-        href: '/admin/restaurants',
-      },
-      {
-        id: 'nav-sicurezza',
-        label: 'Sicurezza',
-        icon: <Shield size={18} />,
-        href: '/admin/restaurants',
-      },
-    ],
+    id: 'nav-ristoranti',
+    label: 'Ristoranti',
+    icon: <Store size={18} />,
+    href: '/admin/restaurants',
+  },
+  {
+    id: 'nav-utenti',
+    label: 'Utenti',
+    icon: <Users size={18} />,
+    href: '/admin/utenti',
+  },
+  {
+    id: 'nav-impostazioni',
+    label: 'Impostazioni',
+    icon: <Settings size={18} />,
+    href: '/admin/impostazioni',
+  },
+  {
+    id: 'nav-sicurezza',
+    label: 'Registro Attività',
+    icon: <Activity size={18} />,
+    href: '/admin/sicurezza',
   },
 ];
 
-const ristoratoreNavGroups: NavGroup[] = [
+const ristoratoreNavItems: NavItem[] = [
   {
-    label: 'Operativo',
-    items: [
-      {
-        id: 'nav-panoramica',
-        label: 'Panoramica',
-        icon: <LayoutDashboard size={18} />,
-        href: '/ristoratore/dashboard',
-      },
-      {
-        id: 'nav-ordini',
-        label: 'Ordini Live',
-        icon: <ShoppingBag size={18} />,
-        href: '/ristoratore/dashboard',
-        badge: 3,
-      },
-      {
-        id: 'nav-performance',
-        label: 'Performance',
-        icon: <TrendingUp size={18} />,
-        href: '/ristoratore/dashboard',
-      },
-    ],
+    id: 'nav-panoramica',
+    label: 'Dashboard',
+    icon: <LayoutDashboard size={18} />,
+    href: '/ristoratore/dashboard',
   },
   {
-    label: 'Gestione',
-    items: [
-      {
-        id: 'nav-menu',
-        label: 'Menu',
-        icon: <UtensilsCrossed size={18} />,
-        href: '/ristoratore/menu',
-      },
-      {
-        id: 'nav-promozioni',
-        label: 'Promozioni',
-        icon: <Tag size={18} />,
-        href: '/ristoratore/dashboard',
-      },
-      {
-        id: 'nav-zone',
-        label: 'Zone Consegna',
-        icon: <MapPin size={18} />,
-        href: '/ristoratore/dashboard',
-      },
-    ],
+    id: 'nav-ordini',
+    label: 'Ordini Live',
+    icon: <ShoppingBag size={18} />,
+    href: '/ristoratore/ordini',
+    badge: 3,
   },
   {
-    label: 'Account',
-    items: [
-      {
-        id: 'nav-impostazioni',
-        label: 'Impostazioni',
-        icon: <Settings size={18} />,
-        href: '/ristoratore/dashboard',
-      },
-    ],
+    id: 'nav-prenotazioni',
+    label: 'Prenotazioni',
+    icon: <Calendar size={18} />,
+    href: '/ristoratore/prenotazioni',
+  },
+  {
+    id: 'nav-orari',
+    label: 'Orari',
+    icon: <Clock size={18} />,
+    href: '/ristoratore/orari',
+  },
+  {
+    id: 'nav-menu',
+    label: 'Menu',
+    icon: <UtensilsCrossed size={18} />,
+    href: '/ristoratore/menu',
+  },
+  {
+    id: 'nav-promozioni',
+    label: 'Promozioni',
+    icon: <Tag size={18} />,
+    href: '/ristoratore/promozioni',
+  },
+  {
+    id: 'nav-zone',
+    label: 'Zone Consegna',
+    icon: <MapPin size={18} />,
+    href: '/ristoratore/zone',
+  },
+  {
+    id: 'nav-impostazioni',
+    label: 'Impostazioni',
+    icon: <Settings size={18} />,
+    href: '/ristoratore/impostazioni',
   },
 ];
 
@@ -139,6 +120,8 @@ interface SidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
   role?: 'admin' | 'ristoratore';
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export default function Sidebar({
@@ -147,120 +130,247 @@ export default function Sidebar({
   activeSection,
   onSectionChange,
   role = 'ristoratore',
+  isMobileOpen = false,
+  onCloseMobile,
 }: SidebarProps) {
-  const { logout } = useAuth();
-  const navGroups = role === 'admin' ? adminNavGroups : ristoratoreNavGroups;
+  const { user } = useAuth();
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(3);
 
-  return (
-    <aside
-      className={`flex flex-col h-full bg-card border-r border-border transition-all duration-300 ease-in-out flex-shrink-0 ${
-        collapsed ? 'w-16' : 'w-60'
-      }`}
-    >
-      {/* Logo */}
-      <div
-        className={`flex items-center h-16 px-4 border-b border-border ${collapsed ? 'justify-center' : 'gap-3'}`}
-      >
-        <AppLogo size={32} />
-        {!collapsed && (
-          <div>
-            <span className="font-bold text-lg text-foreground tracking-tight">iGOdelivering</span>
-            {role === 'admin' && (
-              <p className="text-[10px] text-primary font-semibold uppercase tracking-wide leading-none mt-0.5">
-                Admin
-              </p>
-            )}
-          </div>
+  useEffect(() => {
+    const updateCount = () => {
+      if (role === 'ristoratore' && user?.restaurantId) {
+        try {
+          const storedOrders = localStorage.getItem(`iGO_orders_${user.restaurantId}`);
+          if (storedOrders) {
+            const parsed = JSON.parse(storedOrders);
+            if (parsed.pending) {
+              setPendingOrdersCount(parsed.pending.length);
+            } else if (Array.isArray(parsed)) {
+              setPendingOrdersCount(parsed.filter((o: any) => o.status === 'pending').length);
+            }
+          }
+        } catch (e) {
+          console.error('Error reading pending orders count', e);
+        }
+      }
+    };
+
+    updateCount();
+    window.addEventListener('iGO_orders_updated', updateCount);
+    window.addEventListener('storage', updateCount);
+    return () => {
+      window.removeEventListener('iGO_orders_updated', updateCount);
+      window.removeEventListener('storage', updateCount);
+    };
+  }, [role, user]);
+
+  const handleToggleClick = () => {
+    localStorage.setItem('iGO_sidebar_collapsed', JSON.stringify(!collapsed));
+    onToggle();
+  };
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'R';
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getGradientColor = (name?: string) => {
+    if (!name) return 'from-orange-500 to-red-500';
+    const colors = [
+      'from-orange-500 to-red-500',
+      'from-purple-500 to-indigo-500',
+      'from-teal-500 to-emerald-500',
+      'from-blue-500 to-indigo-500',
+      'from-pink-500 to-rose-500',
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const rawItems = role === 'admin' ? adminNavItems : ristoratoreNavItems;
+  const navItems = rawItems.map((item) => {
+    if (item.id === 'nav-ordini') {
+      return { ...item, badge: pendingOrdersCount };
+    }
+    return item;
+  });
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-card relative">
+      {/* Header — Logo */}
+      <div className="flex items-center h-16 border-b border-border px-4 relative justify-center">
+        <div className="flex items-center justify-center overflow-hidden">
+          {role === 'admin' ? (
+            <div className="transition-all duration-300 flex items-center justify-center">
+              <AppLogo size={collapsed ? 28 : 110} />
+            </div>
+          ) : (
+            <div className="transition-all duration-300 flex items-center justify-center">
+              {user?.restaurantLogo ? (
+                <img
+                  src={user.restaurantLogo}
+                  alt={user.restaurantName || 'Logo'}
+                  className={`object-contain transition-all duration-300 ${
+                    collapsed ? 'w-7 h-7' : 'h-10 max-w-[140px]'
+                  }`}
+                />
+              ) : (
+                <div
+                  className={`bg-gradient-to-br ${getGradientColor(
+                    user?.restaurantName
+                  )} text-white flex items-center justify-center font-extrabold shadow-xs transition-all duration-300 ${
+                    collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
+                  }`}
+                >
+                  {getInitials(user?.restaurantName)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Close Button */}
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="absolute right-4 p-1 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden cursor-pointer"
+            aria-label="Chiudi menu"
+          >
+            <X size={18} />
+          </button>
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 space-y-6 scrollbar-hide">
-        {navGroups.map((group) => (
-          <div key={`group-${group.label}`}>
-            {!collapsed && (
-              <p
-                className="px-4 mb-1 text-[11px] font-600 uppercase tracking-widest text-muted-foreground"
-                style={{ fontWeight: 600 }}
-              >
-                {group.label}
-              </p>
-            )}
-            <ul className="space-y-0.5 px-2">
-              {group.items.map((item) => {
-                const isActive = activeSection === item.id;
-                return (
-                  <li key={item.id}>
-                    <Link
-                      href={item.href}
-                      onClick={() => onSectionChange(item.id)}
-                      title={collapsed ? item.label : undefined}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative ${
-                        isActive
-                          ? 'bg-secondary text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                      }`}
-                      style={{ fontWeight: isActive ? 600 : 500 }}
-                    >
-                      <span className="flex-shrink-0">{item.icon}</span>
-                      {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
-                      {!collapsed && item.badge && (
-                        <span
-                          className="bg-primary text-white text-[10px] font-700 rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"
-                          style={{ fontWeight: 700 }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                      {collapsed && item.badge && (
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 space-y-0.5 px-2 scrollbar-none">
+        {navItems.map((item) => {
+          const isActive = activeSection === item.id;
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              onClick={() => {
+                onSectionChange(item.id);
+                if (onCloseMobile) onCloseMobile();
+              }}
+              title={collapsed ? item.label : undefined}
+              className={`w-full flex items-center rounded-xl text-sm font-medium transition-all duration-150 group relative ${
+                collapsed ? 'lg:justify-center lg:px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+              } ${
+                isActive
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
+                {item.icon}
+              </span>
+              {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
+
+              {/* Badge */}
+              {item.badge !== undefined && item.badge > 0 && (
+                <>
+                  {!collapsed && (
+                    <span className="bg-primary text-white text-[10px] font-extrabold rounded-full min-w-5 h-5 px-1.5 flex-shrink-0 flex items-center justify-center">
+                      {item.badge}
+                    </span>
+                  )}
+                  {collapsed && (
+                    <span className="hidden lg:block absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-card animate-pulse" />
+                  )}
+                </>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
-      {/* Bottom */}
-      <div className="border-t border-border p-3 space-y-1">
-        <button
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${collapsed ? 'justify-center' : ''}`}
-          title={collapsed ? 'Notifiche' : undefined}
-        >
-          <Bell size={18} />
-          {!collapsed && <span className="font-medium">Notifiche</span>}
-        </button>
-        <button
-          onClick={logout}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors ${collapsed ? 'justify-center' : ''}`}
-          title={collapsed ? 'Esci' : undefined}
-        >
-          <LogOut size={18} />
-          {!collapsed && <span className="font-medium">Esci</span>}
-        </button>
-        {!collapsed && (
-          <div className="px-3 py-2 border-t border-border/50">
-            <AppVersion />
+      {/* Mini Sidebar Footer */}
+      <div className="p-3 border-t border-border mt-auto flex flex-col gap-1 text-[10px] text-muted-foreground select-none">
+        {!collapsed ? (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <span>© {new Date().getFullYear()} iGOdelivering</span>
+              <span className="font-semibold text-foreground">v{versionData.version}</span>
+            </div>
+            <div>
+              Tecnologia di{' '}
+              <a
+                href="https://www.innovago.it"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium hover:text-primary transition-colors text-foreground"
+              >
+                innovago.it
+              </a>
+            </div>
+          </>
+        ) : (
+          <div className="text-center font-bold text-[9px] text-foreground opacity-60">
+            v{versionData.version.split('.').slice(0, 2).join('.')}
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile Drawer Overlay Backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden transition-opacity duration-300"
+          onClick={onCloseMobile}
+        />
+      )}
+
+      {/* Sidebar Container — relative for the absolute toggle button */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 flex flex-col h-full bg-card border-r border-border transition-all duration-300 ease-in-out flex-shrink-0
+          lg:static lg:translate-x-0 lg:relative
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${collapsed ? 'lg:w-16' : 'lg:w-64 w-64'}
+        `}
+      >
+        {sidebarContent}
+
+        {/* Floating Desktop Toggle Button — overlaps the right border edge */}
         <button
-          onClick={onToggle}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-muted transition-colors ${collapsed ? 'justify-center' : 'justify-end'}`}
+          onClick={handleToggleClick}
+          className="
+            hidden lg:flex
+            absolute -right-3.5 top-[4.25rem]
+            z-[60]
+            w-7 h-7
+            items-center justify-center
+            rounded-full
+            bg-card
+            border border-border
+            shadow-md
+            text-muted-foreground hover:text-primary
+            hover:border-primary/40
+            transition-all duration-200
+            cursor-pointer
+          "
           aria-label={collapsed ? 'Espandi sidebar' : 'Comprimi sidebar'}
+          title={collapsed ? 'Espandi sidebar' : 'Comprimi sidebar'}
         >
           {collapsed ? (
-            <ChevronRight size={16} />
+            <ChevronRight size={13} strokeWidth={2.5} />
           ) : (
-            <>
-              <span>Comprimi</span>
-              <ChevronLeft size={16} />
-            </>
+            <ChevronLeft size={13} strokeWidth={2.5} />
           )}
         </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

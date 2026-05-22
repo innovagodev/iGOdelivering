@@ -83,14 +83,14 @@
   }
 
   /* Minimalist focus style - removes annoying double rings globally */
-  input[type="text"]:focus,
-  input[type="email"]:focus,
-  input[type="password"]:focus,
-  input[type="tel"]:focus,
-  input[type="number"]:focus,
-  input[type="date"]:focus,
-  input[type="time"]:focus,
-  input[type="search"]:focus,
+  input[type='text']:focus,
+  input[type='email']:focus,
+  input[type='password']:focus,
+  input[type='tel']:focus,
+  input[type='number']:focus,
+  input[type='date']:focus,
+  input[type='time']:focus,
+  input[type='search']:focus,
   textarea:focus,
   select:focus {
     outline: 2px solid transparent !important;

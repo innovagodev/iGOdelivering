@@ -1,20 +1,22 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
-  CheckCircle,
   ChefHat,
-  Bike,
   CheckCheck,
   AlertCircle,
   User,
   X,
   Check,
-  UtensilsCrossed,
+  MapPin,
+  Utensils,
+  Search,
+  Bike,
+  ShoppingBag,
 } from 'lucide-react';
-import Badge from '@/components/ui/Badge';
+import { useAuth } from '@/context/AuthContext';
 
-type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'delivering';
+type OrderStatus = 'pending' | 'accepted' | 'completed';
 
 interface OrderItem {
   name: string;
@@ -26,9 +28,10 @@ interface LiveOrder {
   customer: string;
   items: OrderItem[];
   total: number;
-  type: 'delivery' | 'takeaway';
+  type: 'delivery' | 'takeaway' | 'table';
   minutesAgo: number;
   address?: string;
+  tableNumber?: string;
 }
 
 const initialOrders: Record<OrderStatus, LiveOrder[]> = {
@@ -64,12 +67,12 @@ const initialOrders: Record<OrderStatus, LiveOrder[]> = {
         { name: 'Acqua nat.', qty: 2 },
       ],
       total: 34.0,
-      type: 'delivery',
+      type: 'table',
       minutesAgo: 6,
-      address: 'Corso Buenos Aires 55',
+      tableNumber: '5',
     },
   ],
-  confirmed: [
+  accepted: [
     {
       id: 'ord-c001',
       customer: 'Giulia Marino',
@@ -91,41 +94,7 @@ const initialOrders: Record<OrderStatus, LiveOrder[]> = {
       minutesAgo: 12,
     },
   ],
-  preparing: [
-    {
-      id: 'ord-pr001',
-      customer: 'Elena Galli',
-      items: [
-        { name: 'Lasagne al forno', qty: 2 },
-        { name: 'Vino rosso', qty: 1 },
-      ],
-      total: 42.0,
-      type: 'delivery',
-      minutesAgo: 18,
-      address: 'Via Montenapoleone 3',
-    },
-    {
-      id: 'ord-pr002',
-      customer: 'Roberto Esposito',
-      items: [{ name: 'Risotto ai funghi', qty: 1 }],
-      total: 16.0,
-      type: 'takeaway',
-      minutesAgo: 22,
-    },
-    {
-      id: 'ord-pr003',
-      customer: 'Valentina Russo',
-      items: [
-        { name: 'Pizza Quattro stagioni', qty: 2 },
-        { name: 'Fritto misto', qty: 1 },
-      ],
-      total: 38.5,
-      type: 'delivery',
-      minutesAgo: 25,
-      address: 'Viale Certosa 77',
-    },
-  ],
-  delivering: [
+  completed: [
     {
       id: 'ord-d001',
       customer: 'Antonio De Luca',
@@ -140,40 +109,37 @@ const initialOrders: Record<OrderStatus, LiveOrder[]> = {
     },
     {
       id: 'ord-d002',
-      customer: 'Francesca Lombardi',
-      items: [{ name: 'Branzino al forno', qty: 2 }],
-      total: 44.0,
-      type: 'delivery',
-      minutesAgo: 38,
-      address: 'Via Sarpi 9',
+      customer: 'Francesca N.',
+      items: [{ name: 'Spigola al sale', qty: 1 }],
+      total: 28.0,
+      type: 'table',
+      minutesAgo: 45,
+      tableNumber: '3',
     },
   ],
 };
 
-const columns: { key: OrderStatus; label: string; icon: React.ReactNode; color: string }[] = [
+const columns: { key: OrderStatus; label: string; icon: React.ReactNode; color: string; bgClass: string }[] = [
   {
     key: 'pending',
-    label: 'In Attesa',
-    icon: <AlertCircle size={15} />,
-    color: 'text-[var(--danger)]',
+    label: 'Da Accettare',
+    icon: <AlertCircle size={14} />,
+    color: 'text-amber-600 border-amber-500 bg-amber-50 dark:bg-amber-950/20',
+    bgClass: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/80',
   },
   {
-    key: 'confirmed',
-    label: 'Confermati',
-    icon: <CheckCircle size={15} />,
-    color: 'text-[var(--info)]',
+    key: 'accepted',
+    label: 'In Corso',
+    icon: <ChefHat size={14} />,
+    color: 'text-blue-600 border-blue-500 bg-blue-50 dark:bg-blue-950/20',
+    bgClass: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/80',
   },
   {
-    key: 'preparing',
-    label: 'In Preparazione',
-    icon: <ChefHat size={15} />,
-    color: 'text-[var(--warning)]',
-  },
-  {
-    key: 'delivering',
-    label: 'In Consegna',
-    icon: <Bike size={15} />,
-    color: 'text-[var(--success)]',
+    key: 'completed',
+    label: 'Completati',
+    icon: <CheckCheck size={14} />,
+    color: 'text-emerald-600 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20',
+    bgClass: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/80',
   },
 ];
 
@@ -183,23 +149,66 @@ interface Toast {
   type: 'success' | 'danger';
 }
 
-const statusTransitions: Record<OrderStatus, OrderStatus | null> = {
-  pending: 'confirmed',
-  confirmed: 'preparing',
-  preparing: 'delivering',
-  delivering: null,
-};
-
-const actionLabels: Record<OrderStatus, string> = {
-  pending: 'Conferma',
-  confirmed: 'Inizia Preparazione',
-  preparing: 'Manda in Consegna',
-  delivering: '',
-};
-
 export default function LiveOrderKanban() {
-  const [orders, setOrders] = useState(initialOrders);
+  const { user } = useAuth();
+  const restaurantId = user?.restaurantId || 'r-001';
+
+  const [orders, setOrders] = useState<Record<OrderStatus, LiveOrder[]>>({
+    pending: [],
+    accepted: [],
+    completed: [],
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'delivery' | 'takeaway' | 'table'>('all');
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`iGO_orders_${restaurantId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        
+        // Migrate old structure if needed
+        const migrated: Record<OrderStatus, LiveOrder[]> = {
+          pending: [],
+          accepted: [],
+          completed: [],
+        };
+        
+        if (parsed.pending) migrated.pending.push(...parsed.pending);
+        
+        // Map old active/inprogress states (confirmed, preparing, delivering, accepted) to 'accepted'
+        if (parsed.accepted) migrated.accepted.push(...parsed.accepted);
+        if (parsed.confirmed) migrated.accepted.push(...parsed.confirmed);
+        if (parsed.preparing) migrated.accepted.push(...parsed.preparing);
+        if (parsed.delivering) migrated.accepted.push(...parsed.delivering);
+        
+        // Map old completed state
+        if (parsed.completed) migrated.completed.push(...parsed.completed);
+        
+        setOrders(migrated);
+      } else {
+        setOrders(initialOrders);
+        localStorage.setItem(`iGO_orders_${restaurantId}`, JSON.stringify(initialOrders));
+        window.dispatchEvent(new Event('iGO_orders_updated'));
+      }
+    } catch (e) {
+      console.error('Error reading/migrating orders:', e);
+      setOrders(initialOrders);
+    }
+  }, [restaurantId]);
+
+  const updateOrdersState = (newOrders: Record<OrderStatus, LiveOrder[]>) => {
+    setOrders(newOrders);
+    try {
+      localStorage.setItem(`iGO_orders_${restaurantId}`, JSON.stringify(newOrders));
+      window.dispatchEvent(new Event('iGO_orders_updated'));
+    } catch (e) {
+      console.error('Error writing orders:', e);
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'danger') => {
     const id = Math.random().toString(36).slice(2);
@@ -210,112 +219,142 @@ export default function LiveOrderKanban() {
   const acceptOrder = (orderId: string) => {
     const order = orders.pending.find((o) => o.id === orderId);
     if (!order) return;
-    setOrders((prev) => ({
-      ...prev,
-      pending: prev.pending.filter((o) => o.id !== orderId),
-      confirmed: [...prev.confirmed, order],
-    }));
-    showToast(`Ordine di ${order.customer} accettato`, 'success');
+    const next = {
+      ...orders,
+      pending: orders.pending.filter((o) => o.id !== orderId),
+      accepted: [...(orders.accepted || []), order],
+    };
+    updateOrdersState(next);
+    showToast(`Ordine ${order.id} di ${order.customer} accettato`, 'success');
+  };
+
+  const completeOrder = (orderId: string) => {
+    const order = orders.accepted.find((o) => o.id === orderId);
+    if (!order) return;
+    const next = {
+      ...orders,
+      accepted: orders.accepted.filter((o) => o.id !== orderId),
+      completed: [...(orders.completed || []), order],
+    };
+    updateOrdersState(next);
+    showToast(`Ordine ${order.id} completato`, 'success');
   };
 
   const rejectOrder = (status: OrderStatus, orderId: string) => {
     const order = orders[status].find((o) => o.id === orderId);
     if (!order) return;
-    setOrders((prev) => ({
-      ...prev,
-      [status]: prev[status].filter((o) => o.id !== orderId),
-    }));
-    showToast(`Ordine di ${order.customer} rifiutato`, 'danger');
+    const next = {
+      ...orders,
+      [status]: orders[status].filter((o) => o.id !== orderId),
+    };
+    updateOrdersState(next);
+    showToast(`Ordine ${order.id} rifiutato/rimosso`, 'danger');
   };
 
-  const prepareOrder = (orderId: string) => {
-    const order = orders.confirmed.find((o) => o.id === orderId);
-    if (!order) return;
-    setOrders((prev) => ({
-      ...prev,
-      confirmed: prev.confirmed.filter((o) => o.id !== orderId),
-      preparing: [...prev.preparing, order],
-    }));
-    showToast(`Preparazione avviata per ${order.customer}`, 'success');
+  const filteredOrders = (status: OrderStatus) => {
+    return (orders[status] || []).filter((order) => {
+      const matchesSearch =
+        order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.id.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType =
+        orderTypeFilter === 'all' || order.type === orderTypeFilter;
+      return matchesSearch && matchesType;
+    });
   };
 
-  const deliverOrder = (orderId: string) => {
-    const order = orders.preparing.find((o) => o.id === orderId);
-    if (!order) return;
-    setOrders((prev) => ({
-      ...prev,
-      preparing: prev.preparing.filter((o) => o.id !== orderId),
-      delivering: [...prev.delivering, order],
-    }));
-    showToast(`Ordine di ${order.customer} in consegna`, 'success');
-  };
-
-  const renderActions = (col: (typeof columns)[number], order: LiveOrder) => {
-    if (col.key === 'pending') {
+  const renderActions = (colKey: OrderStatus, order: LiveOrder) => {
+    if (colKey === 'pending') {
       return (
         <div className="mt-3 flex gap-2">
           <button
             onClick={() => rejectOrder('pending', order.id)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 active:scale-95 transition-all duration-150"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
           >
-            <X size={13} />
+            <X size={12} />
             Rifiuta
           </button>
           <button
             onClick={() => acceptOrder(order.id)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 active:scale-95 transition-all duration-150"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors cursor-pointer"
           >
-            <Check size={13} />
+            <Check size={12} />
             Accetta
           </button>
         </div>
       );
     }
 
-    if (col.key === 'confirmed') {
+    if (colKey === 'accepted') {
       return (
         <div className="mt-3 flex gap-2">
           <button
-            onClick={() => rejectOrder('confirmed', order.id)}
-            className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 active:scale-95 transition-all duration-150"
+            onClick={() => rejectOrder('accepted', order.id)}
+            className="flex items-center justify-center p-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-red-600 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-400 transition-colors cursor-pointer"
+            title="Annulla ordine"
           >
             <X size={13} />
           </button>
           <button
-            onClick={() => prepareOrder(order.id)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 active:scale-95 transition-all duration-150"
+            onClick={() => completeOrder(order.id)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors cursor-pointer"
           >
-            <UtensilsCrossed size={13} />
-            Prepara
+            <CheckCheck size={12} />
+            Completa
           </button>
         </div>
       );
     }
 
-    if (col.key === 'preparing') {
+    if (colKey === 'completed') {
       return (
-        <button
-          onClick={() => deliverOrder(order.id)}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold bg-muted text-foreground hover:bg-border active:scale-95 transition-all duration-150"
-        >
-          <Bike size={13} />
-          Manda in Consegna
-        </button>
+        <div className="mt-2.5 flex justify-end">
+          <button
+            onClick={() => rejectOrder('completed', order.id)}
+            className="text-[10px] text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer"
+          >
+            Rimuovi dalla vista
+          </button>
+        </div>
       );
     }
 
     return null;
   };
 
+  const getOrderTypeBadge = (type: LiveOrder['type'], tableNumber?: string) => {
+    switch (type) {
+      case 'delivery':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+            <Bike size={11} className="text-slate-500" /> Domicilio
+          </span>
+        );
+      case 'takeaway':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+            <ShoppingBag size={11} className="text-slate-500" /> Asporto
+          </span>
+        );
+      case 'table':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50">
+            <Utensils size={11} className="text-blue-500" /> Tavolo {tableNumber || '-'}
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="bg-card rounded-xl border border-border shadow-card p-5 relative">
+    <div className="bg-card border border-border shadow-xs rounded-lg p-4 relative">
       {/* Toast notifications */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`px-4 py-2.5 rounded-xl shadow-lg text-xs font-semibold text-white animate-fade-in ${
-              toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+            className={`px-3 py-2 rounded shadow-md text-xs font-semibold text-white animate-fade-in ${
+              toast.type === 'success' ? 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900' : 'bg-red-600'
             }`}
           >
             {toast.message}
@@ -323,90 +362,156 @@ export default function LiveOrderKanban() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">Ordini Live</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Aggiornamento in tempo reale</p>
-        </div>
-        <span className="flex items-center gap-1.5 text-xs text-[var(--success)] font-semibold">
-          <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse-soft" />
-          Live
-        </span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
-        {columns.map((col) => (
-          <div key={`col-${col.key}`} className="flex flex-col gap-2">
-            <div className={`flex items-center gap-1.5 px-1 mb-1 ${col.color}`}>
-              {col.icon}
-              <span className="text-xs font-semibold uppercase tracking-wide">{col.label}</span>
-              <span className="ml-auto bg-muted text-muted-foreground text-[10px] font-bold rounded-full px-2 py-0.5">
-                {orders[col.key].length}
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              Pannello Ordini Live
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
-            </div>
-            {orders[col.key].length === 0 && (
-              <div className="rounded-lg border border-dashed border-border py-8 text-center text-xs text-muted-foreground">
-                Nessun ordine
-              </div>
-            )}
-            {orders[col.key].map((order) => (
-              <div
-                key={order.id}
-                className={`bg-background border rounded-xl p-3.5 shadow-card hover:shadow-card-hover transition-shadow duration-200 animate-fade-in ${
-                  col.key === 'pending' ? 'border-red-200 ring-1 ring-red-100' : 'border-border'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                      <User size={12} className="text-muted-foreground" />
-                    </div>
-                    <span className="text-xs font-semibold text-foreground truncate max-w-[110px]">
-                      {order.customer}
-                    </span>
-                  </div>
-                  <Badge
-                    variant={order.type === 'delivery' ? 'info' : 'neutral'}
-                    className="text-[10px]"
-                  >
-                    {order.type === 'delivery' ? '🛵 Consegna' : '🥡 Asporto'}
-                  </Badge>
-                </div>
-                <ul className="space-y-0.5 mb-2.5">
-                  {order.items.map((item, idx) => (
-                    <li
-                      key={`${order.id}-item-${idx}`}
-                      className="text-xs text-muted-foreground flex justify-between"
-                    >
-                      <span className="truncate">{item.name}</span>
-                      <span className="font-medium text-foreground ml-1">×{item.qty}</span>
-                    </li>
-                  ))}
-                </ul>
-                {order.address && (
-                  <p className="text-[10px] text-muted-foreground mb-2 truncate">
-                    📍 {order.address}
-                  </p>
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock size={11} />
-                    <span>{order.minutesAgo} min fa</span>
-                  </div>
-                  <span className="text-sm font-bold tabular-nums text-foreground">
-                    € {order.total.toFixed(2)}
-                  </span>
-                </div>
-                {renderActions(col, order)}
-                {col.key === 'delivering' && (
-                  <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-[var(--success)] font-semibold">
-                    <CheckCheck size={12} />
-                    In consegna al cliente
-                  </div>
-                )}
-              </div>
-            ))}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Gestione ordinazioni in tempo reale</p>
           </div>
-        ))}
+          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Connesso
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-muted/65 px-2.5 py-1 rounded border border-border text-xs">
+            <span className="font-medium text-muted-foreground select-none">Suoni notifica</span>
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                soundEnabled ? 'bg-slate-900 dark:bg-slate-100' : 'bg-slate-200 dark:bg-slate-800'
+              }`}
+            >
+              <span
+                className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white dark:bg-slate-900 transition-transform duration-200 ${
+                  soundEnabled ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Row */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Cerca per cliente o ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-9 pl-8 pr-3 text-base rounded border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-slate-400"
+          />
+          <Search className="absolute left-2.5 top-3 h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <div className="w-full sm:w-44">
+          <select
+            value={orderTypeFilter}
+            onChange={(e) => setOrderTypeFilter(e.target.value as any)}
+            className="w-full h-9 px-2 text-base rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="all">Tutti i canali</option>
+            <option value="delivery">Domicilio</option>
+            <option value="takeaway">Asporto</option>
+            <option value="table">Tavolo</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Kanban Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {columns.map((col) => {
+          const colOrders = filteredOrders(col.key);
+          return (
+            <div key={`col-${col.key}`} className={`flex flex-col gap-2.5 border rounded-lg p-3 ${col.bgClass}`}>
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-2 px-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-600 dark:text-slate-400">{col.icon}</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{col.label}</span>
+                </div>
+                <span className="bg-slate-200/75 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {colOrders.length}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2.5 flex-1 min-h-[450px]">
+                {colOrders.length === 0 && (
+                  <div className="border border-dashed border-slate-200 dark:border-slate-800 rounded py-10 text-center text-xs text-muted-foreground bg-background/50">
+                    Nessun ordine
+                  </div>
+                )}
+                {colOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded p-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors flex flex-col gap-2"
+                  >
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-900 pb-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+                          #{order.id.replace('ord-', '').toUpperCase()}
+                        </span>
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {order.customer}
+                        </span>
+                      </div>
+                      {getOrderTypeBadge(order.type, order.tableNumber)}
+                    </div>
+
+                    <div className="py-0.5">
+                      <ul className="space-y-1">
+                        {order.items.map((item, idx) => (
+                          <li
+                            key={`${order.id}-item-${idx}`}
+                            className="text-xs text-slate-600 dark:text-slate-400 flex justify-between"
+                          >
+                            <span className="truncate">{item.name}</span>
+                            <span className="font-semibold text-slate-900 dark:text-slate-200 ml-2">
+                              ×{item.qty}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {order.type === 'table' && order.tableNumber && (
+                      <div className="bg-blue-500/5 border border-blue-200/30 rounded px-2 py-1 flex items-center gap-1.5 text-[10px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">
+                        <Utensils size={10} />
+                        <span>Servire al Tavolo {order.tableNumber}</span>
+                      </div>
+                    )}
+
+                    {order.address && (
+                      <div className="flex items-start gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 bg-slate-50 dark:bg-slate-900/60 p-1.5 rounded border border-slate-100 dark:border-slate-900">
+                        <MapPin size={10} className="mt-0.5 flex-shrink-0 text-slate-400" />
+                        <span className="line-clamp-1">{order.address}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-900 mt-1">
+                      <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                        <Clock size={10} />
+                        <span className="tabular-nums">{order.minutesAgo}m fa</span>
+                      </div>
+                      <span className="text-xs font-bold tabular-nums text-foreground">
+                        € {order.total.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {renderActions(col.key, order)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

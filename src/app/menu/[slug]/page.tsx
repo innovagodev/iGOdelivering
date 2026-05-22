@@ -30,12 +30,20 @@ import {
   CreditCard,
   Banknote,
   Wallet,
+  Share2,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
 import AppImage from '@/components/ui/AppImage';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+
+import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { usePromoCode } from '@/hooks/usePromoCode';
+import CardPaymentForm from '@/components/menu/CardPaymentForm';
+import PopularSection from '@/components/menu/PopularSection';
+import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
+import Footer from '@/components/layout/Footer';
 
 // ─── Types ────────────────────────────────────────────────────
 interface MenuItemType {
@@ -412,6 +420,8 @@ function CartSidebar({
   tableNumber,
   guests,
   setGuests,
+  discount = 0,
+  appliedPromoDetail,
 }: {
   cart: CartItem[];
   onAdd: (item: MenuItemType) => void;
@@ -436,10 +446,11 @@ function CartSidebar({
   tableNumber?: string | null;
   guests?: number;
   setGuests?: (v: number) => void;
+  discount?: number;
+  appliedPromoDetail?: any;
 }) {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const discount = promoApplied ? subtotal * 0.1 : 0;
-  const total = subtotal - discount;
+  const total = subtotal - discount + (deliveryType === 'domicilio' ? actualDeliveryFee : 0);
   const meetsMin = subtotal >= minOrder;
 
   return (
@@ -474,8 +485,6 @@ function CartSidebar({
         </div>
       </div>
 
-
-
       {/* Table info */}
       {cart.length > 0 && deliveryType === 'tavolo' && (
         <div className="px-5 py-3 border-b border-border/40 bg-primary/5 flex items-center justify-between flex-shrink-0">
@@ -486,15 +495,19 @@ function CartSidebar({
           <div className="flex items-center gap-2">
             <label className="text-xs font-semibold text-muted-foreground">Ospiti:</label>
             <div className="flex items-center bg-card border border-border rounded-lg overflow-hidden">
-              <button 
+              <button
                 onClick={() => setGuests?.(Math.max(1, (guests || 1) - 1))}
                 className="w-6 h-6 flex items-center justify-center bg-muted/50 hover:bg-muted active:bg-muted/80 transition-colors"
-              >-</button>
+              >
+                -
+              </button>
               <span className="w-6 text-center text-xs font-bold">{guests || 1}</span>
-              <button 
+              <button
                 onClick={() => setGuests?.((guests || 1) + 1)}
                 className="w-6 h-6 flex items-center justify-center bg-muted/50 hover:bg-muted active:bg-muted/80 transition-colors"
-              >+</button>
+              >
+                +
+              </button>
             </div>
           </div>
         </div>
@@ -512,7 +525,10 @@ function CartSidebar({
         <>
           <ul className="flex-1 overflow-y-auto py-3 px-4 space-y-3 scrollbar-hide">
             {cart.map((item) => (
-              <li key={`cart-${item.cartId || item.id}`} className="flex items-start gap-3 border-b border-border/10 pb-3 last:border-0 last:pb-0">
+              <li
+                key={`cart-${item.cartId || item.id}`}
+                className="flex items-start gap-3 border-b border-border/10 pb-3 last:border-0 last:pb-0"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold text-foreground leading-tight truncate">
@@ -529,26 +545,31 @@ function CartSidebar({
                   {((item.addedIngredients && item.addedIngredients.length > 0) ||
                     (item.removedIngredients && item.removedIngredients.length > 0) ||
                     item.note) && (
-                      <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
-                        {item.addedIngredients?.map((ext) => (
-                          <div key={ext.name} className="text-primary font-semibold flex justify-between">
-                            <span>+ {ext.name}</span>
-                            <span className="text-[9px] text-muted-foreground font-normal">€ {ext.price.toFixed(2)}</span>
-                          </div>
-                        ))}
-                        {item.removedIngredients?.map((rem) => (
-                          <div key={rem} className="text-red-500 font-semibold flex justify-between">
-                            <span>- Senza {rem}</span>
-                            <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
-                          </div>
-                        ))}
-                        {item.note && (
-                          <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
-                            Note: "{item.note}"
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
+                      {item.addedIngredients?.map((ext) => (
+                        <div
+                          key={ext.name}
+                          className="text-primary font-semibold flex justify-between"
+                        >
+                          <span>+ {ext.name}</span>
+                          <span className="text-[9px] text-muted-foreground font-normal">
+                            € {ext.price.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                      {item.removedIngredients?.map((rem) => (
+                        <div key={rem} className="text-red-500 font-semibold flex justify-between">
+                          <span>- Senza {rem}</span>
+                          <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
+                        </div>
+                      ))}
+                      {item.note && (
+                        <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
+                          Note: &quot;{item.note}&quot;
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs font-bold text-foreground mt-1 tabular-nums">
                     € {(item.price * item.qty).toFixed(2)}
                   </p>
@@ -579,21 +600,27 @@ function CartSidebar({
           </ul>
 
           <div className="px-4 py-3 border-t border-border space-y-3 flex-shrink-0 bg-card">
-
-
             {/* Dynamic Free Delivery Progress Bar */}
             {deliveryType !== 'tavolo' && freeDeliveryActive && (
               <div className="bg-muted/30 border border-border/40 rounded-xl p-2.5 space-y-1">
                 {subtotal < freeDeliveryThreshold ? (
                   <>
                     <p className="text-[10px] font-bold text-muted-foreground flex justify-between">
-                      <span>Ti mancano <strong>€ {(freeDeliveryThreshold - subtotal).toFixed(2)}</strong> per la consegna gratuita!</span>
-                      <span className="text-primary font-extrabold">{Math.round((subtotal / freeDeliveryThreshold) * 100)}%</span>
+                      <span>
+                        Ti mancano{' '}
+                        <strong>€ {(freeDeliveryThreshold - subtotal).toFixed(2)}</strong> per la
+                        consegna gratuita!
+                      </span>
+                      <span className="text-primary font-extrabold">
+                        {Math.round((subtotal / freeDeliveryThreshold) * 100)}%
+                      </span>
                     </p>
                     <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-primary h-full rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(100, (subtotal / freeDeliveryThreshold) * 100)}%` }}
+                        style={{
+                          width: `${Math.min(100, (subtotal / freeDeliveryThreshold) * 100)}%`,
+                        }}
                       />
                     </div>
                   </>
@@ -607,9 +634,15 @@ function CartSidebar({
 
             {/* Totals */}
             <div className="space-y-1.5 text-xs">
-              {promoApplied && (
+              {promoApplied && appliedPromoDetail && (
                 <div className="flex justify-between text-[var(--success)]">
-                  <span>Sconto 10%</span>
+                  <span>
+                    Sconto (
+                    {appliedPromoDetail.type === 'percentage'
+                      ? `${appliedPromoDetail.value}%`
+                      : `€${appliedPromoDetail.value.toFixed(2)}`}
+                    )
+                  </span>
                   <span className="tabular-nums font-semibold">−€ {discount.toFixed(2)}</span>
                 </div>
               )}
@@ -688,25 +721,40 @@ function MenuItemCard({
           />
           <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap z-10">
             {item.popular && (
-              <Badge variant="primary" className={`shadow-sm font-bold bg-amber-500 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}>
+              <Badge
+                variant="primary"
+                className={`shadow-sm font-bold bg-amber-500 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}
+              >
                 ⭐ POPOLARE
               </Badge>
             )}
             {item.veg && (
-              <Badge variant="success" className={`shadow-sm font-bold bg-green-600 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}>
+              <Badge
+                variant="success"
+                className={`shadow-sm font-bold bg-green-600 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}
+              >
                 🌿 VEG
               </Badge>
             )}
             {item.spicy && (
-              <Badge variant="danger" className={`shadow-sm font-bold bg-red-600 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}>
+              <Badge
+                variant="danger"
+                className={`shadow-sm font-bold bg-red-600 text-white border-none ${compact ? 'text-[8px] px-1 py-0' : 'text-[10px]'}`}
+              >
                 🌶️ SPICY
               </Badge>
             )}
           </div>
         </div>
         <div className={`${compact ? 'p-3 pb-1' : 'p-4'} flex-1`}>
-          <h4 className={`font-bold text-foreground mb-1 group-hover:text-primary transition-colors ${compact ? 'text-xs sm:text-sm line-clamp-1' : 'text-sm sm:text-base'}`}>{item.name}</h4>
-          <p className={`text-muted-foreground leading-relaxed ${compact ? 'text-[10px] mb-1.5 line-clamp-1 leading-normal' : 'text-xs mb-3 line-clamp-2'}`}>
+          <h4
+            className={`font-bold text-foreground mb-1 group-hover:text-primary transition-colors ${compact ? 'text-xs sm:text-sm line-clamp-1' : 'text-sm sm:text-base'}`}
+          >
+            {item.name}
+          </h4>
+          <p
+            className={`text-muted-foreground leading-relaxed ${compact ? 'text-[10px] mb-1.5 line-clamp-1 leading-normal' : 'text-xs mb-3 line-clamp-2'}`}
+          >
             {item.description}
           </p>
           {!compact && item.allergens.length > 0 && (
@@ -723,13 +771,19 @@ function MenuItemCard({
           )}
         </div>
       </div>
-      <div className={`${compact ? 'px-3 pb-3 pt-0.5' : 'px-4 pb-4 pt-1'} flex items-center justify-between`}>
+      <div
+        className={`${compact ? 'px-3 pb-3 pt-0.5' : 'px-4 pb-4 pt-1'} flex items-center justify-between`}
+      >
         <div className="flex flex-col">
-          <span className={`font-extrabold text-foreground ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'}`}>
+          <span
+            className={`font-extrabold text-foreground ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'}`}
+          >
             € {item.price.toFixed(2)}
           </span>
           {item.originalPrice && (
-            <span className={`text-muted-foreground line-through decoration-red-500/50 ${compact ? 'text-[9px]' : 'text-xs'}`}>
+            <span
+              className={`text-muted-foreground line-through decoration-red-500/50 ${compact ? 'text-[9px]' : 'text-xs'}`}
+            >
               € {item.originalPrice.toFixed(2)}
             </span>
           )}
@@ -741,12 +795,18 @@ function MenuItemCard({
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => defaultCartItem && onRemove(defaultCartItem.cartId || defaultCartItem.id)}
+              onClick={() =>
+                defaultCartItem && onRemove(defaultCartItem.cartId || defaultCartItem.id)
+              }
               className={`${compact ? 'w-5 h-5 rounded-md' : 'w-7 h-7 rounded-lg'} bg-card hover:bg-border flex items-center justify-center transition-colors shadow-sm active:scale-90`}
             >
               <Minus size={compact ? 10 : 12} className="text-foreground" />
             </button>
-            <span className={`w-5 text-center font-bold tabular-nums text-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}>{defaultQty}</span>
+            <span
+              className={`w-5 text-center font-bold tabular-nums text-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}
+            >
+              {defaultQty}
+            </span>
             <button
               onClick={() => onAdd(item)}
               className={`${compact ? 'w-5 h-5 rounded-md' : 'w-7 h-7 rounded-lg'} bg-primary text-white hover:bg-[#d43d22] flex items-center justify-center transition-colors shadow-sm active:scale-90`}
@@ -800,6 +860,8 @@ function CheckoutModal({
   setPromoCode,
   promoApplied,
   applyPromo,
+  promoError,
+  appliedPromoDetail,
 }: {
   open: boolean;
   onClose: () => void;
@@ -820,7 +882,7 @@ function CheckoutModal({
   actualDeliveryFee: number;
   slug: string;
   tableNumber?: string | null;
-  paymentMethods?: { cash: boolean; card: boolean; paypal: boolean };
+  paymentMethods?: any;
   autoSubmit?: boolean;
   currentTimeStr: string;
   openingHours?: { start: string; end: string }[];
@@ -829,6 +891,8 @@ function CheckoutModal({
   setPromoCode: (v: string) => void;
   promoApplied: boolean;
   applyPromo: () => void;
+  promoError?: string | null;
+  appliedPromoDetail?: any;
 }) {
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
   const [notes, setNotes] = useState('');
@@ -839,6 +903,7 @@ function CheckoutModal({
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  const [isCardFormValid, setIsCardFormValid] = useState(false);
   const [needRest, setNeedRest] = useState<boolean | null>(null);
   const [restAmount, setRestAmount] = useState('');
   const [cardError, setCardError] = useState<string | null>(null);
@@ -866,7 +931,8 @@ function CheckoutModal({
 
   const timeSlots = React.useMemo(() => {
     if (deliveryType === 'tavolo') return [];
-    const activeRanges = deliveryType === 'domicilio' ? (deliveryHours || openingHours || []) : (openingHours || []);
+    const activeRanges =
+      deliveryType === 'domicilio' ? deliveryHours || openingHours || [] : openingHours || [];
     const slots: string[] = [];
     if (activeRanges.length === 0) return [];
 
@@ -883,9 +949,7 @@ function CheckoutModal({
         const slotMin = h * 60 + m;
         const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
-        const inRange = activeRanges.some(
-          (r) => timeStr >= r.start && timeStr <= r.end
-        );
+        const inRange = activeRanges.some((r) => timeStr >= r.start && timeStr <= r.end);
 
         if (inRange && slotMin >= minTimeStart) {
           slots.push(timeStr);
@@ -907,15 +971,25 @@ function CheckoutModal({
 
   useEffect(() => {
     if (open && paymentMethods) {
-      if (paymentMethods.card !== false) {
+      const isCardEnabled =
+        deliveryType === 'domicilio'
+          ? paymentMethods.card_delivery !== false
+          : paymentMethods.card_pickup !== false;
+      const isCashEnabled =
+        deliveryType === 'domicilio'
+          ? paymentMethods.cash_delivery !== false
+          : paymentMethods.cash_pickup !== false;
+      const isPaypalEnabled = paymentMethods.paypal !== false;
+
+      if (isCardEnabled) {
         setPayMethod('card');
-      } else if (paymentMethods.paypal !== false) {
+      } else if (isPaypalEnabled) {
         setPayMethod('online');
-      } else if (paymentMethods.cash !== false) {
+      } else if (isCashEnabled) {
         setPayMethod('cash');
       }
     }
-  }, [open, paymentMethods]);
+  }, [open, deliveryType, paymentMethods]);
 
   useEffect(() => {
     if (open) {
@@ -930,22 +1004,11 @@ function CheckoutModal({
   }, [open, autoSubmit]);
 
   const handleOrder = () => {
-    if (payMethod === 'card') {
-      const cleanCard = cardNumber.replace(/\s+/g, '');
-      if (cleanCard.length !== 16 || !/^\d+$/.test(cleanCard)) {
-        setCardError('Numero carta non valido (inserisci 16 cifre).');
-        return;
-      }
-      if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
-        setCardError('Scadenza non valida (usa il formato MM/AA).');
-        return;
-      }
-      if (cardCvv.length !== 3 || !/^\d+$/.test(cardCvv)) {
-        setCardError('CVV non valido (inserisci 3 cifre).');
-        return;
-      }
-      setCardError(null);
+    if (payMethod === 'card' && !isCardFormValid) {
+      setCardError('I dati della carta non sono validi o sono incompleti.');
+      return;
     }
+    setCardError(null);
 
     setLoading(true);
     if (rememberMe && deliveryType !== 'tavolo') {
@@ -960,19 +1023,77 @@ function CheckoutModal({
       try {
         localStorage.removeItem(`iGO_guest_${slug}`);
         localStorage.removeItem('iGO_guest_info');
-      } catch { }
+      } catch (err) {
+        console.error('Error removing guest info:', err);
+      }
     }
-    setTimeout(() => {
-      setLoading(false);
-      setStep('success');
-    }, payMethod === 'online' ? 2200 : 1500);
+
+    // Write order details to localStorage under iGO_orders_${restaurantId}
+    try {
+      const getRestaurantIdLocal = (slugStr: string): string => {
+        if (slugStr.startsWith('r-')) return slugStr;
+        if (slugStr === 'pizzeria-bella-napoli') return 'r-001';
+        if (slugStr === 'trattoria-da-mario') return 'r-002';
+        if (slugStr === 'sushi-zen') return 'r-003';
+        if (slugStr === 'osteria-del-porto') return 'r-004';
+        if (slugStr === 'burger-house') return 'r-005';
+        try {
+          const storedStr =
+            localStorage.getItem('iGOdelivering_restaurants') ||
+            localStorage.getItem('gloriaorder_restaurants');
+          if (storedStr) {
+            const restaurants = JSON.parse(storedStr);
+            const slugify = (text: string) =>
+              text
+                .toString()
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/[^\w-]+/g, '')
+                .replace(/--+/g, '-');
+            const matched = restaurants.find((r: any) => slugify(r.name) === slugStr || r.id === slugStr);
+            if (matched) return matched.id;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        return 'r-001';
+      };
+      const rId = getRestaurantIdLocal(slug);
+      const ordersKey = `iGO_orders_${rId}`;
+      const rawOrders = localStorage.getItem(ordersKey);
+      const orders = rawOrders ? JSON.parse(rawOrders) : [];
+      const newOrder = {
+        email: email.trim().toLowerCase(),
+        total: total,
+        createdAt: new Date().toISOString(),
+        itemsCount: cart.reduce((s: number, i: any) => s + i.qty, 0),
+        customerName: name,
+      };
+      orders.push(newOrder);
+      localStorage.setItem(ordersKey, JSON.stringify(orders));
+    } catch (err) {
+      console.error('Error saving order to history:', err);
+    }
+
+    setTimeout(
+      () => {
+        setLoading(false);
+        setStep('success');
+      },
+      payMethod === 'online' ? 2200 : 1500
+    );
   };
 
-  const detailsValid = deliveryType === 'tavolo' 
-    ? true 
-    : deliveryType === 'asporto' 
-      ? !!name && !!phone && !!deliveryTime 
-      : !!name && !!address && !!phone && !!email && email.includes('@') && !!deliveryTime;
+  const detailsValid =
+    deliveryType === 'tavolo'
+      ? true
+      : !!name &&
+        !!phone &&
+        !!email &&
+        email.includes('@') &&
+        !!deliveryTime &&
+        (deliveryType === 'asporto' || !!address);
 
   return (
     <Modal
@@ -985,8 +1106,10 @@ function CheckoutModal({
         <div className="space-y-4 relative">
           {loading && autoSubmit && (
             <div className="absolute inset-0 bg-card/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-lg">
-               <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-3" />
-               <p className="text-sm font-bold text-primary animate-pulse">Invio ordine in cucina...</p>
+              <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-3" />
+              <p className="text-sm font-bold text-primary animate-pulse">
+                Invio ordine in cucina...
+              </p>
             </div>
           )}
           {/* Delivery type selector */}
@@ -999,25 +1122,27 @@ function CheckoutModal({
                 <button
                   type="button"
                   onClick={() => setDeliveryType('domicilio')}
-                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'domicilio'
-                    ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                    : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                    }`}
+                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                    deliveryType === 'domicilio'
+                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                      : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                  }`}
                 >
                   Consegna a domicilio
                 </button>
                 <button
                   type="button"
                   onClick={() => setDeliveryType('asporto')}
-                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
-                    ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                    : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                    }`}
+                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                    deliveryType === 'asporto'
+                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                      : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                  }`}
                 >
                   Asporto
                 </button>
               </div>
-          </div>
+            </div>
           )}
 
           {/* Table info - only for tavolo */}
@@ -1044,23 +1169,23 @@ function CheckoutModal({
           {/* Name - hidden for tavolo */}
           {deliveryType !== 'tavolo' && (
             <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-              Nome e Cognome *
-            </label>
-            <div className="relative">
-              <User
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Mario Rossi"
-                className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-              />
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                Nome e Cognome *
+              </label>
+              <div className="relative">
+                <User
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Mario Rossi"
+                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
             </div>
-          </div>
           )}
 
           {/* Address — only for home delivery */}
@@ -1107,8 +1232,8 @@ function CheckoutModal({
             </div>
           )}
 
-          {/* Email — only for home delivery */}
-          {deliveryType === 'domicilio' && (
+          {/* Email — only for home delivery and takeaway */}
+          {deliveryType !== 'tavolo' && (
             <div>
               <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                 Indirizzo Email *
@@ -1144,7 +1269,7 @@ function CheckoutModal({
                 <select
                   value={deliveryTime}
                   onChange={(e) => setDeliveryTime(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all appearance-none font-semibold text-foreground cursor-pointer"
+                  className="w-[240px] max-w-full pl-9 pr-8 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all appearance-none font-semibold text-foreground cursor-pointer"
                 >
                   <option value="">Seleziona orario...</option>
                   {timeSlots.map((slot) => (
@@ -1210,7 +1335,7 @@ function CheckoutModal({
           )}
 
           <button
-            onClick={() => deliveryType === 'tavolo' ? handleOrder() : setStep('payment')}
+            onClick={() => (deliveryType === 'tavolo' ? handleOrder() : setStep('payment'))}
             disabled={!detailsValid || loading}
             className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
           >
@@ -1227,24 +1352,48 @@ function CheckoutModal({
                 id: 'card',
                 title: 'Carta di Credito / Debito',
                 desc: 'Visa, Mastercard, Maestro, PostePay',
-                icon: <CreditCard size={18} className={payMethod === 'card' ? 'text-primary' : 'text-muted-foreground'} />,
-                enabled: paymentMethods?.card !== false
+                icon: (
+                  <CreditCard
+                    size={18}
+                    className={payMethod === 'card' ? 'text-primary' : 'text-muted-foreground'}
+                  />
+                ),
+                enabled:
+                  deliveryType === 'domicilio'
+                    ? paymentMethods?.card_delivery !== false
+                    : paymentMethods?.card_pickup !== false,
               },
               {
                 id: 'online',
                 title: 'Pagamento Online',
                 desc: 'PayPal, Satispay, Apple/Google Pay',
-                icon: <Wallet size={18} className={payMethod === 'online' ? 'text-primary' : 'text-muted-foreground'} />,
-                enabled: paymentMethods?.paypal !== false
+                icon: (
+                  <Wallet
+                    size={18}
+                    className={payMethod === 'online' ? 'text-primary' : 'text-muted-foreground'}
+                  />
+                ),
+                enabled: paymentMethods?.paypal !== false,
               },
               {
                 id: 'cash',
                 title: deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna',
-                desc: deliveryType === 'asporto' ? 'Paga direttamente in cassa' : 'Paga all\'arrivo del corriere',
-                icon: <Banknote size={18} className={payMethod === 'cash' ? 'text-primary' : 'text-muted-foreground'} />,
-                enabled: paymentMethods?.cash !== false
-              }
-            ].filter(opt => opt.enabled);
+                desc:
+                  deliveryType === 'asporto'
+                    ? 'Paga direttamente in cassa'
+                    : "Paga all'arrivo del corriere",
+                icon: (
+                  <Banknote
+                    size={18}
+                    className={payMethod === 'cash' ? 'text-primary' : 'text-muted-foreground'}
+                  />
+                ),
+                enabled:
+                  deliveryType === 'domicilio'
+                    ? paymentMethods?.cash_delivery !== false
+                    : paymentMethods?.cash_pickup !== false,
+              },
+            ].filter((opt) => opt.enabled);
 
             return (
               <div>
@@ -1266,25 +1415,23 @@ function CheckoutModal({
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-md ${active ? 'bg-primary/10' : 'bg-muted'}`}>
+                          <div
+                            className={`p-2 rounded-md ${active ? 'bg-primary/10' : 'bg-muted'}`}
+                          >
                             {opt.icon}
                           </div>
                           <div>
-                            <p className="text-xs font-semibold text-foreground">
-                              {opt.title}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {opt.desc}
-                            </p>
+                            <p className="text-xs font-semibold text-foreground">{opt.title}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
                           </div>
                         </div>
-                        
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                          active ? 'border-primary' : 'border-border'
-                        }`}>
-                          {active && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                          )}
+
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                            active ? 'border-primary' : 'border-border'
+                          }`}
+                        >
+                          {active && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                         </div>
                       </button>
                     );
@@ -1295,58 +1442,24 @@ function CheckoutModal({
           })()}
 
           {payMethod === 'card' && (
-            <div className="space-y-3 bg-muted/20 border border-border/40 rounded-lg p-3">
-              <div>
-                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  Numero carta
-                </label>
-                <div className="relative">
-                  <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="1234 5678 9012 3456"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                    className="w-full pl-9 pr-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-mono"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                    Scadenza
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="MM/AA"
-                    value={cardExpiry}
-                    onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
-                    className="w-full px-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-center"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                    CVV
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123"
-                    value={cardCvv}
-                    onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-                    className="w-full px-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-center"
-                  />
-                </div>
-              </div>
-              {cardError && (
-                <p className="text-xs text-red-500 font-semibold mt-1">{cardError}</p>
-              )}
+            <div className="space-y-2">
+              <CardPaymentForm
+                onChange={(data, isValid) => {
+                  setCardNumber(data.number);
+                  setCardExpiry(data.expiry);
+                  setCardCvv(data.cvv);
+                  setIsCardFormValid(isValid);
+                }}
+              />
+              {cardError && <p className="text-xs text-red-500 font-semibold mt-1">{cardError}</p>}
             </div>
           )}
 
           {payMethod === 'cash' && (
             <div className="space-y-3">
               <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
-                Assicurati di avere il contante pronto {deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.
+                Assicurati di avere il contante pronto{' '}
+                {deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.
               </div>
               {deliveryType === 'domicilio' && (
                 <div className="space-y-2">
@@ -1357,7 +1470,7 @@ function CheckoutModal({
                     {[
                       { label: 'No, precisi', value: 'no' },
                       { label: 'Sì, da €20', value: '20' },
-                      { label: 'Sì, da €50', value: '50' }
+                      { label: 'Sì, da €50', value: '50' },
                     ].map((opt) => (
                       <button
                         key={`rest-${opt.value}`}
@@ -1372,7 +1485,8 @@ function CheckoutModal({
                           }
                         }}
                         className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
-                          (opt.value === 'no' && needRest === false) || (opt.value !== 'no' && needRest === true && restAmount === opt.value)
+                          (opt.value === 'no' && needRest === false) ||
+                          (opt.value !== 'no' && needRest === true && restAmount === opt.value)
                             ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                             : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                         }`}
@@ -1397,7 +1511,8 @@ function CheckoutModal({
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Verrai reindirizzato al portale sicuro di PayPal per autorizzare la transazione in modo protetto.
+                Verrai reindirizzato al portale sicuro di PayPal per autorizzare la transazione in
+                modo protetto.
               </p>
             </div>
           )}
@@ -1428,10 +1543,15 @@ function CheckoutModal({
                   {promoApplied ? 'Applicato' : 'Applica'}
                 </button>
               </div>
-              {promoApplied && (
+              {promoError && (
+                <p className="text-xs text-red-500 font-semibold mt-1">{promoError}</p>
+              )}
+              {promoApplied && appliedPromoDetail && (
                 <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-md px-2.5 py-1 font-semibold">
                   <CheckCircle size={12} />
-                  Sconto promozionale del 10% applicato!
+                  {appliedPromoDetail.type === 'percentage'
+                    ? `Sconto promozionale del ${appliedPromoDetail.value}% applicato!`
+                    : `Sconto promozionale di € ${appliedPromoDetail.value.toFixed(2)} applicato!`}
                 </div>
               )}
             </div>
@@ -1442,7 +1562,9 @@ function CheckoutModal({
             <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Articoli</span>
-                <span className="tabular-nums font-semibold">€ {(total - actualDeliveryFee).toFixed(2)}</span>
+                <span className="tabular-nums font-semibold">
+                  € {(total - actualDeliveryFee).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Consegna</span>
@@ -1486,23 +1608,28 @@ function CheckoutModal({
                   </>
                 ) : (
                   <span>
-                    Paga con <span className="font-black italic text-[#003087]">Pay<span className="text-[#0079C1]">Pal</span></span>
+                    Paga con{' '}
+                    <span className="font-black italic text-[#003087]">
+                      Pay<span className="text-[#0079C1]">Pal</span>
+                    </span>
                   </span>
                 )}
               </button>
             ) : (
               <button
                 onClick={handleOrder}
-                disabled={loading}
-                className="flex-[2_2_0%] py-3 bg-primary text-white font-extrabold rounded-lg hover:bg-[#d43d22] transition-all active:scale-95 text-xs sm:text-sm disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+                disabled={loading || (payMethod === 'card' && !isCardFormValid)}
+                className="flex-[2_2_0%] py-3 bg-primary text-white font-extrabold rounded-lg hover:bg-[#d43d22] transition-all active:scale-95 text-xs sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
               >
                 {loading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     {payMethod === 'card' ? 'Autorizzazione...' : 'Invio...'}
                   </>
+                ) : payMethod === 'card' ? (
+                  'Conferma pagamento'
                 ) : (
-                  payMethod === 'card' ? 'Conferma pagamento' : 'Conferma ordine'
+                  'Conferma ordine'
                 )}
               </button>
             )}
@@ -1517,7 +1644,7 @@ function CheckoutModal({
           </div>
           <h3 className="text-2xl font-black text-foreground">Ordine ricevuto!</h3>
           <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto leading-relaxed">
-            {deliveryType === 'tavolo' 
+            {deliveryType === 'tavolo'
               ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato in cucina. Inizieremo subito a prepararlo!`
               : 'Abbiamo ricevuto il tuo ordine. Lo prepareremo al più presto.'}
           </p>
@@ -1541,43 +1668,43 @@ const getCustomizationOptions = (category: string) => {
   if (normalized === 'pizza') {
     return {
       extras: [
-        { name: 'Doppia Mozzarella', price: 1.50 },
-        { name: 'Prosciutto Cotto', price: 1.50 },
-        { name: 'Funghi Champignon', price: 1.00 },
-        { name: 'Salame Piccante', price: 1.50 },
-        { name: 'Olive Nere', price: 0.80 }
+        { name: 'Doppia Mozzarella', price: 1.5 },
+        { name: 'Prosciutto Cotto', price: 1.5 },
+        { name: 'Funghi Champignon', price: 1.0 },
+        { name: 'Salame Piccante', price: 1.5 },
+        { name: 'Olive Nere', price: 0.8 },
       ],
-      removes: ['Basilico', 'Origano', 'Mozzarella']
+      removes: ['Basilico', 'Origano', 'Mozzarella'],
     };
   }
   if (normalized === 'primi' || normalized === 'secondi' || normalized === 'antipasti') {
     return {
       extras: [
-        { name: 'Parmigiano Reggiano', price: 1.20 },
-        { name: 'Pane extra', price: 1.00 },
-        { name: 'Olio al tartufo', price: 2.00 },
-        { name: 'Pancetta croccante', price: 1.50 }
+        { name: 'Parmigiano Reggiano', price: 1.2 },
+        { name: 'Pane extra', price: 1.0 },
+        { name: 'Olio al tartufo', price: 2.0 },
+        { name: 'Pancetta croccante', price: 1.5 },
       ],
-      removes: ['Pepe', 'Cipolla', 'Aglio', 'Prezzemolo']
+      removes: ['Pepe', 'Cipolla', 'Aglio', 'Prezzemolo'],
     };
   }
   if (normalized === 'dolci') {
     return {
       extras: [
-        { name: 'Panna montata', price: 1.00 },
-        { name: 'Granella di nocciole', price: 0.80 },
-        { name: 'Cioccolato fuso', price: 1.20 }
+        { name: 'Panna montata', price: 1.0 },
+        { name: 'Granella di nocciole', price: 0.8 },
+        { name: 'Cioccolato fuso', price: 1.2 },
       ],
-      removes: []
+      removes: [],
     };
   }
   if (normalized === 'bevande') {
     return {
       extras: [
-        { name: 'Ghiaccio', price: 0.00 },
-        { name: 'Fetta di limone', price: 0.50 }
+        { name: 'Ghiaccio', price: 0.0 },
+        { name: 'Fetta di limone', price: 0.5 },
       ],
-      removes: ['Ghiaccio']
+      removes: ['Ghiaccio'],
     };
   }
   return { extras: [], removes: [] };
@@ -1615,7 +1742,9 @@ function CustomizationView({
   const [removed, setRemoved] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [expandedCategory, setExpandedCategory] = useState<string | null>('cheese');
-  const [cookingStyle, setCookingStyle] = useState<'classico' | 'ben-cotto' | 'calzone' | 'schiacciata'>('classico');
+  const [cookingStyle, setCookingStyle] = useState<
+    'classico' | 'ben-cotto' | 'calzone' | 'schiacciata'
+  >('classico');
 
   useEffect(() => {
     if (item) {
@@ -1662,9 +1791,7 @@ function CustomizationView({
   };
 
   const toggleRemove = (rem: string) => {
-    setRemoved((prev) =>
-      prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]
-    );
+    setRemoved((prev) => (prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]));
   };
 
   const handleQuickTag = (tag: string) => {
@@ -1680,37 +1807,89 @@ function CustomizationView({
     {
       id: 'cheese',
       title: '🧀 Formaggi & Latticini',
-      items: extras.filter(e => e.name.toLowerCase().includes('bufala') || e.name.toLowerCase().includes('mozzarella') || e.name.toLowerCase().includes('parmigiano') || e.name.toLowerCase().includes('cheddar') || e.name.toLowerCase().includes('grana') || e.name.toLowerCase().includes('formagg'))
+      items: extras.filter(
+        (e) =>
+          e.name.toLowerCase().includes('bufala') ||
+          e.name.toLowerCase().includes('mozzarella') ||
+          e.name.toLowerCase().includes('parmigiano') ||
+          e.name.toLowerCase().includes('cheddar') ||
+          e.name.toLowerCase().includes('grana') ||
+          e.name.toLowerCase().includes('formagg')
+      ),
     },
     {
       id: 'meat',
       title: '🥓 Salumi & Carni',
-      items: extras.filter(e => e.name.toLowerCase().includes('crudo') || e.name.toLowerCase().includes('salame') || e.name.toLowerCase().includes('pancetta') || e.name.toLowerCase().includes('bacon') || e.name.toLowerCase().includes('cotto') || e.name.toLowerCase().includes('uovo') || e.name.toLowerCase().includes('pollo') || e.name.toLowerCase().includes('manzo'))
+      items: extras.filter(
+        (e) =>
+          e.name.toLowerCase().includes('crudo') ||
+          e.name.toLowerCase().includes('salame') ||
+          e.name.toLowerCase().includes('pancetta') ||
+          e.name.toLowerCase().includes('bacon') ||
+          e.name.toLowerCase().includes('cotto') ||
+          e.name.toLowerCase().includes('uovo') ||
+          e.name.toLowerCase().includes('pollo') ||
+          e.name.toLowerCase().includes('manzo')
+      ),
     },
     {
       id: 'veg',
       title: '🍅 Verdure & Condimenti',
-      items: extras.filter(e => e.name.toLowerCase().includes('funghi') || e.name.toLowerCase().includes('basilico') || e.name.toLowerCase().includes('tartufo') || e.name.toLowerCase().includes('olive') || e.name.toLowerCase().includes('cipolla') || e.name.toLowerCase().includes('insalata') || e.name.toLowerCase().includes('pomodor') || e.name.toLowerCase().includes('limone'))
+      items: extras.filter(
+        (e) =>
+          e.name.toLowerCase().includes('funghi') ||
+          e.name.toLowerCase().includes('basilico') ||
+          e.name.toLowerCase().includes('tartufo') ||
+          e.name.toLowerCase().includes('olive') ||
+          e.name.toLowerCase().includes('cipolla') ||
+          e.name.toLowerCase().includes('insalata') ||
+          e.name.toLowerCase().includes('pomodor') ||
+          e.name.toLowerCase().includes('limone')
+      ),
     },
     {
       id: 'sauce',
       title: '🍯 Salse & Altro',
-      items: extras.filter(e => !e.name.toLowerCase().includes('bufala') && !e.name.toLowerCase().includes('mozzarella') && !e.name.toLowerCase().includes('parmigiano') && !e.name.toLowerCase().includes('cheddar') && !e.name.toLowerCase().includes('grana') && !e.name.toLowerCase().includes('formagg') && !e.name.toLowerCase().includes('crudo') && !e.name.toLowerCase().includes('salame') && !e.name.toLowerCase().includes('pancetta') && !e.name.toLowerCase().includes('bacon') && !e.name.toLowerCase().includes('cotto') && !e.name.toLowerCase().includes('uovo') && !e.name.toLowerCase().includes('pollo') && !e.name.toLowerCase().includes('manzo') && !e.name.toLowerCase().includes('funghi') && !e.name.toLowerCase().includes('basilico') && !e.name.toLowerCase().includes('tartufo') && !e.name.toLowerCase().includes('olive') && !e.name.toLowerCase().includes('cipolla') && !e.name.toLowerCase().includes('insalata') && !e.name.toLowerCase().includes('pomodor') && !e.name.toLowerCase().includes('limone'))
-    }
-  ].filter(c => c.items.length > 0);
+      items: extras.filter(
+        (e) =>
+          !e.name.toLowerCase().includes('bufala') &&
+          !e.name.toLowerCase().includes('mozzarella') &&
+          !e.name.toLowerCase().includes('parmigiano') &&
+          !e.name.toLowerCase().includes('cheddar') &&
+          !e.name.toLowerCase().includes('grana') &&
+          !e.name.toLowerCase().includes('formagg') &&
+          !e.name.toLowerCase().includes('crudo') &&
+          !e.name.toLowerCase().includes('salame') &&
+          !e.name.toLowerCase().includes('pancetta') &&
+          !e.name.toLowerCase().includes('bacon') &&
+          !e.name.toLowerCase().includes('cotto') &&
+          !e.name.toLowerCase().includes('uovo') &&
+          !e.name.toLowerCase().includes('pollo') &&
+          !e.name.toLowerCase().includes('manzo') &&
+          !e.name.toLowerCase().includes('funghi') &&
+          !e.name.toLowerCase().includes('basilico') &&
+          !e.name.toLowerCase().includes('tartufo') &&
+          !e.name.toLowerCase().includes('olive') &&
+          !e.name.toLowerCase().includes('cipolla') &&
+          !e.name.toLowerCase().includes('insalata') &&
+          !e.name.toLowerCase().includes('pomodor') &&
+          !e.name.toLowerCase().includes('limone')
+      ),
+    },
+  ].filter((c) => c.items.length > 0);
 
-  const stylePrice = cookingStyle === 'schiacciata' ? 1.50 : 0.00;
+  const stylePrice = cookingStyle === 'schiacciata' ? 1.5 : 0.0;
   const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0) + stylePrice;
   const totalPrice = unitPrice * qty;
 
   const handleConfirm = () => {
-    let finalAdded = [...added];
+    const finalAdded = [...added];
     if (cookingStyle === 'schiacciata') {
-      finalAdded.push({ name: 'Stile: A Schiacciata', price: 1.50 });
+      finalAdded.push({ name: 'Stile: A Schiacciata', price: 1.5 });
     } else if (cookingStyle === 'calzone') {
-      finalAdded.push({ name: 'Stile: A Calzone', price: 0.00 });
+      finalAdded.push({ name: 'Stile: A Calzone', price: 0.0 });
     } else if (cookingStyle === 'ben-cotto') {
-      finalAdded.push({ name: 'Cottura: Ben Cotto', price: 0.00 });
+      finalAdded.push({ name: 'Cottura: Ben Cotto', price: 0.0 });
     }
     onConfirm(qty, finalAdded, removed, note);
   };
@@ -1756,16 +1935,23 @@ function CustomizationView({
                     key={`remove-${rem}`}
                     type="button"
                     onClick={() => toggleRemove(rem)}
-                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${isRemoved
-                      ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
-                      }`}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${
+                      isRemoved
+                        ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
+                    }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] transition-all ${isRemoved ? 'bg-red-500 border-red-500 text-white' : 'border-border bg-white text-transparent'}`}>
+                      <span
+                        className={`w-4 h-4 rounded-md border flex items-center justify-center text-[10px] transition-all ${isRemoved ? 'bg-red-500 border-red-500 text-white' : 'border-border bg-white text-transparent'}`}
+                      >
                         ✓
                       </span>
-                      <span className={isRemoved ? 'line-through text-red-500 font-medium' : 'text-foreground'}>
+                      <span
+                        className={
+                          isRemoved ? 'line-through text-red-500 font-medium' : 'text-foreground'
+                        }
+                      >
                         {rem}
                       </span>
                     </div>
@@ -1791,7 +1977,10 @@ function CustomizationView({
               {categories.map((category) => {
                 const isOpen = expandedCategory === category.id;
                 return (
-                  <div key={category.id} className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-sm">
+                  <div
+                    key={category.id}
+                    className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-sm"
+                  >
                     <button
                       type="button"
                       onClick={() => setExpandedCategory(isOpen ? null : category.id)}
@@ -1811,10 +2000,11 @@ function CustomizationView({
                               key={`extra-${ext.name}`}
                               type="button"
                               onClick={() => toggleExtra(ext)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAdded
-                                ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                                : 'border-border bg-card text-foreground hover:bg-muted'
-                                }`}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                                isAdded
+                                  ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                                  : 'border-border bg-card text-foreground hover:bg-muted'
+                              }`}
                             >
                               <div className="flex flex-col items-start">
                                 <span>{ext.name}</span>
@@ -1822,7 +2012,9 @@ function CustomizationView({
                                   + € {ext.price.toFixed(2)}
                                 </span>
                               </div>
-                              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[8px] transition-all ${isAdded ? 'bg-primary border-primary text-white' : 'border-border bg-white text-transparent'}`}>
+                              <span
+                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[8px] transition-all ${isAdded ? 'bg-primary border-primary text-white' : 'border-border bg-white text-transparent'}`}
+                              >
                                 ✓
                               </span>
                             </button>
@@ -1838,17 +2030,19 @@ function CustomizationView({
         )}
 
         {/* 3. Style / Cooking */}
-        {(item.category.toLowerCase().includes('pizz') || item.category.toLowerCase().includes('panin') || item.category.toLowerCase().includes('burger')) && (
+        {(item.category.toLowerCase().includes('pizz') ||
+          item.category.toLowerCase().includes('panin') ||
+          item.category.toLowerCase().includes('burger')) && (
           <div className="space-y-2">
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Impasti & Cotture
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'classico', label: 'Classico', price: 0.00 },
-                { id: 'ben-cotto', label: 'Ben Cotto', price: 0.00 },
-                { id: 'calzone', label: 'A Calzone', price: 0.00 },
-                { id: 'schiacciata', label: 'A Schiacciata', price: 1.50 },
+                { id: 'classico', label: 'Classico', price: 0.0 },
+                { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
+                { id: 'calzone', label: 'A Calzone', price: 0.0 },
+                { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
               ].map((style) => {
                 const isSelected = cookingStyle === style.id;
                 return (
@@ -1856,10 +2050,11 @@ function CustomizationView({
                     key={style.id}
                     type="button"
                     onClick={() => setCookingStyle(style.id as any)}
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${isSelected
-                      ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
-                      }`}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${
+                      isSelected
+                        ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
+                    }`}
                   >
                     <span>{style.label}</span>
                     <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
@@ -1881,7 +2076,7 @@ function CustomizationView({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Es. ben cotta, senza pepe, allergie..."
-            className="w-full p-2.5 text-xs bg-muted/60 border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors h-14 resize-none placeholder:text-muted-foreground/75"
+            className="w-full p-2.5 text-base bg-muted/60 border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors h-14 resize-none placeholder:text-muted-foreground/75"
           />
           {/* Quick tags */}
           <div className="flex flex-wrap gap-1 mt-1">
@@ -1917,9 +2112,7 @@ function CustomizationView({
             >
               <Minus size={12} />
             </button>
-            <span className="w-5 text-center text-xs font-bold tabular-nums">
-              {qty}
-            </span>
+            <span className="w-5 text-center text-xs font-bold tabular-nums">{qty}</span>
             <button
               type="button"
               onClick={() => setQty((q) => q + 1)}
@@ -1946,9 +2139,12 @@ function CustomizationView({
 export default function CustomerStorefront() {
   const params = useParams();
   const slug = (params?.slug as string) || 'pizzeria-bella-napoli';
-  const baseRestaurant = getRestaurantBySlug(slug);
 
-  const [restaurantSettings, setRestaurantSettings] = useState(baseRestaurant);
+  const { settings: restaurantSettings } = useRestaurantSettings(slug);
+  const { validatePromo } = usePromoCode(slug);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [appliedPromoDetail, setAppliedPromoDetail] = useState<any>(null);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('Promozioni');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1967,6 +2163,11 @@ export default function CustomerStorefront() {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  // Detail Sheet State
+  const [customizingItem, setCustomizingItem] = useState<MenuItemType | null>(null);
+  const [customizingCartItem, setCustomizingCartItem] = useState<CartItem | null>(null);
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
+
   // Lifted customer and delivery type states
   const searchParams = useSearchParams();
   const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto' | 'tavolo'>('domicilio');
@@ -1977,7 +2178,6 @@ export default function CustomerStorefront() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
-  const [cartView, setCartView] = useState<'cart' | 'customize'>('cart');
 
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
   const headerRef = useRef<HTMLElement>(null);
@@ -1995,29 +2195,20 @@ export default function CustomerStorefront() {
     }
   }, [searchParams]);
 
-  // Load custom settings override from localStorage
+  // Sync customize view open
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`iGO_settings_${slug}`);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setRestaurantSettings((prev) => ({
-          ...prev,
-          minOrder: parsed.minOrder !== undefined ? parseFloat(parsed.minOrder) : prev.minOrder,
-          deliveryFee: parsed.deliveryFee !== undefined ? parseFloat(parsed.deliveryFee) : prev.deliveryFee,
-          freeDeliveryActive: parsed.freeDeliveryActive !== undefined ? !!parsed.freeDeliveryActive : prev.freeDeliveryActive,
-          freeDeliveryThreshold: parsed.freeDeliveryThreshold !== undefined ? parseFloat(parsed.freeDeliveryThreshold) : prev.freeDeliveryThreshold,
-        }));
-      }
-    } catch (e) {
-      console.error('Error loading restaurant settings:', e);
+    if (customizingItem) {
+      setIsDetailSheetOpen(true);
+    } else {
+      setIsDetailSheetOpen(false);
     }
-  }, [slug]);
+  }, [customizingItem]);
 
   // Load saved guest and delivery info from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`iGO_guest_${slug}`) || localStorage.getItem('iGO_guest_info');
+      const saved =
+        localStorage.getItem(`iGO_guest_${slug}`) || localStorage.getItem('iGO_guest_info');
       if (saved) {
         const data = JSON.parse(saved);
         if (data.name) setName(data.name);
@@ -2037,11 +2228,13 @@ export default function CustomerStorefront() {
     if (tavoloParam) return; // Skip closed/delivery popups for table ordering
 
     const currentStr = getCurrentTimeStr();
-    
+
     // Check if open
-    const isOpen = !restaurantSettings.openingHours || restaurantSettings.openingHours.length === 0 || 
-      restaurantSettings.openingHours.some(h => currentStr >= h.start && currentStr <= h.end);
-    
+    const isOpen =
+      !restaurantSettings.openingHours ||
+      restaurantSettings.openingHours.length === 0 ||
+      restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+
     if (!isOpen) {
       setAvailabilityError('closed');
       return;
@@ -2049,8 +2242,10 @@ export default function CustomerStorefront() {
 
     // Check delivery hours
     if (deliveryType === 'domicilio') {
-      const canDeliver = !restaurantSettings.deliveryHours || restaurantSettings.deliveryHours.length === 0 ||
-        restaurantSettings.deliveryHours.some(h => currentStr >= h.start && currentStr <= h.end);
+      const canDeliver =
+        !restaurantSettings.deliveryHours ||
+        restaurantSettings.deliveryHours.length === 0 ||
+        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
       if (!canDeliver) {
         setAvailabilityError('no_delivery');
         return;
@@ -2157,17 +2352,6 @@ export default function CustomerStorefront() {
     }
   }, [restaurantSettings]);
 
-  const [customizingItem, setCustomizingItem] = useState<MenuItemType | null>(null);
-  const [customizingCartItem, setCustomizingCartItem] = useState<CartItem | null>(null);
-
-  // Sync customize view open
-  useEffect(() => {
-    if (customizingItem) {
-      setCartView('customize');
-      setCartOpen(true);
-    }
-  }, [customizingItem]);
-
   const addToCartCustom = (
     item: MenuItemType,
     qty: number,
@@ -2190,11 +2374,11 @@ export default function CustomerStorefront() {
       if (existing) {
         return prev.map((c) =>
           c.id === item.id &&
-            JSON.stringify({
-              addedIngredients: c.addedIngredients || [],
-              removedIngredients: c.removedIngredients || [],
-              note: c.note || '',
-            }) === customizationsKey
+          JSON.stringify({
+            addedIngredients: c.addedIngredients || [],
+            removedIngredients: c.removedIngredients || [],
+            note: c.note || '',
+          }) === customizationsKey
             ? { ...c, qty: c.qty + qty }
             : c
         );
@@ -2256,8 +2440,6 @@ export default function CustomerStorefront() {
     }
     // Always open customizer for new items
     setCustomizingItem(item);
-    setCartView('customize');
-    setCartOpen(true);
   };
 
   const removeFromCart = (cartId: string) => {
@@ -2269,26 +2451,36 @@ export default function CustomerStorefront() {
     });
   };
 
-  const deleteFromCart = (cartId: string) => setCart((prev) => prev.filter((c) => c.cartId !== cartId));
+  const deleteFromCart = (cartId: string) =>
+    setCart((prev) => prev.filter((c) => c.cartId !== cartId));
 
   const getCurrentTimeStr = () => {
     if (simulatedTime) return simulatedTime;
     const now = new Date();
-    return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    return (
+      now.getHours().toString().padStart(2, '0') +
+      ':' +
+      now.getMinutes().toString().padStart(2, '0')
+    );
   };
 
   const getRestaurantStatus = () => {
     const currentStr = getCurrentTimeStr();
-    const isOpen = !restaurantSettings.openingHours || restaurantSettings.openingHours.length === 0 || 
-      restaurantSettings.openingHours.some(h => currentStr >= h.start && currentStr <= h.end);
-    
+    const isOpen =
+      !restaurantSettings.openingHours ||
+      restaurantSettings.openingHours.length === 0 ||
+      restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+
     if (!isOpen) return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
-    
-    const canDeliver = !restaurantSettings.deliveryHours || restaurantSettings.deliveryHours.length === 0 ||
-      restaurantSettings.deliveryHours.some(h => currentStr >= h.start && currentStr <= h.end);
-      
-    if (!canDeliver) return { label: 'SOLO ASPORTO', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
-    
+
+    const canDeliver =
+      !restaurantSettings.deliveryHours ||
+      restaurantSettings.deliveryHours.length === 0 ||
+      restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+
+    if (!canDeliver)
+      return { label: 'SOLO ASPORTO', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
+
     return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
   };
 
@@ -2303,17 +2495,21 @@ export default function CustomerStorefront() {
 
     const currentStr = getCurrentTimeStr();
 
-    const isOpen = !restaurantSettings.openingHours || restaurantSettings.openingHours.length === 0 || 
-      restaurantSettings.openingHours.some(h => currentStr >= h.start && currentStr <= h.end);
-    
+    const isOpen =
+      !restaurantSettings.openingHours ||
+      restaurantSettings.openingHours.length === 0 ||
+      restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+
     if (!isOpen) {
       setAvailabilityError('closed');
       return;
     }
 
     if (deliveryType === 'domicilio') {
-      const canDeliver = !restaurantSettings.deliveryHours || restaurantSettings.deliveryHours.length === 0 ||
-        restaurantSettings.deliveryHours.some(h => currentStr >= h.start && currentStr <= h.end);
+      const canDeliver =
+        !restaurantSettings.deliveryHours ||
+        restaurantSettings.deliveryHours.length === 0 ||
+        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
       if (!canDeliver) {
         setAvailabilityError('no_delivery');
         return;
@@ -2325,15 +2521,47 @@ export default function CustomerStorefront() {
   };
 
   const applyPromo = () => {
-    if (promoCode === 'WELCOME10') setPromoApplied(true);
+    const res = validatePromo(promoCode, subtotal, email);
+    if (res.isValid) {
+      setPromoApplied(true);
+      setPromoError(null);
+      setAppliedPromoDetail(res.promo);
+    } else {
+      setPromoApplied(false);
+      setPromoError(res.error || 'Codice non valido');
+      setAppliedPromoDetail(null);
+    }
   };
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const discount = promoApplied ? subtotal * 0.1 : 0;
+
+  // Dynamic promo validation when subtotal changes
+  useEffect(() => {
+    if (promoApplied && appliedPromoDetail) {
+      const res = validatePromo(appliedPromoDetail.code, subtotal, email);
+      if (!res.isValid) {
+        setPromoApplied(false);
+        setPromoError(res.error || "L'ordine non soddisfa più i requisiti della promo");
+        setAppliedPromoDetail(null);
+      }
+    }
+  }, [subtotal, promoApplied, appliedPromoDetail, validatePromo, email]);
+
+  const discount =
+    promoApplied && appliedPromoDetail
+      ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order')
+        ? subtotal * (appliedPromoDetail.value / 100)
+        : Math.min(appliedPromoDetail.value, subtotal)
+      : 0;
 
   // Delivery Fee is applied conditionally based on delivery method and promo threshold
-  const isFreeDeliveryEligible = !!restaurantSettings.freeDeliveryActive && subtotal >= (restaurantSettings.freeDeliveryThreshold || 0);
-  const actualDeliveryFee = deliveryType === 'domicilio' && !isFreeDeliveryEligible ? restaurantSettings.deliveryFee : 0;
+  const isFreeDeliveryEligible =
+    !!restaurantSettings.freeDeliveryActive &&
+    subtotal >= (restaurantSettings.freeDeliveryThreshold || 0);
+  const actualDeliveryFee =
+    deliveryType === 'domicilio' && !isFreeDeliveryEligible
+      ? (restaurantSettings.deliveryFee ?? 0)
+      : 0;
   const total = subtotal - discount + actualDeliveryFee;
 
   const filteredItems = menuItems.filter(
@@ -2343,7 +2571,9 @@ export default function CustomerStorefront() {
       item.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const promoItems = menuItems.filter((item) => item.originalPrice && item.originalPrice > item.price);
+  const promoItems = menuItems.filter(
+    (item) => item.originalPrice && item.originalPrice > item.price
+  );
 
   const displayedItems = searchQuery
     ? filteredItems
@@ -2391,7 +2621,9 @@ export default function CustomerStorefront() {
           {/* Restaurant Logo and Name instead of iGO */}
           <div className="flex items-center gap-3 flex-shrink-0">
             {restaurantSettings.logoUrl ? (
-              <div className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-white/20' : 'border-border/30'}`}>
+              <div
+                className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-white/20' : 'border-border/30'}`}
+              >
                 <img
                   src={restaurantSettings.logoUrl}
                   alt={`Logo ${restaurantSettings.name}`}
@@ -2417,10 +2649,11 @@ export default function CustomerStorefront() {
                 placeholder="Cerca nel menu..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
-                  ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
-                  : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
-                  }`}
+                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${
+                  !isScrolled
+                    ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
+                    : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
+                }`}
               />
             </div>
           </div>
@@ -2431,10 +2664,11 @@ export default function CustomerStorefront() {
             {deliveryType !== 'tavolo' && (
               <button
                 onClick={() => setShowBookingModal(true)}
-                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
-                  : 'bg-[var(--success)] text-white hover:bg-green-700'
-                  }`}
+                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
+                  !isScrolled
+                    ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                    : 'bg-[var(--success)] text-white hover:bg-green-700'
+                }`}
               >
                 <CalendarCheck size={14} />
                 PRENOTA TAVOLO
@@ -2444,10 +2678,11 @@ export default function CustomerStorefront() {
             {/* Cart Button (Visible on both desktop & mobile) */}
             <button
               onClick={() => setCartOpen((o) => !o)}
-              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                : 'bg-primary text-white hover:bg-[#d43d22]'
-                }`}
+              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
+                !isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-primary text-white hover:bg-[#d43d22]'
+              }`}
             >
               <ShoppingCart size={14} />
               <span className="hidden sm:inline">Carrello</span>
@@ -2464,8 +2699,8 @@ export default function CustomerStorefront() {
       {/* Restaurant Hero */}
       <div className="relative h-[22rem] sm:h-[26rem] md:h-[30rem] overflow-hidden">
         <AppImage
-          src={restaurantSettings.image}
-          alt={restaurantSettings.imageAlt}
+          src={restaurantSettings.image || ''}
+          alt={restaurantSettings.imageAlt || ''}
           fill
           sizes="100vw"
           priority
@@ -2474,13 +2709,13 @@ export default function CustomerStorefront() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.85) 100%)',
+            background:
+              'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.85) 100%)',
           }}
         />
 
         <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-10 text-white z-10">
           <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8">
-
             <div className="flex-1 min-w-0">
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2 leading-none">
                 {restaurantSettings.name}
@@ -2490,7 +2725,9 @@ export default function CustomerStorefront() {
               </p>
 
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
-                <span className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}>
+                <span
+                  className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}
+                >
                   {status.label}
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
@@ -2504,28 +2741,40 @@ export default function CustomerStorefront() {
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Bike size={14} />
-                  Consegna € {restaurantSettings.deliveryFee.toFixed(2)}
+                  Consegna € {(restaurantSettings.deliveryFee ?? 0).toFixed(2)}
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <MapPin size={14} />
-                  {restaurantSettings.address}
+                  {restaurantSettings.address ?? ''}
                 </span>
               </div>
             </div>
 
-            {/* Mobile/Desktop Booking Button */}
-            {deliveryType !== 'tavolo' && (
-              <div className="flex sm:hidden mt-2">
+            {/* Share and Booking Buttons */}
+            <div className="flex flex-wrap gap-2.5 mt-4 sm:mt-0 flex-shrink-0">
+              <button
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Link del menu copiato negli appunti!');
+                  }
+                }}
+                className="flex items-center gap-2 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-white/20 transition-all active:scale-95 shadow-sm"
+              >
+                <Share2 size={16} />
+                CONDIVIDI
+              </button>
+
+              {deliveryType !== 'tavolo' && (
                 <button
                   onClick={() => setShowBookingModal(true)}
-                  className="flex items-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white px-5 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg"
+                  className="flex items-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95 shadow-lg"
                 >
                   <CalendarCheck size={16} />
                   PRENOTA UN TAVOLO
                 </button>
-              </div>
-            )}
-
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2553,10 +2802,11 @@ export default function CustomerStorefront() {
                 <button
                   key={`cat-nav-${cat}`}
                   onClick={() => handleCategoryClick(cat)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
-                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
-                    : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
-                    }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${
+                    isActive
+                      ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
+                      : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
+                  }`}
                 >
                   <span className="text-base">{icon}</span>
                   <span>{cat}</span>
@@ -2574,7 +2824,7 @@ export default function CustomerStorefront() {
           {searchQuery ? (
             <div>
               <h2 className="text-lg font-bold text-foreground mb-4">
-                {filteredItems.length} risultati per "{searchQuery}"
+                {filteredItems.length} risultati per &quot;{searchQuery}&quot;
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredItems.map((item) => (
@@ -2592,9 +2842,7 @@ export default function CustomerStorefront() {
                 <div className="text-center py-16">
                   <Search size={40} className="mx-auto text-muted-foreground mb-3" />
                   <p className="font-semibold text-foreground">Nessun prodotto trovato</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Prova con un termine diverso
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Prova con un termine diverso</p>
                 </div>
               )}
             </div>
@@ -2626,6 +2874,21 @@ export default function CustomerStorefront() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Popular section */}
+              {!searchQuery && menuItems.filter((i) => i.popular).length > 0 && (
+                <div className="mb-8 border-b border-border/40 pb-6">
+                  <PopularSection
+                    items={menuItems.filter((i) => i.popular)}
+                    cart={cart}
+                    onAdd={addToCart}
+                    onCustomize={(item) => {
+                      setCustomizingItem(item);
+                    }}
+                    onRemove={removeFromCart}
+                  />
                 </div>
               )}
 
@@ -2663,78 +2926,77 @@ export default function CustomerStorefront() {
             className="absolute inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-300 pointer-events-auto"
             onClick={() => {
               setCartOpen(false);
-              setCartView('cart');
               setCustomizingItem(null);
               setCustomizingCartItem(null);
             }}
           />
 
           {/* Cart Card Container */}
-          <div className={`relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col z-10 animate-pop-in overflow-hidden ${cartView === 'cart' ? 'max-h-[85vh] h-auto' : 'h-[85vh]'}`}>
+          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col z-10 animate-pop-in overflow-hidden max-h-[85vh] h-auto">
             <div className="flex-1 overflow-hidden">
-              {cartView === 'cart' ? (
-                <CartSidebar
-                  cart={cart}
-                  onAdd={addToCart}
-                  onRemove={removeFromCart}
-                  onDelete={deleteFromCart}
-                  onEdit={(cartItem) => {
-                    handleEditCartItem(cartItem);
-                    setCartView('customize');
-                  }}
-                  onCheckout={handleCheckoutClick}
-                  promoCode={promoCode}
-                  onPromoChange={setPromoCode}
-                  promoApplied={promoApplied}
-                  onApplyPromo={applyPromo}
-                  restaurant={restaurantSettings}
-                  showClose={true}
-                  onClose={() => {
-                    setCartOpen(false);
-                    setCartView('cart');
-                    setCustomizingItem(null);
-                    setCustomizingCartItem(null);
-                  }}
-                  deliveryType={deliveryType}
-                  minOrder={restaurantSettings.minOrder}
-                  deliveryFee={restaurantSettings.deliveryFee}
-                  freeDeliveryActive={restaurantSettings.freeDeliveryActive || false}
-                  freeDeliveryThreshold={restaurantSettings.freeDeliveryThreshold || 0}
-                  actualDeliveryFee={actualDeliveryFee}
-                  onClear={() => setCart([])}
-                  tableNumber={tableNumber}
-                  guests={guests}
-                  setGuests={setGuests}
-                />
-              ) : (
-                <CustomizationView
-                  item={customizingItem}
-                  cartItem={customizingCartItem}
-                  onClose={() => {
-                    setCartView('cart');
-                    setCustomizingItem(null);
-                    setCustomizingCartItem(null);
-                  }}
-                  onConfirm={(qty, added, removed, note) => {
-                    if (customizingItem) {
-                      if (customizingCartItem) {
-                        updateCartItem(customizingCartItem.cartId!, qty, added, removed, note);
-                        setCartView('cart');
-                      } else {
-                        addToCartCustom(customizingItem, qty, added, removed, note);
-                        setCartOpen(false);
-                        setTimeout(() => setCartView('cart'), 300);
-                      }
-                      setCustomizingItem(null);
-                      setCustomizingCartItem(null);
-                    }
-                  }}
-                />
-              )}
+              <CartSidebar
+                cart={cart}
+                onAdd={addToCart}
+                onRemove={removeFromCart}
+                onDelete={deleteFromCart}
+                onEdit={handleEditCartItem}
+                onCheckout={handleCheckoutClick}
+                promoCode={promoCode}
+                onPromoChange={setPromoCode}
+                promoApplied={promoApplied}
+                onApplyPromo={applyPromo}
+                restaurant={restaurantSettings as any}
+                showClose={true}
+                onClose={() => {
+                  setCartOpen(false);
+                  setCustomizingItem(null);
+                  setCustomizingCartItem(null);
+                }}
+                deliveryType={deliveryType}
+                minOrder={restaurantSettings.minOrder ?? 0}
+                deliveryFee={restaurantSettings.deliveryFee ?? 0}
+                freeDeliveryActive={restaurantSettings.freeDeliveryActive || false}
+                freeDeliveryThreshold={restaurantSettings.freeDeliveryThreshold || 0}
+                actualDeliveryFee={actualDeliveryFee}
+                onClear={() => setCart([])}
+                tableNumber={tableNumber}
+                guests={guests}
+                setGuests={setGuests}
+                discount={discount}
+                appliedPromoDetail={appliedPromoDetail}
+              />
             </div>
           </div>
         </div>
       )}
+
+      {/* Product Detail Customization Sheet */}
+      <ProductDetailSheet
+        item={customizingItem}
+        cartItem={customizingCartItem}
+        isOpen={isDetailSheetOpen}
+        onClose={() => {
+          setCustomizingItem(null);
+          setCustomizingCartItem(null);
+        }}
+        onConfirm={(qty, addedIngredients, removedIngredients, note) => {
+          if (customizingItem) {
+            if (customizingCartItem) {
+              updateCartItem(
+                customizingCartItem.cartId!,
+                qty,
+                addedIngredients,
+                removedIngredients,
+                note
+              );
+            } else {
+              addToCartCustom(customizingItem, qty, addedIngredients, removedIngredients, note);
+            }
+            setCustomizingItem(null);
+            setCustomizingCartItem(null);
+          }
+        }}
+      />
 
       {/* Checkout modal */}
       <CheckoutModal
@@ -2766,6 +3028,8 @@ export default function CustomerStorefront() {
         setPromoCode={setPromoCode}
         promoApplied={promoApplied}
         applyPromo={applyPromo}
+        promoError={promoError}
+        appliedPromoDetail={appliedPromoDetail}
       />
 
       {/* Availability Error Modal */}
@@ -2776,7 +3040,9 @@ export default function CustomerStorefront() {
         size="sm"
       >
         <div className="space-y-4 text-center py-1">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'}`}>
+          <div
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'}`}
+          >
             {availabilityError === 'closed' ? <Clock size={22} /> : <Bike size={22} />}
           </div>
           <div className="space-y-1">
@@ -2900,7 +3166,7 @@ export default function CustomerStorefront() {
                     type="date"
                     value={bookingDate}
                     onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
+                    className="w-[180px] max-w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
                   />
                 </div>
                 <div>
@@ -2911,7 +3177,7 @@ export default function CustomerStorefront() {
                     type="time"
                     value={bookingTime}
                     onChange={(e) => setBookingTime(e.target.value)}
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
+                    className="w-[180px] max-w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
                   />
                 </div>
                 <div>
@@ -2963,26 +3229,17 @@ export default function CustomerStorefront() {
       )}
 
       {/* Footer */}
-      <footer className="bg-card border-t border-border mt-8 py-8">
-        <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <p>
-            © {new Date().getFullYear()} iGOdelivering. Tecnologia di{' '}
-            <a
-              href="https://www.innovago.it"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold hover:text-primary transition-colors text-foreground"
-            >
-              innovago.it
-            </a>
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Floating Test controller for Simulation */}
       <div className="fixed bottom-24 right-6 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-64 transition-all duration-300">
         <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
-          <Settings size={12} className="text-primary animate-spin" style={{ animationDuration: '4s' }} /> Test Orari & Disponibilità
+          <Settings
+            size={12}
+            className="text-primary animate-spin"
+            style={{ animationDuration: '4s' }}
+          />{' '}
+          Test Orari & Disponibilità
         </h4>
         <div className="grid grid-cols-1 gap-1 text-[11px]">
           <button
@@ -2993,10 +3250,15 @@ export default function CustomerStorefront() {
                 : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
             }`}
           >
-            <span>Ora Reale ({new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })})</span>
-            <span className={`w-2 h-2 rounded-full ${simulatedTime === null ? 'bg-green-500' : 'bg-zinc-400'}`} />
+            <span>
+              Ora Reale (
+              {new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })})
+            </span>
+            <span
+              className={`w-2 h-2 rounded-full ${simulatedTime === null ? 'bg-green-500' : 'bg-zinc-400'}`}
+            />
           </button>
-          
+
           <button
             onClick={() => setSimulatedTime('16:00')}
             className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
@@ -3022,12 +3284,12 @@ export default function CustomerStorefront() {
           </button>
         </div>
         <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 text-center leading-normal">
-          Modifica il tempo simulato per vedere cambiare lo stato nell'header o testare i blocchi nel checkout!
+          Modifica il tempo simulato per vedere cambiare lo stato nell&apos;header o testare i
+          blocchi nel checkout!
         </p>
       </div>
 
       {/* Mobile Sticky Bottom Bar for Cart */}
-
     </div>
   );
 }

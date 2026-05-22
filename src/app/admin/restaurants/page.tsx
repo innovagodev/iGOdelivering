@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
+import Topbar from '@/components/layout/Topbar';
 import {
   Plus,
   Search,
@@ -11,14 +12,24 @@ import {
   CheckCircle,
   PauseCircle,
   Settings,
-  Bell,
   Users,
   PauseOctagon,
   PlayCircle,
   Trash2,
   X,
   AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
+
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+};
 
 interface Restaurant {
   id: string;
@@ -102,6 +113,7 @@ const statusConfig = {
 
 export default function AdminRestaurantsPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'suspended'>(
     'all'
@@ -110,6 +122,12 @@ export default function AdminRestaurantsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null);
 
   useEffect(() => {
+    // Restore sidebar state
+    const stored = localStorage.getItem('iGO_sidebar_collapsed');
+    if (stored !== null) {
+      setSidebarCollapsed(JSON.parse(stored));
+    }
+
     try {
       const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]') as Array<
         Record<string, unknown>
@@ -165,31 +183,25 @@ export default function AdminRestaurantsPage() {
         activeSection="nav-ristoranti"
         onSectionChange={() => {}}
         role="admin"
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Topbar */}
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
-          <div className="flex items-center gap-2 flex-1">
-            <span className="font-bold text-foreground text-base">Admin</span>
-            <span className="text-muted-foreground text-sm">/ Ristoranti</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-              <Bell size={18} />
-            </button>
-            <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-                A
-              </div>
-              <div className="hidden md:block">
-                <p className="text-sm font-semibold text-foreground leading-none">Admin</p>
-                <p className="text-xs text-muted-foreground mt-0.5">admin@iGOdelivering.it</p>
-              </div>
+        <Topbar
+          role="admin"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileMenuOpen={() => setIsMobileOpen(true)}
+          leftContent={
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-foreground text-base">Admin</span>
+              <span className="text-muted-foreground text-sm">/ Ristoranti</span>
             </div>
-          </div>
-        </header>
+          }
+        />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Page header */}
             <div className="flex items-center justify-between">
@@ -376,6 +388,14 @@ export default function AdminRestaurantsPage() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-1">
+                              <Link
+                                href={`/menu/${slugify(r.name)}`}
+                                target="_blank"
+                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                                title="Apri Vetrina"
+                              >
+                                <ExternalLink size={15} />
+                              </Link>
                               <Link
                                 href={`/admin/restaurants/${r.id}/configure`}
                                 className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"

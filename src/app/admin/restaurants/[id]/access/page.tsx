@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
+import Topbar from '@/components/layout/Topbar';
 import {
   ArrowLeft,
-  Bell,
   Users,
   Key,
   Copy,
@@ -67,7 +67,7 @@ const roleColors: Record<string, string> = {
 function CopyBtn({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    navigator.clipboard.writeText(value).catch(() => { });
+    navigator.clipboard.writeText(value).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -85,6 +85,7 @@ function CopyBtn({ value }: { value: string }) {
 
 export default function RestaurantAccessPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [users, setUsers] = useState<AccessUser[]>(mockUsers);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
@@ -150,39 +151,36 @@ export default function RestaurantAccessPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-ristoranti"
-        onSectionChange={() => { }}
+        onSectionChange={() => {}}
         role="admin"
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Topbar */}
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
-          <Link
-            href="/admin/restaurants"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
-          >
-            <ArrowLeft size={16} />
-            Ristoranti
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-sm font-semibold text-foreground">Pizzeria Bella Napoli</span>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-sm text-muted-foreground">Accessi</span>
-          <div className="flex-1" />
-          <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-            <Bell size={18} />
-          </button>
-          <div className="flex items-center gap-2 pl-2 border-l border-border">
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-              A
+        <Topbar
+          role="admin"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileMenuOpen={() => setIsMobileOpen(true)}
+          leftContent={
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/restaurants"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
+              >
+                <ArrowLeft size={16} />
+                Ristoranti
+              </Link>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm font-semibold text-foreground">Pizzeria Bella Napoli</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm text-muted-foreground">Accessi</span>
             </div>
-            <div className="hidden md:block">
-              <p className="text-sm font-semibold text-foreground leading-none">Admin</p>
-              <p className="text-xs text-muted-foreground mt-0.5">admin@igodelivering.it</p>
-            </div>
-          </div>
-        </header>
+          }
+        />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -341,10 +339,11 @@ export default function RestaurantAccessPage() {
                             {roleLabels[user.role]}
                           </span>
                           <span
-                            className={`text-xs px-2 py-0.5 rounded-full font-semibold ${user.status === 'active'
+                            className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                              user.status === 'active'
                                 ? 'bg-[var(--success-bg)] text-[var(--success)]'
                                 : 'bg-[var(--warning-bg)] text-[var(--warning)]'
-                              }`}
+                            }`}
                           >
                             {user.status === 'active' ? 'Attivo' : 'Sospeso'}
                           </span>
@@ -382,10 +381,11 @@ export default function RestaurantAccessPage() {
                         </button>
                         <button
                           onClick={() => toggleSuspend(user.id)}
-                          className={`p-2 rounded-lg transition-colors ${user.status === 'active'
+                          className={`p-2 rounded-lg transition-colors ${
+                            user.status === 'active'
                               ? 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
                               : 'hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)]'
-                            }`}
+                          }`}
                           title={user.status === 'active' ? 'Sospendi accesso' : 'Riattiva accesso'}
                         >
                           <Shield size={14} />

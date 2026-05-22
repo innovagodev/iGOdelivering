@@ -12,6 +12,9 @@ interface ScheduledOrdersStepProps {
   timeWindows: string[];
 }
 
+const inputCls =
+  'px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none';
+
 export default function ScheduledOrdersStep({
   scheduledOrders,
   setScheduledOrders,
@@ -81,12 +84,12 @@ export default function ScheduledOrdersStep({
                         onChange={(e) =>
                           updateScheduled('pickup.minNoticeValue', parseInt(e.target.value) || 0)
                         }
-                        className="w-20 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                        className={`w-20 ${inputCls}`}
                       />
                       <select
                         value={scheduledOrders.pickup.minNoticeUnit}
                         onChange={(e) => updateScheduled('pickup.minNoticeUnit', e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                        className={`flex-1 ${inputCls}`}
                       >
                         {timeUnits.map((u) => (
                           <option key={u}>{u}</option>
@@ -104,7 +107,7 @@ export default function ScheduledOrdersStep({
                       onChange={(e) =>
                         updateScheduled('pickup.maxNoticeDays', parseInt(e.target.value) || 0)
                       }
-                      className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                      className={`w-full ${inputCls}`}
                     />
                   </div>
                 </div>
@@ -144,12 +147,12 @@ export default function ScheduledOrdersStep({
                         onChange={(e) =>
                           updateScheduled('delivery.minNoticeValue', parseInt(e.target.value) || 0)
                         }
-                        className="w-20 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                        className={`w-20 ${inputCls}`}
                       />
                       <select
                         value={scheduledOrders.delivery.minNoticeUnit}
                         onChange={(e) => updateScheduled('delivery.minNoticeUnit', e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                        className={`flex-1 ${inputCls}`}
                       >
                         {timeUnits.map((u) => (
                           <option key={u}>{u}</option>
@@ -169,7 +172,7 @@ export default function ScheduledOrdersStep({
                           parseInt(e.target.value) || 15
                         )
                       }
-                      className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                      className={`w-full ${inputCls}`}
                     >
                       {timeWindows.map((w) => (
                         <option key={w}>{w}</option>
@@ -213,12 +216,12 @@ export default function ScheduledOrdersStep({
                         onChange={(e) =>
                           updateScheduled('onPremise.minNoticeValue', parseInt(e.target.value) || 0)
                         }
-                        className="w-20 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                        className={`w-20 ${inputCls}`}
                       />
                       <select
                         value={scheduledOrders.onPremise.minNoticeUnit}
                         onChange={(e) => updateScheduled('onPremise.minNoticeUnit', e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                        className={`flex-1 ${inputCls}`}
                       >
                         {timeUnits.map((u) => (
                           <option key={u}>{u}</option>

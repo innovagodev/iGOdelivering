@@ -1,5 +1,6 @@
 export * from './restaurant';
 export * from './wizard';
-// In futuro aggiungeremo:
-// export * from './order';
-// export * from './user';
+export * from './settings';
+export * from './promo';
+export * from './zone';
+export * from './booking';

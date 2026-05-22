@@ -8,6 +8,8 @@ interface DayServiceHours {
   suspended: boolean;
   lunch: { from: string; to: string };
   dinner: { from: string; to: string };
+  lunchEnabled?: boolean;
+  dinnerEnabled?: boolean;
 }
 
 interface ServiceHoursState {
@@ -21,6 +23,11 @@ interface ServiceHoursTabProps {
   serviceSuspended: { pickup: boolean; delivery: boolean; reservation: boolean };
   toggleServiceSuspension: (svc: 'pickup' | 'delivery' | 'reservation') => void;
   toggleServiceDay: (svc: 'pickup' | 'delivery' | 'reservation', day: string) => void;
+  toggleServiceSlot?: (
+    svc: 'pickup' | 'delivery' | 'reservation',
+    day: string,
+    service: 'lunch' | 'dinner'
+  ) => void;
   updateServiceHour: (
     svc: 'pickup' | 'delivery' | 'reservation',
     day: string,
@@ -38,6 +45,7 @@ export default function ServiceHoursTab({
   serviceSuspended,
   toggleServiceSuspension,
   toggleServiceDay,
+  toggleServiceSlot,
   updateServiceHour,
   handleSaveHours,
   saved,
@@ -87,7 +95,7 @@ export default function ServiceHoursTab({
           {days.map((day) => (
             <div
               key={day}
-              className="flex flex-col sm:flex-row sm:items-center gap-4 py-3 border-b border-border/50 last:border-0"
+              className="flex flex-col lg:flex-row lg:items-center gap-4 py-4 border-b border-border/50 last:border-0"
             >
               <div className="w-40 flex items-center gap-3 flex-shrink-0">
                 <Toggle
@@ -102,44 +110,87 @@ export default function ServiceHoursTab({
                 </span>
               </div>
               {serviceHours[svc][day].enabled ? (
-                <div className="flex flex-wrap items-center gap-4 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-medium w-14">Pranzo</span>
-                    <input
-                      type="time"
-                      value={serviceHours[svc][day].lunch.from}
-                      onChange={(e) => updateServiceHour(svc, day, 'lunch', 'from', e.target.value)}
-                      className="px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[110px] appearance-none"
-                    />
-                    <span className="text-xs text-muted-foreground">–</span>
-                    <input
-                      type="time"
-                      value={serviceHours[svc][day].lunch.to}
-                      onChange={(e) => updateServiceHour(svc, day, 'lunch', 'to', e.target.value)}
-                      className="px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[110px] appearance-none"
-                    />
+                <div className="flex flex-col md:flex-row md:items-center gap-6 flex-1 bg-muted/20 p-3 rounded-xl border border-border/50">
+                  {/* Lunch slot */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={serviceHours[svc][day].lunchEnabled !== false}
+                        onChange={() => toggleServiceSlot?.(svc, day, 'lunch')}
+                        className="w-4 h-4 rounded text-primary focus:ring-primary border-border cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-foreground w-14">Pranzo</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        disabled={serviceHours[svc][day].lunchEnabled === false}
+                        value={serviceHours[svc][day].lunch.from}
+                        onChange={(e) => updateServiceHour(svc, day, 'lunch', 'from', e.target.value)}
+                        className={`px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[180px] max-w-full appearance-none ${
+                          serviceHours[svc][day].lunchEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
+                        }`}
+                      />
+                      <span className="text-xs text-muted-foreground">–</span>
+                      <input
+                        type="time"
+                        disabled={serviceHours[svc][day].lunchEnabled === false}
+                        value={serviceHours[svc][day].lunch.to}
+                        onChange={(e) => updateServiceHour(svc, day, 'lunch', 'to', e.target.value)}
+                        className={`px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[180px] max-w-full appearance-none ${
+                          serviceHours[svc][day].lunchEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
+                        }`}
+                      />
+                    </div>
+                    {serviceHours[svc][day].lunchEnabled === false && (
+                      <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                        Fascia disattivata
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-medium w-14">Cena</span>
-                    <input
-                      type="time"
-                      value={serviceHours[svc][day].dinner.from}
-                      onChange={(e) =>
-                        updateServiceHour(svc, day, 'dinner', 'from', e.target.value)
-                      }
-                      className="px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[110px] appearance-none"
-                    />
-                    <span className="text-xs text-muted-foreground">–</span>
-                    <input
-                      type="time"
-                      value={serviceHours[svc][day].dinner.to}
-                      onChange={(e) => updateServiceHour(svc, day, 'dinner', 'to', e.target.value)}
-                      className="px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[110px] appearance-none"
-                    />
+
+                  {/* Dinner slot */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={serviceHours[svc][day].dinnerEnabled !== false}
+                        onChange={() => toggleServiceSlot?.(svc, day, 'dinner')}
+                        className="w-4 h-4 rounded text-primary focus:ring-primary border-border cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-foreground w-14">Cena</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        disabled={serviceHours[svc][day].dinnerEnabled === false}
+                        value={serviceHours[svc][day].dinner.from}
+                        onChange={(e) => updateServiceHour(svc, day, 'dinner', 'from', e.target.value)}
+                        className={`px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[180px] max-w-full appearance-none ${
+                          serviceHours[svc][day].dinnerEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
+                        }`}
+                      />
+                      <span className="text-xs text-muted-foreground">–</span>
+                      <input
+                        type="time"
+                        disabled={serviceHours[svc][day].dinnerEnabled === false}
+                        value={serviceHours[svc][day].dinner.to}
+                        onChange={(e) => updateServiceHour(svc, day, 'dinner', 'to', e.target.value)}
+                        className={`px-2.5 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[180px] max-w-full appearance-none ${
+                          serviceHours[svc][day].dinnerEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
+                        }`}
+                      />
+                    </div>
+                    {serviceHours[svc][day].dinnerEnabled === false && (
+                      <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                        Fascia disattivata
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : (
-                <span className="text-xs text-muted-foreground italic">Chiuso</span>
+                <span className="text-xs text-muted-foreground italic bg-muted/50 px-3 py-1.5 rounded-lg border border-border">Chiuso</span>
               )}
             </div>
           ))}

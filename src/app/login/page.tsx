@@ -12,6 +12,7 @@ import {
   CheckCircle,
   Copy,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface LoginForm {
@@ -25,26 +26,35 @@ interface ChangePasswordForm {
   confirmPassword: string;
 }
 
+// ── Demo credentials ──────────────────────────────────────────────────────────
 const demoCredentials = [
   {
-    role: 'ristoratore',
+    role: 'admin' as const,
+    label: 'Admin',
+    email: 'admin@igodelivering.it',
+    password: 'Admin2026!',
+    isFirstLogin: false,
+  },
+  {
+    role: 'ristoratore' as const,
+    label: 'Ristoratore Demo',
     email: 'giuseppe@bellanapoli.it',
     password: 'Ristoro2026!',
-    isFirstLogin: true,
+    isFirstLogin: false, // bypass primo accesso in dev
   },
 ];
 
+// ── CopyButton ────────────────────────────────────────────────────────────────
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
   return (
     <button
       type="button"
-      onClick={handleCopy}
+      onClick={() => {
+        navigator.clipboard.writeText(value).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
       className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
       title="Copia"
     >
@@ -53,13 +63,51 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+// ── PasswordInput ─────────────────────────────────────────────────────────────
+function PasswordInput({
+  id,
+  placeholder,
+  hasError,
+  registration,
+}: {
+  id: string;
+  placeholder: string;
+  hasError?: boolean;
+  registration: Record<string, unknown>;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        placeholder={placeholder}
+        autoComplete="current-password"
+        className={`w-full pl-9 pr-10 py-3 text-base bg-input border rounded-xl focus:outline-none transition-colors ${hasError ? 'border-[var(--danger)]' : 'border-border'}`}
+        {...registration}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+        tabIndex={-1}
+        aria-label={show ? 'Nascondi password' : 'Mostra password'}
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const { login } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isFirstLogin, setIsFirstLogin] = useState(false);
-  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingRole, setPendingRole] = useState<'admin' | 'ristoratore'>('ristoratore');
 
   const loginForm = useForm<LoginForm>({
     defaultValues: { email: '', password: '', remember: false },
@@ -70,7 +118,6 @@ export default function LoginPage() {
     setLoginLoading(true);
     setLoginError('');
 
-    // Simulazione chiamata API
     setTimeout(() => {
       setLoginLoading(false);
       const match = demoCredentials.find(
@@ -78,28 +125,29 @@ export default function LoginPage() {
       );
 
       if (!match) {
-        setLoginError("Credenziali non valide. Contatta il supporto se hai smarrito l'accesso.");
+        setLoginError("Credenziali non valide. Contatta il supporto se hai perso l'accesso.");
         return;
       }
 
       if (match.isFirstLogin) {
         setIsFirstLogin(true);
-        setTempToken('temp-session-token');
+        setPendingEmail(data.email);
+        setPendingRole(match.role);
       } else {
-        login(data.email, 'ristoratore');
-        window.location.href = '/ristoratore/dashboard';
+        login(data.email, match.role);
+        window.location.href = match.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
       }
-    }, 1400);
+    }, 800);
   });
 
-  const handleChangePassword = changePasswordForm.handleSubmit((data) => {
+  const handleChangePassword = changePasswordForm.handleSubmit(() => {
     setLoginLoading(true);
     setTimeout(() => {
       setLoginLoading(false);
-      const email = loginForm.getValues('email');
-      login(email, 'ristoratore');
-      window.location.href = '/ristoratore/dashboard';
-    }, 1600);
+      login(pendingEmail, pendingRole);
+      window.location.href =
+        pendingRole === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
+    }, 800);
   });
 
   const autofill = (email: string, password: string) => {
@@ -110,7 +158,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Left brandpanel */}
+      {/* Left brand panel */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col bg-primary relative overflow-hidden">
         <div
           className="absolute inset-0"
@@ -127,7 +175,6 @@ export default function LoginPage() {
           <div className="flex items-center gap-3 mb-auto">
             <AppLogo size={256} />
           </div>
-
           <div className="my-auto">
             <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight mb-4 text-balance">
               Il tuo ristorante,
@@ -135,11 +182,9 @@ export default function LoginPage() {
               online in minuti.
             </h2>
             <p className="text-white/80 text-lg leading-relaxed mb-10 max-w-md">
-              Gestisci ordini, menu e consegne da un unico pannello professionale. iGOdelivering è
-              lo strumento definitivo per la tua crescita.
+              Gestisci ordini, menu e consegne da un unico pannello professionale.
             </p>
-
-            <div className="grid grid-cols-2 gap-4 max-w-sm mb-10">
+            <div className="grid grid-cols-2 gap-4 max-w-sm">
               {[
                 { label: '4.200+', sub: 'Ristoranti attivi' },
                 { label: '98,4%', sub: 'Uptime garantito' },
@@ -156,7 +201,6 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-
           <div className="mt-auto pt-8 border-t border-white/20">
             <p className="text-white/50 text-xs">© 2026 innovaGO · Privacy · Termini di servizio</p>
           </div>
@@ -175,25 +219,20 @@ export default function LoginPage() {
           {!isFirstLogin ? (
             <>
               <div className="mb-8">
-                <h1 className="text-2xl font-bold text-foreground mb-2">Accesso Ristoratore</h1>
+                <h1 className="text-2xl font-bold text-foreground mb-2">Accesso Pannello</h1>
                 <p className="text-muted-foreground text-sm">
-                  Inserisci le credenziali fornite dall'Admin per gestire il tuo locale.
+                  Inserisci le credenziali per accedere al tuo pannello di gestione.
                 </p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
+                {/* Email */}
                 <div>
-                  <label
-                    htmlFor="login-email"
-                    className="block text-sm font-semibold text-foreground mb-1.5"
-                  >
+                  <label htmlFor="login-email" className="block text-sm font-semibold text-foreground mb-1.5">
                     Email
                   </label>
                   <div className="relative">
-                    <Mail
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
+                    <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
                       id="login-email"
                       type="email"
@@ -201,63 +240,34 @@ export default function LoginPage() {
                       placeholder="nome@ristorante.it"
                       {...loginForm.register('email', {
                         required: 'Email obbligatoria',
-                        pattern: {
-                          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                          message: 'Email non valida',
-                        },
+                        pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Email non valida' },
                       })}
-                      className={`w-full pl-9 pr-3 py-3 text-base bg-input border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring transition-colors ${loginForm.formState.errors.email ? 'border-[var(--danger)]' : 'border-border'}`}
+                      className={`w-full pl-9 pr-3 py-3 text-base bg-input border rounded-xl focus:outline-none transition-colors ${loginForm.formState.errors.email ? 'border-[var(--danger)]' : 'border-border'}`}
                     />
                   </div>
                   {loginForm.formState.errors.email && (
-                    <p className="mt-1.5 text-xs text-[var(--danger)]">
-                      {loginForm.formState.errors.email.message}
-                    </p>
+                    <p className="mt-1.5 text-xs text-[var(--danger)]">{loginForm.formState.errors.email.message}</p>
                   )}
                 </div>
 
+                {/* Password */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label
-                      htmlFor="login-password"
-                      className="block text-sm font-semibold text-foreground"
-                    >
+                    <label htmlFor="login-password" className="block text-sm font-semibold text-foreground">
                       Password
                     </label>
-                    <button
-                      type="button"
-                      className="text-xs text-primary hover:underline font-medium"
-                    >
+                    <button type="button" className="text-xs text-primary hover:underline font-medium">
                       Password dimenticata?
                     </button>
                   </div>
-                  <div className="relative">
-                    <Lock
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      id="login-password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="current-password"
-                      placeholder="Password"
-                      {...loginForm.register('password', {
-                        required: 'Password obbligatoria',
-                      })}
-                      className={`w-full pl-9 pr-10 py-3 text-base bg-input border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring transition-colors ${loginForm.formState.errors.password ? 'border-[var(--danger)]' : 'border-border'}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    id="login-password"
+                    placeholder="Password"
+                    hasError={!!loginForm.formState.errors.password}
+                    registration={loginForm.register('password', { required: 'Password obbligatoria' })}
+                  />
                   {loginForm.formState.errors.password && (
-                    <p className="mt-1.5 text-xs text-[var(--danger)]">
-                      {loginForm.formState.errors.password.message}
-                    </p>
+                    <p className="mt-1.5 text-xs text-[var(--danger)]">{loginForm.formState.errors.password.message}</p>
                   )}
                 </div>
 
@@ -287,24 +297,34 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Demo Section (per test) */}
+              {/* Demo credentials */}
               <div className="mt-10 pt-6 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3 text-center">
                   Account di test
                 </p>
-                <div className="max-w-xs mx-auto">
-                  {demoCredentials.map((creds) => (
-                    <div key={creds.role} className="bg-muted p-3 rounded-xl border border-border flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-bold text-primary uppercase mb-0.5">Ristoratore Demo</p>
-                        <p className="text-[10px] font-mono text-foreground">{creds.email}</p>
-                        <p className="text-[10px] font-mono text-muted-foreground">{creds.password}</p>
+                <div className="space-y-2">
+                  {demoCredentials.filter(c => c.role === 'ristoratore').map((creds) => (
+                    <div
+                      key={creds.role}
+                      className="bg-muted p-3 rounded-xl border border-border flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-primary uppercase mb-0.5">{creds.label}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-[10px] font-mono text-foreground truncate">{creds.email}</p>
+                          <CopyButton value={creds.email} />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <p className="text-[10px] font-mono text-muted-foreground">{creds.password}</p>
+                          <CopyButton value={creds.password} />
+                        </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => autofill(creds.email, creds.password)}
-                        className="text-[10px] font-bold text-primary hover:underline px-2.5 py-1 bg-background border border-border rounded-lg"
+                        className="flex-shrink-0 text-[10px] font-bold text-primary hover:underline px-2.5 py-1.5 bg-background border border-border rounded-lg whitespace-nowrap"
                       >
-                        Usa
+                        Usa →
                       </button>
                     </div>
                   ))}
@@ -312,15 +332,15 @@ export default function LoginPage() {
               </div>
             </>
           ) : (
+            /* ── Primo Accesso ── */
             <>
               <div className="mb-8">
                 <div className="w-12 h-12 bg-orange-100 text-primary rounded-full flex items-center justify-center mb-4">
-                  <Lock size={24} />
+                  <ShieldCheck size={24} />
                 </div>
                 <h1 className="text-2xl font-bold text-foreground mb-2">Primo Accesso</h1>
                 <p className="text-muted-foreground text-sm">
-                  Per motivi di sicurezza, devi impostare una nuova password personale prima di
-                  procedere alla dashboard.
+                  Per motivi di sicurezza, imposta una nuova password personale prima di procedere.
                 </p>
               </div>
 
@@ -329,43 +349,35 @@ export default function LoginPage() {
                   <label className="block text-sm font-semibold text-foreground mb-1.5">
                     Nuova Password
                   </label>
-                  <div className="relative">
-                    <Lock
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Minimo 8 caratteri"
-                      {...changePasswordForm.register('newPassword', {
-                        required: true,
-                        minLength: 8,
-                      })}
-                      className="w-full pl-9 pr-3 py-3 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
+                  <PasswordInput
+                    id="new-password"
+                    placeholder="Minimo 8 caratteri"
+                    hasError={!!changePasswordForm.formState.errors.newPassword}
+                    registration={changePasswordForm.register('newPassword', {
+                      required: true,
+                      minLength: { value: 8, message: 'Minimo 8 caratteri' },
+                    })}
+                  />
+                  {changePasswordForm.formState.errors.newPassword && (
+                    <p className="mt-1.5 text-xs text-[var(--danger)]">
+                      {changePasswordForm.formState.errors.newPassword.message as string}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-foreground mb-1.5">
                     Conferma Nuova Password
                   </label>
-                  <div className="relative">
-                    <Lock
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Ripeti la password"
-                      {...changePasswordForm.register('confirmPassword', {
-                        required: true,
-                        validate: (v) =>
-                          v === changePasswordForm.watch('newPassword') ||
-                          'Le password non corrispondono',
-                      })}
-                      className="w-full pl-9 pr-3 py-3 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
+                  <PasswordInput
+                    id="confirm-password"
+                    placeholder="Ripeti la password"
+                    hasError={!!changePasswordForm.formState.errors.confirmPassword}
+                    registration={changePasswordForm.register('confirmPassword', {
+                      required: true,
+                      validate: (v) =>
+                        v === changePasswordForm.watch('newPassword') || 'Le password non corrispondono',
+                    })}
+                  />
                   {changePasswordForm.formState.errors.confirmPassword && (
                     <p className="mt-1.5 text-xs text-[var(--danger)]">
                       {changePasswordForm.formState.errors.confirmPassword.message as string}
@@ -378,7 +390,17 @@ export default function LoginPage() {
                   disabled={loginLoading}
                   className="w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-70 transition-all duration-150 active:scale-95 flex items-center justify-center gap-2 text-sm"
                 >
-                  {loginLoading ? 'Aggiornamento...' : 'Conferma e Accedi'}
+                  {loginLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Aggiornamento...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={16} />
+                      Conferma e Accedi
+                    </>
+                  )}
                 </button>
               </form>
             </>

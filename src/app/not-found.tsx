@@ -24,7 +24,6 @@ export default function NotFound() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="text-center max-w-lg space-y-6 relative z-10">
-
         {/* Transparent logo in high contrast */}
         <div className="flex justify-center mb-2 animate-fade-in">
           <div style={{ filter: 'brightness(0)' }} className="opacity-90">
@@ -44,7 +43,8 @@ export default function NotFound() {
             Pagina non trovata
           </h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            La pagina che stai cercando non esiste o è stata spostata. Non preoccuparti, ti riportiamo subito sulla strada giusta!
+            La pagina che stai cercando non esiste o è stata spostata. Non preoccuparti, ti
+            riportiamo subito sulla strada giusta!
           </p>
         </div>
 

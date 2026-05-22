@@ -1,17 +1,45 @@
 'use client';
 import React, { useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
-import { ArrowLeft, Bell, Check } from 'lucide-react';
+import Topbar from '@/components/layout/Topbar';
+import { ArrowLeft, ChevronRight, Check, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
+import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
 
-// Wizard Components
-import RestaurantInfoStep from '@/components/admin/restaurant-wizard/RestaurantInfoStep';
-import DeliveryZonesStep from '@/components/admin/restaurant-wizard/DeliveryZonesStep';
-import HoursStep from '@/components/admin/restaurant-wizard/HoursStep';
-import ScheduledOrdersStep from '@/components/admin/restaurant-wizard/ScheduledOrdersStep';
-import MenuStep from '@/components/admin/restaurant-wizard/MenuStep';
-import ReviewStep from '@/components/admin/restaurant-wizard/ReviewStep';
-import PublishedSuccess from '@/components/admin/restaurant-wizard/PublishedSuccess';
+// Wizard step components — dynamically imported so each step is a separate chunk
+const RestaurantInfoStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/RestaurantInfoStep'),
+  { ssr: false }
+);
+const DeliveryZonesStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/DeliveryZonesStep'),
+  { ssr: false }
+);
+const HoursStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/HoursStep'),
+  { ssr: false }
+);
+const ScheduledOrdersStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/ScheduledOrdersStep'),
+  { ssr: false }
+);
+const PaymentStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/PaymentStep'),
+  { ssr: false }
+);
+const MenuStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/MenuStep'),
+  { ssr: false }
+);
+const ReviewStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/ReviewStep'),
+  { ssr: false }
+);
+const PublishedSuccess = dynamic(
+  () => import('@/components/admin/restaurant-wizard/PublishedSuccess'),
+  { ssr: false }
+);
 
 import {
   MenuItemWizardDraft,
@@ -32,15 +60,16 @@ import {
   TIME_WINDOWS,
 } from '@/lib/constants';
 
-type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'menu' | 'review';
+type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'payment' | 'menu' | 'review';
 
-const steps: { id: WizardStep; label: string }[] = [
-  { id: 'info', label: 'Informazioni' },
-  { id: 'delivery', label: 'Consegna' },
-  { id: 'hours', label: 'Orari' },
-  { id: 'scheduled', label: 'Programmati' },
-  { id: 'menu', label: 'Menu' },
-  { id: 'review', label: 'Pubblica' },
+const steps: { id: WizardStep; label: string; description: string }[] = [
+  { id: 'info', label: 'Informazioni', description: 'Dati anagrafici e contatti' },
+  { id: 'delivery', label: 'Consegna', description: 'Zone e tariffe di consegna' },
+  { id: 'hours', label: 'Orari', description: 'Orari di apertura e servizio' },
+  { id: 'scheduled', label: 'Programmati', description: 'Ordini prenotati in anticipo' },
+  { id: 'payment', label: 'Pagamento', description: 'Metodi di pagamento accettati' },
+  { id: 'menu', label: 'Menu', description: 'Categorie, piatti e opzioni' },
+  { id: 'review', label: 'Pubblica', description: 'Revisione e pubblicazione' },
 ];
 
 const defaultDayHours = (): Record<string, DayHours> => {
@@ -58,6 +87,7 @@ const defaultDayHours = (): Record<string, DayHours> => {
 
 export default function NewRestaurantPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [published, setPublished] = useState(false);
 
@@ -119,6 +149,12 @@ export default function NewRestaurantPage() {
     onPremiseExpanded: true,
     altroExpanded: true,
   });
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({
+    card_delivery: true,
+    card_pickup: true,
+    cash_delivery: true,
+    cash_pickup: true,
+  });
   const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -162,8 +198,12 @@ export default function NewRestaurantPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   // --- HELPERS ---
-  const stepOrder: WizardStep[] = ['info', 'delivery', 'hours', 'scheduled', 'menu', 'review'];
+  const stepOrder: WizardStep[] = [
+    'info', 'delivery', 'hours', 'scheduled', 'payment', 'menu', 'review',
+  ];
   const currentIndex = stepOrder.indexOf(currentStep);
+  const progressPercent = Math.round((currentIndex / (stepOrder.length - 1)) * 100);
+  const currentStepMeta = steps[currentIndex];
 
   const addZone = () =>
     setZones((prev) => [
@@ -250,7 +290,59 @@ export default function NewRestaurantPage() {
     if (f) setNewItem((p) => ({ ...p, imageUrl: URL.createObjectURL(f), imageFile: f }));
   };
 
+  const slugify = (text: string) => {
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\-]+/g, '')
+      .replace(/\-\-+/g, '-');
+  };
+
   const handlePublish = () => {
+    const restaurantId = `r-${Date.now()}`;
+    const slug = slugify(info.name);
+
+    const newRestaurant = {
+      id: restaurantId,
+      name: info.name,
+      address: info.address,
+      city: info.city,
+      status: 'published',
+      owner: info.name + ' Owner',
+      email: info.email,
+      phone: info.phone,
+      createdAt: new Date().toISOString().split('T')[0],
+      menuItems: menuItems.length,
+      ordersToday: 0,
+      category: info.category,
+    };
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
+      saved.push(newRestaurant);
+      localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(saved));
+
+      const settings = {
+        profile: { name: info.name, logoUrl: info.logoUrl },
+        minOrder: zones[0]?.minOrder || 0,
+        deliveryFee: zones[0]?.deliveryFee || 0,
+        freeDeliveryActive: (zones[0]?.freeDeliveryThreshold || 0) > 0,
+        freeDeliveryThreshold: zones[0]?.freeDeliveryThreshold || 0,
+        paymentMethods: {
+          card_delivery: paymentConfig.card_delivery,
+          card_pickup: paymentConfig.card_pickup,
+          cash_delivery: paymentConfig.cash_delivery,
+          cash_pickup: paymentConfig.cash_pickup,
+        },
+      };
+      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settings));
+      localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settings));
+    } catch (e) {
+      console.error('Error saving restaurant or settings', e);
+    }
+
     setPublished(true);
   };
 
@@ -263,6 +355,8 @@ export default function NewRestaurantPage() {
           activeSection="nav-ristoranti"
           onSectionChange={() => {}}
           role="admin"
+          isMobileOpen={isMobileOpen}
+          onCloseMobile={() => setIsMobileOpen(false)}
         />
         <PublishedSuccess restaurantName={info.name} email={info.email} />
       </div>
@@ -277,49 +371,104 @@ export default function NewRestaurantPage() {
         activeSection="nav-ristoranti"
         onSectionChange={() => {}}
         role="admin"
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
-          <Link
-            href="/admin/restaurants"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm font-medium"
-          >
-            <ArrowLeft size={16} />
-            Ristoranti
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-sm font-semibold text-foreground">Nuovo Ristorante</span>
-          <div className="flex-1" />
-          <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
-            <Bell size={18} />
-          </button>
-        </header>
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <Topbar
+          role="admin"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileMenuOpen={() => setIsMobileOpen(true)}
+          leftContent={
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/restaurants"
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+              >
+                <ArrowLeft size={15} />
+                <span className="hidden sm:inline">Ristoranti</span>
+              </Link>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm font-semibold text-foreground">Nuovo Ristorante</span>
+            </div>
+          }
+        />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-            <div className="flex items-center gap-0">
-              {steps.map((step, idx) => (
-                <React.Fragment key={step.id}>
-                  <button
-                    onClick={() =>
-                      stepOrder.indexOf(step.id) < currentIndex && setCurrentStep(step.id)
-                    }
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${step.id === currentStep ? 'bg-primary text-white' : stepOrder.indexOf(step.id) < currentIndex ? 'text-[var(--success)] hover:bg-[var(--success-bg)]' : 'text-muted-foreground'}`}
-                  >
-                    <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step.id === currentStep ? 'bg-white/20' : stepOrder.indexOf(step.id) < currentIndex ? 'bg-[var(--success-bg)]' : 'bg-muted'}`}
+        <main className="flex-1 overflow-y-auto overscroll-contain">
+          {/* Wizard Progress Header */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
+            {/* Mobile: compact progress view */}
+            <div className="sm:hidden px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Step {currentIndex + 1} di {steps.length}
+                  </p>
+                  <h2 className="text-sm font-bold text-foreground">{currentStepMeta.label}</h2>
+                </div>
+                <span className="text-xs font-semibold text-primary">{progressPercent}%</span>
+              </div>
+              {/* Progress bar */}
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Desktop: step pills */}
+            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-none">
+              {steps.map((step, idx) => {
+                const isCompleted = stepOrder.indexOf(step.id) < currentIndex;
+                const isCurrent = step.id === currentStep;
+                return (
+                  <React.Fragment key={step.id}>
+                    <button
+                      onClick={() =>
+                        stepOrder.indexOf(step.id) < currentIndex && setCurrentStep(step.id)
+                      }
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
+                        isCurrent
+                          ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                          : isCompleted
+                            ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer'
+                            : 'text-muted-foreground cursor-default'
+                      }`}
                     >
-                      {stepOrder.indexOf(step.id) < currentIndex ? <Check size={12} /> : idx + 1}
-                    </span>
-                    <span className="hidden sm:inline">{step.label}</span>
-                  </button>
-                  {idx < steps.length - 1 && (
-                    <div
-                      className={`flex-1 h-0.5 mx-1 ${stepOrder.indexOf(step.id) < currentIndex ? 'bg-[var(--success)]' : 'bg-border'}`}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                          isCurrent
+                            ? 'bg-white/25'
+                            : isCompleted
+                              ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
+                              : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {isCompleted ? <Check size={11} /> : idx + 1}
+                      </span>
+                      {step.label}
+                    </button>
+                    {idx < steps.length - 1 && (
+                      <ChevronRight
+                        size={14}
+                        className={`flex-shrink-0 mx-0.5 ${
+                          isCompleted ? 'text-emerald-400' : 'text-border'
+                        }`}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step Content */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+            {/* Mobile step description */}
+            <div className="sm:hidden">
+              <p className="text-xs text-muted-foreground">{currentStepMeta.description}</p>
             </div>
 
             {currentStep === 'info' && (
@@ -365,6 +514,9 @@ export default function NewRestaurantPage() {
                 timeUnits={TIME_UNITS}
                 timeWindows={TIME_WINDOWS}
               />
+            )}
+            {currentStep === 'payment' && (
+              <PaymentStep paymentConfig={paymentConfig} setPaymentConfig={setPaymentConfig} />
             )}
             {currentStep === 'menu' && (
               <MenuStep
@@ -460,20 +612,23 @@ export default function NewRestaurantPage() {
               />
             )}
 
-            <div className="flex items-center justify-between pt-8 border-t border-border">
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-4 border-t border-border">
               <button
                 onClick={() => setCurrentStep(stepOrder[currentIndex - 1])}
                 disabled={currentIndex === 0}
-                className="px-6 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground disabled:opacity-0 transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-0 transition-all"
               >
+                <ChevronLeftIcon size={16} />
                 Indietro
               </button>
               {currentStep !== 'review' && (
                 <button
                   onClick={() => setCurrentStep(stepOrder[currentIndex + 1])}
-                  className="bg-primary text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-all"
+                  className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
                 >
                   Continua
+                  <ChevronRight size={16} />
                 </button>
               )}
             </div>

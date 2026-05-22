@@ -18,11 +18,11 @@ import {
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import AppImage from '@/components/ui/AppImage';
+import Footer from '@/components/layout/Footer';
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/20 selection:text-primary scroll-smooth">
-
       {/* ─── Top Navbar ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-card/85 backdrop-blur-md transition-all duration-300">
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
@@ -236,7 +236,6 @@ export default function LandingPage() {
       >
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-stretch">
-
             {/* Left: Contact Info Block */}
             <div className="bg-card border border-border rounded-3xl p-8 lg:p-12 shadow-xl flex flex-col justify-between space-y-8">
               <div className="space-y-4">
@@ -247,7 +246,9 @@ export default function LandingPage() {
                   Contatta Innovago per iniziare
                 </h2>
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-                  Sei pronto ad attivare il tuo portale o desideri una presentazione su misura per il tuo ristorante? Contattaci direttamente per qualsiasi informazione o per ricevere le tue credenziali Partner.
+                  Sei pronto ad attivare il tuo portale o desideri una presentazione su misura per
+                  il tuo ristorante? Contattaci direttamente per qualsiasi informazione o per
+                  ricevere le tue credenziali Partner.
                 </p>
               </div>
 
@@ -261,8 +262,12 @@ export default function LandingPage() {
                     <Mail size={18} />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground font-semibold">Scrivici Via E-mail</p>
-                    <p className="text-sm font-bold text-foreground mt-0.5 break-all">info@innovago.it</p>
+                    <p className="text-xs text-muted-foreground font-semibold">
+                      Scrivici Via E-mail
+                    </p>
+                    <p className="text-sm font-bold text-foreground mt-0.5 break-all">
+                      info@innovago.it
+                    </p>
                   </div>
                 </a>
 
@@ -293,7 +298,9 @@ export default function LandingPage() {
                   Esplora l&apos;esperienza cliente
                 </h2>
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-                  Vuoi testare in prima persona il funzionamento e la velocità del nostro menu digitale? Esplora la vetrina demo live creata per simulare ordinazioni e prenotazioni.
+                  Vuoi testare in prima persona il funzionamento e la velocità del nostro menu
+                  digitale? Esplora la vetrina demo live creata per simulare ordinazioni e
+                  prenotazioni.
                 </p>
               </div>
 
@@ -316,28 +323,12 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-
           </div>
         </div>
       </section>
 
       {/* ─── Footer ────────────────────────────────────────────── */}
-      <footer className="bg-card border-t border-border mt-auto py-8">
-        <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <p>
-            © {new Date().getFullYear()} iGOdelivering. Tecnologia di{' '}
-            <a
-              href="https://www.innovago.it"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold hover:text-primary transition-colors text-foreground"
-            >
-              innovago.it
-            </a>
-          </p>
-        </div>
-      </footer>
-
+      <Footer />
     </div>
   );
 }

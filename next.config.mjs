@@ -2,8 +2,12 @@ import { imageHosts } from './image-hosts.config.mjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  productionBrowserSourceMaps: true,
+  productionBrowserSourceMaps: false,
+  compress: true,
   distDir: process.env.DIST_DIR || '.next',
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts'],
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

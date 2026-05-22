@@ -235,12 +235,12 @@ export default function OrderHistoryTable() {
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-card">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-border">
         <div>
           <h3 className="text-base font-semibold text-foreground">Storico Ordini</h3>
           <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} ordini trovati</p>
         </div>
-        <div className="relative">
+        <div className="relative w-full sm:w-60">
           <Search
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -253,11 +253,12 @@ export default function OrderHistoryTable() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="pl-8 pr-3 py-2 text-sm bg-muted rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-60 placeholder:text-muted-foreground"
+            className="pl-8 pr-3 py-2 text-base bg-muted rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full placeholder:text-muted-foreground"
           />
         </div>
       </div>
-      <div className="overflow-x-auto">
+      {/* Desktop view: Table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
@@ -294,7 +295,7 @@ export default function OrderHistoryTable() {
             {pageData.length === 0 && (
               <tr>
                 <td colSpan={10} className="px-4 py-16 text-center text-sm text-muted-foreground">
-                  Nessun ordine trovato per "{search}"
+                  Nessun ordine trovato per &quot;{search}&quot;
                 </td>
               </tr>
             )}
@@ -342,6 +343,93 @@ export default function OrderHistoryTable() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile view: Cards List */}
+      <div className="md:hidden divide-y divide-border">
+        {pageData.length === 0 && (
+          <div className="px-4 py-16 text-center text-sm text-muted-foreground">
+            Nessun ordine trovato per &quot;{search}&quot;
+          </div>
+        )}
+        {pageData.map((order) => (
+          <div
+            key={`mobile-order-${order.id}`}
+            className="p-4 space-y-3 hover:bg-muted/10 transition-colors"
+          >
+            {/* Header: Order Num & Status */}
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-semibold text-primary">
+                {order.num}
+              </span>
+              <Badge variant={statusBadgeVariant[order.status]} dot>
+                {order.status}
+              </Badge>
+            </div>
+
+            {/* Customer & Type */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-foreground">
+                {order.customer}
+              </span>
+              <Badge variant={order.type === 'Consegna' ? 'info' : 'neutral'}>
+                {order.type}
+              </Badge>
+            </div>
+
+            {/* Items */}
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {order.items}
+            </p>
+
+            {/* Details Grid */}
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div>
+                <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
+                  Totale
+                </span>
+                <span className="font-bold text-foreground tabular-nums">
+                  € {order.total.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
+                  Pagamento
+                </span>
+                <span className="text-muted-foreground">
+                  {order.payment}
+                </span>
+              </div>
+              <div>
+                <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
+                  Data e Ora
+                </span>
+                <span className="text-muted-foreground tabular-nums">
+                  {order.date} {order.time}
+                </span>
+              </div>
+              <div>
+                <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
+                  Zona
+                </span>
+                <span className="text-muted-foreground">
+                  {order.zone}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end pt-2 border-t border-border">
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted hover:bg-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors cursor-pointer"
+                title="Visualizza ordine"
+              >
+                <Eye size={14} />
+                Dettagli
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
       {/* Pagination */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-border">

@@ -1,19 +1,14 @@
 'use client';
 import React, { useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
-import { Bell, PauseCircle, PlayCircle, Zap, UtensilsCrossed, Settings } from 'lucide-react';
+import Topbar from '@/components/layout/Topbar';
+import { PauseCircle, PlayCircle, Zap, Store } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
-// Components
 import MenuEditorTab from '@/components/ristoratore/menu-management/MenuEditorTab';
-import ServiceHoursTab from '@/components/ristoratore/menu-management/ServiceHoursTab';
-
 import { MenuItem, MenuItemDraft } from '@/types';
 
-// Types
-type MenuTab = 'piatti' | 'orari';
-
 // Constants
-const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 const ALLERGENS_LIST = [
   'Glutine',
   'Latte',
@@ -92,8 +87,9 @@ const initialMenuItems: MenuItem[] = [
 ];
 
 export default function RistoratoreMenuPage() {
+  const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<MenuTab>('piatti');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [items, setItems] = useState<MenuItem[]>(initialMenuItems);
   const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [search, setSearch] = useState('');
@@ -104,31 +100,6 @@ export default function RistoratoreMenuPage() {
 
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  const [serviceHours, setServiceHours] = useState(() => {
-    const buildDays = () => {
-      const h: any = {};
-      DAYS.forEach(
-        (d) =>
-          (h[d] = {
-            enabled: true,
-            suspended: false,
-            lunch: { from: '11:30', to: '14:30' },
-            dinner: { from: '19:00', to: '22:30' },
-          })
-      );
-      h['Domenica'].enabled = false;
-      return h;
-    };
-    return { pickup: buildDays(), delivery: buildDays(), reservation: buildDays() };
-  });
-
-  const [serviceSuspended, setServiceSuspended] = useState({
-    pickup: false,
-    delivery: false,
-    reservation: false,
-  });
 
   const showFeedback = (msg: string) => {
     setBulkActionFeedback(msg);
@@ -239,23 +210,33 @@ export default function RistoratoreMenuPage() {
         activeSection="nav-menu"
         onSectionChange={() => {}}
         role="ristoratore"
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
-          <span className="font-bold text-foreground text-base flex-1">Pizzeria Bella Napoli</span>
-          <div className="flex items-center gap-3">
+        <Topbar
+          role="ristoratore"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileMenuOpen={() => setIsMobileOpen(true)}
+          leftContent={
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <Store size={16} className="text-primary flex-shrink-0" />
+              <span className="font-semibold text-foreground text-base truncate">
+                {user?.restaurantName || 'Pizzeria Bella Napoli'}
+              </span>
+            </div>
+          }
+          rightExtra={
             <button
               onClick={() => setServicePaused(!servicePaused)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${servicePaused ? 'bg-[var(--success-bg)] text-[var(--success)]' : 'bg-[var(--warning-bg)] text-[var(--warning)]'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${servicePaused ? 'bg-[var(--success-bg)] text-[var(--success)]' : 'bg-[var(--warning-bg)] text-[var(--warning)]'}`}
             >
               {servicePaused ? <PlayCircle size={16} /> : <PauseCircle size={16} />}
               {servicePaused ? 'Riprendi Servizio' : 'Metti in Pausa'}
             </button>
-            <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
-              <Bell size={18} />
-            </button>
-          </div>
-        </header>
+          }
+        />
 
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
@@ -318,86 +299,36 @@ export default function RistoratoreMenuPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl w-fit">
-              <button
-                onClick={() => setActiveTab('piatti')}
-                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'piatti' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                <UtensilsCrossed size={14} />
-                Piatti & Menu
-              </button>
-              <button
-                onClick={() => setActiveTab('orari')}
-                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'orari' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                <Settings size={14} />
-                Orari & Servizi
-              </button>
-            </div>
-
-            {activeTab === 'piatti' ? (
-              <MenuEditorTab
-                search={search}
-                setSearch={setSearch}
-                activeCategory={activeCategory}
-                setActiveCategory={setActiveCategory}
-                categories={categories}
-                hiddenCategories={hiddenCategories}
-                toggleCategoryVisibility={toggleCategoryVisibility}
-                filteredItems={filtered}
-                toggleAvailability={toggleAvailability}
-                removeMenuItem={removeMenuItem}
-                pauseAllDishes={() => {
-                  setItems((p) => p.map((i) => ({ ...i, available: false })));
-                  showFeedback('Tutti i piatti sospesi');
-                }}
-                resumeAllDishes={() => {
-                  setItems((p) => p.map((i) => ({ ...i, available: true })));
-                  showFeedback('Tutti i piatti riattivati');
-                }}
-                showAddItem={showAddItem}
-                setShowAddItem={setShowAddItem}
-                editingItemId={editingItemId}
-                setEditingItemId={setEditingItemId}
-                addMenuItem={addMenuItem}
-                saveEditItem={saveEditItem}
-                addCategory={addCategory}
-                itemToDraft={itemToDraft}
-                emptyDraft={emptyDraft}
-                allergensList={ALLERGENS_LIST}
-              />
-            ) : (
-              <ServiceHoursTab
-                serviceHours={serviceHours}
-                serviceSuspended={serviceSuspended}
-                toggleServiceSuspension={(s) =>
-                  setServiceSuspended((p) => {
-                    const n = { ...p, [s]: !p[s] };
-                    showFeedback(`Servizio ${s} ${n[s] ? 'sospeso' : 'riattivato'}`);
-                    return n;
-                  })
-                }
-                toggleServiceDay={(s, d) =>
-                  setServiceHours((p: any) => ({
-                    ...p,
-                    [s]: { ...p[s], [d]: { ...p[s][d], enabled: !p[s][d].enabled } },
-                  }))
-                }
-                updateServiceHour={(s, d, svc, f, v) =>
-                  setServiceHours((p: any) => ({
-                    ...p,
-                    [s]: { ...p[s], [d]: { ...p[s][d], [svc]: { ...p[s][d][svc], [f]: v } } },
-                  }))
-                }
-                handleSaveHours={() => {
-                  setSaved(true);
-                  showFeedback('Orari salvati');
-                  setTimeout(() => setSaved(false), 2500);
-                }}
-                saved={saved}
-                days={DAYS}
-              />
-            )}
+            <MenuEditorTab
+              search={search}
+              setSearch={setSearch}
+              activeCategory={activeCategory}
+              setActiveCategory={setActiveCategory}
+              categories={categories}
+              hiddenCategories={hiddenCategories}
+              toggleCategoryVisibility={toggleCategoryVisibility}
+              filteredItems={filtered}
+              toggleAvailability={toggleAvailability}
+              removeMenuItem={removeMenuItem}
+              pauseAllDishes={() => {
+                setItems((p) => p.map((i) => ({ ...i, available: false })));
+                showFeedback('Tutti i piatti sospesi');
+              }}
+              resumeAllDishes={() => {
+                setItems((p) => p.map((i) => ({ ...i, available: true })));
+                showFeedback('Tutti i piatti riattivati');
+              }}
+              showAddItem={showAddItem}
+              setShowAddItem={setShowAddItem}
+              editingItemId={editingItemId}
+              setEditingItemId={setEditingItemId}
+              addMenuItem={addMenuItem}
+              saveEditItem={saveEditItem}
+              addCategory={addCategory}
+              itemToDraft={itemToDraft}
+              emptyDraft={emptyDraft}
+              allergensList={ALLERGENS_LIST}
+            />
           </div>
         </main>
       </div>

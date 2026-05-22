@@ -1,39 +1,68 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
+import Topbar from '@/components/layout/Topbar';
 import KPIBentoGrid from '@/components/ristoratore/KPIBentoGrid';
-import LiveOrderKanban from '@/components/ristoratore/LiveOrderKanban';
 import OrderHistoryTable from '@/components/ristoratore/OrderHistoryTable';
-import { Bell, Search, ChevronDown, Store } from 'lucide-react';
+import { Search, Store } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const RevenueChart = dynamic(() => import('@/components/ristoratore/RevenueChart'), { ssr: false });
 
 export default function RestaurantDashboardPage() {
+  const { user } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('nav-panoramica');
+  const [currentDate, setCurrentDate] = useState('');
+
+  useEffect(() => {
+    // Restore sidebar state
+    const stored = localStorage.getItem('iGO_sidebar_collapsed');
+    if (stored !== null) {
+      setSidebarCollapsed(JSON.parse(stored));
+    }
+
+    // Set dynamic date
+    const formatted = new Date().toLocaleDateString('it-IT', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
+  }, []);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
+        role="ristoratore"
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Topbar */}
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 text-sm text-muted-foreground border border-border cursor-pointer hover:border-primary/50 transition-colors">
-              <Store size={15} />
-              <span className="font-medium text-foreground">Pizzeria Bella Napoli</span>
-              <ChevronDown size={14} />
+        <Topbar
+          role="ristoratore"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileMenuOpen={() => setIsMobileOpen(true)}
+          leftContent={
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <Store size={16} className="text-primary flex-shrink-0" />
+              <span className="font-semibold text-foreground text-base truncate">
+                {user?.restaurantName || 'Il tuo ristorante'}
+              </span>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
+          }
+          rightExtra={
             <div className="relative">
               <Search
                 size={14}
@@ -45,33 +74,21 @@ export default function RestaurantDashboardPage() {
                 className="pl-8 pr-3 py-2 text-base bg-muted rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-ring w-48 placeholder:text-muted-foreground hidden md:block"
               />
             </div>
-            <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
-            </button>
-            <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-                G
-              </div>
-              <div className="hidden md:block">
-                <p className="text-sm font-semibold text-foreground leading-none">
-                  Giuseppe Esposito
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Ristoratore</p>
-              </div>
-            </div>
-          </div>
-        </header>
+          }
+        />
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-2xl mx-auto px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 space-y-6">
             {/* Page header */}
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Panoramica</h1>
+                <h1 className="text-2xl font-bold text-foreground">
+                  Bentornato, {user?.name || 'Utente'}
+                </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Domenica 3 maggio 2026 · Pizzeria Bella Napoli
+                  {currentDate || 'Caricamento data...'} ·{' '}
+                  {user?.restaurantName || 'Il tuo ristorante'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -86,9 +103,6 @@ export default function RestaurantDashboardPage() {
 
             {/* KPIs */}
             <KPIBentoGrid />
-
-            {/* Live Orders */}
-            <LiveOrderKanban />
 
             {/* Revenue Chart + quick stats */}
             <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 gap-4">

@@ -1,77 +1,84 @@
 'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
+import Topbar from '@/components/layout/Topbar';
 import {
   ArrowLeft,
-  Bell,
-  Store,
-  MapPin,
-  Clock,
-  UtensilsCrossed,
+  ChevronRight,
   Check,
-  Save,
-  Globe,
-  Phone,
-  Mail,
-  FileText,
-  ChevronDown,
-  Plus,
-  Trash2,
-  Euro,
-  Upload,
+  ChevronLeft as ChevronLeftIcon,
   Users,
-  Pencil,
-  X,
-  Eye,
-  EyeOff,
+  Save,
+  ChevronDown
 } from 'lucide-react';
-import Toggle from '@/components/ui/Toggle';
-import AppImage from '@/components/ui/AppImage';
+import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
 
-type ConfigTab = 'info' | 'delivery' | 'hours' | 'menu';
-type VisibilityType = 'always' | 'hidden' | 'scheduled';
+// Dynamic step imports for lazy loading
+const RestaurantInfoStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/RestaurantInfoStep'),
+  { ssr: false }
+);
+const DeliveryZonesStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/DeliveryZonesStep'),
+  { ssr: false }
+);
+const HoursStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/HoursStep'),
+  { ssr: false }
+);
+const ScheduledOrdersStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/ScheduledOrdersStep'),
+  { ssr: false }
+);
+const PaymentStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/PaymentStep'),
+  { ssr: false }
+);
+const MenuStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/MenuStep'),
+  { ssr: false }
+);
+const ReviewStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/ReviewStep'),
+  { ssr: false }
+);
 
-const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const DEFAULT_CATEGORIES = [
-  'Antipasti',
-  'Primi',
-  'Secondi',
-  'Pizza',
-  'Contorni',
-  'Dolci',
-  'Bevande',
-];
-const ALLERGENS_LIST = [
-  'Glutine',
-  'Latte',
-  'Uova',
-  'Pesce',
-  'Crostacei',
-  'Arachidi',
-  'Soia',
-  'Frutta a guscio',
-  'Sedano',
-  'Senape',
-  'Sesamo',
-  'Lupini',
-  'Molluschi',
-  'Anidride solforosa',
-];
-const RESTAURANT_CATEGORIES = [
-  'Pizzeria',
-  'Trattoria',
-  'Ristorante',
-  'Osteria',
-  'Sushi',
-  'Cinese',
-  'Messicano',
-  'Indiano',
-  'Burger',
-  'Kebab',
-  'Poke',
-  'Altro',
+import {
+  MenuItemWizardDraft,
+  DayHours,
+  ServiceHours,
+  RestaurantInfo,
+  DeliveryZone,
+  TableBookingConfig,
+  ScheduledOrdersConfig,
+  WizardOptionGroup,
+  WizardOptionChoice,
+  MenuItemDraft,
+  OptionGroup
+} from '@/types';
+
+import {
+  DAYS,
+  ALLERGENS_LIST,
+  DEFAULT_CATEGORIES,
+  TIME_UNITS,
+  TIME_WINDOWS
+} from '@/lib/constants';
+
+type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'payment' | 'menu' | 'review';
+
+const steps: { id: WizardStep; label: string; description: string }[] = [
+  { id: 'info', label: 'Informazioni', description: 'Dati anagrafici e contatti' },
+  { id: 'delivery', label: 'Consegna', description: 'Zone e tariffe di consegna' },
+  { id: 'hours', label: 'Orari', description: 'Orari di apertura e servizio' },
+  { id: 'scheduled', label: 'Programmati', description: 'Ordini prenotati in anticipo' },
+  { id: 'payment', label: 'Pagamento', description: 'Metodi di pagamento accettati' },
+  { id: 'menu', label: 'Menu', description: 'Categorie, piatti e opzioni' },
+  { id: 'review', label: 'Salva', description: 'Revisione e salvataggio' },
 ];
 
 const mockRestaurants = [
@@ -137,647 +144,48 @@ const mockRestaurants = [
   },
 ];
 
-interface OptionChoice {
-  id: string;
-  name: string;
-  price: string;
-}
-
-interface OptionGroup {
-  id: string;
-  name: string;
-  choices: OptionChoice[];
-}
-
-interface MenuItemDraft {
-  id: string;
-  name: string;
-  category: string;
-  price: string;
-  description: string;
-  available: boolean;
-  imageUrl: string;
-  allergens: string[];
-  visibility: VisibilityType;
-  visibilitySchedule?: { from: string; to: string };
-  optionGroups: OptionGroup[];
-}
-
-const tabs: { id: ConfigTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'info', label: 'Informazioni', icon: <Store size={15} /> },
-  { id: 'delivery', label: 'Consegna', icon: <MapPin size={15} /> },
-  { id: 'hours', label: 'Orari', icon: <Clock size={15} /> },
-  { id: 'menu', label: 'Menu', icon: <UtensilsCrossed size={15} /> },
-];
-
-const emptyItem = (): MenuItemDraft => ({
-  id: '',
-  name: '',
-  category: 'Pizza',
-  price: '',
-  description: '',
-  available: true,
-  imageUrl: '',
-  allergens: [],
-  visibility: 'always',
-  visibilitySchedule: { from: '', to: '' },
-  optionGroups: [],
-});
-
-function ItemForm({
-  item,
-  categories,
-  onSave,
-  onCancel,
-  title,
-  saveLabel,
-  onAddCategory,
-}: {
-  item: MenuItemDraft;
-  categories: string[];
-  onSave: (item: MenuItemDraft) => void;
-  onCancel: () => void;
-  title: string;
-  saveLabel: string;
-  onAddCategory: (cat: string) => void;
-}) {
-  const [draft, setDraft] = useState<MenuItemDraft>({
-    ...item,
-    optionGroups: item.optionGroups ? [...item.optionGroups] : [],
+const defaultDayHours = (): Record<string, DayHours> => {
+  const h: Record<string, DayHours> = {};
+  DAYS.forEach((d) => {
+    h[d] = {
+      open: true,
+      lunch: { from: '12:00', to: '14:30' },
+      dinner: { from: '19:00', to: '22:30' },
+    };
   });
-  const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [showNewCategory, setShowNewCategory] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newChoiceName, setNewChoiceName] = useState<Record<string, string>>({});
-  const [newChoicePrice, setNewChoicePrice] = useState<Record<string, string>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const toggleAllergen = (a: string) => {
-    setDraft((p) => ({
-      ...p,
-      allergens: p.allergens.includes(a) ? p.allergens.filter((x) => x !== a) : [...p.allergens, a],
-    }));
-  };
-
-  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setDraft((p) => ({ ...p, imageUrl: url }));
-  };
-
-  const addOptionGroup = () => {
-    if (!newGroupName.trim()) return;
-    setDraft((p) => ({
-      ...p,
-      optionGroups: [
-        ...p.optionGroups,
-        { id: `og-${Date.now()}`, name: newGroupName.trim(), choices: [] },
-      ],
-    }));
-    setNewGroupName('');
-  };
-
-  const removeOptionGroup = (gid: string) => {
-    setDraft((p) => ({ ...p, optionGroups: p.optionGroups.filter((g) => g.id !== gid) }));
-  };
-
-  const addChoice = (gid: string) => {
-    const name = newChoiceName[gid]?.trim();
-    if (!name) return;
-    setDraft((p) => ({
-      ...p,
-      optionGroups: p.optionGroups.map((g) =>
-        g.id === gid
-          ? {
-              ...g,
-              choices: [
-                ...g.choices,
-                { id: `ch-${Date.now()}`, name, price: newChoicePrice[gid] || '0' },
-              ],
-            }
-          : g
-      ),
-    }));
-    setNewChoiceName((p) => ({ ...p, [gid]: '' }));
-    setNewChoicePrice((p) => ({ ...p, [gid]: '' }));
-  };
-
-  const removeChoice = (gid: string, cid: string) => {
-    setDraft((p) => ({
-      ...p,
-      optionGroups: p.optionGroups.map((g) =>
-        g.id === gid ? { ...g, choices: g.choices.filter((c) => c.id !== cid) } : g
-      ),
-    }));
-  };
-
-  const handleAddCategory = () => {
-    const cat = newCategoryInput.trim();
-    if (!cat) return;
-    onAddCategory(cat);
-    setDraft((p) => ({ ...p, category: cat }));
-    setNewCategoryInput('');
-    setShowNewCategory(false);
-  };
-
-  return (
-    <div className="bg-card border-2 border-primary/30 rounded-xl p-5 space-y-4">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Nome *</label>
-          <input
-            type="text"
-            value={draft.name}
-            onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
-            placeholder="es. Pizza Margherita"
-            className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Categoria
-          </label>
-          {showNewCategory ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newCategoryInput}
-                onChange={(e) => setNewCategoryInput(e.target.value)}
-                placeholder="Nuova categoria"
-                className="flex-1 px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <button
-                onClick={handleAddCategory}
-                className="px-3 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-[#d43d22]"
-              >
-                <Check size={13} />
-              </button>
-              <button
-                onClick={() => setShowNewCategory(false)}
-                className="px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-muted"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <select
-                  value={draft.category}
-                  onChange={(e) => setDraft((p) => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring appearance-none"
-                >
-                  {categories.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                />
-              </div>
-              <button
-                onClick={() => setShowNewCategory(true)}
-                className="px-3 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted border border-border"
-                title="Aggiungi categoria"
-              >
-                <Plus size={13} />
-              </button>
-            </div>
-          )}
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Prezzo (€) *
-          </label>
-          <div className="relative">
-            <Euro
-              size={12}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="number"
-              value={draft.price}
-              onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
-              placeholder="9.50"
-              min={0}
-              step={0.5}
-              className="w-full pl-7 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Immagine</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Upload
-                size={12}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="url"
-                value={draft.imageUrl}
-                onChange={(e) => setDraft((p) => ({ ...p, imageUrl: e.target.value }))}
-                placeholder="https://..."
-                className="w-full pl-7 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted border border-border whitespace-nowrap"
-            >
-              File
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageFile}
-            />
-          </div>
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Descrizione
-          </label>
-          <textarea
-            value={draft.description}
-            onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
-            rows={2}
-            className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-medium text-muted-foreground mb-2">Allergeni</label>
-          <div className="flex flex-wrap gap-2">
-            {ALLERGENS_LIST.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => toggleAllergen(a)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                  draft.allergens.includes(a)
-                    ? 'bg-amber-100 text-amber-700 border border-amber-300'
-                    : 'bg-muted text-muted-foreground border border-border hover:border-amber-300'
-                }`}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Visibility */}
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-medium text-muted-foreground mb-2">Visibilità</label>
-          <div className="flex gap-2 flex-wrap">
-            {(
-              [
-                { value: 'always', label: 'Sempre visibile', icon: <Eye size={13} /> },
-                { value: 'hidden', label: 'Nascosto', icon: <EyeOff size={13} /> },
-                { value: 'scheduled', label: 'Orario programmato', icon: <Clock size={13} /> },
-              ] as { value: VisibilityType; label: string; icon: React.ReactNode }[]
-            ).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setDraft((p) => ({ ...p, visibility: opt.value }))}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
-                  draft.visibility === opt.value
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-muted text-muted-foreground border-border hover:border-primary'
-                }`}
-              >
-                {opt.icon}
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {draft.visibility === 'scheduled' && (
-            <div className="flex items-center gap-3 mt-3">
-              <span className="text-xs text-muted-foreground">Da</span>
-              <input
-                type="time"
-                value={draft.visibilitySchedule?.from || ''}
-                onChange={(e) =>
-                  setDraft((p) => ({
-                    ...p,
-                    visibilitySchedule: {
-                      ...p.visibilitySchedule,
-                      from: e.target.value,
-                      to: p.visibilitySchedule?.to || '',
-                    },
-                  }))
-                }
-                className="px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-              />
-              <span className="text-xs text-muted-foreground">a</span>
-              <input
-                type="time"
-                value={draft.visibilitySchedule?.to || ''}
-                onChange={(e) =>
-                  setDraft((p) => ({
-                    ...p,
-                    visibilitySchedule: {
-                      from: p.visibilitySchedule?.from || '',
-                      to: e.target.value,
-                    },
-                  }))
-                }
-                className="px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Option Groups */}
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-medium text-muted-foreground mb-2">
-            Opzioni e componenti aggiuntivi
-          </label>
-          <div className="space-y-3">
-            {draft.optionGroups.map((group) => (
-              <div
-                key={group.id}
-                className="border border-border rounded-xl p-3 space-y-2 bg-muted/30"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">{group.name}</span>
-                  <button
-                    onClick={() => removeOptionGroup(group.id)}
-                    className="p-1 rounded hover:bg-[var(--danger-bg)] text-muted-foreground hover:text-[var(--danger)]"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {group.choices.map((choice) => (
-                    <div key={choice.id} className="flex items-center gap-2 text-xs">
-                      <span className="flex-1 text-foreground">{choice.name}</span>
-                      <span className="text-muted-foreground">
-                        +€{parseFloat(choice.price || '0').toFixed(2)}
-                      </span>
-                      <button
-                        onClick={() => removeChoice(group.id, choice.id)}
-                        className="p-0.5 rounded hover:text-[var(--danger)]"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newChoiceName[group.id] || ''}
-                    onChange={(e) =>
-                      setNewChoiceName((p) => ({ ...p, [group.id]: e.target.value }))
-                    }
-                    placeholder="Nome scelta"
-                    className="flex-1 px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <div className="relative w-20">
-                    <Euro
-                      size={10}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="number"
-                      value={newChoicePrice[group.id] || ''}
-                      onChange={(e) =>
-                        setNewChoicePrice((p) => ({ ...p, [group.id]: e.target.value }))
-                      }
-                      placeholder="0.00"
-                      min={0}
-                      step={0.5}
-                      className="w-full pl-5 pr-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-                  <button
-                    onClick={() => addChoice(group.id)}
-                    className="px-2 py-1.5 bg-primary text-white rounded-lg text-xs hover:bg-[#d43d22]"
-                  >
-                    <Plus size={11} />
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Nome gruppo (es. Dimensione, Salsa...)"
-                className="flex-1 px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <button
-                onClick={addOptionGroup}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted border border-dashed border-border hover:border-primary hover:text-primary transition-colors"
-              >
-                <Plus size={12} />
-                Gruppo
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          onClick={() => {
-            if (!draft.name || !draft.price) return;
-            onSave(draft);
-          }}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all"
-        >
-          <Check size={14} />
-          {saveLabel}
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-        >
-          Annulla
-        </button>
-      </div>
-    </div>
-  );
-}
+  h['Domenica'].open = false;
+  return h;
+};
 
 export default function RestaurantConfigurePage() {
   const params = useParams();
   const restaurantId = params?.id as string;
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<ConfigTab>('info');
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [saved, setSaved] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Initialize from mockRestaurants (SSR-safe), then hydrate from localStorage in useEffect
-  const initialRestaurant =
-    mockRestaurants.find((r) => r.id === restaurantId) || mockRestaurants[0];
-
-  const [restaurantName, setRestaurantName] = useState(initialRestaurant?.name || 'Ristorante');
-  const [restaurantStatus, setRestaurantStatus] = useState(
-    (initialRestaurant as { status?: string })?.status || 'draft'
-  );
-
-  const [info, setInfo] = useState({
-    name: initialRestaurant?.name || '',
-    category: initialRestaurant?.category || 'Pizzeria',
-    description: (initialRestaurant as { description?: string })?.description || '',
-    phone: (initialRestaurant as { phone?: string })?.phone || '',
-    email: (initialRestaurant as { email?: string })?.email || '',
-    website: (initialRestaurant as { website?: string })?.website || '',
-    address: (initialRestaurant as { address?: string })?.address || '',
-    city: (initialRestaurant as { city?: string })?.city || '',
-    province: (initialRestaurant as { province?: string })?.province || '',
-    cap: (initialRestaurant as { cap?: string })?.cap || '',
-    vatNumber: (initialRestaurant as { vatNumber?: string })?.vatNumber || '',
+  // --- STATE ---
+  const [restaurantStatus, setRestaurantStatus] = useState<string>('draft');
+  const [info, setInfo] = useState<RestaurantInfo>({
+    name: '',
+    category: 'Pizzeria',
+    description: '',
+    phone: '',
+    email: '',
+    website: '',
+    address: '',
+    city: '',
+    province: '',
+    cap: '',
+    vatNumber: '',
+    logoUrl: '',
+    backgroundImageUrl: '',
   });
 
-  // After mount, check localStorage for a more up-to-date record
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('gloriaorder_restaurants') || '[]') as Array<{
-        id: string;
-        name: string;
-        category?: string;
-        status?: string;
-        description?: string;
-        phone?: string;
-        email?: string;
-        website?: string;
-        address?: string;
-        city?: string;
-        province?: string;
-        cap?: string;
-        vatNumber?: string;
-        hours?: Record<
-          string,
-          {
-            open: boolean;
-            lunch: { from: string; to: string };
-            dinner: { from: string; to: string };
-          }
-        >;
-        serviceHours?: Record<string, Record<string, unknown>>;
-        zones?: {
-          id: string;
-          name: string;
-          radius: number;
-          minOrder: number;
-          deliveryFee: number;
-          freeDeliveryThreshold: number;
-          enabled: boolean;
-        }[];
-        [key: string]: unknown;
-      }>;
-      const found = stored.find((r) => r.id === restaurantId);
-      if (found) {
-        setRestaurantName(found.name || 'Ristorante');
-        setRestaurantStatus(found.status || 'draft');
-        setInfo({
-          name: found.name || '',
-          category: found.category || 'Pizzeria',
-          description: found.description || '',
-          phone: found.phone || '',
-          email: found.email || '',
-          website: found.website || '',
-          address: found.address || '',
-          city: found.city || '',
-          province: found.province || '',
-          cap: found.cap || '',
-          vatNumber: found.vatNumber || '',
-        });
-        if (found.hours)
-          setHours(
-            found.hours as Record<
-              string,
-              {
-                open: boolean;
-                lunch: { from: string; to: string };
-                dinner: { from: string; to: string };
-              }
-            >
-          );
-        if (found.serviceHours) {
-          // Migrate old flat format {enabled, from, to} to new {enabled, lunch, dinner} format
-          const migrateServiceDays = (days: Record<string, unknown>) => {
-            const result: Record<
-              string,
-              {
-                enabled: boolean;
-                lunch: { from: string; to: string };
-                dinner: { from: string; to: string };
-              }
-            > = {};
-            DAYS.forEach((d) => {
-              const raw = days[d] as Record<string, unknown> | undefined;
-              if (!raw) {
-                result[d] = {
-                  enabled: true,
-                  lunch: { from: '11:30', to: '14:30' },
-                  dinner: { from: '19:00', to: '22:30' },
-                };
-              } else if (raw.lunch && raw.dinner) {
-                // Already new format
-                result[d] = raw as {
-                  enabled: boolean;
-                  lunch: { from: string; to: string };
-                  dinner: { from: string; to: string };
-                };
-              } else {
-                // Old flat format: migrate from/to into both lunch and dinner
-                const from = (raw.from as string) || '11:30';
-                const to = (raw.to as string) || '22:30';
-                result[d] = {
-                  enabled: (raw.enabled as boolean) ?? true,
-                  lunch: { from, to: '14:30' },
-                  dinner: { from: '19:00', to },
-                };
-              }
-            });
-            return result;
-          };
-          const sh = found.serviceHours as Record<string, Record<string, unknown>>;
-          setServiceHours({
-            pickup: migrateServiceDays(sh.pickup || {}),
-            delivery: migrateServiceDays(sh.delivery || {}),
-            reservation: migrateServiceDays(sh.reservation || {}),
-          });
-        }
-        if (found.zones)
-          setZones(
-            found.zones as {
-              id: string;
-              name: string;
-              radius: number;
-              minOrder: number;
-              deliveryFee: number;
-              freeDeliveryThreshold: number;
-              enabled: boolean;
-            }[]
-          );
-        if (found.menuItems && Array.isArray(found.menuItems)) {
-          setMenuItems(found.menuItems as MenuItemDraft[]);
-        }
-        if (found.menuCategories && Array.isArray(found.menuCategories)) {
-          setCategories(found.menuCategories as string[]);
-        }
-      }
-    } catch {}
-  }, [restaurantId]);
-
-  const statusLabel: Record<string, string> = {
-    published: 'Pubblicato',
-    draft: 'Bozza',
-    suspended: 'Sospeso',
-  };
-
-  const [zones, setZones] = useState([
+  const [zones, setZones] = useState<DeliveryZone[]>([
     {
       id: 'z-1',
       name: 'Zona Centro',
@@ -787,92 +195,642 @@ export default function RestaurantConfigurePage() {
       freeDeliveryThreshold: 35,
       enabled: true,
     },
-    {
-      id: 'z-2',
-      name: 'Zona Periferica',
-      radius: 7,
-      minOrder: 25,
-      deliveryFee: 4.0,
-      freeDeliveryThreshold: 50,
-      enabled: true,
-    },
   ]);
 
-  const defaultHours = () => {
-    const h: Record<
-      string,
-      { open: boolean; lunch: { from: string; to: string }; dinner: { from: string; to: string } }
-    > = {};
-    DAYS.forEach((d) => {
-      h[d] = {
-        open: true,
-        lunch: { from: '12:00', to: '14:30' },
-        dinner: { from: '19:00', to: '22:30' },
-      };
-    });
-    h['Domenica'].open = false;
-    return h;
-  };
-
-  const defaultServiceHours = () => {
-    const h: Record<
-      string,
-      {
-        enabled: boolean;
-        lunch: { from: string; to: string };
-        dinner: { from: string; to: string };
-      }
-    > = {};
-    DAYS.forEach((d) => {
-      h[d] = {
-        enabled: true,
-        lunch: { from: '11:30', to: '14:30' },
-        dinner: { from: '19:00', to: '22:30' },
-      };
-    });
-    h['Domenica'].enabled = false;
-    return h;
-  };
-
-  const [hours, setHours] = useState(defaultHours());
-  const [serviceHours, setServiceHours] = useState<{
-    pickup: Record<
-      string,
-      {
-        enabled: boolean;
-        lunch: { from: string; to: string };
-        dinner: { from: string; to: string };
-      }
-    >;
-    delivery: Record<
-      string,
-      {
-        enabled: boolean;
-        lunch: { from: string; to: string };
-        dinner: { from: string; to: string };
-      }
-    >;
-    reservation: Record<
-      string,
-      {
-        enabled: boolean;
-        lunch: { from: string; to: string };
-        dinner: { from: string; to: string };
-      }
-    >;
-  }>({
-    pickup: defaultServiceHours(),
-    delivery: defaultServiceHours(),
-    reservation: defaultServiceHours(),
+  const [hours, setHours] = useState<Record<string, DayHours>>(defaultDayHours());
+  const [pickupHours, setPickupHours] = useState<ServiceHours>({
+    useCustom: false,
+    hours: defaultDayHours(),
   });
-  const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
+  const [deliveryHours, setDeliveryHours] = useState<ServiceHours>({
+    useCustom: false,
+    hours: defaultDayHours(),
+  });
+  const [bookingHours, setBookingHours] = useState<ServiceHours>({
+    useCustom: false,
+    hours: defaultDayHours(),
+  });
 
-  const [menuItems, setMenuItems] = useState<MenuItemDraft[]>([]);
+  const [tableBooking, setTableBooking] = useState<TableBookingConfig>({
+    enabled: false,
+    maxGuests: 8,
+    slotDuration: 90,
+    advanceBookingDays: 30,
+    serviceEnabled: true,
+  });
 
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({
+    enabled: true,
+    pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
+    delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
+    onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
+    hideAsap: false,
+    pickupExpanded: true,
+    deliveryExpanded: true,
+    onPremiseExpanded: true,
+    altroExpanded: true,
+  });
+
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({
+    card_delivery: true,
+    card_pickup: true,
+    cash_delivery: true,
+    cash_pickup: true,
+  });
+
+  const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [optionGroups, setOptionGroups] = useState<WizardOptionGroup[]>([]);
+  const [showAddGroup, setShowAddGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupChoices, setNewGroupChoices] = useState<WizardOptionChoice[]>([
+    { id: 'c-1', name: '', price: 0 },
+  ]);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupChoices, setEditGroupChoices] = useState<WizardOptionChoice[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItemWizardDraft[]>([]);
+  const [newItem, setNewItem] = useState<MenuItemWizardDraft>({
+    id: '',
+    name: '',
+    category: 'Pizza',
+    price: '',
+    description: '',
+    available: true,
+    imageUrl: '',
+    imageFile: null,
+    allergens: [],
+    optionGroups: [],
+    visibility: {
+      mode: 'always',
+      timeFrom: '10:00',
+      timeTo: '15:00',
+      days: [...DAYS],
+      dateFrom: '',
+      dateFromTime: '10:00',
+      dateTo: '',
+      dateToTime: '15:00',
+    },
+  });
   const [showAddItem, setShowAddItem] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [showVisibilityPanel, setShowVisibilityPanel] = useState(false);
 
-  const addZone = () => {
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bgImageInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // --- HELPERS ---
+  const stepOrder: WizardStep[] = [
+    'info', 'delivery', 'hours', 'scheduled', 'payment', 'menu', 'review',
+  ];
+  const currentIndex = stepOrder.indexOf(currentStep);
+  const progressPercent = Math.round((currentIndex / (stepOrder.length - 1)) * 100);
+  const currentStepMeta = steps[currentIndex];
+
+  const statusLabel: Record<string, string> = {
+    published: 'Pubblicato',
+    draft: 'Bozza',
+    suspended: 'Sospeso',
+  };
+
+  const statusBadgeClass: Record<string, string> = {
+    published: 'bg-[var(--success-bg)] text-[var(--success)]',
+    draft: 'bg-muted text-muted-foreground',
+    suspended: 'bg-[var(--danger-bg)] text-[var(--danger)]',
+  };
+
+  // --- Hydration ---
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    try {
+      let foundRestaurant: any = null;
+      try {
+        const delivering = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
+        foundRestaurant = delivering.find((r: any) => r.id === restaurantId);
+      } catch (e) {}
+
+      if (!foundRestaurant) {
+        try {
+          const gloria = JSON.parse(localStorage.getItem('gloriaorder_restaurants') || '[]');
+          foundRestaurant = gloria.find((r: any) => r.id === restaurantId);
+        } catch (e) {}
+      }
+
+      if (!foundRestaurant) {
+        foundRestaurant = mockRestaurants.find((r: any) => r.id === restaurantId) || mockRestaurants[0];
+      }
+
+      const slugify = (text: string) => {
+        return text
+          .toString()
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/[^\w\-]+/g, '')
+          .replace(/\-\-+/g, '-');
+      };
+      const slug = foundRestaurant ? slugify(foundRestaurant.name) : 'pizzeria-bella-napoli';
+
+      const infoData: RestaurantInfo = {
+        name: foundRestaurant?.name || '',
+        category: foundRestaurant?.category || 'Pizzeria',
+        description: foundRestaurant?.description || '',
+        phone: foundRestaurant?.phone || '',
+        email: foundRestaurant?.email || '',
+        website: foundRestaurant?.website || '',
+        address: foundRestaurant?.address || '',
+        city: foundRestaurant?.city || '',
+        province: foundRestaurant?.province || '',
+        cap: foundRestaurant?.cap || '',
+        vatNumber: foundRestaurant?.vatNumber || '',
+        logoUrl: foundRestaurant?.logoUrl || foundRestaurant?.logo || '',
+        backgroundImageUrl: foundRestaurant?.backgroundImageUrl || '',
+      };
+
+      setRestaurantStatus(foundRestaurant?.status || 'draft');
+
+      let storedSettings: any = null;
+      try {
+        const rawId = localStorage.getItem(`iGO_settings_${restaurantId}`);
+        const rawSlug = localStorage.getItem(`iGO_settings_${slug}`);
+        const raw = rawId || rawSlug;
+        if (raw) {
+          storedSettings = JSON.parse(raw);
+        }
+      } catch (e) {}
+
+      if (storedSettings) {
+        const isDashboardFormat = storedSettings.profile && storedSettings.deliveryConfig;
+        const profile = isDashboardFormat ? storedSettings.profile : storedSettings;
+
+        if (profile.name) infoData.name = profile.name;
+        if (profile.logoUrl) infoData.logoUrl = profile.logoUrl;
+        if (profile.backgroundImageUrl) infoData.backgroundImageUrl = profile.backgroundImageUrl;
+        if (profile.description) infoData.description = profile.description;
+        if (profile.phone) infoData.phone = profile.phone;
+        if (profile.email) infoData.email = profile.email;
+        if (profile.website) infoData.website = profile.website;
+        if (profile.address) infoData.address = profile.address;
+        if (profile.city) infoData.city = profile.city;
+        if (profile.province) infoData.province = profile.province;
+        if (profile.cap) infoData.cap = profile.cap;
+        if (profile.vatNumber) infoData.vatNumber = profile.vatNumber;
+      }
+
+      setInfo(infoData);
+
+      // Restore Payment config
+      const paymentConfigData: PaymentConfig = {
+        card_delivery: true,
+        card_pickup: true,
+        cash_delivery: true,
+        cash_pickup: true,
+      };
+      if (storedSettings?.paymentMethods) {
+        const pm = storedSettings.paymentMethods;
+        paymentConfigData.card_delivery = pm.card_delivery ?? pm.card ?? true;
+        paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
+        paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
+        paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
+      } else if (foundRestaurant?.paymentMethods) {
+        const pm = foundRestaurant.paymentMethods;
+        paymentConfigData.card_delivery = pm.card_delivery ?? pm.card ?? true;
+        paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
+        paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
+        paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
+      }
+      setPaymentConfig(paymentConfigData);
+
+      // Restore Table booking
+      const tableBookingData: TableBookingConfig = {
+        enabled: false,
+        maxGuests: 8,
+        slotDuration: 90,
+        advanceBookingDays: 30,
+        serviceEnabled: true,
+      };
+      if (storedSettings?.tableBooking) {
+        const tb = storedSettings.tableBooking;
+        tableBookingData.enabled = tb.enabled ?? false;
+        tableBookingData.maxGuests = tb.maxGuests ?? 8;
+        tableBookingData.slotDuration = tb.slotDuration ?? 90;
+        tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
+        tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
+      } else if (foundRestaurant?.tableBooking) {
+        const tb = foundRestaurant.tableBooking;
+        tableBookingData.enabled = tb.enabled ?? false;
+        tableBookingData.maxGuests = tb.maxGuests ?? 8;
+        tableBookingData.slotDuration = tb.slotDuration ?? 90;
+        tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
+        tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
+      }
+      setTableBooking(tableBookingData);
+
+      // Restore Scheduled orders config
+      const scheduledOrdersData: ScheduledOrdersConfig = {
+        enabled: true,
+        pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
+        delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
+        onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
+        hideAsap: false,
+        pickupExpanded: true,
+        deliveryExpanded: true,
+        onPremiseExpanded: true,
+        altroExpanded: true,
+      };
+      if (storedSettings?.scheduledOrders) {
+        const so = storedSettings.scheduledOrders;
+        scheduledOrdersData.enabled = so.enabled ?? true;
+        if (so.pickup) scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
+        if (so.delivery) scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
+        if (so.onPremise) scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
+        scheduledOrdersData.hideAsap = so.hideAsap ?? false;
+      } else if (foundRestaurant?.scheduledOrders) {
+        const so = foundRestaurant.scheduledOrders;
+        scheduledOrdersData.enabled = so.enabled ?? true;
+        if (so.pickup) scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
+        if (so.delivery) scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
+        if (so.onPremise) scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
+        scheduledOrdersData.hideAsap = so.hideAsap ?? false;
+      }
+      setScheduledOrders(scheduledOrdersData);
+
+      // Restore Zones
+      let zonesData: DeliveryZone[] = [
+        {
+          id: 'z-1',
+          name: 'Zona Centro',
+          radius: 3,
+          minOrder: 15,
+          deliveryFee: 2.5,
+          freeDeliveryThreshold: 35,
+          enabled: true,
+        },
+      ];
+      try {
+        const storedZones = localStorage.getItem(`iGO_zones_${restaurantId}`);
+        if (storedZones) {
+          zonesData = JSON.parse(storedZones);
+        } else if (foundRestaurant?.zones) {
+          zonesData = foundRestaurant.zones;
+        }
+      } catch (e) {}
+      setZones(zonesData);
+
+      // Restore hours
+      let hoursData: Record<string, DayHours> = defaultDayHours();
+      if (foundRestaurant?.hours) {
+        hoursData = foundRestaurant.hours;
+      }
+      setHours(hoursData);
+
+      // Restore service-specific hours
+      const defaultServiceHoursObj = (): ServiceHours => ({
+        useCustom: false,
+        hours: defaultDayHours(),
+      });
+
+      let pickupHoursData: ServiceHours = defaultServiceHoursObj();
+      let deliveryHoursData: ServiceHours = defaultServiceHoursObj();
+      let bookingHoursData: ServiceHours = defaultServiceHoursObj();
+
+      try {
+        const storedHoursStr = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
+        let rawServiceHours: any = null;
+        if (storedHoursStr) {
+          const parsed = JSON.parse(storedHoursStr);
+          rawServiceHours = parsed.serviceHours;
+        } else if (foundRestaurant?.serviceHours) {
+          rawServiceHours = foundRestaurant.serviceHours;
+        }
+
+        if (rawServiceHours) {
+          const convertToWizardFormat = (daysRecord: any): Record<string, DayHours> => {
+            const h = defaultDayHours();
+            DAYS.forEach((d) => {
+              const dayData = daysRecord?.[d];
+              if (dayData) {
+                h[d] = {
+                  open: dayData.enabled ?? dayData.open ?? true,
+                  lunch: dayData.lunch ? { from: dayData.lunch.from || '12:00', to: dayData.lunch.to || '14:30' } : { from: '12:00', to: '14:30' },
+                  dinner: dayData.dinner ? { from: dayData.dinner.from || '19:00', to: dayData.dinner.to || '22:30' } : { from: '19:00', to: '22:30' },
+                };
+              }
+            });
+            return h;
+          };
+
+          if (rawServiceHours.pickup) {
+            pickupHoursData = {
+              useCustom: true,
+              hours: convertToWizardFormat(rawServiceHours.pickup),
+            };
+          }
+          if (rawServiceHours.delivery) {
+            deliveryHoursData = {
+              useCustom: true,
+              hours: convertToWizardFormat(rawServiceHours.delivery),
+            };
+          }
+          if (rawServiceHours.reservation) {
+            bookingHoursData = {
+              useCustom: true,
+              hours: convertToWizardFormat(rawServiceHours.reservation),
+            };
+          }
+        }
+      } catch (e) {}
+
+      setPickupHours(pickupHoursData);
+      setDeliveryHours(deliveryHoursData);
+      setBookingHours(bookingHoursData);
+
+      // Restore Menu and options
+      let menuItemsData: MenuItemDraft[] = [];
+      let categoriesData: string[] = [...DEFAULT_CATEGORIES];
+
+      try {
+        const storedMenu = localStorage.getItem(`iGO_menu_items_${slug}`) || localStorage.getItem(`iGO_menu_items_${restaurantId}`);
+        if (storedMenu) {
+          menuItemsData = JSON.parse(storedMenu);
+        } else if (foundRestaurant?.menuItems && Array.isArray(foundRestaurant.menuItems)) {
+          menuItemsData = foundRestaurant.menuItems;
+        }
+
+        if (foundRestaurant?.menuCategories && Array.isArray(foundRestaurant.menuCategories)) {
+          categoriesData = foundRestaurant.menuCategories;
+        } else if (menuItemsData.length > 0) {
+          const uniqueCats = Array.from(new Set(menuItemsData.map((item) => item.category)));
+          if (uniqueCats.length > 0) {
+            categoriesData = uniqueCats;
+          }
+        }
+      } catch (e) {}
+
+      setMenuCategories(categoriesData);
+
+      const groupMap = new Map<string, WizardOptionGroup>();
+      menuItemsData.forEach((item) => {
+        if (item.optionGroups && Array.isArray(item.optionGroups)) {
+          item.optionGroups.forEach((group) => {
+            if (!groupMap.has(group.id)) {
+              groupMap.set(group.id, {
+                id: group.id,
+                name: group.name,
+                choices: group.choices ? group.choices.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
+                })) : [],
+                appliedTo: [],
+              });
+            }
+            const existingGroup = groupMap.get(group.id)!;
+            if (!existingGroup.appliedTo.includes(item.id)) {
+              existingGroup.appliedTo.push(item.id);
+            }
+          });
+        }
+      });
+
+      const mappedWizardGroups = Array.from(groupMap.values());
+      setOptionGroups(mappedWizardGroups);
+
+      const mappedWizardItems: MenuItemWizardDraft[] = menuItemsData.map((item) => {
+        const mode: 'always' | 'hidden' | 'time_range' | 'date_range' =
+          item.visibility === 'scheduled' ? 'time_range' : item.visibility;
+        const timeFrom = item.visibilitySchedule?.from || '10:00';
+        const timeTo = item.visibilitySchedule?.to || '15:00';
+
+        const visibility = {
+          mode,
+          timeFrom,
+          timeTo,
+          days: [...DAYS],
+          dateFrom: '',
+          dateFromTime: '10:00',
+          dateTo: '',
+          dateToTime: '15:00',
+        };
+
+        const itemOptionGroupIds = item.optionGroups ? item.optionGroups.map((g) => g.id) : [];
+
+        return {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          description: item.description,
+          available: item.available,
+          imageUrl: item.imageUrl,
+          allergens: item.allergens || [],
+          imageFile: null,
+          optionGroups: itemOptionGroupIds,
+          visibility,
+        };
+      });
+
+      setMenuItems(mappedWizardItems);
+      setIsHydrated(true);
+    } catch (err) {
+      console.error('Error hydrating configuration page:', err);
+    }
+  }, [restaurantId]);
+
+  // --- SAVE LOGIC ---
+  const handleSave = () => {
+    try {
+      const slugify = (text: string) => {
+        return text
+          .toString()
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/[^\w\-]+/g, '')
+          .replace(/\-\-+/g, '-');
+      };
+      const slug = slugify(info.name);
+
+      // 1. Wizard items to domain items
+      const domainMenuItems: MenuItemDraft[] = menuItems.map((item) => {
+        let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
+        let visibilitySchedule: { from: string; to: string } | undefined = undefined;
+
+        if (item.visibility.mode === 'hidden') {
+          visibility = 'hidden';
+        } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
+          visibility = 'scheduled';
+          visibilitySchedule = {
+            from: item.visibility.timeFrom,
+            to: item.visibility.timeTo,
+          };
+        }
+
+        const mappedOptionGroups: OptionGroup[] = item.optionGroups.map((groupId) => {
+          const matchedGroup = optionGroups.find((g) => g.id === groupId);
+          if (!matchedGroup) return null;
+          return {
+            id: matchedGroup.id,
+            name: matchedGroup.name,
+            choices: matchedGroup.choices.map((c) => ({
+              id: c.id,
+              name: c.name,
+              price: c.price.toString(),
+            })),
+          };
+        }).filter((g): g is OptionGroup => g !== null);
+
+        return {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price.toString(),
+          description: item.description,
+          available: item.available,
+          imageUrl: item.imageUrl,
+          allergens: item.allergens,
+          visibility,
+          visibilitySchedule,
+          optionGroups: mappedOptionGroups,
+        };
+      });
+
+      // 2. Wizard service hours to service hours storage format
+      const convertServiceHoursToStorage = (wizardSvc: ServiceHours) => {
+        const result: Record<string, any> = {};
+        DAYS.forEach((d) => {
+          const dayData = wizardSvc.hours[d];
+          result[d] = {
+            enabled: wizardSvc.useCustom ? dayData.open : true,
+            suspended: false,
+            lunch: { from: dayData.lunch.from, to: dayData.lunch.to },
+            dinner: { from: dayData.dinner.from, to: dayData.dinner.to },
+            lunchEnabled: true,
+            dinnerEnabled: true,
+          };
+        });
+        return result;
+      };
+
+      const serviceHoursObj = {
+        pickup: convertServiceHoursToStorage(pickupHours),
+        delivery: convertServiceHoursToStorage(deliveryHours),
+        reservation: convertServiceHoursToStorage(bookingHours),
+      };
+
+      const serviceHoursDataToSave = {
+        serviceHours: serviceHoursObj,
+        serviceSuspended: {
+          pickup: false,
+          delivery: false,
+          reservation: false,
+        },
+      };
+
+      // Save service hours
+      localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
+
+      // Save zones
+      localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(zones));
+
+      // Save settings
+      const settingsObj = {
+        profile: {
+          name: info.name,
+          logoUrl: info.logoUrl,
+          backgroundImageUrl: info.backgroundImageUrl,
+          description: info.description,
+          phone: info.phone,
+          email: info.email,
+          website: info.website,
+          address: info.address,
+          city: info.city,
+          province: info.province,
+          cap: info.cap,
+          vatNumber: info.vatNumber,
+        },
+        minOrder: zones[0]?.minOrder || 0,
+        deliveryFee: zones[0]?.deliveryFee || 0,
+        freeDeliveryActive: (zones[0]?.freeDeliveryThreshold || 0) > 0,
+        freeDeliveryThreshold: zones[0]?.freeDeliveryThreshold || 0,
+        paymentMethods: {
+          card_delivery: paymentConfig.card_delivery,
+          card_pickup: paymentConfig.card_pickup,
+          cash_delivery: paymentConfig.cash_delivery,
+          cash_pickup: paymentConfig.cash_pickup,
+          cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
+          card: paymentConfig.card_delivery || paymentConfig.card_pickup,
+          paypal: false,
+        },
+        orderModes: {
+          delivery: zones.some((z) => z.enabled),
+          pickup: true,
+          table: tableBooking.enabled,
+        },
+        tableBooking,
+        scheduledOrders,
+      };
+      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settingsObj));
+      localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settingsObj));
+
+      // Save menu items
+      localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
+      localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
+
+      // Save in restaurant lists
+      const saveRestaurantInList = (key: string) => {
+        try {
+          const list = JSON.parse(localStorage.getItem(key) || '[]');
+          const idx = list.findIndex((r: any) => r.id === restaurantId);
+          const updatedRestaurant = {
+            ...(idx >= 0 ? list[idx] : {}),
+            id: restaurantId,
+            name: info.name,
+            address: info.address,
+            city: info.city,
+            status: restaurantStatus,
+            owner: info.name + ' Owner',
+            email: info.email,
+            phone: info.phone,
+            createdAt: idx >= 0 ? (list[idx].createdAt || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+            menuItems: domainMenuItems.length,
+            category: info.category,
+            hours: hours,
+            serviceHours: serviceHoursObj,
+            zones: zones,
+            paymentMethods: settingsObj.paymentMethods,
+            tableBooking,
+            scheduledOrders,
+          };
+
+          if (idx >= 0) {
+            list[idx] = updatedRestaurant;
+          } else {
+            list.push(updatedRestaurant);
+          }
+          localStorage.setItem(key, JSON.stringify(list));
+        } catch (e) {}
+      };
+
+      saveRestaurantInList('iGOdelivering_restaurants');
+      saveRestaurantInList('gloriaorder_restaurants');
+
+      // Dispatch change notifications
+      window.dispatchEvent(new CustomEvent('iGO_settings_updated'));
+      window.dispatchEvent(new CustomEvent('iGO_service_hours_updated', { detail: serviceHoursDataToSave }));
+      window.dispatchEvent(new CustomEvent(`iGO_service_hours_${restaurantId}_updated`, { detail: serviceHoursDataToSave }));
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      console.error('Error saving restaurant configuration:', e);
+    }
+  };
+
+  // --- ACTIONS ---
+  const addZone = () =>
     setZones((prev) => [
       ...prev,
       {
@@ -885,712 +843,417 @@ export default function RestaurantConfigurePage() {
         enabled: true,
       },
     ]);
-  };
   const removeZone = (id: string) => setZones((prev) => prev.filter((z) => z.id !== id));
-  const updateZone = (id: string, field: string, value: string | number | boolean) => {
+  const updateZone = (id: string, field: keyof DeliveryZone, value: any) =>
     setZones((prev) => prev.map((z) => (z.id === id ? { ...z, [field]: value } : z)));
-  };
-  const toggleDay = (day: string) => {
+
+  const toggleDay = (day: string) =>
     setHours((prev) => ({ ...prev, [day]: { ...prev[day], open: !prev[day].open } }));
-  };
-  const updateHour = (
-    day: string,
-    service: 'lunch' | 'dinner',
-    field: 'from' | 'to',
-    value: string
-  ) => {
+  const updateHour = (day: string, svc: 'lunch' | 'dinner', f: 'from' | 'to', v: string) =>
     setHours((prev) => ({
       ...prev,
-      [day]: { ...prev[day], [service]: { ...prev[day][service], [field]: value } },
+      [day]: { ...prev[day], [svc]: { ...prev[day][svc], [f]: v } },
     }));
-  };
 
-  const toggleServiceDay = (svc: 'pickup' | 'delivery' | 'reservation', day: string) => {
-    setServiceHours((prev) => ({
-      ...prev,
-      [svc]: { ...prev[svc], [day]: { ...prev[svc][day], enabled: !prev[svc][day].enabled } },
+  const toggleServiceDay = (s: any, d: string) =>
+    s((p: any) => ({
+      ...p,
+      hours: { ...p.hours, [d]: { ...p.hours[d], open: !p.hours[d].open } },
     }));
-  };
-  const updateServiceHour = (
-    svc: 'pickup' | 'delivery' | 'reservation',
-    day: string,
-    service: 'lunch' | 'dinner',
-    field: 'from' | 'to',
-    value: string
-  ) => {
-    setServiceHours((prev) => ({
-      ...prev,
-      [svc]: {
-        ...prev[svc],
-        [day]: {
-          ...prev[svc][day],
-          [service]: { ...prev[svc][day][service], [field]: value },
-        },
-      },
+  const updateServiceHour = (s: any, d: string, svc: any, f: any, v: string) =>
+    s((p: any) => ({
+      ...p,
+      hours: { ...p.hours, [d]: { ...p.hours[d], [svc]: { ...p.hours[d][svc], [f]: v } } },
     }));
-  };
 
-  const addMenuItem = (item: MenuItemDraft) => {
-    setMenuItems((prev) => [...prev, { ...item, id: `mi-${Date.now()}` }]);
+  const addNewCategory = () => {
+    if (!newCategoryName.trim()) return;
+    setMenuCategories((p) => [...p, newCategoryName.trim()]);
+    setNewCategoryName('');
+    setShowNewCategory(false);
+  };
+  const addMenuItem = () => {
+    if (!newItem.name || !newItem.price) return;
+    setMenuItems((p) => [...p, { ...newItem, id: `mi-${Date.now()}` }]);
     setShowAddItem(false);
   };
+  const toggleAllergen = (a: string) =>
+    setNewItem((p) => ({
+      ...p,
+      allergens: p.allergens.includes(a)
+        ? p.allergens.filter((x: string) => x !== a)
+        : [...p.allergens, a],
+    }));
+  const toggleItemOptionGroup = (id: string) =>
+    setNewItem((p) => ({
+      ...p,
+      optionGroups: p.optionGroups.includes(id)
+        ? p.optionGroups.filter((x: string) => x !== id)
+        : [...p.optionGroups, id],
+    }));
+  const toggleVisibilityDay = (d: string) =>
+    setNewItem((p) => ({
+      ...p,
+      visibility: {
+        ...p.visibility,
+        days: p.visibility.days.includes(d)
+          ? p.visibility.days.filter((x) => x !== d)
+          : [...p.visibility.days, d],
+      },
+    }));
 
-  const saveEditItem = (updated: MenuItemDraft) => {
-    setMenuItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-    setEditingItemId(null);
+  const handleLogoFile = (e: any) => {
+    const f = e.target.files?.[0];
+    if (f) setInfo((p) => ({ ...p, logoUrl: URL.createObjectURL(f) }));
+  };
+  const handleBgImageFile = (e: any) => {
+    const f = e.target.files?.[0];
+    if (f) setInfo((p) => ({ ...p, backgroundImageUrl: URL.createObjectURL(f) }));
+  };
+  const handleImageFile = (e: any) => {
+    const f = e.target.files?.[0];
+    if (f) setNewItem((p) => ({ ...p, imageUrl: URL.createObjectURL(f), imageFile: f }));
   };
 
-  const removeMenuItem = (id: string) => setMenuItems((prev) => prev.filter((m) => m.id !== id));
-  const toggleItemAvailability = (id: string) => {
-    setMenuItems((prev) => prev.map((m) => (m.id === id ? { ...m, available: !m.available } : m)));
-  };
-
-  const handleSave = () => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('gloriaorder_restaurants') || '[]') as Array<
-        Record<string, unknown>
-      >;
-      const idx = stored.findIndex((r) => r.id === restaurantId);
-      const updated = {
-        ...(idx >= 0 ? stored[idx] : {}),
-        id: restaurantId,
-        ...info,
-        status: restaurantStatus,
-        hours,
-        serviceHours,
-        zones,
-        menuItems,
-        menuCategories: categories,
-      };
-      if (idx >= 0) {
-        stored[idx] = updated;
-      } else {
-        stored.push(updated);
-      }
-      localStorage.setItem('gloriaorder_restaurants', JSON.stringify(stored));
-    } catch {}
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
-
-  const addCategory = (cat: string) => {
-    setCategories((prev) => (prev.includes(cat) ? prev : [...prev, cat]));
-  };
+  if (!isHydrated) {
+    return (
+      <div className="flex h-screen bg-background items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         activeSection="nav-ristoranti"
         onSectionChange={() => {}}
         role="admin"
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-card border-b border-border flex items-center px-6 gap-4 flex-shrink-0">
-          <Link
-            href="/admin/restaurants"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
-          >
-            <ArrowLeft size={16} />
-            Ristoranti
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-sm font-semibold text-foreground">{restaurantName}</span>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-sm text-muted-foreground">Configura</span>
-          <div className="flex-1" />
-          <Link
-            href={`/admin/restaurants/${restaurantId}/access`}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border"
-          >
-            <Users size={15} />
-            Accessi
-          </Link>
-          <button
-            onClick={handleSave}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-              saved
-                ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30'
-                : 'bg-primary text-white hover:bg-[#d43d22]'
-            }`}
-          >
-            {saved ? <Check size={15} /> : <Save size={15} />}
-            {saved ? 'Salvato!' : 'Salva modifiche'}
-          </button>
-          <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-            <Bell size={18} />
-          </button>
-          <div className="flex items-center gap-2 pl-2 border-l border-border">
-            <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
-              A
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <Topbar
+          role="admin"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onMobileMenuOpen={() => setIsMobileOpen(true)}
+          leftContent={
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/restaurants"
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+              >
+                <ArrowLeft size={15} />
+                <span className="hidden sm:inline">Ristoranti</span>
+              </Link>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm font-semibold text-foreground">{info.name || 'Configura'}</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm text-muted-foreground">Configura</span>
+            </div>
+          }
+          rightExtra={
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/admin/restaurants/${restaurantId}/access`}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border"
+              >
+                <Users size={15} />
+                Accessi
+              </Link>
+              <button
+                onClick={handleSave}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg ${
+                  saved
+                    ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30 shadow-none'
+                    : 'bg-primary text-white hover:bg-[#d43d22] shadow-primary/20'
+                }`}
+              >
+                {saved ? <Check size={15} /> : <Save size={15} />}
+                {saved ? 'Salvato!' : 'Salva modifiche'}
+              </button>
+            </div>
+          }
+        />
+
+        <main className="flex-1 overflow-y-auto overscroll-contain">
+          {/* Wizard Progress Header */}
+          <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
+            {/* Mobile: compact progress view */}
+            <div className="sm:hidden px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Step {currentIndex + 1} di {steps.length}
+                  </p>
+                  <h2 className="text-sm font-bold text-foreground">{currentStepMeta.label}</h2>
+                </div>
+                <span className="text-xs font-semibold text-primary">{progressPercent}%</span>
+              </div>
+              {/* Progress bar */}
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Desktop: step pills */}
+            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-none">
+              {steps.map((step, idx) => {
+                const isCompleted = stepOrder.indexOf(step.id) < currentIndex;
+                const isCurrent = step.id === currentStep;
+                return (
+                  <React.Fragment key={step.id}>
+                    <button
+                      onClick={() => setCurrentStep(step.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
+                        isCurrent
+                          ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                          : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer'
+                      }`}
+                    >
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                          isCurrent
+                            ? 'bg-white/25'
+                            : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
+                        }`}
+                      >
+                        {isCompleted ? <Check size={11} /> : idx + 1}
+                      </span>
+                      {step.label}
+                    </button>
+                    {idx < steps.length - 1 && (
+                      <ChevronRight
+                        size={14}
+                        className="flex-shrink-0 mx-0.5 text-border"
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
-        </header>
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Configura Ristorante</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {restaurantName} · {statusLabel[restaurantStatus] || restaurantStatus}
-              </p>
+          {/* Step Content */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+            {/* ── Page Header / Status dropdown ── */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Configura Ristorante</h1>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-sm text-muted-foreground">{info.name || 'Ristorante'}</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      statusBadgeClass[restaurantStatus] || statusBadgeClass['draft']
+                    }`}
+                  >
+                    {statusLabel[restaurantStatus] || restaurantStatus}
+                  </span>
+                </div>
+              </div>
+              {/* Status selector */}
+              <div className="relative flex-shrink-0">
+                <select
+                  value={restaurantStatus}
+                  onChange={(e) => setRestaurantStatus(e.target.value)}
+                  className="px-3.5 py-2.5 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring appearance-none pr-8 font-medium text-base"
+                >
+                  <option value="published">Pubblicato</option>
+                  <option value="draft">Bozza</option>
+                  <option value="suspended">Sospeso</option>
+                </select>
+                <ChevronDown
+                  size={13}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
+              </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
-              {tabs.map((tab) => (
+            {/* Mobile step description */}
+            <div className="sm:hidden">
+              <p className="text-xs text-muted-foreground">{currentStepMeta.description}</p>
+            </div>
+
+            {currentStep === 'info' && (
+              <RestaurantInfoStep
+                info={info}
+                setInfo={setInfo}
+                tableBooking={tableBooking}
+                setTableBooking={setTableBooking}
+                logoInputRef={logoInputRef}
+                bgImageInputRef={bgImageInputRef}
+                handleLogoFile={handleLogoFile}
+                handleBgImageFile={handleBgImageFile}
+              />
+            )}
+            {currentStep === 'delivery' && (
+              <DeliveryZonesStep
+                zones={zones}
+                addZone={addZone}
+                removeZone={removeZone}
+                updateZone={updateZone}
+              />
+            )}
+            {currentStep === 'hours' && (
+              <HoursStep
+                days={DAYS}
+                hours={hours}
+                toggleDay={toggleDay}
+                updateHour={updateHour}
+                pickupHours={pickupHours}
+                setPickupHours={setPickupHours}
+                deliveryHours={deliveryHours}
+                setDeliveryHours={setDeliveryHours}
+                bookingHours={bookingHours}
+                setBookingHours={setBookingHours}
+                toggleServiceDay={toggleServiceDay}
+                updateServiceHour={updateServiceHour}
+              />
+            )}
+            {currentStep === 'scheduled' && (
+              <ScheduledOrdersStep
+                scheduledOrders={scheduledOrders}
+                setScheduledOrders={setScheduledOrders}
+                timeUnits={TIME_UNITS}
+                timeWindows={TIME_WINDOWS}
+              />
+            )}
+            {currentStep === 'payment' && (
+              <PaymentStep paymentConfig={paymentConfig} setPaymentConfig={setPaymentConfig} />
+            )}
+            {currentStep === 'menu' && (
+              <MenuStep
+                menuCategories={menuCategories}
+                setMenuCategories={setMenuCategories}
+                showNewCategory={showNewCategory}
+                setShowNewCategory={setShowNewCategory}
+                newCategoryName={newCategoryName}
+                setNewCategoryName={setNewCategoryName}
+                addNewCategory={addNewCategory}
+                optionGroups={optionGroups}
+                showAddGroup={showAddGroup}
+                setShowAddGroup={setShowAddGroup}
+                newGroupName={newGroupName}
+                setNewGroupName={setNewGroupName}
+                newGroupChoices={newGroupChoices}
+                addChoice={() =>
+                  setNewGroupChoices((p) => [...p, { id: `c-${Date.now()}`, name: '', price: 0 }])
+                }
+                updateChoice={(id, f, v) =>
+                  setNewGroupChoices((p) => p.map((c) => (c.id === id ? { ...c, [f]: v } : c)))
+                }
+                removeChoice={(id) => setNewGroupChoices((p) => p.filter((c) => c.id !== id))}
+                addWizardOptionGroup={() => {
+                  if (!newGroupName.trim()) return;
+                  setOptionGroups((p) => [
+                    ...p,
+                    {
+                      id: `og-${Date.now()}`,
+                      name: newGroupName.trim(),
+                      choices: newGroupChoices.filter((c) => c.name.trim()),
+                      appliedTo: [],
+                    },
+                  ]);
+                  setShowAddGroup(false);
+                }}
+                removeWizardOptionGroup={(id) =>
+                  setOptionGroups((p) => p.filter((g) => g.id !== id))
+                }
+                editingGroupId={editingGroupId}
+                startEditGroup={(g) => {
+                  setEditingGroupId(g.id);
+                  setEditGroupName(g.name);
+                  setEditGroupChoices(g.choices.map((c) => ({ ...c })));
+                }}
+                editGroupName={editGroupName}
+                setEditGroupName={setEditGroupName}
+                editGroupChoices={editGroupChoices}
+                addEditChoice={() =>
+                  setEditGroupChoices((p) => [...p, { id: `c-${Date.now()}`, name: '', price: 0 }])
+                }
+                updateEditChoice={(id, f, v) =>
+                  setEditGroupChoices((p) => p.map((c) => (c.id === id ? { ...c, [f]: v } : c)))
+                }
+                removeEditChoice={(id) => setEditGroupChoices((p) => p.filter((c) => c.id !== id))}
+                saveEditGroup={() => {
+                  setOptionGroups((p) =>
+                    p.map((g) =>
+                      g.id === editingGroupId
+                        ? { ...g, name: editGroupName, choices: editGroupChoices }
+                        : g
+                    )
+                  );
+                  setEditingGroupId(null);
+                }}
+                cancelEditGroup={() => setEditingGroupId(null)}
+                menuItems={menuItems}
+                newItem={newItem}
+                setNewItem={setNewItem}
+                showAddItem={showAddItem}
+                setShowAddItem={setShowAddItem}
+                addMenuItem={addMenuItem}
+                removeMenuItem={(id) => setMenuItems((p) => p.filter((m) => m.id !== id))}
+                toggleAllergen={toggleAllergen}
+                handleImageFile={handleImageFile}
+                imageInputRef={imageInputRef}
+                toggleItemOptionGroup={toggleItemOptionGroup}
+                showVisibilityPanel={showVisibilityPanel}
+                setShowVisibilityPanel={setShowVisibilityPanel}
+                toggleVisibilityDay={toggleVisibilityDay}
+                days={DAYS}
+                allergensList={ALLERGENS_LIST}
+              />
+            )}
+            {currentStep === 'review' && (
+              <ReviewStep
+                info={info}
+                zones={zones}
+                hours={hours}
+                menuItems={menuItems}
+                menuCategories={menuCategories}
+                handlePublish={handleSave}
+              />
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <button
+                onClick={() => setCurrentStep(stepOrder[currentIndex - 1])}
+                disabled={currentIndex === 0}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-0 transition-all"
+              >
+                <ChevronLeftIcon size={16} />
+                Indietro
+              </button>
+              {currentStep !== 'review' ? (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-card text-foreground shadow-card'
-                      : 'text-muted-foreground hover:text-foreground'
+                  onClick={() => setCurrentStep(stepOrder[currentIndex + 1])}
+                  className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
+                >
+                  Continua
+                  <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all active:scale-95 ${
+                    saved
+                      ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                      : 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
                   }`}
                 >
-                  {tab.icon}
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  {saved ? <Check size={16} /> : <Save size={16} />}
+                  {saved ? 'Modifiche Salvate!' : 'Salva Modifiche'}
                 </button>
-              ))}
+              )}
             </div>
-
-            {/* Tab: Info */}
-            {activeTab === 'info' && (
-              <div className="bg-card border border-border rounded-xl p-6 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-semibold text-foreground mb-1.5">
-                      Nome Ristorante
-                    </label>
-                    <div className="relative">
-                      <Store
-                        size={15}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      />
-                      <input
-                        type="text"
-                        value={info.name}
-                        onChange={(e) => setInfo((p) => ({ ...p, name: e.target.value }))}
-                        className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-1.5">
-                      Categoria
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={info.category}
-                        onChange={(e) => setInfo((p) => ({ ...p, category: e.target.value }))}
-                        className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring appearance-none"
-                      >
-                        {RESTAURANT_CATEGORIES.map((c) => (
-                          <option key={c}>{c}</option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={14}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-1.5">
-                      P. IVA
-                    </label>
-                    <div className="relative">
-                      <FileText
-                        size={15}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      />
-                      <input
-                        type="text"
-                        value={info.vatNumber}
-                        onChange={(e) => setInfo((p) => ({ ...p, vatNumber: e.target.value }))}
-                        className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-semibold text-foreground mb-1.5">
-                      Descrizione
-                    </label>
-                    <textarea
-                      value={info.description}
-                      onChange={(e) => setInfo((p) => ({ ...p, description: e.target.value }))}
-                      rows={3}
-                      className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                    />
-                  </div>
-                </div>
-                <div className="border-t border-border pt-5">
-                  <p className="text-sm font-semibold text-foreground mb-4">Indirizzo</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Via / Piazza
-                      </label>
-                      <div className="relative">
-                        <MapPin
-                          size={15}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <input
-                          type="text"
-                          value={info.address}
-                          onChange={(e) => setInfo((p) => ({ ...p, address: e.target.value }))}
-                          className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Città
-                      </label>
-                      <input
-                        type="text"
-                        value={info.city}
-                        onChange={(e) => setInfo((p) => ({ ...p, city: e.target.value }))}
-                        className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                          Provincia
-                        </label>
-                        <input
-                          type="text"
-                          value={info.province}
-                          onChange={(e) => setInfo((p) => ({ ...p, province: e.target.value }))}
-                          maxLength={2}
-                          className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring uppercase"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                          CAP
-                        </label>
-                        <input
-                          type="text"
-                          value={info.cap}
-                          onChange={(e) => setInfo((p) => ({ ...p, cap: e.target.value }))}
-                          maxLength={5}
-                          className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-border pt-5">
-                  <p className="text-sm font-semibold text-foreground mb-4">Contatti</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Telefono
-                      </label>
-                      <div className="relative">
-                        <Phone
-                          size={15}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <input
-                          type="tel"
-                          value={info.phone}
-                          onChange={(e) => setInfo((p) => ({ ...p, phone: e.target.value }))}
-                          className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Email
-                      </label>
-                      <div className="relative">
-                        <Mail
-                          size={15}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <input
-                          type="email"
-                          value={info.email}
-                          onChange={(e) => setInfo((p) => ({ ...p, email: e.target.value }))}
-                          className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                        Sito web
-                      </label>
-                      <div className="relative">
-                        <Globe
-                          size={15}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        />
-                        <input
-                          type="url"
-                          value={info.website}
-                          onChange={(e) => setInfo((p) => ({ ...p, website: e.target.value }))}
-                          className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Delivery */}
-            {activeTab === 'delivery' && (
-              <div className="space-y-4">
-                {zones.map((zone) => (
-                  <div
-                    key={zone.id}
-                    className="bg-card border border-border rounded-xl p-5 space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Toggle
-                          checked={zone.enabled}
-                          onChange={() => updateZone(zone.id, 'enabled', !zone.enabled)}
-                          size="sm"
-                        />
-                        <input
-                          type="text"
-                          value={zone.name}
-                          onChange={(e) => updateZone(zone.id, 'name', e.target.value)}
-                          className="font-semibold text-sm text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none px-1 py-0.5"
-                        />
-                      </div>
-                      <button
-                        onClick={() => removeZone(zone.id)}
-                        className="p-1.5 rounded-lg hover:bg-[var(--danger-bg)] text-muted-foreground hover:text-[var(--danger)] transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                      {[
-                        { label: 'Raggio (km)', field: 'radius', value: zone.radius },
-                        { label: 'Ordine min. (€)', field: 'minOrder', value: zone.minOrder },
-                        {
-                          label: 'Costo consegna (€)',
-                          field: 'deliveryFee',
-                          value: zone.deliveryFee,
-                        },
-                        {
-                          label: 'Gratis da (€)',
-                          field: 'freeDeliveryThreshold',
-                          value: zone.freeDeliveryThreshold,
-                        },
-                      ].map((f) => (
-                        <div key={f.field}>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                            {f.label}
-                          </label>
-                          <input
-                            type="number"
-                            value={f.value}
-                            onChange={(e) =>
-                              updateZone(zone.id, f.field, parseFloat(e.target.value) || 0)
-                            }
-                            min={0}
-                            step={0.5}
-                            className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={addZone}
-                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl py-4 text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Plus size={16} />
-                  Aggiungi zona di consegna
-                </button>
-              </div>
-            )}
-
-            {/* Tab: Hours */}
-            {activeTab === 'hours' && (
-              <div className="space-y-6">
-                {/* Main opening hours */}
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground mb-3">
-                    Orari di apertura principali
-                  </h3>
-                  <div className="bg-card border border-border rounded-xl overflow-hidden">
-                    {DAYS.map((day, idx) => (
-                      <div
-                        key={day}
-                        className={`px-5 py-4 ${idx < DAYS.length - 1 ? 'border-b border-border' : ''}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-28 flex items-center gap-3 flex-shrink-0">
-                            <Toggle
-                              checked={hours[day].open}
-                              onChange={() => toggleDay(day)}
-                              size="sm"
-                            />
-                            <span
-                              className={`text-sm font-semibold ${hours[day].open ? 'text-foreground' : 'text-muted-foreground'}`}
-                            >
-                              {day}
-                            </span>
-                          </div>
-                          {hours[day].open ? (
-                            <div className="flex flex-wrap items-center gap-4 flex-1">
-                              {(['lunch', 'dinner'] as const).map((service) => (
-                                <div key={service} className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground font-medium w-12">
-                                    {service === 'lunch' ? 'Pranzo' : 'Cena'}
-                                  </span>
-                                  <input
-                                    type="time"
-                                    value={hours[day][service].from}
-                                    onChange={(e) =>
-                                      updateHour(day, service, 'from', e.target.value)
-                                    }
-                                    className="px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-                                  />
-                                  <span className="text-xs text-muted-foreground">–</span>
-                                  <input
-                                    type="time"
-                                    value={hours[day][service].to}
-                                    onChange={(e) => updateHour(day, service, 'to', e.target.value)}
-                                    className="px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground italic">Chiuso</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Service hours */}
-                {(
-                  [
-                    { key: 'pickup', label: 'Orari Ritiro' },
-                    { key: 'delivery', label: 'Orari Consegna' },
-                    { key: 'reservation', label: 'Orari Prenotazione tavolo' },
-                  ] as { key: 'pickup' | 'delivery' | 'reservation'; label: string }[]
-                ).map((svc) => (
-                  <div key={svc.key}>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">{svc.label}</h3>
-                    <div className="bg-card border border-border rounded-xl overflow-hidden">
-                      {DAYS.map((day, idx) => (
-                        <div
-                          key={day}
-                          className={`px-5 py-4 ${idx < DAYS.length - 1 ? 'border-b border-border' : ''}`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-28 flex items-center gap-3 flex-shrink-0">
-                              <Toggle
-                                checked={serviceHours[svc.key][day].enabled}
-                                onChange={() => toggleServiceDay(svc.key, day)}
-                                size="sm"
-                              />
-                              <span
-                                className={`text-sm font-semibold ${serviceHours[svc.key][day].enabled ? 'text-foreground' : 'text-muted-foreground'}`}
-                              >
-                                {day}
-                              </span>
-                            </div>
-                            {serviceHours[svc.key][day].enabled ? (
-                              <div className="flex flex-wrap items-center gap-4 flex-1">
-                                {(['lunch', 'dinner'] as const).map((service) => (
-                                  <div key={service} className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground font-medium w-12">
-                                      {service === 'lunch' ? 'Pranzo' : 'Cena'}
-                                    </span>
-                                    <input
-                                      type="time"
-                                      value={serviceHours[svc.key][day][service].from}
-                                      onChange={(e) =>
-                                        updateServiceHour(
-                                          svc.key,
-                                          day,
-                                          service,
-                                          'from',
-                                          e.target.value
-                                        )
-                                      }
-                                      className="px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-                                    />
-                                    <span className="text-xs text-muted-foreground">–</span>
-                                    <input
-                                      type="time"
-                                      value={serviceHours[svc.key][day][service].to}
-                                      onChange={(e) =>
-                                        updateServiceHour(
-                                          svc.key,
-                                          day,
-                                          service,
-                                          'to',
-                                          e.target.value
-                                        )
-                                      }
-                                      className="px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring min-w-0 w-[110px] appearance-none"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-muted-foreground italic">
-                                Non disponibile
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Tab: Menu */}
-            {activeTab === 'menu' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    {menuItems.length} piatti nel menu
-                  </p>
-                  <button
-                    onClick={() => {
-                      setShowAddItem(true);
-                      setEditingItemId(null);
-                    }}
-                    className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all active:scale-95"
-                  >
-                    <Plus size={16} />
-                    Aggiungi Piatto
-                  </button>
-                </div>
-
-                {showAddItem && (
-                  <ItemForm
-                    item={emptyItem()}
-                    categories={categories}
-                    onSave={addMenuItem}
-                    onCancel={() => setShowAddItem(false)}
-                    title="Nuovo Piatto"
-                    saveLabel="Aggiungi al menu"
-                    onAddCategory={addCategory}
-                  />
-                )}
-
-                <div className="bg-card border border-border rounded-xl divide-y divide-border overflow-hidden">
-                  {menuItems.length === 0 && (
-                    <div className="py-16 text-center text-sm text-muted-foreground">
-                      <UtensilsCrossed size={32} className="mx-auto text-muted-foreground mb-3" />
-                      Nessun piatto nel menu
-                    </div>
-                  )}
-                  {menuItems.map((item) =>
-                    editingItemId === item.id ? (
-                      <div key={item.id} className="p-4">
-                        <ItemForm
-                          item={item}
-                          categories={categories}
-                          onSave={saveEditItem}
-                          onCancel={() => setEditingItemId(null)}
-                          title={`Modifica: ${item.name}`}
-                          saveLabel="Salva modifiche"
-                          onAddCategory={addCategory}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        key={item.id}
-                        className={`flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors ${!item.available ? 'opacity-60' : ''}`}
-                      >
-                        {item.imageUrl ? (
-                          <AppImage
-                            src={item.imageUrl}
-                            alt={`Immagine di ${item.name}`}
-                            width={48}
-                            height={48}
-                            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-border"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                            <UtensilsCrossed size={18} className="text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-sm text-foreground">
-                              {item.name}
-                            </span>
-                            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                              {item.category}
-                            </span>
-                            {!item.available && (
-                              <span className="text-xs bg-[var(--warning-bg)] text-[var(--warning)] px-2 py-0.5 rounded-full">
-                                Sospeso
-                              </span>
-                            )}
-                            {item.visibility === 'hidden' && (
-                              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <EyeOff size={10} />
-                                Nascosto
-                              </span>
-                            )}
-                            {item.visibility === 'scheduled' && (
-                              <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Clock size={10} />
-                                Programmato
-                              </span>
-                            )}
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-                        <span className="font-bold text-sm tabular-nums text-foreground flex-shrink-0">
-                          € {parseFloat(item.price || '0').toFixed(2)}
-                        </span>
-                        <Toggle
-                          checked={item.available}
-                          onChange={() => toggleItemAvailability(item.id)}
-                          size="sm"
-                        />
-                        <button
-                          onClick={() => {
-                            setEditingItemId(item.id);
-                            setShowAddItem(false);
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
-                          title="Modifica piatto"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => removeMenuItem(item.id)}
-                          className="p-1.5 rounded-lg hover:bg-[var(--danger-bg)] text-muted-foreground hover:text-[var(--danger)] transition-colors flex-shrink-0"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </main>
       </div>

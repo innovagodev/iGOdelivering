@@ -1,4 +1,5 @@
-import React from 'react';
+'use client';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -8,6 +9,7 @@ import {
   Truck,
   AlertTriangle,
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface KPICardProps {
   id: string;
@@ -76,58 +78,111 @@ function KPICard({ label, value, sub, trend, icon, variant, hero }: KPICardProps
   );
 }
 
-const kpis: KPICardProps[] = [
-  {
-    id: 'kpi-ricavi',
-    label: 'Ricavi Oggi',
-    value: '€ 1.284',
-    sub: 'rispetto a ieri',
-    trend: 12.4,
-    icon: <Euro size={20} />,
-    variant: 'success',
-    hero: true,
-  },
-  {
-    id: 'kpi-ordini',
-    label: 'Ordini Oggi',
-    value: '47',
-    sub: 'rispetto a ieri',
-    trend: 8.2,
-    icon: <ShoppingBag size={20} />,
-    variant: 'default',
-  },
-  {
-    id: 'kpi-attesa',
-    label: 'In Attesa',
-    value: '3',
-    sub: 'richiedono conferma',
-    trend: -15,
-    icon: <Clock size={20} />,
-    variant: 'alert',
-  },
-  {
-    id: 'kpi-valore',
-    label: 'Valore Medio',
-    value: '€ 27,30',
-    sub: 'per ordine oggi',
-    trend: 3.7,
-    icon: <TrendingUp size={20} />,
-    variant: 'default',
-  },
-  {
-    id: 'kpi-consegna',
-    label: 'Tasso Consegna',
-    value: '96,8%',
-    sub: 'ultimi 30 giorni',
-    trend: 1.2,
-    icon: <Truck size={20} />,
-    variant: 'success',
-  },
-];
-
 export default function KPIBentoGrid() {
+  const { user } = useAuth();
+  const restaurantId = user?.restaurantId || 'r-001';
+
+  const [pendingCount, setPendingCount] = useState(3);
+  const [totalOrders, setTotalOrders] = useState(47);
+  const [revenue, setRevenue] = useState(1284);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const storedStr = localStorage.getItem(`iGO_orders_${restaurantId}`);
+        if (storedStr) {
+          const parsed = JSON.parse(storedStr);
+          const pending = parsed.pending ? parsed.pending.length : 0;
+          const accepted = parsed.accepted ? parsed.accepted.length : 0;
+          const completed = parsed.completed ? parsed.completed.length : 0;
+          const confirmed = parsed.confirmed ? parsed.confirmed.length : 0;
+          const preparing = parsed.preparing ? parsed.preparing.length : 0;
+          const delivering = parsed.delivering ? parsed.delivering.length : 0;
+
+          const activeCount = pending + accepted + confirmed + preparing + delivering;
+          const activeRevenue = [
+            ...(parsed.pending || []),
+            ...(parsed.accepted || []),
+            ...(parsed.confirmed || []),
+            ...(parsed.preparing || []),
+            ...(parsed.delivering || []),
+          ].reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+
+          const completedRevenue = (parsed.completed || []).reduce(
+            (acc: number, curr: any) => acc + (curr.total || 0),
+            0
+          );
+
+          setPendingCount(pending);
+          // 37 completed orders baseline + active orders + completed orders count
+          setTotalOrders(37 + activeCount + completed);
+          // 1025.7 completed revenue baseline + active orders revenue + completed orders revenue
+          setRevenue(Math.round(1025.7 + activeRevenue + completedRevenue));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    handleUpdate();
+    window.addEventListener('iGO_orders_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('iGO_orders_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [restaurantId]);
+
+  const kpis: KPICardProps[] = [
+    {
+      id: 'kpi-ricavi',
+      label: 'Ricavi Oggi',
+      value: `€ ${revenue.toLocaleString('it-IT')}`,
+      sub: 'rispetto a ieri',
+      trend: 12.4,
+      icon: <Euro size={20} />,
+      variant: 'success',
+      hero: true,
+    },
+    {
+      id: 'kpi-ordini',
+      label: 'Ordini Oggi',
+      value: totalOrders.toString(),
+      sub: 'rispetto a ieri',
+      trend: 8.2,
+      icon: <ShoppingBag size={20} />,
+      variant: 'default',
+    },
+    {
+      id: 'kpi-attesa',
+      label: 'In Attesa',
+      value: pendingCount.toString(),
+      sub: 'richiedono conferma',
+      trend: pendingCount > 3 ? 15 : -15,
+      icon: <Clock size={20} />,
+      variant: pendingCount > 0 ? 'alert' : 'default',
+    },
+    {
+      id: 'kpi-valore',
+      label: 'Valore Medio',
+      value: `€ ${(totalOrders > 0 ? revenue / totalOrders : 0).toFixed(2).replace('.', ',')}`,
+      sub: 'per ordine oggi',
+      trend: 3.7,
+      icon: <TrendingUp size={20} />,
+      variant: 'default',
+    },
+    {
+      id: 'kpi-consegna',
+      label: 'Tasso Consegna',
+      value: '96,8%',
+      sub: 'ultimi 30 giorni',
+      trend: 1.2,
+      icon: <Truck size={20} />,
+      variant: 'success',
+    },
+  ];
+
   return (
-    // Grid plan: 5 cards → grid-cols-4 → row1: hero spans 2 + 2 regular, row2: 3 regular
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4">
       {kpis.map((kpi) => (
         <KPICard key={kpi.id} {...kpi} />

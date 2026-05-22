@@ -147,7 +147,7 @@ export default function MenuStep({
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="Nome categoria..."
-              className="flex-1 px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+              className="flex-1 px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
             />
             <button
               onClick={addNewCategory}
@@ -223,7 +223,7 @@ export default function MenuStep({
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               placeholder="Nome gruppo (es. Scegli impasto, Ingredienti extra...)"
-              className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none"
+              className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
             />
             <div className="space-y-2">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -236,7 +236,7 @@ export default function MenuStep({
                     value={choice.name}
                     onChange={(e) => updateChoice(choice.id, 'name', e.target.value)}
                     placeholder="Nome opzione"
-                    className="flex-1 px-3 py-1.5 text-xs bg-input border border-border rounded-lg"
+                    className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg"
                   />
                   <div className="relative w-24">
                     <Euro
@@ -250,7 +250,7 @@ export default function MenuStep({
                         updateChoice(choice.id, 'price', parseFloat(e.target.value) || 0)
                       }
                       placeholder="Prezzo"
-                      className="w-full pl-6 pr-2 py-1.5 text-xs bg-input border border-border rounded-lg"
+                      className="w-full pl-6 pr-2 py-1.5 text-base bg-input border border-border rounded-lg"
                     />
                   </div>
                   <button
@@ -356,7 +356,7 @@ export default function MenuStep({
                     value={newItem.name}
                     onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
                     placeholder="es. Margherita"
-                    className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -367,7 +367,7 @@ export default function MenuStep({
                     <select
                       value={newItem.category}
                       onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))}
-                      className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none"
+                      className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none"
                     >
                       {menuCategories.map((c) => (
                         <option key={c}>{c}</option>
@@ -389,7 +389,7 @@ export default function MenuStep({
                         onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))}
                         placeholder="7.50"
                         step="0.5"
-                        className="w-full pl-8 pr-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                        className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   </div>
@@ -403,7 +403,7 @@ export default function MenuStep({
                     onChange={(e) => setNewItem((p) => ({ ...p, description: e.target.value }))}
                     placeholder="Pomodoro, mozzarella, basilico..."
                     rows={2}
-                    className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                   />
                 </div>
               </div>

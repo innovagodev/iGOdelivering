@@ -9,6 +9,8 @@ interface User {
   role: Role;
   name?: string;
   restaurantId?: string;
+  restaurantName?: string;
+  restaurantLogo?: string;
 }
 
 interface AuthContextType {
@@ -21,28 +23,101 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function enrichRistoratoreUser(user: User): User {
+  const email = user.email;
+  let restaurantId = user.restaurantId || '';
+  let restaurantName = user.restaurantName || '';
+  let restaurantLogo = user.restaurantLogo || '';
+  let name = user.name || '';
+
+  // Try to find the restaurant in stored restaurants
+  try {
+    const storedStr =
+      localStorage.getItem('iGOdelivering_restaurants') ||
+      localStorage.getItem('gloriaorder_restaurants');
+    if (storedStr) {
+      const restaurants = JSON.parse(storedStr);
+      const matched = restaurants.find((r: any) => r.email === email);
+      if (matched) {
+        restaurantId = matched.id;
+        restaurantName = matched.name;
+        name = matched.owner || matched.name;
+        restaurantLogo = matched.logoUrl || '';
+      }
+    }
+  } catch (e) {
+    console.error('Error reading restaurants from localStorage', e);
+  }
+
+  // Fallback for demo credentials
+  if (!restaurantId && email === 'giuseppe@bellanapoli.it') {
+    restaurantId = 'r-001';
+    restaurantName = 'Pizzeria Bella Napoli';
+    name = 'Giuseppe Esposito';
+    restaurantLogo = '';
+  }
+
+  // Check for settings override
+  if (restaurantId) {
+    try {
+      const settingsStr = localStorage.getItem(`iGO_settings_${restaurantId}`);
+      if (settingsStr) {
+        const settings = JSON.parse(settingsStr);
+        if (settings.profile) {
+          if (settings.profile.name) restaurantName = settings.profile.name;
+          if (settings.profile.logoUrl) restaurantLogo = settings.profile.logoUrl;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading settings from localStorage', e);
+    }
+  }
+
+  return {
+    ...user,
+    name: name || email.split('@')[0],
+    restaurantId,
+    restaurantName: restaurantName || 'Il tuo ristorante',
+    restaurantLogo,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulazione recupero sessione da localStorage o Supabase
     const savedUser = localStorage.getItem('igodelivering_auth');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsedUser = JSON.parse(savedUser) as User;
+        if (parsedUser.role === 'ristoratore') {
+          setUser(enrichRistoratoreUser(parsedUser));
+        } else {
+          setUser(parsedUser);
+        }
+      } catch {
+        localStorage.removeItem('igodelivering_auth');
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = (email: string, role: Role) => {
-    const newUser: User = {
+    let newUser: User = {
       id: Math.random().toString(36).substr(2, 9),
       email,
       role,
     };
+
+    if (role === 'ristoratore') {
+      newUser = enrichRistoratoreUser(newUser);
+    } else if (role === 'admin') {
+      newUser.name = 'Admin';
+    }
+
     setUser(newUser);
     localStorage.setItem('igodelivering_auth', JSON.stringify(newUser));
-    // Imposta cookie per middleware
     document.cookie = `igodelivering_role=${role}; path=/; max-age=86400; SameSite=Lax`;
   };
 

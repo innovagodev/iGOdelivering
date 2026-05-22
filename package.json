@@ -39,6 +39,7 @@
   },
   "scripts": {
     "dev": "next dev -p 4028",
+    "dev:clean": "npx rimraf .next && next dev -p 4028",
     "release": "standard-version",
     "update-version": "node scripts/update-version.js",
     "prebuild": "npm run update-version",
