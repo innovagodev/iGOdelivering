@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.1](https://github.com/innovagodev/iGOdelivering/compare/v1.9.0...v1.9.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* ottimizzato layout orari admin wizard allargando contenitore ed eliminando icone sun/moon ([ae8e5b4](https://github.com/innovagodev/iGOdelivering/commit/ae8e5b412de89504ffec293bbbb244a7d7f0038f))
+
 ## [1.9.0](https://github.com/innovagodev/iGOdelivering/compare/v1.8.2...v1.9.0) (2026-05-22)
 
 
