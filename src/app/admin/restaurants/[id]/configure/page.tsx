@@ -152,6 +152,8 @@ const defaultDayHours = (): Record<string, DayHours> => {
       open: true,
       lunch: { from: '12:00', to: '14:30' },
       dinner: { from: '19:00', to: '22:30' },
+      lunchEnabled: true,
+      dinnerEnabled: true,
     };
   });
   h['Domenica'].open = false;
@@ -484,7 +486,16 @@ export default function RestaurantConfigurePage() {
       // Restore hours
       let hoursData: Record<string, DayHours> = defaultDayHours();
       if (foundRestaurant?.hours) {
-        hoursData = foundRestaurant.hours;
+        const loaded = foundRestaurant.hours;
+        DAYS.forEach((d) => {
+          if (loaded[d]) {
+            hoursData[d] = {
+              ...loaded[d],
+              lunchEnabled: loaded[d].lunchEnabled !== false,
+              dinnerEnabled: loaded[d].dinnerEnabled !== false,
+            };
+          }
+        });
       }
       setHours(hoursData);
 
@@ -518,6 +529,8 @@ export default function RestaurantConfigurePage() {
                   open: dayData.enabled ?? dayData.open ?? true,
                   lunch: dayData.lunch ? { from: dayData.lunch.from || '12:00', to: dayData.lunch.to || '14:30' } : { from: '12:00', to: '14:30' },
                   dinner: dayData.dinner ? { from: dayData.dinner.from || '19:00', to: dayData.dinner.to || '22:30' } : { from: '19:00', to: '22:30' },
+                  lunchEnabled: dayData.lunchEnabled !== false,
+                  dinnerEnabled: dayData.dinnerEnabled !== false,
                 };
               }
             });
@@ -715,14 +728,14 @@ export default function RestaurantConfigurePage() {
       const convertServiceHoursToStorage = (wizardSvc: ServiceHours) => {
         const result: Record<string, any> = {};
         DAYS.forEach((d) => {
-          const dayData = wizardSvc.hours[d];
+          const dayData = wizardSvc.useCustom ? wizardSvc.hours[d] : hours[d];
           result[d] = {
-            enabled: wizardSvc.useCustom ? dayData.open : true,
+            enabled: dayData.open,
             suspended: false,
             lunch: { from: dayData.lunch.from, to: dayData.lunch.to },
             dinner: { from: dayData.dinner.from, to: dayData.dinner.to },
-            lunchEnabled: true,
-            dinnerEnabled: true,
+            lunchEnabled: dayData.lunchEnabled !== false,
+            dinnerEnabled: dayData.dinnerEnabled !== false,
           };
         });
         return result;
@@ -868,6 +881,20 @@ export default function RestaurantConfigurePage() {
       ...prev,
       [day]: { ...prev[day], [svc]: { ...prev[day][svc], [f]: v } },
     }));
+  const toggleSlot = (day: string, slot: 'lunch' | 'dinner') => {
+    setHours((prev) => {
+      const current = prev[day];
+      const field = slot === 'lunch' ? 'lunchEnabled' : 'dinnerEnabled';
+      const newVal = current[field] === false ? true : false;
+      return {
+        ...prev,
+        [day]: {
+          ...current,
+          [field]: newVal,
+        },
+      };
+    });
+  };
 
   const toggleServiceDay = (s: any, d: string) =>
     s((p: any) => ({
@@ -879,6 +906,23 @@ export default function RestaurantConfigurePage() {
       ...p,
       hours: { ...p.hours, [d]: { ...p.hours[d], [svc]: { ...p.hours[d][svc], [f]: v } } },
     }));
+  const toggleServiceSlot = (s: any, day: string, slot: 'lunch' | 'dinner') => {
+    s((prev: any) => {
+      const current = prev.hours[day];
+      const field = slot === 'lunch' ? 'lunchEnabled' : 'dinnerEnabled';
+      const newVal = current[field] === false ? true : false;
+      return {
+        ...prev,
+        hours: {
+          ...prev.hours,
+          [day]: {
+            ...current,
+            [field]: newVal,
+          },
+        },
+      };
+    });
+  };
 
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return;
@@ -1140,6 +1184,7 @@ export default function RestaurantConfigurePage() {
                 hours={hours}
                 toggleDay={toggleDay}
                 updateHour={updateHour}
+                toggleSlot={toggleSlot}
                 pickupHours={pickupHours}
                 setPickupHours={setPickupHours}
                 deliveryHours={deliveryHours}
@@ -1147,6 +1192,7 @@ export default function RestaurantConfigurePage() {
                 bookingHours={bookingHours}
                 setBookingHours={setBookingHours}
                 toggleServiceDay={toggleServiceDay}
+                toggleServiceSlot={toggleServiceSlot}
                 updateServiceHour={updateServiceHour}
               />
             )}

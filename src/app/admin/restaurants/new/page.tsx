@@ -81,6 +81,8 @@ const defaultDayHours = (): Record<string, DayHours> => {
       open: true,
       lunch: { from: '12:00', to: '14:30' },
       dinner: { from: '19:00', to: '22:30' },
+      lunchEnabled: true,
+      dinnerEnabled: true,
     };
   });
   h['Domenica'].open = false;
@@ -232,6 +234,20 @@ export default function NewRestaurantPage() {
       ...prev,
       [day]: { ...prev[day], [svc]: { ...prev[day][svc], [f]: v } },
     }));
+  const toggleSlot = (day: string, slot: 'lunch' | 'dinner') => {
+    setHours((prev) => {
+      const current = prev[day];
+      const field = slot === 'lunch' ? 'lunchEnabled' : 'dinnerEnabled';
+      const newVal = current[field] === false ? true : false;
+      return {
+        ...prev,
+        [day]: {
+          ...current,
+          [field]: newVal,
+        },
+      };
+    });
+  };
 
   const toggleServiceDay = (s: any, d: string) =>
     s((p: any) => ({
@@ -243,6 +259,23 @@ export default function NewRestaurantPage() {
       ...p,
       hours: { ...p.hours, [d]: { ...p.hours[d], [svc]: { ...p.hours[d][svc], [f]: v } } },
     }));
+  const toggleServiceSlot = (s: any, day: string, slot: 'lunch' | 'dinner') => {
+    s((prev: any) => {
+      const current = prev.hours[day];
+      const field = slot === 'lunch' ? 'lunchEnabled' : 'dinnerEnabled';
+      const newVal = current[field] === false ? true : false;
+      return {
+        ...prev,
+        hours: {
+          ...prev.hours,
+          [day]: {
+            ...current,
+            [field]: newVal,
+          },
+        },
+      };
+    });
+  };
 
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return;
@@ -330,12 +363,81 @@ export default function NewRestaurantPage() {
     const restaurantId = `r-${Date.now()}`;
     const slug = slugify(info.name);
 
+    // 1. Wizard service hours to service hours storage format
+    const convertServiceHoursToStorage = (wizardSvc: ServiceHours) => {
+      const result: Record<string, any> = {};
+      DAYS.forEach((d) => {
+        const dayData = wizardSvc.useCustom ? wizardSvc.hours[d] : hours[d];
+        result[d] = {
+          enabled: dayData.open,
+          suspended: false,
+          lunch: { from: dayData.lunch.from, to: dayData.lunch.to },
+          dinner: { from: dayData.dinner.from, to: dayData.dinner.to },
+          lunchEnabled: dayData.lunchEnabled !== false,
+          dinnerEnabled: dayData.dinnerEnabled !== false,
+        };
+      });
+      return result;
+    };
+
+    const serviceHoursObj = {
+      pickup: convertServiceHoursToStorage(pickupHours),
+      delivery: convertServiceHoursToStorage(deliveryHours),
+      reservation: convertServiceHoursToStorage(bookingHours),
+    };
+
+    const serviceHoursDataToSave = {
+      serviceHours: serviceHoursObj,
+      serviceSuspended: {
+        pickup: false,
+        delivery: false,
+        reservation: false,
+      },
+    };
+
+    const settingsObj = {
+      profile: {
+        name: info.name,
+        logoUrl: info.logoUrl,
+        backgroundImageUrl: info.backgroundImageUrl,
+        description: info.description,
+        phone: info.phone,
+        email: info.email,
+        website: info.website,
+        address: info.address,
+        city: info.city,
+        province: info.province,
+        cap: info.cap,
+        vatNumber: info.vatNumber,
+      },
+      minOrder: zones[0]?.minOrder || 0,
+      deliveryFee: zones[0]?.deliveryFee || 0,
+      freeDeliveryActive: (zones[0]?.freeDeliveryThreshold || 0) > 0,
+      freeDeliveryThreshold: zones[0]?.freeDeliveryThreshold || 0,
+      paymentMethods: {
+        card_delivery: paymentConfig.card_delivery,
+        card_pickup: paymentConfig.card_pickup,
+        cash_delivery: paymentConfig.cash_delivery,
+        cash_pickup: paymentConfig.cash_pickup,
+        cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
+        card: paymentConfig.card_delivery || paymentConfig.card_pickup,
+        paypal: false,
+      },
+      orderModes: {
+        delivery: zones.some((z) => z.enabled),
+        pickup: true,
+        table: tableBooking.enabled,
+      },
+      tableBooking,
+      scheduledOrders,
+    };
+
     const newRestaurant = {
       id: restaurantId,
       name: info.name,
       address: info.address,
       city: info.city,
-      status: 'published',
+      status: 'active' as const,
       owner: info.name + ' Owner',
       email: info.email,
       phone: info.phone,
@@ -343,6 +445,12 @@ export default function NewRestaurantPage() {
       menuItems: menuItems.length,
       ordersToday: 0,
       category: info.category,
+      hours: hours,
+      serviceHours: serviceHoursObj,
+      zones: zones,
+      paymentMethods: settingsObj.paymentMethods,
+      tableBooking,
+      scheduledOrders,
     };
 
     try {
@@ -399,25 +507,16 @@ export default function NewRestaurantPage() {
       localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
       localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
 
+      localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
+      localStorage.setItem(`iGO_service_hours_${slug}`, JSON.stringify(serviceHoursDataToSave));
+      localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(zones));
+
       const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
       saved.push(newRestaurant);
       localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(saved));
 
-      const settings = {
-        profile: { name: info.name, logoUrl: info.logoUrl },
-        minOrder: zones[0]?.minOrder || 0,
-        deliveryFee: zones[0]?.deliveryFee || 0,
-        freeDeliveryActive: (zones[0]?.freeDeliveryThreshold || 0) > 0,
-        freeDeliveryThreshold: zones[0]?.freeDeliveryThreshold || 0,
-        paymentMethods: {
-          card_delivery: paymentConfig.card_delivery,
-          card_pickup: paymentConfig.card_pickup,
-          cash_delivery: paymentConfig.cash_delivery,
-          cash_pickup: paymentConfig.cash_pickup,
-        },
-      };
-      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settings));
-      localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settings));
+      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settingsObj));
+      localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settingsObj));
     } catch (e) {
       console.error('Error saving restaurant or settings', e);
     }
@@ -576,6 +675,7 @@ export default function NewRestaurantPage() {
                 hours={hours}
                 toggleDay={toggleDay}
                 updateHour={updateHour}
+                toggleSlot={toggleSlot}
                 pickupHours={pickupHours}
                 setPickupHours={setPickupHours}
                 deliveryHours={deliveryHours}
@@ -583,6 +683,7 @@ export default function NewRestaurantPage() {
                 bookingHours={bookingHours}
                 setBookingHours={setBookingHours}
                 toggleServiceDay={toggleServiceDay}
+                toggleServiceSlot={toggleServiceSlot}
                 updateServiceHour={updateServiceHour}
               />
             )}

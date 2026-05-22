@@ -50,6 +50,8 @@ export interface DayHours {
   open: boolean;
   lunch: { from: string; to: string };
   dinner: { from: string; to: string };
+  lunchEnabled?: boolean;
+  dinnerEnabled?: boolean;
 }
 
 export interface ServiceHours {
