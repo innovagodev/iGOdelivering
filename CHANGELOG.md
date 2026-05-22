@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/innovagodev/iGOdelivering/compare/v1.6.0...v1.7.0) (2026-05-22)
+
+
+### Features
+
+* implementazione promozioni con prezzo scontato e listino barrato, rimozione badge popolari/veg/spicy e azzeramento minimo d'ordine ([94f1bef](https://github.com/innovagodev/iGOdelivering/commit/94f1beffdf263945d3e888e15817e14bc09536f7))
+
 ## [1.6.0](https://github.com/innovagodev/iGOdelivering/compare/v1.5.0...v1.6.0) (2026-05-22)
 
 
