@@ -522,7 +522,7 @@ function CartSidebar({
         </div>
       ) : (
         <>
-          <ul className="flex-1 overflow-y-auto py-3 px-4 space-y-3 scrollbar-hide">
+          <ul data-lenis-prevent className="flex-1 overflow-y-auto py-3 px-4 space-y-3 scrollbar-hide">
             {cart.map((item) => (
               <li
                 key={`cart-${item.cartId || item.id}`}
@@ -1878,7 +1878,7 @@ function CustomizationView({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 scrollbar-hide">
+      <div data-lenis-prevent className="flex-1 overflow-y-auto px-5 py-4 space-y-5 scrollbar-hide">
         {/* Info panel */}
         <div className="flex gap-3 bg-muted/20 p-3 rounded-2xl border border-border/20">
           <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
@@ -1963,7 +1963,7 @@ function CustomizationView({
                       </span>
                     </button>
                     {isOpen && (
-                      <div className="p-2 space-y-1.5 bg-card border-t border-border/40 max-h-[25vh] overflow-y-auto">
+                      <div data-lenis-prevent className="p-2 space-y-1.5 bg-card border-t border-border/40 max-h-[25vh] overflow-y-auto">
                         {category.items.map((ext) => {
                           const isAdded = added.some((e) => e.name === ext.name);
                           return (

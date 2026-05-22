@@ -182,7 +182,7 @@ export default function ProductDetailSheet({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 scrollbar-hide">
+        <div data-lenis-prevent className="flex-1 overflow-y-auto px-5 py-4 space-y-6 scrollbar-hide">
           {/* Cover image */}
           <div className="relative h-48 w-full rounded-2xl overflow-hidden shadow-xs">
             <AppImage src={item.image} alt={item.imageAlt} fill className="object-cover" />

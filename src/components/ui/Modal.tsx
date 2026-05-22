@@ -59,6 +59,7 @@ export default function Modal({
       <div
         className={`relative w-full ${sizeClasses[size]} bg-card rounded-2xl shadow-modal animate-slide-up`}
         style={{ maxHeight: '90vh', overflowY: 'auto' }}
+        data-lenis-prevent
       >
         {(title || !hideClose) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10 rounded-t-2xl">
