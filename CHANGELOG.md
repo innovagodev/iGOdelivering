@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.11.0](https://github.com/innovagodev/iGOdelivering/compare/v1.10.0...v1.11.0) (2026-05-25)
+
+
+### Features
+
+* **checkout:** implementa validazioni di business e configurazione conto di accredito IBAN ([bcc2030](https://github.com/innovagodev/iGOdelivering/commit/bcc2030ab66c6ff55749cb6989aacdc761d15fbe))
+
 ## [1.10.0](https://github.com/innovagodev/iGOdelivering/compare/v1.9.1...v1.10.0) (2026-05-25)
 
 
