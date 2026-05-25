@@ -41,7 +41,6 @@ export default function ImpostazioniPage() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
 
   // Form states
@@ -73,15 +72,6 @@ export default function ImpostazioniPage() {
     if (stored !== null) {
       setSidebarCollapsed(JSON.parse(stored));
     }
-
-    // Set dynamic date
-    const formatted = new Date().toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
   useEffect(() => {
@@ -240,17 +230,16 @@ export default function ImpostazioniPage() {
             className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6"
           >
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Impostazioni Ristorante</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentDate || 'Caricamento data...'} ·{' '}
                   {user?.restaurantName || 'Il tuo ristorante'}
                 </p>
               </div>
               <button
                 type="submit"
-                className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Save size={16} />
                 Salva Modifiche
@@ -278,14 +267,30 @@ export default function ImpostazioniPage() {
                   </h3>
 
                   <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
-                    <div className="relative group">
-                      <div className="w-24 h-24 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center shadow-xs">
-                        {logoUrl ? (
-                          <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                        ) : (
-                          <Camera size={24} className="text-muted-foreground" />
-                        )}
-                      </div>
+                    <div className="relative group cursor-pointer w-24 h-24 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center shadow-xs">
+                      {logoUrl ? (
+                        <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera size={24} className="text-muted-foreground" />
+                      )}
+                      <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <Camera size={20} className="text-white" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setLogoUrl(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
 
                     <div className="flex-1 w-full space-y-3">
@@ -318,15 +323,47 @@ export default function ImpostazioniPage() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                          Logo URL
+                          Logo Ristorante
                         </label>
-                        <input
-                          type="text"
-                          value={logoUrl}
-                          onChange={(e) => setLogoUrl(e.target.value)}
-                          placeholder="Inserisci l'URL dell'immagine del logo"
-                          className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
+                        {logoUrl ? (
+                          <div className="flex items-center gap-4 p-3 bg-muted/30 border border-border rounded-xl">
+                            <img src={logoUrl} alt="Logo Preview" className="h-12 w-24 object-contain bg-white rounded border p-1" />
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-foreground">Logo caricato</p>
+                              <p className="text-[10px] text-muted-foreground">Immagine salvata nel profilo</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setLogoUrl('')}
+                              className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
+                            >
+                              Rimuovi
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-4 transition-colors flex flex-col items-center justify-center gap-1.5 bg-muted/10 relative">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setLogoUrl(reader.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                            <Camera size={20} className="text-muted-foreground" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-foreground">Trascina o clicca per caricare</p>
+                              <p className="text-[10px] text-muted-foreground">PNG, JPG o SVG fino a 2MB</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

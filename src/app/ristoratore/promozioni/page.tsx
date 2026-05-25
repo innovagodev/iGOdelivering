@@ -40,7 +40,6 @@ export default function PromozioniPage() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState('');
 
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -62,15 +61,6 @@ export default function PromozioniPage() {
     if (stored !== null) {
       setSidebarCollapsed(JSON.parse(stored));
     }
-
-    // Set dynamic date
-    const formatted = new Date().toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
   useEffect(() => {
@@ -202,17 +192,16 @@ export default function PromozioniPage() {
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Promozioni</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentDate || 'Caricamento data...'} ·{' '}
                   {user?.restaurantName || 'Il tuo ristorante'}
                 </p>
               </div>
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Aggiungi Codice
@@ -253,7 +242,7 @@ export default function PromozioniPage() {
                           <th className="px-6 py-4">Stato</th>
                           <th className="px-6 py-4">Codice</th>
                           <th className="px-6 py-4">Valore Sconto</th>
-                          <th className="px-6 py-4">Ordine Minimo</th>
+                          <th className="px-6 py-4 hidden lg:table-cell">Ordine Minimo</th>
                           <th className="px-6 py-4">Descrizione / Validità</th>
                           <th className="px-6 py-4 text-center">Azioni</th>
                         </tr>
@@ -298,7 +287,7 @@ export default function PromozioniPage() {
                                 </Badge>
                               )}
                             </td>
-                            <td className="px-6 py-4 font-medium tabular-nums whitespace-nowrap">
+                            <td className="px-6 py-4 font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
                               {promo.minOrderSubtotal
                                 ? `€ ${promo.minOrderSubtotal.toFixed(2)}`
                                 : 'Nessuno'}

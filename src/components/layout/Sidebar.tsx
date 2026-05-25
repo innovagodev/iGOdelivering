@@ -19,6 +19,7 @@ import {
   Calendar,
   X,
   Clock,
+  QrCode,
 } from 'lucide-react';
 
 interface NavItem {
@@ -105,6 +106,12 @@ const ristoratoreNavItems: NavItem[] = [
     label: 'Zone Consegna',
     icon: <MapPin size={18} />,
     href: '/ristoratore/zone',
+  },
+  {
+    id: 'nav-tavoli',
+    label: 'QR Code Tavoli',
+    icon: <QrCode size={18} />,
+    href: '/ristoratore/tavoli',
   },
   {
     id: 'nav-impostazioni',

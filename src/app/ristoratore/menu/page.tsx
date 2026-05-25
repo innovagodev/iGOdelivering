@@ -93,7 +93,6 @@ export default function RistoratoreMenuPage() {
   const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tutti');
-  const [servicePaused, setServicePaused] = useState(false);
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
   const [bulkActionFeedback, setBulkActionFeedback] = useState<string | null>(null);
 
@@ -297,34 +296,10 @@ export default function RistoratoreMenuPage() {
               </span>
             </div>
           }
-          rightExtra={
-            <button
-              onClick={() => setServicePaused(!servicePaused)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${servicePaused ? 'bg-[var(--success-bg)] text-[var(--success)]' : 'bg-[var(--warning-bg)] text-[var(--warning)]'}`}
-            >
-              {servicePaused ? <PlayCircle size={16} /> : <PauseCircle size={16} />}
-              {servicePaused ? 'Riprendi Servizio' : 'Metti in Pausa'}
-            </button>
-          }
         />
 
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
-            {servicePaused && (
-              <div className="bg-[var(--warning-bg)] border border-[var(--warning)]/30 rounded-xl p-4 flex items-center gap-3">
-                <PauseCircle size={20} className="text-[var(--warning)] flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">Servizio in pausa</p>
-                </div>
-                <button
-                  onClick={() => setServicePaused(false)}
-                  className="bg-[var(--warning)] text-white px-3 py-1.5 rounded-lg text-xs font-semibold"
-                >
-                  Riprendi
-                </button>
-              </div>
-            )}
-
             {bulkActionFeedback && (
               <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-foreground text-background text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
                 <Zap size={14} />
@@ -332,7 +307,7 @@ export default function RistoratoreMenuPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Menu</h1>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -341,7 +316,7 @@ export default function RistoratoreMenuPage() {
               </div>
               <button
                 onClick={() => setShowAddItem(true)}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22]"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] w-full sm:w-auto"
               >
                 <Plus size={14} />
                 Aggiungi Piatto

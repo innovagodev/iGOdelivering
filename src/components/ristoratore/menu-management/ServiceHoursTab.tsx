@@ -212,7 +212,7 @@ export default function ServiceHoursTab({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-foreground">Configurazione Orari & Servizi</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -221,7 +221,7 @@ export default function ServiceHoursTab({
         </div>
         <button
           onClick={handleSaveHours}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all ${saved ? 'bg-[var(--success)] text-white shadow-green-200' : 'bg-primary text-white shadow-primary/20 hover:bg-[#d43d22]'}`}
+          className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all w-full sm:w-auto ${saved ? 'bg-[var(--success)] text-white shadow-green-200' : 'bg-primary text-white shadow-primary/20 hover:bg-[#d43d22]'}`}
         >
           {saved ? <Check size={18} /> : <Save size={18} />}
           {saved ? 'Salvato' : 'Salva Orari'}

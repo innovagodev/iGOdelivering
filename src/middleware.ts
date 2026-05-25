@@ -19,7 +19,8 @@ export function middleware(request: NextRequest) {
       '/ristoratore/impostazioni',
       '/ristoratore/prenotazioni',
       '/ristoratore/promozioni',
-      '/ristoratore/zone'
+      '/ristoratore/zone',
+      '/ristoratore/tavoli'
     ];
     if (!validRistoratoreRoutes.includes(pathname)) {
       return NextResponse.redirect(new URL('/ristoratore/dashboard', request.url));

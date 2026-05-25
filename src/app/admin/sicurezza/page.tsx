@@ -189,7 +189,7 @@ export default function AdminSicurezzaPage() {
 
             {/* Filters */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-sm w-full">
+              <div className="relative flex-1 w-full sm:max-w-sm">
                 <Search
                   size={14}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -230,9 +230,10 @@ export default function AdminSicurezzaPage() {
               </div>
             </div>
 
-            {/* Audit Logs Table */}
+            {/* Audit Logs Table (Desktop) & Cards (Mobile) */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Desktop View */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
@@ -245,7 +246,7 @@ export default function AdminSicurezzaPage() {
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Evento
                       </th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Indirizzo IP
                       </th>
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -280,7 +281,7 @@ export default function AdminSicurezzaPage() {
                           <td className="px-4 py-3">
                             <span className="text-sm text-foreground">{log.event}</span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden lg:table-cell">
                             <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded border border-border">
                               {log.ipAddress}
                             </span>
@@ -314,7 +315,7 @@ export default function AdminSicurezzaPage() {
                                 <>
                                   <CheckCircle size={12} />
                                   Ok
-                                </>
+                                  </>
                               ) : (
                                 <>
                                   <XCircle size={12} />
@@ -328,6 +329,68 @@ export default function AdminSicurezzaPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredLogs.length === 0 && (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    Nessun log registrato
+                  </div>
+                )}
+                {filteredLogs.map((log) => {
+                  return (
+                    <div key={log.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="text-[10px] font-mono text-muted-foreground block mb-0.5">
+                            {log.timestamp}
+                          </span>
+                          <h4 className="font-semibold text-sm text-foreground leading-snug">{log.event}</h4>
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                            log.status === 'success'
+                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                              : 'bg-red-500/10 text-red-500 border-red-500/20'
+                          }`}
+                        >
+                          {log.status === 'success' ? 'Ok' : 'Fallito'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">Utente / Operatore</p>
+                          <p className="font-medium text-foreground truncate max-w-xs">{log.user}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">Indirizzo IP</p>
+                          <p className="font-mono text-foreground text-[10px]">{log.ipAddress}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs text-muted-foreground">Severità</span>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                            log.severity === 'high'
+                              ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                              : log.severity === 'medium'
+                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                          }`}
+                        >
+                          {log.severity === 'high'
+                            ? 'Alta'
+                            : log.severity === 'medium'
+                              ? 'Media'
+                              : 'Bassa'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

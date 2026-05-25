@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -262,7 +262,7 @@ export default function AdminRestaurantsPage() {
 
             {/* Filters */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <div className="relative flex-1 max-w-sm">
+              <div className="relative flex-1 w-full sm:max-w-sm">
                 <Search
                   size={14}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -298,9 +298,10 @@ export default function AdminRestaurantsPage() {
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table (Desktop) & Cards (Mobile) */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Desktop View */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
@@ -439,6 +440,114 @@ export default function AdminRestaurantsPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden divide-y divide-border">
+                {filtered.length === 0 && (
+                  <div className="py-16 text-center text-sm text-muted-foreground">
+                    Nessun ristorante trovato
+                  </div>
+                )}
+                {filtered.map((r) => {
+                  const sc = statusConfig[r.status];
+                  const isSuspended = r.status === 'suspended';
+                  return (
+                    <div key={r.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
+                            <Store size={16} className="text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground">{r.name}</h4>
+                            <p className="text-xs text-muted-foreground">{r.category}</p>
+                          </div>
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            r.status === 'published'
+                              ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                              : r.status === 'draft'
+                                ? 'bg-muted text-muted-foreground'
+                                : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+                          }`}
+                        >
+                          {sc.icon}
+                          {sc.label}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">Proprietario</p>
+                          <p className="font-medium text-foreground">{r.owner}</p>
+                          <p className="text-muted-foreground text-[10px]">{r.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">Località</p>
+                          <p className="font-medium text-foreground">{r.city}</p>
+                        </div>
+                        <div className="mt-1">
+                          <p className="text-muted-foreground mb-0.5">Menu</p>
+                          <p className="font-medium text-foreground">{r.menuItems} voci</p>
+                        </div>
+                        <div className="mt-1">
+                          <p className="text-muted-foreground mb-0.5">Ordini Oggi</p>
+                          <p className="font-medium text-foreground">{r.ordersToday}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1.5 pt-1">
+                        <Link
+                          href={`/menu/${slugify(r.name)}`}
+                          target="_blank"
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors text-xs font-semibold border border-border/50"
+                          title="Apri Vetrina"
+                        >
+                          <ExternalLink size={14} className="mr-1" />
+                          Menu
+                        </Link>
+                        <Link
+                          href={`/admin/restaurants/${r.id}/configure`}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                          title="Configura"
+                        >
+                          <Settings size={14} />
+                        </Link>
+                        <Link
+                          href={`/admin/restaurants/${r.id}/access`}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                          title="Accessi"
+                        >
+                          <Users size={14} />
+                        </Link>
+                        <button
+                          onClick={() => handleToggleSuspend(r.id)}
+                          className={`p-1.5 rounded-lg transition-colors border border-border/50 ${
+                            isSuspended
+                              ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
+                              : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
+                          }`}
+                          title={isSuspended ? 'Riattiva' : 'Sospendi'}
+                        >
+                          {isSuspended ? (
+                            <PlayCircle size={14} />
+                          ) : (
+                            <PauseOctagon size={14} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(r)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
+                          title="Elimina"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

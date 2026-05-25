@@ -45,7 +45,6 @@ export default function DeliveryZonesPage() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState('');
 
   const [zones, setZones] = useState<DeliveryZoneConfig[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -65,15 +64,6 @@ export default function DeliveryZonesPage() {
     if (stored !== null) {
       setSidebarCollapsed(JSON.parse(stored));
     }
-
-    // Set dynamic date
-    const formatted = new Date().toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
   useEffect(() => {
@@ -192,17 +182,16 @@ export default function DeliveryZonesPage() {
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Zone di Consegna</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentDate || 'Caricamento data...'} ·{' '}
                   {user?.restaurantName || 'Il tuo ristorante'}
                 </p>
               </div>
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Aggiungi Zona
@@ -247,7 +236,7 @@ export default function DeliveryZonesPage() {
                           <th className="px-6 py-4 text-right">Raggio (Km)</th>
                           <th className="px-6 py-4 text-right">Ordine Minimo</th>
                           <th className="px-6 py-4 text-right">Costo Consegna</th>
-                          <th className="px-6 py-4 text-right">Gratis Da</th>
+                          <th className="px-6 py-4 text-right hidden lg:table-cell">Gratis Da</th>
                           <th className="px-6 py-4 text-center">Azioni</th>
                         </tr>
                       </thead>
@@ -280,7 +269,7 @@ export default function DeliveryZonesPage() {
                                 `€ ${zone.deliveryFee.toFixed(2)}`
                               )}
                             </td>
-                            <td className="px-6 py-4 text-right font-medium tabular-nums whitespace-nowrap">
+                            <td className="px-6 py-4 text-right font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
                               {zone.freeDeliveryThreshold
                                 ? `€ ${zone.freeDeliveryThreshold.toFixed(2)}`
                                 : 'Non attivo'}

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
@@ -14,6 +14,7 @@ import {
   Copy,
   UserCheck,
   UserX,
+  Plus,
 } from 'lucide-react';
 
 interface RestorateurUser {
@@ -143,16 +144,25 @@ export default function AdminUtentiPage() {
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Header */}
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Gestione Ristoratori</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Visualizza e gestisci gli account dei ristoratori registrati sulla piattaforma.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Gestione Ristoratori</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Visualizza e gestisci gli account dei ristoratori registrati sulla piattaforma.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap"
+              >
+                <Plus size={16} />
+                Aggiungi Ristoratore
+              </button>
             </div>
 
             {/* Filters and Search */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="relative flex-1 max-w-sm w-full">
+              <div className="relative flex-1 w-full sm:max-w-sm">
                 <Search
                   size={14}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -189,9 +199,10 @@ export default function AdminUtentiPage() {
               </div>
             </div>
 
-            {/* Table Users */}
+            {/* Table Users (Desktop) & Cards (Mobile) */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              <div className="overflow-x-auto">
+              {/* Desktop View */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
@@ -204,7 +215,7 @@ export default function AdminUtentiPage() {
                       <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Stato
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Ultimo Accesso
                       </th>
                       <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -258,7 +269,7 @@ export default function AdminUtentiPage() {
                                   : 'Sospeso'}
                             </span>
                           </td>
-                          <td className="px-5 py-4 hidden md:table-cell">
+                          <td className="px-5 py-4 hidden lg:table-cell">
                             <span className="text-xs text-muted-foreground">{u.lastLogin}</span>
                           </td>
                           <td className="px-5 py-4 text-right">
@@ -295,6 +306,88 @@ export default function AdminUtentiPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredUsers.length === 0 && (
+                  <div className="py-16 text-center text-sm text-muted-foreground">
+                    Nessun ristoratore trovato
+                  </div>
+                )}
+                {filteredUsers.map((u) => {
+                  return (
+                    <div key={u.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-semibold text-sm text-foreground">{u.name}</h4>
+                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            u.status === 'active'
+                              ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                              : u.status === 'pending'
+                                ? 'bg-muted text-muted-foreground'
+                                : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+                          }`}
+                        >
+                          {u.status === 'active' ? (
+                            <CheckCircle size={12} />
+                          ) : u.status === 'pending' ? (
+                            <Clock size={12} />
+                          ) : (
+                            <ShieldAlert size={12} />
+                          )}
+                          {u.status === 'active'
+                            ? 'Attivo'
+                            : u.status === 'pending'
+                              ? 'In Attesa'
+                              : 'Sospeso'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">Ristorante Associato</p>
+                          <p className="font-medium text-foreground">{u.restaurantName}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground mb-0.5">Ultimo Accesso</p>
+                          <p className="font-medium text-foreground">{u.lastLogin}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        {u.status === 'active' ? (
+                          <button
+                            onClick={() => handleToggleStatus(u.id, 'suspended')}
+                            className="p-1.5 rounded-lg hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)] transition-colors border border-border/50"
+                            title="Sospendi Ristoratore"
+                          >
+                            <UserX size={14} />
+                          </button>
+                        ) : u.status === 'suspended' ? (
+                          <button
+                            onClick={() => handleToggleStatus(u.id, 'active')}
+                            className="p-1.5 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50"
+                            title="Attiva Ristoratore"
+                          >
+                            <UserCheck size={14} />
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => handlePasswordReset(u)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border/50"
+                          title="Resetta Password"
+                        >
+                          <Key size={13} className="text-muted-foreground" />
+                          Reset Password
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -185,12 +185,12 @@ const statusBadgeVariant: Record<OrderHistStatus, 'success' | 'danger' | 'info' 
   'In Preparazione': 'warning',
 };
 
-export default function OrderHistoryTable() {
+export default function OrderHistoryTable({ limit }: { limit?: number }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<keyof HistOrder>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const perPage = 8;
+  const perPage = limit || 8;
 
   const filtered = histOrders.filter(
     (o) =>
@@ -210,7 +210,9 @@ export default function OrderHistoryTable() {
   });
 
   const totalPages = Math.ceil(sorted.length / perPage);
-  const pageData = sorted.slice((page - 1) * perPage, page * perPage);
+  const pageData = limit
+    ? sorted.slice(0, limit)
+    : sorted.slice((page - 1) * perPage, page * perPage);
 
   const handleSort = (key: keyof HistOrder) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -240,7 +242,7 @@ export default function OrderHistoryTable() {
           <h3 className="text-base font-semibold text-foreground">Storico Ordini</h3>
           <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} ordini trovati</p>
         </div>
-        <div className="relative w-full sm:w-60">
+        <div className="relative w-full sm:w-80 lg:w-96">
           <Search
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -268,15 +270,15 @@ export default function OrderHistoryTable() {
                 { key: 'items', label: 'Articoli' },
                 { key: 'total', label: 'Totale' },
                 { key: 'type', label: 'Tipo' },
-                { key: 'payment', label: 'Pagamento' },
+                { key: 'payment', label: 'Pagamento', className: 'hidden lg:table-cell' },
                 { key: 'status', label: 'Stato' },
-                { key: 'date', label: 'Data' },
-                { key: 'zone', label: 'Zona' },
+                { key: 'date', label: 'Data', className: 'hidden xl:table-cell' },
+                { key: 'zone', label: 'Zona', className: 'hidden lg:table-cell' },
               ].map((col) => (
                 <th
                   key={`th-${col.key}`}
                   onClick={() => handleSort(col.key as keyof HistOrder)}
-                  className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none whitespace-nowrap"
+                  className={`px-4 py-3 text-left text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none whitespace-nowrap ${col.className || ''}`}
                   style={{ letterSpacing: '0.04em' }}
                 >
                   {col.label}
@@ -321,16 +323,16 @@ export default function OrderHistoryTable() {
                     {order.type}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{order.payment}</td>
+                <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{order.payment}</td>
                 <td className="px-4 py-3">
                   <Badge variant={statusBadgeVariant[order.status]} dot>
                     {order.status}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums">
+                <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums hidden xl:table-cell">
                   {order.date} {order.time}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{order.zone}</td>
+                <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{order.zone}</td>
                 <td className="px-4 py-3 text-right">
                   <button
                     className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -417,54 +419,45 @@ export default function OrderHistoryTable() {
                 </span>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-end pt-2 border-t border-border">
-              <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted hover:bg-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors cursor-pointer"
-                title="Visualizza ordine"
-              >
-                <Eye size={14} />
-                Dettagli
-              </button>
-            </div>
           </div>
         ))}
       </div>
       {/* Pagination */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-        <p className="text-xs text-muted-foreground">
-          {(page - 1) * perPage + 1}–{Math.min(page * perPage, sorted.length)} di {sorted.length}{' '}
-          ordini
-        </p>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft size={15} />
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+      {!limit && (
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+          <p className="text-xs text-muted-foreground">
+            {(page - 1) * perPage + 1}–{Math.min(page * perPage, sorted.length)} di {sorted.length}{' '}
+            ordini
+          </p>
+          <div className="flex items-center gap-1">
             <button
-              key={`page-${p}`}
-              onClick={() => setPage(p)}
-              className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
-                page === p ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground'
-              }`}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {p}
+              <ChevronLeft size={15} />
             </button>
-          ))}
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronRight size={15} />
-          </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={`page-${p}`}
+                onClick={() => setPage(p)}
+                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                  page === p ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

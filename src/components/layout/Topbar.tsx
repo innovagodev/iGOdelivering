@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Menu, Bell, ChevronDown, User, Settings, LifeBuoy, LogOut } from 'lucide-react';
+import { Menu, ChevronDown, User, Settings, LifeBuoy, LogOut, PauseCircle, PlayCircle } from 'lucide-react';
 
 interface TopbarProps {
   role: 'admin' | 'ristoratore';
@@ -22,7 +22,18 @@ export default function Topbar({
 }: TopbarProps) {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [formattedDate, setFormattedDate] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const d = new Date();
+    const weekday = d.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const formatted = `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day}/${month}/${year}`;
+    setFormattedDate(formatted);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -50,20 +61,20 @@ export default function Topbar({
       </button>
 
       {/* Left Content Area */}
-      <div className="flex items-center gap-2 flex-1 min-w-0">{leftContent}</div>
+      <div className="flex items-center justify-between flex-1 min-w-0 pr-4">
+        <div className="flex items-center gap-2 min-w-0">
+          {leftContent}
+        </div>
+        {formattedDate && (
+          <span className="text-xs md:text-sm text-muted-foreground/80 flex-shrink-0 font-semibold ml-1.5 select-none">
+            · {formattedDate}
+          </span>
+        )}
+      </div>
 
       {/* Right Content Area */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         {rightExtra}
-
-        {/* Notification Bell */}
-        <button
-          className="relative p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          aria-label="Notifiche"
-        >
-          <Bell size={18} />
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full" />
-        </button>
 
         {/* User Profile Avatar Dropdown */}
         <div className="relative pl-2 border-l border-border" ref={dropdownRef}>
@@ -104,24 +115,8 @@ export default function Topbar({
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
                 >
-                  <User size={14} />
-                  <span>Modifica Profilo</span>
-                </Link>
-                <Link
-                  href={settingsPath}
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
-                >
                   <Settings size={14} />
-                  <span>Impostazioni account</span>
-                </Link>
-                <Link
-                  href="#supporto"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
-                >
-                  <LifeBuoy size={14} />
-                  <span>Supporto</span>
+                  <span>Impostazioni</span>
                 </Link>
               </div>
 

@@ -78,7 +78,6 @@ export default function PrenotazioniPage() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState('');
 
   const [bookings, setBookings] = useState<TableBooking[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -121,15 +120,6 @@ export default function PrenotazioniPage() {
     if (stored !== null) {
       setSidebarCollapsed(JSON.parse(stored));
     }
-
-    // Set dynamic date
-    const formatted = new Date().toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
   useEffect(() => {
@@ -283,17 +273,16 @@ export default function PrenotazioniPage() {
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Prenotazioni</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentDate || 'Caricamento data...'} ·{' '}
                   {user?.restaurantName || 'Il tuo ristorante'}
                 </p>
               </div>
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Nuova Prenotazione

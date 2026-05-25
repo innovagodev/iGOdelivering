@@ -16,7 +16,6 @@ export default function RestaurantDashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('nav-panoramica');
-  const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
     // Restore sidebar state
@@ -24,15 +23,6 @@ export default function RestaurantDashboardPage() {
     if (stored !== null) {
       setSidebarCollapsed(JSON.parse(stored));
     }
-
-    // Set dynamic date
-    const formatted = new Date().toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    setCurrentDate(formatted.charAt(0).toUpperCase() + formatted.slice(1));
   }, []);
 
   return (
@@ -62,42 +52,20 @@ export default function RestaurantDashboardPage() {
               </span>
             </div>
           }
-          rightExtra={
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="text"
-                placeholder="Cerca..."
-                className="pl-8 pr-3 py-2 text-base bg-muted rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-ring w-48 placeholder:text-muted-foreground hidden md:block"
-              />
-            </div>
-          }
         />
 
         {/* Content */}
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-2xl mx-auto px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 space-y-6">
             {/* Page header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between col-span-full">
               <div>
                 <h1 className="text-2xl font-bold text-foreground">
                   Bentornato, {user?.name || 'Utente'}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {currentDate || 'Caricamento data...'} ·{' '}
                   {user?.restaurantName || 'Il tuo ristorante'}
                 </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/"
-                  className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-                >
-                  Vai alla vetrina →
-                </Link>
               </div>
             </div>
 
@@ -163,7 +131,7 @@ export default function RestaurantDashboardPage() {
             </div>
 
             {/* Order History */}
-            <OrderHistoryTable />
+            <OrderHistoryTable limit={5} />
           </div>
         </main>
       </div>

@@ -19,6 +19,7 @@ import {
   Phone,
   X,
   CheckCircle,
+  PauseCircle,
   ChefHat,
   Package,
   CalendarCheck,
@@ -934,6 +935,12 @@ function CheckoutModal({
   }, [deliveryType, openingHours, deliveryHours, currentTimeStr]);
 
   useEffect(() => {
+    if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
+      setDeliveryType('asporto');
+    }
+  }, [currentTimeStr, deliveryType, setDeliveryType]);
+
+  useEffect(() => {
     if (timeSlots.length > 0) {
       if (!deliveryTime || !timeSlots.includes(deliveryTime)) {
         setDeliveryTime(timeSlots[0]);
@@ -1095,9 +1102,12 @@ function CheckoutModal({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  disabled={currentTimeStr === '12:15'}
                   onClick={() => setDeliveryType('domicilio')}
                   className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                    deliveryType === 'domicilio'
+                    currentTimeStr === '12:15'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
+                      : deliveryType === 'domicilio'
                       ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                       : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                   }`}
@@ -2155,9 +2165,10 @@ export default function CustomerStorefront() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | 'paused' | null>(null);
   const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
+
   const [promoApplied, setPromoApplied] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingGuests, setBookingGuests] = useState(2);
@@ -2230,7 +2241,25 @@ export default function CustomerStorefront() {
   // Immediate Availability Check on Page Load & Config Changes
   useEffect(() => {
     const tavoloParam = searchParams?.get('tavolo');
-    if (tavoloParam) return; // Skip closed/delivery popups for table ordering
+    if (tavoloParam) {
+      setAvailabilityError(null);
+      return; // Skip closed/delivery popups for table ordering
+    }
+
+    if (simulatedTime === 'paused') {
+      setAvailabilityError('paused');
+      return;
+    }
+
+    if (simulatedTime === '16:00') {
+      setAvailabilityError('closed');
+      return;
+    }
+
+    if (simulatedTime === '12:15') {
+      setAvailabilityError('no_delivery');
+      return;
+    }
 
     const currentStr = getCurrentTimeStr();
 
@@ -2256,6 +2285,8 @@ export default function CustomerStorefront() {
         return;
       }
     }
+
+    setAvailabilityError(null);
   }, [simulatedTime, deliveryType, restaurantSettings, searchParams]);
 
   // Initialize Lenis Smooth Scroll
@@ -2484,7 +2515,7 @@ export default function CustomerStorefront() {
     setCart((prev) => prev.filter((c) => c.cartId !== cartId));
 
   const getCurrentTimeStr = () => {
-    if (simulatedTime) return simulatedTime;
+    if (simulatedTime && simulatedTime !== 'paused') return simulatedTime;
     const now = new Date();
     return (
       now.getHours().toString().padStart(2, '0') +
@@ -2494,6 +2525,9 @@ export default function CustomerStorefront() {
   };
 
   const getRestaurantStatus = () => {
+    if (simulatedTime === 'paused') {
+      return { label: 'TEMPORANEAMENTE CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
+    }
     const currentStr = getCurrentTimeStr();
     const isOpen =
       !restaurantSettings.openingHours ||
@@ -2519,6 +2553,11 @@ export default function CustomerStorefront() {
     if (deliveryType === 'tavolo') {
       setCartOpen(false);
       setCheckoutOpen(true);
+      return;
+    }
+
+    if (simulatedTime === 'paused') {
+      setAvailabilityError('paused');
       return;
     }
 
@@ -3047,17 +3086,35 @@ export default function CustomerStorefront() {
       >
         <div className="space-y-4 text-center py-1">
           <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'}`}
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              availabilityError === 'closed'
+                ? 'bg-red-500/10 text-red-500'
+                : availabilityError === 'paused'
+                ? 'bg-zinc-500/10 text-zinc-500'
+                : 'bg-amber-500/10 text-amber-500'
+            }`}
           >
-            {availabilityError === 'closed' ? <Clock size={22} /> : <Bike size={22} />}
+            {availabilityError === 'closed' ? (
+              <Clock size={22} />
+            ) : availabilityError === 'paused' ? (
+              <PauseCircle size={22} />
+            ) : (
+              <Bike size={22} />
+            )}
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-foreground tracking-tight">
-              {availabilityError === 'closed' ? 'Locale Chiuso' : 'Consegna Non Disponibile'}
+              {availabilityError === 'closed'
+                ? 'Locale Chiuso'
+                : availabilityError === 'paused'
+                ? 'Ristorante in Pausa'
+                : 'Consegna Non Disponibile'}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
               {availabilityError === 'closed'
                 ? 'Ci dispiace, il ristorante è chiuso in questo momento. Puoi consultare il menu ma non ordinare.'
+                : availabilityError === 'paused'
+                ? 'Il ristorante ha temporaneamente sospeso la ricezione degli ordini. Puoi consultare il menu ma non ordinare.'
                 : 'La consegna a domicilio non è attiva in questa fascia oraria. Puoi comunque ordinare con ritiro da asporto!'}
             </p>
           </div>
@@ -3249,7 +3306,10 @@ export default function CustomerStorefront() {
         </h4>
         <div className="grid grid-cols-1 gap-1 text-[11px]">
           <button
-            onClick={() => setSimulatedTime(null)}
+            onClick={() => {
+              setAvailabilityError(null);
+              setSimulatedTime(null);
+            }}
             className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
               simulatedTime === null
                 ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
@@ -3266,7 +3326,15 @@ export default function CustomerStorefront() {
           </button>
 
           <button
-            onClick={() => setSimulatedTime('16:00')}
+            onClick={() => {
+              setAvailabilityError(null);
+              if (simulatedTime === '16:00') {
+                setSimulatedTime(null);
+                setTimeout(() => setSimulatedTime('16:00'), 50);
+              } else {
+                setSimulatedTime('16:00');
+              }
+            }}
             className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
               simulatedTime === '16:00'
                 ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
@@ -3278,7 +3346,15 @@ export default function CustomerStorefront() {
           </button>
 
           <button
-            onClick={() => setSimulatedTime('12:15')}
+            onClick={() => {
+              setAvailabilityError(null);
+              if (simulatedTime === '12:15') {
+                setSimulatedTime(null);
+                setTimeout(() => setSimulatedTime('12:15'), 50);
+              } else {
+                setSimulatedTime('12:15');
+              }
+            }}
             className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
               simulatedTime === '12:15'
                 ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
@@ -3287,6 +3363,26 @@ export default function CustomerStorefront() {
           >
             <span>Solo Asporto (Simula 12:15)</span>
             <span className="w-2 h-2 rounded-full bg-amber-500" />
+          </button>
+
+          <button
+            onClick={() => {
+              setAvailabilityError(null);
+              if (simulatedTime === 'paused') {
+                setSimulatedTime(null);
+                setTimeout(() => setSimulatedTime('paused'), 50);
+              } else {
+                setSimulatedTime('paused');
+              }
+            }}
+            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
+              simulatedTime === 'paused'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
+                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+            }`}
+          >
+            <span>Temporaneamente Chiuso (Simula Sospensione)</span>
+            <span className="w-2 h-2 rounded-full bg-red-500" />
           </button>
         </div>
         <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 text-center leading-normal">
