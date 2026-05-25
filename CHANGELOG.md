@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/innovagodev/iGOdelivering/compare/v1.9.1...v1.10.0) (2026-05-25)
+
+
+### Features
+
+* **tavoli:** implement tables management, local logo uploader, and minimal print layout ([ace16e1](https://github.com/innovagodev/iGOdelivering/commit/ace16e1b2149d57fda4a06c925fa67bd33d13292))
+
 ### [1.9.1](https://github.com/innovagodev/iGOdelivering/compare/v1.9.0...v1.9.1) (2026-05-22)
 
 
