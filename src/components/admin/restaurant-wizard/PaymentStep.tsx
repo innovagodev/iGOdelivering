@@ -8,6 +8,7 @@ export interface PaymentConfig {
   card_pickup: boolean;
   cash_delivery: boolean;
   cash_pickup: boolean;
+  onlinePaymentAccount?: string;
 }
 
 interface PaymentStepProps {
@@ -78,7 +79,7 @@ function PaymentCard({ icon, title, accentClass, children }: PaymentCardProps) {
 }
 
 export default function PaymentStep({ paymentConfig, setPaymentConfig }: PaymentStepProps) {
-  const toggleField = (field: keyof PaymentConfig) => {
+  const toggleField = (field: 'card_delivery' | 'card_pickup' | 'cash_delivery' | 'cash_pickup') => {
     setPaymentConfig((prev) => ({
       ...prev,
       [field]: !prev[field],
@@ -139,6 +140,28 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
             onToggle={() => toggleField('cash_pickup')}
           />
         </PaymentCard>
+
+        {/* Online Payment Account (IBAN) */}
+        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 text-blue-600">
+              <CreditCard size={18} />
+            </div>
+            <span className="text-sm font-bold text-foreground uppercase tracking-wide">Accredito Pagamenti Online</span>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              IBAN / Conto di accredito pagamenti online (Facoltativo)
+            </label>
+            <input
+              type="text"
+              value={paymentConfig.onlinePaymentAccount || ''}
+              onChange={(e) => setPaymentConfig((prev) => ({ ...prev, onlinePaymentAccount: e.target.value }))}
+              placeholder="Inserisci l'IBAN per ricevere i pagamenti"
+              className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

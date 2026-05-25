@@ -158,6 +158,7 @@ export default function NewRestaurantPage() {
     card_pickup: true,
     cash_delivery: true,
     cash_pickup: true,
+    onlinePaymentAccount: '',
   });
   const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -422,6 +423,7 @@ export default function NewRestaurantPage() {
         cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
         card: paymentConfig.card_delivery || paymentConfig.card_pickup,
         paypal: false,
+        onlinePaymentAccount: paymentConfig.onlinePaymentAccount,
       },
       orderModes: {
         delivery: zones.some((z) => z.enabled),

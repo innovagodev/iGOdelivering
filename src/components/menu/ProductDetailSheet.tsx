@@ -15,6 +15,7 @@ interface ProductDetailSheetProps {
     removedIngredients: string[],
     note: string
   ) => void;
+  disabled?: boolean;
 }
 
 const getCustomizationOptions = (category: string) => {
@@ -70,6 +71,7 @@ export default function ProductDetailSheet({
   isOpen,
   onClose,
   onConfirm,
+  disabled = false,
 }: ProductDetailSheetProps) {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState<{ name: string; price: number }[]>([]);
@@ -372,9 +374,10 @@ export default function ProductDetailSheet({
 
           <button
             onClick={handleConfirm}
-            className="flex-1 py-3 bg-primary hover:bg-[#d43d22] text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5"
+            disabled={disabled}
+            className="flex-1 py-3 bg-primary hover:bg-[#d43d22] text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>{cartItem ? 'Aggiorna Piatto' : 'Aggiungi al carrello'}</span>
+            <span>{disabled ? 'Locale Chiuso' : cartItem ? 'Aggiorna Piatto' : 'Aggiungi al carrello'}</span>
             <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
             <span className="tabular-nums">€ {totalPrice.toFixed(2)}</span>
           </button>

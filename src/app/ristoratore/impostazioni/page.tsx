@@ -32,6 +32,7 @@ interface SettingsData {
     card_pickup: boolean;
     cash_delivery: boolean;
     cash_pickup: boolean;
+    onlinePaymentAccount?: string;
   };
 }
 
@@ -65,6 +66,7 @@ export default function ImpostazioniPage() {
   const [cardPickup, setCardPickup] = useState(true);
   const [cashDelivery, setCashDelivery] = useState(true);
   const [cashPickup, setCashPickup] = useState(true);
+  const [onlinePaymentAccount, setOnlinePaymentAccount] = useState('');
 
   useEffect(() => {
     // Restore sidebar state
@@ -139,6 +141,7 @@ export default function ImpostazioniPage() {
         setCardPickup(data.paymentMethods?.card_pickup !== false);
         setCashDelivery(data.paymentMethods?.cash_delivery !== false);
         setCashPickup(data.paymentMethods?.cash_pickup !== false);
+        setOnlinePaymentAccount(data.paymentMethods?.onlinePaymentAccount || '');
       } catch (e) {
         console.error('Error parsing settings:', e);
       }
@@ -174,6 +177,7 @@ export default function ImpostazioniPage() {
         card_pickup: cardPickup,
         cash_delivery: cashDelivery,
         cash_pickup: cashPickup,
+        onlinePaymentAccount,
       },
     };
 
@@ -578,6 +582,23 @@ export default function ImpostazioniPage() {
                           <Toggle checked={cashPickup} onChange={setCashPickup} size="sm" />
                         </div>
                       </div>
+                    </div>
+
+                    {/* Conto di Accredito Section */}
+                    <div className="pt-3 border-t border-border/40 space-y-2">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Conto di Accredito
+                      </h4>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        IBAN / Conto di accredito pagamenti online (Facoltativo)
+                      </label>
+                      <input
+                        type="text"
+                        value={onlinePaymentAccount}
+                        onChange={(e) => setOnlinePaymentAccount(e.target.value)}
+                        placeholder="Inserisci l'IBAN per ricevere i pagamenti"
+                        className="w-full px-3.5 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
                     </div>
                   </div>
                 </div>

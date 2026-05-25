@@ -18,6 +18,7 @@ const defaultZones: DeliveryZoneConfig[] = [
     deliveryFee: 2.0,
     freeDeliveryThreshold: 25,
     enabled: true,
+    caps: '20121, 20122, 20123',
   },
   {
     id: 'zone-2',
@@ -27,6 +28,7 @@ const defaultZones: DeliveryZoneConfig[] = [
     deliveryFee: 4.0,
     freeDeliveryThreshold: 35,
     enabled: true,
+    caps: '20124, 20125, 20126',
   },
   {
     id: 'zone-3',
@@ -36,6 +38,7 @@ const defaultZones: DeliveryZoneConfig[] = [
     deliveryFee: 6.0,
     freeDeliveryThreshold: 50,
     enabled: false,
+    caps: '20127, 20128, 20129',
   },
 ];
 
@@ -57,6 +60,7 @@ export default function DeliveryZonesPage() {
   const [deliveryFee, setDeliveryFee] = useState('2');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('25');
   const [isEnabled, setIsEnabled] = useState(true);
+  const [caps, setCaps] = useState('');
 
   useEffect(() => {
     // Restore sidebar state
@@ -105,6 +109,7 @@ export default function DeliveryZonesPage() {
     setDeliveryFee('2.5');
     setFreeDeliveryThreshold('25');
     setIsEnabled(true);
+    setCaps('');
     setShowModal(true);
   };
 
@@ -116,6 +121,7 @@ export default function DeliveryZonesPage() {
     setDeliveryFee(zone.deliveryFee.toString());
     setFreeDeliveryThreshold(zone.freeDeliveryThreshold.toString());
     setIsEnabled(zone.enabled);
+    setCaps(zone.caps || '');
     setShowModal(true);
   };
 
@@ -138,6 +144,7 @@ export default function DeliveryZonesPage() {
       deliveryFee: parseFloat(deliveryFee) || 0,
       freeDeliveryThreshold: parseFloat(freeDeliveryThreshold) || 0,
       enabled: isEnabled,
+      caps: caps.trim(),
     };
 
     let updated: DeliveryZoneConfig[];
@@ -415,6 +422,20 @@ export default function DeliveryZonesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Es. Centro Storico, Zone Limitrofe"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              CAP Serviti * (Separati da virgola)
+            </label>
+            <input
+              type="text"
+              required
+              value={caps}
+              onChange={(e) => setCaps(e.target.value)}
+              placeholder="Es. 20121, 20122, 20123"
               className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>

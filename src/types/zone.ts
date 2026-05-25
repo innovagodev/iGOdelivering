@@ -6,6 +6,7 @@ export interface DeliveryZoneConfig {
   deliveryFee: number;
   freeDeliveryThreshold: number;
   enabled: boolean;
+  caps?: string; // Comma separated CAPs
   coordinates?: {
     lat: number;
     lng: number;

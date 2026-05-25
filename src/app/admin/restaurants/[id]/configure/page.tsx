@@ -249,6 +249,7 @@ export default function RestaurantConfigurePage() {
     card_pickup: true,
     cash_delivery: true,
     cash_pickup: true,
+    onlinePaymentAccount: '',
   });
 
   const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
@@ -449,6 +450,7 @@ export default function RestaurantConfigurePage() {
         card_pickup: true,
         cash_delivery: true,
         cash_pickup: true,
+        onlinePaymentAccount: '',
       };
       if (storedSettings?.paymentMethods) {
         const pm = storedSettings.paymentMethods;
@@ -456,12 +458,14 @@ export default function RestaurantConfigurePage() {
         paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
         paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
         paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
+        paymentConfigData.onlinePaymentAccount = pm.onlinePaymentAccount ?? '';
       } else if (foundRestaurant?.paymentMethods) {
         const pm = foundRestaurant.paymentMethods;
         paymentConfigData.card_delivery = pm.card_delivery ?? pm.card ?? true;
         paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
         paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
         paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
+        paymentConfigData.onlinePaymentAccount = pm.onlinePaymentAccount ?? '';
       }
       setPaymentConfig(paymentConfigData);
 
@@ -860,6 +864,7 @@ export default function RestaurantConfigurePage() {
           cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
           card: paymentConfig.card_delivery || paymentConfig.card_pickup,
           paypal: false,
+          onlinePaymentAccount: paymentConfig.onlinePaymentAccount,
         },
         orderModes: {
           delivery: zones.some((z) => z.enabled),

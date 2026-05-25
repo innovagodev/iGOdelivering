@@ -422,6 +422,7 @@ function CartSidebar({
   setGuests,
   discount = 0,
   appliedPromoDetail,
+  isCurrentlyClosed = false,
 }: {
   cart: CartItem[];
   onAdd: (item: MenuItemType) => void;
@@ -448,6 +449,7 @@ function CartSidebar({
   setGuests?: (v: number) => void;
   discount?: number;
   appliedPromoDetail?: any;
+  isCurrentlyClosed?: boolean;
 }) {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const total = subtotal - discount + (deliveryType === 'domicilio' ? actualDeliveryFee : 0);
@@ -661,10 +663,10 @@ function CartSidebar({
 
             <button
               onClick={onCheckout}
-              disabled={!meetsMin}
+              disabled={!meetsMin || isCurrentlyClosed}
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
-              {deliveryType === 'tavolo' ? 'Invia ordine' : 'Procedi'}
+              {isCurrentlyClosed ? 'Locale Chiuso' : deliveryType === 'tavolo' ? 'Invia ordine' : 'Procedi'}
             </button>
           </div>
         </>
@@ -806,6 +808,36 @@ function MenuItemCard({
   );
 }
 
+const getRestaurantIdLocal = (slugStr: string): string => {
+  if (slugStr.startsWith('r-')) return slugStr;
+  if (slugStr === 'pizzeria-bella-napoli') return 'r-001';
+  if (slugStr === 'trattoria-da-mario') return 'r-002';
+  if (slugStr === 'sushi-zen') return 'r-003';
+  if (slugStr === 'osteria-del-porto') return 'r-004';
+  if (slugStr === 'burger-house') return 'r-005';
+  try {
+    const storedStr =
+      localStorage.getItem('iGOdelivering_restaurants') ||
+      localStorage.getItem('gloriaorder_restaurants');
+    if (storedStr) {
+      const restaurants = JSON.parse(storedStr);
+      const slugify = (text: string) =>
+        text
+          .toString()
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/[^\w-]+/g, '')
+          .replace(/--+/g, '-');
+      const matched = restaurants.find((r: any) => slugify(r.name) === slugStr || r.id === slugStr);
+      if (matched) return matched.id;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return 'r-001';
+};
+
 function CheckoutModal({
   open,
   onClose,
@@ -882,6 +914,52 @@ function CheckoutModal({
   const [needRest, setNeedRest] = useState<boolean | null>(null);
   const [restAmount, setRestAmount] = useState('');
   const [cardError, setCardError] = useState<string | null>(null);
+
+  const [cap, setCap] = useState('');
+  const [zones, setZones] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (open && typeof window !== 'undefined') {
+      const rId = getRestaurantIdLocal(slug);
+      const storedZones = localStorage.getItem(`iGO_zones_${rId}`);
+      if (storedZones) {
+        try {
+          setZones(JSON.parse(storedZones));
+        } catch (e) {
+          console.error('Error parsing zones in checkout modal:', e);
+        }
+      } else {
+        setZones([
+          { id: 'zone-1', name: 'Zona Centro (Vicino)', minOrder: 0, deliveryFee: 2.0, freeDeliveryThreshold: 25, enabled: true, caps: '20121, 20122, 20123' },
+          { id: 'zone-2', name: 'Zona Periferia (Medio)', minOrder: 0, deliveryFee: 4.0, freeDeliveryThreshold: 35, enabled: true, caps: '20124, 20125, 20126' },
+          { id: 'zone-3', name: 'Fuori Comune (Lontano)', minOrder: 0, deliveryFee: 6.0, freeDeliveryThreshold: 50, enabled: false, caps: '20127, 20128, 20129' },
+        ]);
+      }
+    }
+  }, [open, slug]);
+
+  const matchedZone = React.useMemo(() => {
+    if (deliveryType !== 'domicilio' || cap.length < 5) return null;
+    return zones.find((z) => {
+      if (!z.enabled) return false;
+      if (!z.caps) return false;
+      const capsList = z.caps.split(',').map((c: string) => c.trim());
+      return capsList.includes(cap);
+    });
+  }, [deliveryType, cap, zones]);
+
+  const currentDeliveryFee = React.useMemo(() => {
+    if (deliveryType !== 'domicilio') return 0;
+    if (matchedZone) {
+      if (matchedZone.freeDeliveryThreshold > 0 && itemsTotal >= matchedZone.freeDeliveryThreshold) {
+        return 0;
+      }
+      return matchedZone.deliveryFee;
+    }
+    return actualDeliveryFee;
+  }, [deliveryType, matchedZone, itemsTotal, actualDeliveryFee]);
+
+  const finalTotal = itemsTotal + currentDeliveryFee;
 
   useEffect(() => {
     setCardError(null);
@@ -1011,42 +1089,13 @@ function CheckoutModal({
 
     // Write order details to localStorage under iGO_orders_${restaurantId}
     try {
-      const getRestaurantIdLocal = (slugStr: string): string => {
-        if (slugStr.startsWith('r-')) return slugStr;
-        if (slugStr === 'pizzeria-bella-napoli') return 'r-001';
-        if (slugStr === 'trattoria-da-mario') return 'r-002';
-        if (slugStr === 'sushi-zen') return 'r-003';
-        if (slugStr === 'osteria-del-porto') return 'r-004';
-        if (slugStr === 'burger-house') return 'r-005';
-        try {
-          const storedStr =
-            localStorage.getItem('iGOdelivering_restaurants') ||
-            localStorage.getItem('gloriaorder_restaurants');
-          if (storedStr) {
-            const restaurants = JSON.parse(storedStr);
-            const slugify = (text: string) =>
-              text
-                .toString()
-                .toLowerCase()
-                .trim()
-                .replace(/\s+/g, '-')
-                .replace(/[^\w-]+/g, '')
-                .replace(/--+/g, '-');
-            const matched = restaurants.find((r: any) => slugify(r.name) === slugStr || r.id === slugStr);
-            if (matched) return matched.id;
-          }
-        } catch (e) {
-          console.error(e);
-        }
-        return 'r-001';
-      };
       const rId = getRestaurantIdLocal(slug);
       const ordersKey = `iGO_orders_${rId}`;
       const rawOrders = localStorage.getItem(ordersKey);
       const orders = rawOrders ? JSON.parse(rawOrders) : [];
       const newOrder = {
         email: email.trim().toLowerCase(),
-        total: total,
+        total: finalTotal,
         createdAt: new Date().toISOString(),
         itemsCount: cart.reduce((s: number, i: any) => s + i.qty, 0),
         customerName: name,
@@ -1074,7 +1123,7 @@ function CheckoutModal({
         !!email &&
         email.includes('@') &&
         !!deliveryTime &&
-        (deliveryType === 'asporto' || !!address);
+        (deliveryType === 'asporto' || (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
 
   return (
     <Modal
@@ -1174,22 +1223,62 @@ function CheckoutModal({
 
           {/* Address — only for home delivery */}
           {deliveryType === 'domicilio' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Indirizzo di consegna *
-              </label>
-              <div className="relative">
-                <MapPin
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Via, numero civico, città"
-                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-                />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Indirizzo di consegna *
+                </label>
+                <div className="relative">
+                  <MapPin
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Via, numero civico, città"
+                    className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  CAP (Codice Avviamento Postale) *
+                </label>
+                <div className="relative">
+                  <MapPin
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="text"
+                    maxLength={5}
+                    value={cap}
+                    onChange={(e) => setCap(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    placeholder="Es. 20121"
+                    className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50 font-bold tracking-widest"
+                  />
+                </div>
+                {cap.length === 5 && !matchedZone && (
+                  <p className="text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 p-2 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                    Spiacenti, la consegna a domicilio non è disponibile per il CAP inserito.
+                  </p>
+                )}
+                {cap.length === 5 && matchedZone && itemsTotal < matchedZone.minOrder && (
+                  <p className="text-xs text-amber-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                    L'ordine minimo per questo CAP è € {matchedZone.minOrder.toFixed(2)} (Mancano € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
+                  </p>
+                )}
+                {cap.length === 5 && matchedZone && itemsTotal >= matchedZone.minOrder && (
+                  <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1.5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 p-2 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                    Zona servita! Consegna: {currentDeliveryFee === 0 ? 'Gratis' : `€ ${currentDeliveryFee.toFixed(2)}`}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -1544,28 +1633,28 @@ function CheckoutModal({
               <div className="flex justify-between text-muted-foreground">
                 <span>Articoli</span>
                 <span className="tabular-nums font-semibold">
-                  € {(total - actualDeliveryFee).toFixed(2)}
+                  € {itemsTotal.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Consegna</span>
                 <span className="tabular-nums font-semibold">
-                  {actualDeliveryFee === 0 ? (
+                  {currentDeliveryFee === 0 ? (
                     <span className="text-[var(--success)] font-bold">Gratis</span>
                   ) : (
-                    `€ ${actualDeliveryFee.toFixed(2)}`
+                    `€ ${currentDeliveryFee.toFixed(2)}`
                   )}
                 </span>
               </div>
               <div className="flex justify-between font-extrabold text-foreground pt-2 border-t border-border/60 text-sm">
                 <span>Prezzo</span>
-                <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
+                <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
               </div>
             </div>
           ) : (
             <div className="bg-card border border-border/60 rounded-lg p-4 flex justify-between font-extrabold text-foreground text-sm">
               <span>Prezzo</span>
-              <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
+              <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
             </div>
           )}
 
@@ -2125,6 +2214,30 @@ export default function CustomerStorefront() {
   const { validatePromo } = usePromoCode(slug);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [appliedPromoDetail, setAppliedPromoDetail] = useState<any>(null);
+  const [serviceHoursConfig, setServiceHoursConfig] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && slug) {
+      const getRestaurantId = (s: string): string => {
+        if (s.startsWith('r-')) return s;
+        if (s === 'pizzeria-bella-napoli') return 'r-001';
+        if (s === 'trattoria-da-mario') return 'r-002';
+        if (s === 'sushi-zen') return 'r-003';
+        if (s === 'osteria-del-porto') return 'r-004';
+        if (s === 'burger-house') return 'r-005';
+        return 'r-001';
+      };
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(`iGO_service_hours_${rId}`) || localStorage.getItem(`iGO_service_hours_${slug}`);
+      if (stored) {
+        try {
+          setServiceHoursConfig(JSON.parse(stored));
+        } catch (e) {
+          console.error('Error loading service hours in storefront:', e);
+        }
+      }
+    }
+  }, [slug]);
 
   const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>(menuItems);
 
@@ -2419,6 +2532,7 @@ export default function CustomerStorefront() {
     removedIngredients: string[],
     note: string
   ) => {
+    if (isCurrentlyClosed) return;
     const customizationsKey = JSON.stringify({ addedIngredients, removedIngredients, note });
     setCart((prev) => {
       const existing = prev.find(
@@ -2491,6 +2605,7 @@ export default function CustomerStorefront() {
   };
 
   const addToCart = (item: MenuItemType) => {
+    if (isCurrentlyClosed) return;
     const cartItem = item as CartItem;
     if (cartItem.cartId) {
       setCart((prev) =>
@@ -2524,26 +2639,81 @@ export default function CustomerStorefront() {
     );
   };
 
+  const checkServiceOpen = React.useCallback((serviceType: 'pickup' | 'delivery' | 'reservation') => {
+    if (simulatedTime === 'paused') return false;
+
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const getRestaurantId = (s: string): string => {
+        if (s.startsWith('r-')) return s;
+        if (s === 'pizzeria-bella-napoli') return 'r-001';
+        if (s === 'trattoria-da-mario') return 'r-002';
+        if (s === 'sushi-zen') return 'r-003';
+        if (s === 'osteria-del-porto') return 'r-004';
+        if (s === 'burger-house') return 'r-005';
+        return 'r-001';
+      };
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(`iGO_service_hours_${rId}`) || localStorage.getItem(`iGO_service_hours_${slug}`);
+      if (stored) {
+        try {
+          config = JSON.parse(stored);
+        } catch (e) {}
+      }
+    }
+
+    if (config) {
+      if (config.serviceSuspended?.[serviceType] === true) {
+        return false;
+      }
+      const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+      const todayDayName = DAYS_MAP[new Date().getDay()];
+      const dayConfig = config.serviceHours?.[serviceType]?.[todayDayName];
+      if (dayConfig) {
+        if (dayConfig.enabled === false) {
+          return false;
+        }
+        const currentStr = getCurrentTimeStr();
+        
+        const lunchEnabled = dayConfig.lunchEnabled !== false;
+        const inLunch = currentStr >= dayConfig.lunch.from && currentStr <= dayConfig.lunch.to;
+        
+        const dinnerEnabled = dayConfig.dinnerEnabled !== false;
+        const inDinner = currentStr >= dayConfig.dinner.from && currentStr <= dayConfig.dinner.to;
+
+        return (lunchEnabled && inLunch) || (dinnerEnabled && inDinner);
+      }
+    }
+
+    // Fallback to legacy check
+    const currentStr = getCurrentTimeStr();
+    if (serviceType === 'delivery') {
+      return !restaurantSettings.deliveryHours ||
+        restaurantSettings.deliveryHours.length === 0 ||
+        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+    } else {
+      return !restaurantSettings.openingHours ||
+        restaurantSettings.openingHours.length === 0 ||
+        restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+    }
+  }, [simulatedTime, serviceHoursConfig, slug, restaurantSettings]);
+
+  const activeServiceType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
+  const isCurrentlyClosed = !checkServiceOpen(activeServiceType);
+
   const getRestaurantStatus = () => {
     if (simulatedTime === 'paused') {
       return { label: 'TEMPORANEAMENTE CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
-    const currentStr = getCurrentTimeStr();
-    const isOpen =
-      !restaurantSettings.openingHours ||
-      restaurantSettings.openingHours.length === 0 ||
-      restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+    const isPickupOpen = checkServiceOpen('pickup');
+    const isDeliveryOpen = checkServiceOpen('delivery');
 
-    if (!isOpen) return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
-
-    const canDeliver =
-      !restaurantSettings.deliveryHours ||
-      restaurantSettings.deliveryHours.length === 0 ||
-      restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-
-    if (!canDeliver)
+    if (!isPickupOpen && !isDeliveryOpen) {
+      return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
+    }
+    if (isPickupOpen && !isDeliveryOpen) {
       return { label: 'SOLO ASPORTO', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
-
+    }
     return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
   };
 
@@ -2665,9 +2835,17 @@ export default function CustomerStorefront() {
 
   return (
     <div className={`min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : ''}`}>
+      {/* Closed Banner */}
+      {isCurrentlyClosed && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md">
+          <Clock size={12} className="animate-pulse flex-shrink-0" />
+          <span>Siamo spiacenti, il locale è attualmente CHIUSO per {deliveryType === 'domicilio' ? 'la consegna a domicilio' : 'il ritiro d\'asporto'}.</span>
+        </div>
+      )}
+
       {/* Topbar */}
       {/* Topbar */}
-      <header className="fixed top-0 left-0 right-0 z-40" ref={headerRef}>
+      <header className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isCurrentlyClosed ? 'top-8' : 'top-0'}`} ref={headerRef}>
         {/* Layer 1: Solid glassmorphic background managed by GSAP */}
         <div
           ref={headerBgSolidRef}
@@ -3009,6 +3187,7 @@ export default function CustomerStorefront() {
                 setGuests={setGuests}
                 discount={discount}
                 appliedPromoDetail={appliedPromoDetail}
+                isCurrentlyClosed={isCurrentlyClosed}
               />
             </div>
           </div>
@@ -3020,6 +3199,7 @@ export default function CustomerStorefront() {
         item={customizingItem}
         cartItem={customizingCartItem}
         isOpen={isDetailSheetOpen}
+        disabled={isCurrentlyClosed}
         onClose={() => {
           setCustomizingItem(null);
           setCustomizingCartItem(null);
