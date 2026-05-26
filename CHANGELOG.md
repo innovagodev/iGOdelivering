@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.11.1](https://github.com/innovagodev/iGOdelivering/compare/v1.11.0...v1.11.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* risolti bug di comunicazione, unificazione tipi impostazioni ristorante, sincronizzazione vetrina-menu, persistenza ordini live e kanban, dashboard con KPI dinamici e integrazione prenotazioni tavolo ([d3c487f](https://github.com/innovagodev/iGOdelivering/commit/d3c487f00e6a39e54f781de401186f6eef7b981d))
+
 ## [1.11.0](https://github.com/innovagodev/iGOdelivering/compare/v1.10.0...v1.11.0) (2026-05-25)
 
 
