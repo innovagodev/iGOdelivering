@@ -2262,6 +2262,13 @@ export default function CustomerStorefront() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | 'paused' | null>(null);
   const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
+  const [simulatedDay, setSimulatedDay] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [promoCode, setPromoCode] = useState('');
 
   const [promoApplied, setPromoApplied] = useState(false);
@@ -2333,6 +2340,115 @@ export default function CustomerStorefront() {
     }
   }, [slug]);
 
+  const getCurrentTimeStr = () => {
+    if (simulatedTime && simulatedTime !== 'paused') return simulatedTime;
+    const now = new Date();
+    return (
+      now.getHours().toString().padStart(2, '0') +
+      ':' +
+      now.getMinutes().toString().padStart(2, '0')
+    );
+  };
+
+  const checkServiceOpen = React.useCallback((serviceType: 'pickup' | 'delivery' | 'reservation') => {
+    if (simulatedTime === 'paused') return false;
+
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      if (stored) {
+        try {
+          config = JSON.parse(stored);
+        } catch (e) {}
+      }
+    }
+
+    if (config) {
+      if (config.serviceSuspended?.[serviceType] === true) {
+        return false;
+      }
+      const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+      const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+      const dayConfig = config.serviceHours?.[serviceType]?.[todayDayName];
+      if (dayConfig) {
+        if (dayConfig.enabled === false) {
+          return false;
+        }
+        const currentStr = getCurrentTimeStr();
+        
+        const lunchEnabled = dayConfig.lunchEnabled !== false;
+        const inLunch = currentStr >= dayConfig.lunch.from && currentStr <= dayConfig.lunch.to;
+        
+        const dinnerEnabled = dayConfig.dinnerEnabled !== false;
+        const inDinner = currentStr >= dayConfig.dinner.from && currentStr <= dayConfig.dinner.to;
+
+        return (lunchEnabled && inLunch) || (dinnerEnabled && inDinner);
+      }
+    }
+
+    // Fallback to legacy check
+    const currentStr = getCurrentTimeStr();
+    if (serviceType === 'delivery') {
+      return !restaurantSettings.deliveryHours ||
+        restaurantSettings.deliveryHours.length === 0 ||
+        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+    } else {
+      return !restaurantSettings.openingHours ||
+        restaurantSettings.openingHours.length === 0 ||
+        restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
+    }
+  }, [simulatedTime, simulatedDay, serviceHoursConfig, slug, restaurantSettings]);
+
+  const getClosedReason = () => {
+    if (simulatedTime === 'paused') {
+      return 'Il ristorante ha temporaneamente sospeso la ricezione degli ordini. Puoi consultare il menu ma non ordinare.';
+    }
+    
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      if (stored) {
+        try { config = JSON.parse(stored); } catch (e) {}
+      }
+    }
+    
+    const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
+    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+    
+    if (config) {
+      if (config.serviceSuspended?.[activeType] === true) {
+        return `Il servizio di ${activeType === 'delivery' ? 'Consegna' : 'Asporto'} è stato temporaneamente sospeso dal gestore.`;
+      }
+      
+      const dayConfig = config.serviceHours?.[activeType]?.[todayDayName];
+      if (dayConfig) {
+        if (dayConfig.enabled === false) {
+          return `Spiacenti, il ristorante è chiuso il ${todayDayName} per il servizio di ${activeType === 'delivery' ? 'consegna' : 'asporto'}.`;
+        }
+        
+        const lunchEnabled = dayConfig.lunchEnabled !== false;
+        const dinnerEnabled = dayConfig.dinnerEnabled !== false;
+        
+        let hoursStr = '';
+        if (lunchEnabled && dinnerEnabled) {
+          hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}, cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+        } else if (lunchEnabled) {
+          hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}`;
+        } else if (dinnerEnabled) {
+          hoursStr = `cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+        } else {
+          hoursStr = `nessuna fascia oraria attiva`;
+        }
+        return `Ci dispiace, siamo fuori dall'orario di servizio. Orari ${todayDayName}: ${hoursStr}.`;
+      }
+    }
+    
+    return 'Ci dispiace, il ristorante è chiuso in questo momento. Puoi consultare il menu ma non ordinare.';
+  };
+
   // Immediate Availability Check on Page Load & Config Changes
   useEffect(() => {
     const tavoloParam = searchParams?.get('tavolo');
@@ -2346,43 +2462,21 @@ export default function CustomerStorefront() {
       return;
     }
 
-    if (simulatedTime === '16:00') {
+    const isPickupOpen = checkServiceOpen('pickup');
+    const isDeliveryOpen = checkServiceOpen('delivery');
+
+    if (!isPickupOpen && !isDeliveryOpen) {
       setAvailabilityError('closed');
       return;
     }
 
-    if (simulatedTime === '12:15') {
+    if (deliveryType === 'domicilio' && !isDeliveryOpen) {
       setAvailabilityError('no_delivery');
       return;
     }
 
-    const currentStr = getCurrentTimeStr();
-
-    // Check if open
-    const isOpen =
-      !restaurantSettings.openingHours ||
-      restaurantSettings.openingHours.length === 0 ||
-      restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-
-    if (!isOpen) {
-      setAvailabilityError('closed');
-      return;
-    }
-
-    // Check delivery hours
-    if (deliveryType === 'domicilio') {
-      const canDeliver =
-        !restaurantSettings.deliveryHours ||
-        restaurantSettings.deliveryHours.length === 0 ||
-        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-      if (!canDeliver) {
-        setAvailabilityError('no_delivery');
-        return;
-      }
-    }
-
     setAvailabilityError(null);
-  }, [simulatedTime, deliveryType, restaurantSettings, searchParams]);
+  }, [simulatedTime, simulatedDay, deliveryType, checkServiceOpen, searchParams]);
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -2611,70 +2705,13 @@ export default function CustomerStorefront() {
   const deleteFromCart = (cartId: string) =>
     setCart((prev) => prev.filter((c) => c.cartId !== cartId));
 
-  const getCurrentTimeStr = () => {
-    if (simulatedTime && simulatedTime !== 'paused') return simulatedTime;
-    const now = new Date();
-    return (
-      now.getHours().toString().padStart(2, '0') +
-      ':' +
-      now.getMinutes().toString().padStart(2, '0')
-    );
-  };
-
-  const checkServiceOpen = React.useCallback((serviceType: 'pickup' | 'delivery' | 'reservation') => {
-    if (simulatedTime === 'paused') return false;
-
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) {}
-      }
-    }
-
-    if (config) {
-      if (config.serviceSuspended?.[serviceType] === true) {
-        return false;
-      }
-      const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-      const todayDayName = DAYS_MAP[new Date().getDay()];
-      const dayConfig = config.serviceHours?.[serviceType]?.[todayDayName];
-      if (dayConfig) {
-        if (dayConfig.enabled === false) {
-          return false;
-        }
-        const currentStr = getCurrentTimeStr();
-        
-        const lunchEnabled = dayConfig.lunchEnabled !== false;
-        const inLunch = currentStr >= dayConfig.lunch.from && currentStr <= dayConfig.lunch.to;
-        
-        const dinnerEnabled = dayConfig.dinnerEnabled !== false;
-        const inDinner = currentStr >= dayConfig.dinner.from && currentStr <= dayConfig.dinner.to;
-
-        return (lunchEnabled && inLunch) || (dinnerEnabled && inDinner);
-      }
-    }
-
-    // Fallback to legacy check
-    const currentStr = getCurrentTimeStr();
-    if (serviceType === 'delivery') {
-      return !restaurantSettings.deliveryHours ||
-        restaurantSettings.deliveryHours.length === 0 ||
-        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-    } else {
-      return !restaurantSettings.openingHours ||
-        restaurantSettings.openingHours.length === 0 ||
-        restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-    }
-  }, [simulatedTime, serviceHoursConfig, slug, restaurantSettings]);
-
   const activeServiceType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
-  const isCurrentlyClosed = !checkServiceOpen(activeServiceType);
+  const isCurrentlyClosed = isMounted ? !checkServiceOpen(activeServiceType) : false;
 
   const getRestaurantStatus = () => {
+    if (!isMounted) {
+      return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
+    }
     if (simulatedTime === 'paused') {
       return { label: 'TEMPORANEAMENTE CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
@@ -3264,11 +3301,7 @@ export default function CustomerStorefront() {
                 : 'Consegna Non Disponibile'}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
-              {availabilityError === 'closed'
-                ? 'Ci dispiace, il ristorante è chiuso in questo momento. Puoi consultare il menu ma non ordinare.'
-                : availabilityError === 'paused'
-                ? 'Il ristorante ha temporaneamente sospeso la ricezione degli ordini. Puoi consultare il menu ma non ordinare.'
-                : 'La consegna a domicilio non è attiva in questa fascia oraria. Puoi comunque ordinare con ritiro da asporto!'}
+              {getClosedReason()}
             </p>
           </div>
           <div className="space-y-1.5 pt-2">
@@ -3478,101 +3511,90 @@ export default function CustomerStorefront() {
       <Footer />
 
       {/* Floating Test controller for Simulation */}
-      <div className="fixed bottom-24 right-6 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-64 transition-all duration-300">
-        <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
-          <Settings
-            size={12}
-            className="text-primary animate-spin"
-            style={{ animationDuration: '4s' }}
-          />{' '}
-          Test Orari & Disponibilità
-        </h4>
-        <div className="grid grid-cols-1 gap-1 text-[11px]">
-          <button
-            onClick={() => {
-              setAvailabilityError(null);
-              setSimulatedTime(null);
-            }}
-            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              simulatedTime === null
-                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-            }`}
-          >
-            <span>
-              Ora Reale (
-              {new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })})
-            </span>
-            <span
-              className={`w-2 h-2 rounded-full ${simulatedTime === null ? 'bg-green-500' : 'bg-zinc-400'}`}
-            />
-          </button>
+      {isMounted && (
+        <div className="fixed bottom-24 right-6 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-64 transition-all duration-300">
+          <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
+            <Settings
+              size={12}
+              className="text-primary animate-spin"
+              style={{ animationDuration: '4s' }}
+            />{' '}
+            Test Orari & Disponibilità
+          </h4>
+          <div className="grid grid-cols-1 gap-2 text-[11px]">
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-zinc-400">Giorno Simulato:</span>
+              <select
+                value={simulatedDay || ''}
+                onChange={(e) => {
+                  setAvailabilityError(null);
+                  setSimulatedDay(e.target.value || null);
+                }}
+                className="bg-zinc-100 dark:bg-zinc-800 text-[10px] rounded p-1 text-foreground border border-border focus:outline-none w-full"
+              >
+                <option value="">Giorno Reale ({['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][new Date().getDay()]})</option>
+                <option value="Lunedì">Lunedì</option>
+                <option value="Martedì">Martedì</option>
+                <option value="Mercoledì">Mercoledì</option>
+                <option value="Giovedì">Giovedì</option>
+                <option value="Venerdì">Venerdì</option>
+                <option value="Sabato">Sabato</option>
+                <option value="Domenica">Domenica</option>
+              </select>
+            </div>
 
-          <button
-            onClick={() => {
-              setAvailabilityError(null);
-              if (simulatedTime === '16:00') {
-                setSimulatedTime(null);
-                setTimeout(() => setSimulatedTime('16:00'), 50);
-              } else {
-                setSimulatedTime('16:00');
-              }
-            }}
-            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              simulatedTime === '16:00'
-                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-            }`}
-          >
-            <span>Locale Chiuso (Simula 16:00)</span>
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-          </button>
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-zinc-400">Ora Simulata (HH:MM):</span>
+              <div className="flex gap-1">
+                <input
+                  type="time"
+                  value={simulatedTime && simulatedTime !== 'paused' ? simulatedTime : ''}
+                  disabled={simulatedTime === 'paused'}
+                  onChange={(e) => {
+                    setAvailabilityError(null);
+                    setSimulatedTime(e.target.value || null);
+                  }}
+                  className="bg-zinc-100 dark:bg-zinc-800 text-[10px] rounded p-1 text-foreground border border-border focus:outline-none flex-1"
+                />
+                <button
+                  onClick={() => {
+                    setAvailabilityError(null);
+                    setSimulatedTime(null);
+                    setSimulatedDay(null);
+                  }}
+                  className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 px-2 rounded text-[9px] font-bold"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
 
-          <button
-            onClick={() => {
-              setAvailabilityError(null);
-              if (simulatedTime === '12:15') {
-                setSimulatedTime(null);
-                setTimeout(() => setSimulatedTime('12:15'), 50);
-              } else {
-                setSimulatedTime('12:15');
-              }
-            }}
-            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              simulatedTime === '12:15'
-                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-            }`}
-          >
-            <span>Solo Asporto (Simula 12:15)</span>
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-          </button>
-
-          <button
-            onClick={() => {
-              setAvailabilityError(null);
-              if (simulatedTime === 'paused') {
-                setSimulatedTime(null);
-                setTimeout(() => setSimulatedTime('paused'), 50);
-              } else {
-                setSimulatedTime('paused');
-              }
-            }}
-            className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
-              simulatedTime === 'paused'
-                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black shadow-sm'
-                : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
-            }`}
-          >
-            <span>Temporaneamente Chiuso</span>
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-          </button>
+            <div className="border-t border-border/40 my-1 pt-1 flex flex-col gap-1">
+              <button
+                onClick={() => {
+                  setAvailabilityError(null);
+                  if (simulatedTime === 'paused') {
+                    setSimulatedTime(null);
+                  } else {
+                    setSimulatedTime('paused');
+                  }
+                }}
+                className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  simulatedTime === 'paused'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
+                }`}
+              >
+                <span>Forza Locale Chiuso (Pausa)</span>
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+              </button>
+            </div>
+          </div>
+          <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 text-center leading-normal">
+            Usa i selettori per cambiare il giorno e l&apos;ora simulati per validare le regole di apertura del locale.
+          </p>
         </div>
-        <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 text-center leading-normal">
-          Modifica il tempo simulato per vedere cambiare lo stato nell&apos;header o testare i
-          blocchi nel checkout!
-        </p>
-      </div>
+      )}
 
       {/* Mobile Sticky Bottom Bar for Cart */}
     </div>
