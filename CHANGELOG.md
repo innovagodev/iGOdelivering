@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.11.2](https://github.com/innovagodev/iGOdelivering/compare/v1.11.1...v1.11.2) (2026-05-26)
+
+
+### Bug Fixes
+
+* risolto bug di mismatch di idratazione (hydration mismatch) nella vetrina cliente gestendo il rendering condizionale con isMounted ([4ddb4d2](https://github.com/innovagodev/iGOdelivering/commit/4ddb4d2ded429d562c50434919316ebd17cbfe9c))
+
 ### [1.11.1](https://github.com/innovagodev/iGOdelivering/compare/v1.11.0...v1.11.1) (2026-05-26)
 
 
