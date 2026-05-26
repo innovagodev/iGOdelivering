@@ -15,6 +15,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 type OrderStatus = 'pending' | 'accepted' | 'completed';
 
@@ -153,57 +154,103 @@ export default function LiveOrderKanban() {
   const { user } = useAuth();
   const restaurantId = user?.restaurantId || 'r-001';
 
-  const [orders, setOrders] = useState<Record<OrderStatus, LiveOrder[]>>({
-    pending: [],
-    accepted: [],
-    completed: [],
-  });
+  const [orders, setOrders] = useState<any[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'delivery' | 'takeaway' | 'table'>('all');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const mapFlatOrder = (o: any): LiveOrder => {
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(o.timestamp || o.createdAt).getTime()) / 60000));
+    
+    // Map array of items
+    const items = Array.isArray(o.items) ? o.items.map((i: any) => ({
+      name: i.name,
+      qty: i.qty || 1,
+    })) : [];
+
+    return {
+      id: o.id || 'ord-unknown',
+      customer: o.customerName || (o.customer && o.customer.name) || o.email || 'Cliente',
+      items,
+      total: o.total || 0,
+      type: o.type === 'domicilio' ? 'delivery' : o.type === 'asporto' ? 'takeaway' : 'table',
+      minutesAgo: mins,
+      address: o.customer && o.customer.address ? o.customer.address : o.address,
+      tableNumber: o.tableNumber,
+    };
+  };
+
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`iGO_orders_${restaurantId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        
-        // Migrate old structure if needed
-        const migrated: Record<OrderStatus, LiveOrder[]> = {
-          pending: [],
-          accepted: [],
-          completed: [],
-        };
-        
-        if (parsed.pending) migrated.pending.push(...parsed.pending);
-        
-        // Map old active/inprogress states (confirmed, preparing, delivering, accepted) to 'accepted'
-        if (parsed.accepted) migrated.accepted.push(...parsed.accepted);
-        if (parsed.confirmed) migrated.accepted.push(...parsed.confirmed);
-        if (parsed.preparing) migrated.accepted.push(...parsed.preparing);
-        if (parsed.delivering) migrated.accepted.push(...parsed.delivering);
-        
-        // Map old completed state
-        if (parsed.completed) migrated.completed.push(...parsed.completed);
-        
-        setOrders(migrated);
-      } else {
-        setOrders(initialOrders);
-        localStorage.setItem(`iGO_orders_${restaurantId}`, JSON.stringify(initialOrders));
-        window.dispatchEvent(new Event('iGO_orders_updated'));
+    const loadAndMapOrders = () => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setOrders(parsed);
+          } else {
+            // Grouped object format migration if present
+            const flatList: any[] = [];
+            const grouped = parsed as any;
+            if (grouped.pending) {
+              grouped.pending.forEach((o: any) => flatList.push({ ...o, status: 'new' }));
+            }
+            if (grouped.accepted) {
+              grouped.accepted.forEach((o: any) => flatList.push({ ...o, status: 'accepted' }));
+            }
+            if (grouped.completed) {
+              grouped.completed.forEach((o: any) => flatList.push({ ...o, status: 'completed' }));
+            }
+            setOrders(flatList);
+            localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(flatList));
+          }
+        } else {
+          // Initialize mock orders as a flat list
+          const flatList: any[] = [];
+          Object.entries(initialOrders).forEach(([colKey, items]) => {
+            items.forEach((item) => {
+              flatList.push({
+                id: item.id,
+                customerName: item.customer,
+                items: item.items,
+                total: item.total,
+                type: item.type === 'delivery' ? 'domicilio' : item.type === 'takeaway' ? 'asporto' : 'tavolo',
+                timestamp: new Date(Date.now() - item.minutesAgo * 60000).toISOString(),
+                customer: {
+                  name: item.customer,
+                  email: 'mock@example.com',
+                  phone: '123',
+                  address: item.address || '',
+                },
+                tableNumber: item.tableNumber,
+                status: colKey === 'pending' ? 'new' : colKey === 'accepted' ? 'accepted' : 'completed',
+              });
+            });
+          });
+          setOrders(flatList);
+          localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(flatList));
+          window.dispatchEvent(new Event('iGO_orders_updated'));
+        }
+      } catch (e) {
+        console.error('Error reading/migrating orders:', e);
       }
-    } catch (e) {
-      console.error('Error reading/migrating orders:', e);
-      setOrders(initialOrders);
-    }
+    };
+
+    loadAndMapOrders();
+
+    // Listen for order updates (checkout or other panels)
+    window.addEventListener('iGO_orders_updated', loadAndMapOrders);
+    return () => {
+      window.removeEventListener('iGO_orders_updated', loadAndMapOrders);
+    };
   }, [restaurantId]);
 
-  const updateOrdersState = (newOrders: Record<OrderStatus, LiveOrder[]>) => {
-    setOrders(newOrders);
+  const updateOrdersInStorage = (updatedList: any[]) => {
+    setOrders(updatedList);
     try {
-      localStorage.setItem(`iGO_orders_${restaurantId}`, JSON.stringify(newOrders));
+      localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(updatedList));
       window.dispatchEvent(new Event('iGO_orders_updated'));
     } catch (e) {
       console.error('Error writing orders:', e);
@@ -217,49 +264,45 @@ export default function LiveOrderKanban() {
   };
 
   const acceptOrder = (orderId: string) => {
-    const order = orders.pending.find((o) => o.id === orderId);
-    if (!order) return;
-    const next = {
-      ...orders,
-      pending: orders.pending.filter((o) => o.id !== orderId),
-      accepted: [...(orders.accepted || []), order],
-    };
-    updateOrdersState(next);
-    showToast(`Ordine ${order.id} di ${order.customer} accettato`, 'success');
+    const found = orders.find((o) => o.id === orderId);
+    if (!found) return;
+    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: 'accepted' } : o));
+    updateOrdersInStorage(updated);
+    showToast(`Ordine ${orderId} di ${found.customerName || 'Cliente'} accettato`, 'success');
   };
 
   const completeOrder = (orderId: string) => {
-    const order = orders.accepted.find((o) => o.id === orderId);
-    if (!order) return;
-    const next = {
-      ...orders,
-      accepted: orders.accepted.filter((o) => o.id !== orderId),
-      completed: [...(orders.completed || []), order],
-    };
-    updateOrdersState(next);
-    showToast(`Ordine ${order.id} completato`, 'success');
+    const found = orders.find((o) => o.id === orderId);
+    if (!found) return;
+    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: 'completed' } : o));
+    updateOrdersInStorage(updated);
+    showToast(`Ordine ${orderId} completato`, 'success');
   };
 
   const rejectOrder = (status: OrderStatus, orderId: string) => {
-    const order = orders[status].find((o) => o.id === orderId);
-    if (!order) return;
-    const next = {
-      ...orders,
-      [status]: orders[status].filter((o) => o.id !== orderId),
-    };
-    updateOrdersState(next);
-    showToast(`Ordine ${order.id} rifiutato/rimosso`, 'danger');
+    // For Kanban simulation, rejecting removes it from the active Kanban list
+    const updated = orders.filter((o) => o.id !== orderId);
+    updateOrdersInStorage(updated);
+    showToast(`Ordine ${orderId} rimosso`, 'danger');
   };
 
-  const filteredOrders = (status: OrderStatus) => {
-    return (orders[status] || []).filter((order) => {
-      const matchesSearch =
-        order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.id.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType =
-        orderTypeFilter === 'all' || order.type === orderTypeFilter;
-      return matchesSearch && matchesType;
-    });
+  const filteredOrders = (colKey: OrderStatus) => {
+    return orders
+      .filter((o) => {
+        const orderStatus = o.status;
+        if (colKey === 'pending') return orderStatus === 'new' || orderStatus === 'pending';
+        if (colKey === 'accepted') return orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'delivering';
+        if (colKey === 'completed') return orderStatus === 'completed' || orderStatus === 'delivered';
+        return false;
+      })
+      .map(mapFlatOrder)
+      .filter((order) => {
+        const matchesSearch =
+          order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          order.id.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesType = orderTypeFilter === 'all' || order.type === orderTypeFilter;
+        return matchesSearch && matchesType;
+      });
   };
 
   const renderActions = (colKey: OrderStatus, order: LiveOrder) => {

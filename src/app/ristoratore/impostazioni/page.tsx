@@ -6,35 +6,8 @@ import Toggle from '@/components/ui/Toggle';
 import { useAuth } from '@/context/AuthContext';
 import { Settings, Save, Sparkles, AlertCircle, CheckCircle, Camera, Store } from 'lucide-react';
 
-interface SettingsData {
-  profile: {
-    name: string;
-    logoUrl: string;
-    category: string;
-    address: string;
-    phone: string;
-    email: string;
-    tagline: string;
-  };
-  orderModes: {
-    delivery: boolean;
-    pickup: boolean;
-    table: boolean;
-  };
-  deliveryConfig: {
-    fixedFee: number;
-    minOrder: number;
-    freeDeliveryThreshold: number;
-    freeDeliveryActive: boolean;
-  };
-  paymentMethods: {
-    card_delivery: boolean;
-    card_pickup: boolean;
-    cash_delivery: boolean;
-    cash_pickup: boolean;
-    onlinePaymentAccount?: string;
-  };
-}
+import { STORAGE_KEYS } from '@/lib/storage-keys';
+import { RestaurantSettingsFull as SettingsData } from '@/types/settings';
 
 export default function ImpostazioniPage() {
   const { user } = useAuth();
@@ -79,7 +52,7 @@ export default function ImpostazioniPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
-        const storedStr = localStorage.getItem(`iGO_settings_${restaurantId}`);
+        const storedStr = localStorage.getItem(STORAGE_KEYS.settings(restaurantId));
         let data: SettingsData;
 
         if (storedStr) {
@@ -116,7 +89,7 @@ export default function ImpostazioniPage() {
               cash_pickup: true,
             },
           };
-          localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(data));
+          localStorage.setItem(STORAGE_KEYS.settings(restaurantId), JSON.stringify(data));
         }
 
         // Hydrate state
@@ -182,13 +155,7 @@ export default function ImpostazioniPage() {
     };
 
     try {
-      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(updatedData));
-
-      // Also update matching general parameters used in slug menu page
-      localStorage.setItem(
-        `iGO_settings_${restaurantId.replace('r-', 'pizzeria-')}`,
-        JSON.stringify(updatedData)
-      );
+      localStorage.setItem(STORAGE_KEYS.settings(restaurantId), JSON.stringify(updatedData));
 
       // Trigger update event
       window.dispatchEvent(new Event('iGO_settings_updated'));

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { RestaurantSettings } from '@/types/settings';
+import { getRestaurantId } from '@/lib/restaurant-utils';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 export interface UnifiedSettings extends RestaurantSettings {
   rating: number;
@@ -54,38 +56,6 @@ interface BaseRestaurant {
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];
 }
-
-const getRestaurantId = (slug: string): string => {
-  if (typeof window === 'undefined') return 'r-001';
-  if (slug.startsWith('r-')) return slug;
-  if (slug === 'pizzeria-bella-napoli') return 'r-001';
-  if (slug === 'trattoria-da-mario') return 'r-002';
-  if (slug === 'sushi-zen') return 'r-003';
-  if (slug === 'osteria-del-porto') return 'r-004';
-  if (slug === 'burger-house') return 'r-005';
-
-  try {
-    const storedStr =
-      localStorage.getItem('iGOdelivering_restaurants') ||
-      localStorage.getItem('gloriaorder_restaurants');
-    if (storedStr) {
-      const restaurants = JSON.parse(storedStr);
-      const slugify = (text: string) =>
-        text
-          .toString()
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w-]+/g, '')
-          .replace(/--+/g, '-');
-      const matched = restaurants.find((r: any) => slugify(r.name) === slug || r.id === slug);
-      if (matched) return matched.id;
-    }
-  } catch (e) {
-    console.error('Error resolving restaurant ID', e);
-  }
-  return 'r-001';
-};
 
 const getBaseRestaurantBySlug = (slug: string): BaseRestaurant => {
   const normalizedSlug = (slug || '').toLowerCase();
@@ -250,8 +220,8 @@ export function useRestaurantSettings(slugOrId: string) {
       const base = getBaseRestaurantBySlug(slugOrId);
 
       // Try reading iGO_settings_[restaurantId] or iGO_settings_[slugOrId]
-      const rawId = localStorage.getItem(`iGO_settings_${restaurantId}`);
-      const rawSlug = localStorage.getItem(`iGO_settings_${slugOrId}`);
+      const rawId = localStorage.getItem(STORAGE_KEYS.settings(restaurantId));
+      const rawSlug = localStorage.getItem(STORAGE_KEYS.settings(slugOrId));
       const raw = rawId || rawSlug;
 
       if (raw) {

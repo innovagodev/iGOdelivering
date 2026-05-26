@@ -44,6 +44,8 @@ import CardPaymentForm from '@/components/menu/CardPaymentForm';
 import PopularSection from '@/components/menu/PopularSection';
 import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
+import { getRestaurantId } from '@/lib/restaurant-utils';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 // ─── Types ────────────────────────────────────────────────────
 interface MenuItemType {
@@ -808,35 +810,6 @@ function MenuItemCard({
   );
 }
 
-const getRestaurantIdLocal = (slugStr: string): string => {
-  if (slugStr.startsWith('r-')) return slugStr;
-  if (slugStr === 'pizzeria-bella-napoli') return 'r-001';
-  if (slugStr === 'trattoria-da-mario') return 'r-002';
-  if (slugStr === 'sushi-zen') return 'r-003';
-  if (slugStr === 'osteria-del-porto') return 'r-004';
-  if (slugStr === 'burger-house') return 'r-005';
-  try {
-    const storedStr =
-      localStorage.getItem('iGOdelivering_restaurants') ||
-      localStorage.getItem('gloriaorder_restaurants');
-    if (storedStr) {
-      const restaurants = JSON.parse(storedStr);
-      const slugify = (text: string) =>
-        text
-          .toString()
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w-]+/g, '')
-          .replace(/--+/g, '-');
-      const matched = restaurants.find((r: any) => slugify(r.name) === slugStr || r.id === slugStr);
-      if (matched) return matched.id;
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  return 'r-001';
-};
 
 function CheckoutModal({
   open,
@@ -920,8 +893,8 @@ function CheckoutModal({
 
   useEffect(() => {
     if (open && typeof window !== 'undefined') {
-      const rId = getRestaurantIdLocal(slug);
-      const storedZones = localStorage.getItem(`iGO_zones_${rId}`);
+      const rId = getRestaurantId(slug);
+      const storedZones = localStorage.getItem(STORAGE_KEYS.zones(rId));
       if (storedZones) {
         try {
           setZones(JSON.parse(storedZones));
@@ -1089,19 +1062,46 @@ function CheckoutModal({
 
     // Write order details to localStorage under iGO_orders_${restaurantId}
     try {
-      const rId = getRestaurantIdLocal(slug);
-      const ordersKey = `iGO_orders_${rId}`;
+      const rId = getRestaurantId(slug);
+      const ordersKey = STORAGE_KEYS.orders(rId);
       const rawOrders = localStorage.getItem(ordersKey);
       const orders = rawOrders ? JSON.parse(rawOrders) : [];
+      
+      const discount = appliedPromoDetail 
+        ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
+          ? itemsTotal * (appliedPromoDetail.value / 100) 
+          : Math.min(appliedPromoDetail.value, itemsTotal))
+        : 0;
+
       const newOrder = {
-        email: email.trim().toLowerCase(),
-        total: finalTotal,
+        id: `ord-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        restaurantId: rId,
+        timestamp: new Date().toISOString(),
         createdAt: new Date().toISOString(),
+        type: deliveryType,
+        items: cart,
+        subtotal: itemsTotal,
+        deliveryFee: currentDeliveryFee,
+        discount,
+        total: finalTotal,
+        customerName: deliveryType === 'tavolo' ? `Tavolo ${tableNumber}` : name,
+        email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
+        customer: {
+          name: deliveryType === 'tavolo' ? `Tavolo ${tableNumber}` : name,
+          email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
+          phone: deliveryType === 'tavolo' ? '' : phone,
+          address: deliveryType === 'domicilio' ? `${address} (CAP: ${cap})` : '',
+        },
+        tableNumber: deliveryType === 'tavolo' ? tableNumber : undefined,
+        status: 'new',
+        promoApplied: appliedPromoDetail ? appliedPromoDetail.code : undefined,
+        notes: notes || '',
+        payMethod: payMethod,
         itemsCount: cart.reduce((s: number, i: any) => s + i.qty, 0),
-        customerName: name,
       };
       orders.push(newOrder);
       localStorage.setItem(ordersKey, JSON.stringify(orders));
+      window.dispatchEvent(new Event('iGO_orders_updated'));
     } catch (err) {
       console.error('Error saving order to history:', err);
     }
@@ -2218,17 +2218,8 @@ export default function CustomerStorefront() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
-      const getRestaurantId = (s: string): string => {
-        if (s.startsWith('r-')) return s;
-        if (s === 'pizzeria-bella-napoli') return 'r-001';
-        if (s === 'trattoria-da-mario') return 'r-002';
-        if (s === 'sushi-zen') return 'r-003';
-        if (s === 'osteria-del-porto') return 'r-004';
-        if (s === 'burger-house') return 'r-005';
-        return 'r-001';
-      };
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(`iGO_service_hours_${rId}`) || localStorage.getItem(`iGO_service_hours_${slug}`);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
         try {
           setServiceHoursConfig(JSON.parse(stored));
@@ -2243,17 +2234,8 @@ export default function CustomerStorefront() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
-      const getRestaurantId = (s: string): string => {
-        if (s.startsWith('r-')) return s;
-        if (s === 'pizzeria-bella-napoli') return 'r-001';
-        if (s === 'trattoria-da-mario') return 'r-002';
-        if (s === 'sushi-zen') return 'r-003';
-        if (s === 'osteria-del-porto') return 'r-004';
-        if (s === 'burger-house') return 'r-005';
-        return 'r-001';
-      };
       const restaurantId = getRestaurantId(slug);
-      const stored = localStorage.getItem(`iGO_menu_items_${slug}`) || localStorage.getItem(`iGO_menu_items_${restaurantId}`);
+      const stored = localStorage.getItem(STORAGE_KEYS.menuItems(slug)) || localStorage.getItem(STORAGE_KEYS.menuItems(restaurantId));
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -2644,17 +2626,8 @@ export default function CustomerStorefront() {
 
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
-      const getRestaurantId = (s: string): string => {
-        if (s.startsWith('r-')) return s;
-        if (s === 'pizzeria-bella-napoli') return 'r-001';
-        if (s === 'trattoria-da-mario') return 'r-002';
-        if (s === 'sushi-zen') return 'r-003';
-        if (s === 'osteria-del-porto') return 'r-004';
-        if (s === 'burger-house') return 'r-005';
-        return 'r-001';
-      };
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(`iGO_service_hours_${rId}`) || localStorage.getItem(`iGO_service_hours_${slug}`);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
         try {
           config = JSON.parse(stored);
@@ -2839,7 +2812,7 @@ export default function CustomerStorefront() {
       {isCurrentlyClosed && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md">
           <Clock size={12} className="animate-pulse flex-shrink-0" />
-          <span>Siamo spiacenti, il locale è attualmente CHIUSO per {deliveryType === 'domicilio' ? 'la consegna a domicilio' : 'il ritiro d\'asporto'}.</span>
+          <span>Siamo spiacenti, il locale è attualmente CHIUSO.</span>
         </div>
       )}
 
@@ -3454,6 +3427,36 @@ export default function CustomerStorefront() {
                           'iGO_booking_info',
                           JSON.stringify({ name: bookingName, phone: bookingPhone })
                         );
+                        
+                        const rId = getRestaurantId(slug);
+                        const bookingsKey = STORAGE_KEYS.bookings(rId);
+                        const existingStr = localStorage.getItem(bookingsKey);
+                        let bookingsArray = [];
+                        if (existingStr) {
+                          try {
+                            bookingsArray = JSON.parse(existingStr);
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }
+                        
+                        const newBooking = {
+                          id: `booking-${Date.now()}`,
+                          restaurantId: rId,
+                          name: bookingName.trim(),
+                          phone: bookingPhone.trim(),
+                          email: '',
+                          guests: bookingGuests,
+                          date: bookingDate,
+                          time: bookingTime,
+                          status: 'pending',
+                          notes: '',
+                          createdAt: new Date().toISOString(),
+                        };
+                        
+                        bookingsArray.push(newBooking);
+                        localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
+                        window.dispatchEvent(new Event('iGO_bookings_updated'));
                       } catch (err) {
                         console.error('Error saving booking info:', err);
                       }
@@ -3561,7 +3564,7 @@ export default function CustomerStorefront() {
                 : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
             }`}
           >
-            <span>Temporaneamente Chiuso (Simula Sospensione)</span>
+            <span>Temporaneamente Chiuso</span>
             <span className="w-2 h-2 rounded-full bg-red-500" />
           </button>
         </div>

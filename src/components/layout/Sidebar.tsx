@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 import versionData from '@/version.json';
 import {
   LayoutDashboard,
@@ -147,13 +148,15 @@ export default function Sidebar({
     const updateCount = () => {
       if (role === 'ristoratore' && user?.restaurantId) {
         try {
-          const storedOrders = localStorage.getItem(`iGO_orders_${user.restaurantId}`);
+          const storedOrders = localStorage.getItem(STORAGE_KEYS.orders(user.restaurantId));
           if (storedOrders) {
             const parsed = JSON.parse(storedOrders);
-            if (parsed.pending) {
+            if (Array.isArray(parsed)) {
+              setPendingOrdersCount(
+                parsed.filter((o: any) => o.status === 'new' || o.status === 'pending').length
+              );
+            } else if (parsed.pending) {
               setPendingOrdersCount(parsed.pending.length);
-            } else if (Array.isArray(parsed)) {
-              setPendingOrdersCount(parsed.filter((o: any) => o.status === 'pending').length);
             }
           }
         } catch (e) {

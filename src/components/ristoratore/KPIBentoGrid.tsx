@@ -10,6 +10,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 interface KPICardProps {
   id: string;
@@ -89,35 +90,19 @@ export default function KPIBentoGrid() {
   useEffect(() => {
     const handleUpdate = () => {
       try {
-        const storedStr = localStorage.getItem(`iGO_orders_${restaurantId}`);
+        const storedStr = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
         if (storedStr) {
           const parsed = JSON.parse(storedStr);
-          const pending = parsed.pending ? parsed.pending.length : 0;
-          const accepted = parsed.accepted ? parsed.accepted.length : 0;
-          const completed = parsed.completed ? parsed.completed.length : 0;
-          const confirmed = parsed.confirmed ? parsed.confirmed.length : 0;
-          const preparing = parsed.preparing ? parsed.preparing.length : 0;
-          const delivering = parsed.delivering ? parsed.delivering.length : 0;
+          if (Array.isArray(parsed)) {
+            const pending = parsed.filter(
+              (o: any) => o.status === 'new' || o.status === 'pending'
+            ).length;
+            const totRevenue = parsed.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
 
-          const activeCount = pending + accepted + confirmed + preparing + delivering;
-          const activeRevenue = [
-            ...(parsed.pending || []),
-            ...(parsed.accepted || []),
-            ...(parsed.confirmed || []),
-            ...(parsed.preparing || []),
-            ...(parsed.delivering || []),
-          ].reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
-
-          const completedRevenue = (parsed.completed || []).reduce(
-            (acc: number, curr: any) => acc + (curr.total || 0),
-            0
-          );
-
-          setPendingCount(pending);
-          // 37 completed orders baseline + active orders + completed orders count
-          setTotalOrders(37 + activeCount + completed);
-          // 1025.7 completed revenue baseline + active orders revenue + completed orders revenue
-          setRevenue(Math.round(1025.7 + activeRevenue + completedRevenue));
+            setPendingCount(pending);
+            setTotalOrders(parsed.length);
+            setRevenue(Math.round(totRevenue));
+          }
         }
       } catch (e) {
         console.error(e);

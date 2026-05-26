@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 import {
   Users,
   Search,
@@ -75,9 +76,36 @@ export default function AdminUtentiPage() {
 
   useEffect(() => {
     // Restore sidebar state
-    const stored = localStorage.getItem('iGO_sidebar_collapsed');
-    if (stored !== null) {
-      setSidebarCollapsed(JSON.parse(stored));
+    const storedSidebar = localStorage.getItem('iGO_sidebar_collapsed');
+    if (storedSidebar !== null) {
+      setSidebarCollapsed(JSON.parse(storedSidebar));
+    }
+
+    // Load registered restaurants as users
+    try {
+      const storedRest = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+      if (storedRest) {
+        const restaurants = JSON.parse(storedRest);
+        const mappedUsers: RestorateurUser[] = restaurants.map((r: any) => ({
+          id: r.id || `u-${Math.random()}`,
+          name: r.owner || r.name || 'Gestore',
+          email: r.email || 'info@restaurant.it',
+          restaurantName: r.name,
+          status: r.status === 'suspended' ? 'suspended' : r.status === 'draft' ? 'pending' : 'active',
+          lastLogin: r.lastLogin || 'Mai',
+        }));
+
+        // Merge with mockUsers
+        const merged = [...mappedUsers];
+        mockUsers.forEach((mu) => {
+          if (!merged.some((u) => u.email === mu.email)) {
+            merged.push(mu);
+          }
+        });
+        setUsers(merged);
+      }
+    } catch (e) {
+      console.error('Error loading users from restaurants list:', e);
     }
   }, []);
 

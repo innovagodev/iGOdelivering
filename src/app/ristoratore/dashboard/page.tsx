@@ -8,14 +8,17 @@ import KPIBentoGrid from '@/components/ristoratore/KPIBentoGrid';
 import OrderHistoryTable from '@/components/ristoratore/OrderHistoryTable';
 import { Search, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 const RevenueChart = dynamic(() => import('@/components/ristoratore/RevenueChart'), { ssr: false });
 
 export default function RestaurantDashboardPage() {
   const { user } = useAuth();
+  const restaurantId = user?.restaurantId || 'r-001';
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('nav-panoramica');
+  const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
     // Restore sidebar state
@@ -24,6 +27,79 @@ export default function RestaurantDashboardPage() {
       setSidebarCollapsed(JSON.parse(stored));
     }
   }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const storedStr = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
+        if (storedStr) {
+          const parsed = JSON.parse(storedStr);
+          if (Array.isArray(parsed)) {
+            setOrders(parsed);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    handleUpdate();
+    window.addEventListener('iGO_orders_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('iGO_orders_updated', handleUpdate);
+    };
+  }, [restaurantId]);
+
+  const stats = React.useMemo(() => {
+    let deliveryCount = 0;
+    let pickupCount = 0;
+    let tableCount = 0;
+    const productsMap: Record<string, { qty: number; revenue: number }> = {};
+
+    orders.forEach((o) => {
+      if (o.type === 'domicilio') deliveryCount++;
+      else if (o.type === 'asporto') pickupCount++;
+      else if (o.type === 'tavolo') tableCount++;
+
+      if (Array.isArray(o.items)) {
+        o.items.forEach((item: any) => {
+          if (item.name) {
+            const qty = item.qty || 1;
+            const price = item.price || 0;
+            if (!productsMap[item.name]) {
+              productsMap[item.name] = { qty: 0, revenue: 0 };
+            }
+            productsMap[item.name].qty += qty;
+            productsMap[item.name].revenue += qty * price;
+          }
+        });
+      }
+    });
+
+    const totalCount = orders.length || 1;
+    const deliveryPct = Math.round((deliveryCount / totalCount) * 100);
+    const pickupPct = Math.round((pickupCount / totalCount) * 100);
+    const tablePct = Math.max(0, 100 - deliveryPct - pickupPct);
+
+    const topProducts = Object.entries(productsMap)
+      .map(([name, val]) => ({ name, qty: val.qty, revenue: Math.round(val.revenue) }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 4);
+
+    return {
+      distribution: [
+        { label: 'Consegna a domicilio', pct: orders.length ? deliveryPct : 68, color: 'bg-primary' },
+        { label: 'Asporto', pct: orders.length ? pickupPct : 24, color: 'bg-accent' },
+        { label: 'Tavolo', pct: orders.length ? tablePct : 8, color: 'bg-muted-foreground' },
+      ],
+      topProducts: topProducts.length ? topProducts : [
+        { name: 'Pizza Margherita', qty: 24, revenue: 228 },
+        { name: 'Tiramisù', qty: 18, revenue: 117 },
+        { name: 'Spaghetti Carbonara', qty: 15, revenue: 202 },
+        { name: 'Pizza Diavola', qty: 14, revenue: 154 },
+      ],
+    };
+  }, [orders]);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">
@@ -82,12 +158,8 @@ export default function RestaurantDashboardPage() {
                   <h4 className="text-sm font-semibold text-foreground mb-4">
                     Distribuzione Ordini
                   </h4>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Consegna a domicilio', pct: 68, color: 'bg-primary' },
-                      { label: 'Asporto', pct: 24, color: 'bg-accent' },
-                      { label: 'Tavolo', pct: 8, color: 'bg-muted-foreground' },
-                    ]?.map((row) => (
+                  <div className="space-y-4">
+                    {stats.distribution.map((row) => (
                       <div key={`dist-${row?.label}`}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-muted-foreground">{row?.label}</span>
@@ -106,12 +178,7 @@ export default function RestaurantDashboardPage() {
                 <div className="bg-card rounded-xl border border-border shadow-card p-5">
                   <h4 className="text-sm font-semibold text-foreground mb-3">Top Prodotti Oggi</h4>
                   <ul className="space-y-2">
-                    {[
-                      { name: 'Pizza Margherita', qty: 24, revenue: 228 },
-                      { name: 'Tiramisù', qty: 18, revenue: 117 },
-                      { name: 'Spaghetti Carbonara', qty: 15, revenue: 202 },
-                      { name: 'Pizza Diavola', qty: 14, revenue: 154 },
-                    ]?.map((p, i) => (
+                    {stats.topProducts.map((p, i) => (
                       <li key={`top-${p?.name}`} className="flex items-center gap-3">
                         <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center flex-shrink-0">
                           {i + 1}

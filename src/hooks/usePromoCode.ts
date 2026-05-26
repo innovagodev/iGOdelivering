@@ -1,37 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PromoCode } from '@/types/promo';
-
-const getRestaurantId = (slug: string): string => {
-  if (typeof window === 'undefined') return 'r-001';
-  if (slug.startsWith('r-')) return slug;
-  if (slug === 'pizzeria-bella-napoli') return 'r-001';
-  if (slug === 'trattoria-da-mario') return 'r-002';
-  if (slug === 'sushi-zen') return 'r-003';
-  if (slug === 'osteria-del-porto') return 'r-004';
-  if (slug === 'burger-house') return 'r-005';
-
-  try {
-    const storedStr =
-      localStorage.getItem('iGOdelivering_restaurants') ||
-      localStorage.getItem('gloriaorder_restaurants');
-    if (storedStr) {
-      const restaurants = JSON.parse(storedStr);
-      const slugify = (text: string) =>
-        text
-          .toString()
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w-]+/g, '')
-          .replace(/--+/g, '-');
-      const matched = restaurants.find((r: any) => slugify(r.name) === slug || r.id === slug);
-      if (matched) return matched.id;
-    }
-  } catch (e) {
-    console.error('Error resolving restaurant ID', e);
-  }
-  return 'r-001';
-};
+import { getRestaurantId } from '@/lib/restaurant-utils';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 export function usePromoCode(slugOrId: string) {
   const [promos, setPromos] = useState<PromoCode[]>([]);
@@ -40,7 +10,7 @@ export function usePromoCode(slugOrId: string) {
     if (typeof window === 'undefined') return;
     try {
       const restaurantId = getRestaurantId(slugOrId);
-      const raw = localStorage.getItem(`iGO_promos_${restaurantId}`);
+      const raw = localStorage.getItem(STORAGE_KEYS.promos(restaurantId));
       let allCodes: PromoCode[] = [];
       if (raw) {
         allCodes = JSON.parse(raw).map((p: any) => ({
@@ -116,7 +86,7 @@ export function usePromoCode(slugOrId: string) {
     let allPromos: PromoCode[] = [];
     try {
       const restaurantId = getRestaurantId(slugOrId);
-      const raw = localStorage.getItem(`iGO_promos_${restaurantId}`);
+      const raw = localStorage.getItem(STORAGE_KEYS.promos(restaurantId));
       if (raw) {
         allPromos = JSON.parse(raw).map((p: any) => ({
           ...p,
@@ -192,8 +162,7 @@ export function usePromoCode(slugOrId: string) {
       const cleanEmail = email.trim().toLowerCase();
       try {
         const restaurantId = getRestaurantId(slugOrId);
-        const ordersKey = `iGO_orders_${restaurantId}`;
-        const rawOrders = localStorage.getItem(ordersKey);
+        const rawOrders = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
         if (rawOrders) {
           const orders = JSON.parse(rawOrders);
           const hasOrdered = orders.some((o: any) => o.email && o.email.trim().toLowerCase() === cleanEmail);

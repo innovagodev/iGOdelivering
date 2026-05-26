@@ -67,7 +67,7 @@ export default function Topbar({
         </div>
         {formattedDate && (
           <span className="text-xs md:text-sm text-muted-foreground/80 flex-shrink-0 font-semibold ml-1.5 select-none">
-            · {formattedDate}
+            {formattedDate}
           </span>
         )}
       </div>

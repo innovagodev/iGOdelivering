@@ -1,6 +1,8 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+import { STORAGE_KEYS } from '@/lib/storage-keys';
+
 type Role = 'ristoratore' | 'admin' | 'cliente' | null;
 
 interface User {
@@ -32,9 +34,7 @@ function enrichRistoratoreUser(user: User): User {
 
   // Try to find the restaurant in stored restaurants
   try {
-    const storedStr =
-      localStorage.getItem('iGOdelivering_restaurants') ||
-      localStorage.getItem('gloriaorder_restaurants');
+    const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
     if (storedStr) {
       const restaurants = JSON.parse(storedStr);
       const matched = restaurants.find((r: any) => r.email === email);
@@ -60,7 +60,7 @@ function enrichRistoratoreUser(user: User): User {
   // Check for settings override
   if (restaurantId) {
     try {
-      const settingsStr = localStorage.getItem(`iGO_settings_${restaurantId}`);
+      const settingsStr = localStorage.getItem(STORAGE_KEYS.settings(restaurantId));
       if (settingsStr) {
         const settings = JSON.parse(settingsStr);
         if (settings.profile) {
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('igodelivering_auth');
+    const savedUser = localStorage.getItem(STORAGE_KEYS.AUTH);
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser) as User;
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(parsedUser);
         }
       } catch {
-        localStorage.removeItem('igodelivering_auth');
+        localStorage.removeItem(STORAGE_KEYS.AUTH);
       }
     }
     setIsLoading(false);
@@ -117,15 +117,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUser(newUser);
-    localStorage.setItem('igodelivering_auth', JSON.stringify(newUser));
-    document.cookie = `igodelivering_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+    localStorage.setItem(STORAGE_KEYS.AUTH, JSON.stringify(newUser));
+    document.cookie = `${STORAGE_KEYS.AUTH_ROLE}=${role}; path=/; max-age=86400; SameSite=Lax`;
   };
 
   const logout = () => {
     const isAdmin = user?.role === 'admin';
     setUser(null);
-    localStorage.removeItem('igodelivering_auth');
-    document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    localStorage.removeItem(STORAGE_KEYS.AUTH);
+    document.cookie = `${STORAGE_KEYS.AUTH_ROLE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
     window.location.href = isAdmin ? '/admin' : '/login';
   };
 
