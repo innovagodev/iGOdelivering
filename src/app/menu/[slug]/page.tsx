@@ -31,6 +31,8 @@ import {
   Banknote,
   Wallet,
   Share2,
+  Printer,
+  History,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -41,7 +43,6 @@ import Modal from '@/components/ui/Modal';
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
 import { usePromoCode } from '@/hooks/usePromoCode';
 import CardPaymentForm from '@/components/menu/CardPaymentForm';
-import PopularSection from '@/components/menu/PopularSection';
 import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
 import { getRestaurantId } from '@/lib/restaurant-utils';
@@ -549,31 +550,31 @@ function CartSidebar({
                   {((item.addedIngredients && item.addedIngredients.length > 0) ||
                     (item.removedIngredients && item.removedIngredients.length > 0) ||
                     item.note) && (
-                    <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
-                      {item.addedIngredients?.map((ext) => (
-                        <div
-                          key={ext.name}
-                          className="text-primary font-semibold flex justify-between"
-                        >
-                          <span>+ {ext.name}</span>
-                          <span className="text-[9px] text-muted-foreground font-normal">
-                            € {ext.price.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                      {item.removedIngredients?.map((rem) => (
-                        <div key={rem} className="text-red-500 font-semibold flex justify-between">
-                          <span>- Senza {rem}</span>
-                          <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
-                        </div>
-                      ))}
-                      {item.note && (
-                        <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
-                          Note: &quot;{item.note}&quot;
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
+                        {item.addedIngredients?.map((ext) => (
+                          <div
+                            key={ext.name}
+                            className="text-primary font-semibold flex justify-between"
+                          >
+                            <span>+ {ext.name}</span>
+                            <span className="text-[9px] text-muted-foreground font-normal">
+                              € {ext.price.toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                        {item.removedIngredients?.map((rem) => (
+                          <div key={rem} className="text-red-500 font-semibold flex justify-between">
+                            <span>- Senza {rem}</span>
+                            <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
+                          </div>
+                        ))}
+                        {item.note && (
+                          <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
+                            Note: &quot;{item.note}&quot;
+                          </div>
+                        )}
+                      </div>
+                    )}
                   <p className="text-xs font-bold text-foreground mt-1 tabular-nums">
                     € {(item.price * item.qty).toFixed(2)}
                   </p>
@@ -875,6 +876,215 @@ function CheckoutModal({
   appliedPromoDetail?: any;
 }) {
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
+  const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
+  const { settings: restaurantSettings } = useRestaurantSettings(slug);
+
+  const handlePrintReceipt = (order: any) => {
+    if (!order) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const restName = restaurantSettings?.name || 'iGOdelivering';
+    const logoHtml = restaurantSettings?.logoUrl
+      ? `<img src="${restaurantSettings.logoUrl}" style="max-height: 48px; margin-bottom: 8px;" />`
+      : ``;
+
+    const itemsHtml = order.items.map((item: any) => {
+      const customNotes = (item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0)
+        ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
+        item.addedIngredients?.map((i: any) => '+' + i.name).concat(item.removedIngredients?.map((i: string) => '-' + i)).join(', ') +
+        '</div>'
+        : '';
+      const itemPrice = (item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty;
+      return '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
+        '<div>' +
+        '<strong>' + item.qty + 'x ' + item.name + '</strong>' +
+        customNotes +
+        '</div>' +
+        '<span>&euro; ' + itemPrice.toFixed(2) + '</span>' +
+        '</div>';
+    }).join('');
+
+    const tableRow = order.type === 'tavolo'
+      ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
+      : '<div class="row"><strong>Cliente:</strong> <span>' + (order.customer?.name || order.customerName) + '</span></div>' +
+      '<div class="row"><strong>Telefono:</strong> <span>' + order.customer?.phone + '</span></div>' +
+      (order.type === 'domicilio' ? '<div class="row"><strong>Indirizzo:</strong> <span>' + order.customer?.address + '</span></div>' : '');
+
+    const deliveryFeeRow = order.deliveryFee > 0
+      ? '<div class="row"><span>Consegna:</span> <span>&euro; ' + order.deliveryFee.toFixed(2) + '</span></div>'
+      : '';
+    const discountRow = order.discount > 0
+      ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' + order.discount.toFixed(2) + '</span></div>'
+      : '';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ricevuta Ordine - ${order.id}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.4; }
+            .container { max-width: 320px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+            .header { text-align: center; border-bottom: 2px dashed #eee; padding-bottom: 12px; margin-bottom: 12px; }
+            .row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+            .section { border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px; }
+            .totals { margin-top: 8px; font-size: 12px; }
+            .total-row { display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; color: #e11d48; }
+            .footer { text-align: center; margin-top: 16px; font-size: 10px; color: #888; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              ${logoHtml}
+              <div style="font-size: 16px; font-weight: 800; text-transform: uppercase;">${restName}</div>
+              <div style="font-size: 10px; color: #777; margin-top: 4px;">Ricevuta Digitale</div>
+            </div>
+            
+            <div class="section">
+              <div class="row"><strong>ID Ordine:</strong> <span>${order.id}</span></div>
+              <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
+              <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
+              ${tableRow}
+              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'Online' : 'Contanti'}</span></div>
+            </div>
+            
+            <div class="section">
+              ${itemsHtml}
+            </div>
+            
+            <div class="totals">
+              <div class="row"><span>Subtotale:</span> <span>&euro; ${order.subtotal.toFixed(2)}</span></div>
+              ${deliveryFeeRow}
+              ${discountRow}
+              <div class="total-row"><span>Totale:</span> <span>&euro; ${order.total.toFixed(2)}</span></div>
+            </div>
+            
+            <div class="footer">
+              Grazie per il tuo ordine!<br>A presto!
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const DigitalReceipt = ({ order, onPrint }: { order: any, onPrint?: () => void }) => {
+    if (!order) return null;
+    return (
+      <div className="border border-border/80 rounded-xl bg-muted/30 p-4 text-left space-y-4 max-w-md mx-auto relative overflow-hidden" id={`receipt-${order.id}`}>
+        <div className="flex justify-between items-start border-b border-border/40 pb-3">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ID ORDINE</p>
+            <p className="text-sm font-black font-mono text-foreground">{order.id}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">DATA & ORA</p>
+            <p className="text-xs font-semibold text-foreground">
+              {new Date(order.timestamp).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-1 text-xs">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Riferimenti</p>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Servizio:</span>
+            <span className="font-bold text-foreground capitalize">{order.type}</span>
+          </div>
+          {order.type === 'tavolo' ? (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tavolo:</span>
+              <span className="font-extrabold text-primary">{order.tableNumber}</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cliente:</span>
+                <span className="font-semibold text-foreground">{order.customer?.name || order.customerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Telefono:</span>
+                <span className="font-semibold text-foreground">{order.customer?.phone}</span>
+              </div>
+              {order.type === 'domicilio' && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Indirizzo:</span>
+                  <span className="font-semibold text-foreground text-right max-w-[200px] truncate" title={order.customer?.address}>
+                    {order.customer?.address}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Pagamento:</span>
+            <span className="font-semibold text-foreground uppercase">{order.payMethod === 'online' ? 'Carta (Online)' : 'Alla consegna'}</span>
+          </div>
+        </div>
+
+        <div className="border-t border-border/40 pt-3">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">Prodotti Ordinati</p>
+          <ul className="space-y-2 text-xs">
+            {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
+              <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
+                <div className="flex-1 min-w-0 pr-2">
+                  <p className="font-bold text-foreground truncate">{item.qty}× {item.name}</p>
+                  {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                      {item.addedIngredients?.map((i: any) => `+${i.name}`).concat(item.removedIngredients?.map((i: string) => `-${i}`)).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <span className="font-bold text-foreground tabular-nums">€ {((item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty).toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border-t border-border/40 pt-3 text-xs space-y-1.5">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Subtotale:</span>
+            <span className="tabular-nums">€ {order.subtotal.toFixed(2)}</span>
+          </div>
+          {order.deliveryFee > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Consegna:</span>
+              <span className="tabular-nums">€ {order.deliveryFee.toFixed(2)}</span>
+            </div>
+          )}
+          {order.discount > 0 && (
+            <div className="flex justify-between text-[var(--success)] font-semibold">
+              <span>Sconto {order.promoApplied ? `(${order.promoApplied})` : ''}:</span>
+              <span className="tabular-nums">- € {order.discount.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-black text-foreground border-t border-border/40 pt-2">
+            <span>Totale Ordine:</span>
+            <span className="text-primary tabular-nums">€ {order.total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {onPrint && (
+          <button
+            onClick={onPrint}
+            className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-lg text-xs font-bold transition-all active:scale-95 shadow-xs"
+          >
+            <Printer size={12} />
+            Stampa Ricevuta
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const [notes, setNotes] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
   const [payMethod, setPayMethod] = useState<'card' | 'cash' | 'online'>('card');
@@ -1066,11 +1276,13 @@ function CheckoutModal({
       const ordersKey = STORAGE_KEYS.orders(rId);
       const rawOrders = localStorage.getItem(ordersKey);
       const orders = rawOrders ? JSON.parse(rawOrders) : [];
-      
-      const discount = appliedPromoDetail 
+
+      const discount = appliedPromoDetail
         ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
-          ? itemsTotal * (appliedPromoDetail.value / 100) 
-          : Math.min(appliedPromoDetail.value, itemsTotal))
+          ? itemsTotal * (appliedPromoDetail.value / 100)
+          : appliedPromoDetail.type === 'free_delivery'
+            ? actualDeliveryFee
+            : Math.min(appliedPromoDetail.value, itemsTotal))
         : 0;
 
       const newOrder = {
@@ -1101,6 +1313,40 @@ function CheckoutModal({
       };
       orders.push(newOrder);
       localStorage.setItem(ordersKey, JSON.stringify(orders));
+
+      // Save order to guest order history if not table order
+      if (deliveryType !== 'tavolo') {
+        const custOrdersKey = STORAGE_KEYS.customerOrders(rId, email.trim().toLowerCase());
+        const rawCustOrders = localStorage.getItem(custOrdersKey);
+        const custOrders = rawCustOrders ? JSON.parse(rawCustOrders) : [];
+        custOrders.unshift(newOrder); // Prepend new order
+        if (custOrders.length > 10) {
+          custOrders.pop(); // Keep only 10 most recent orders
+        }
+        localStorage.setItem(custOrdersKey, JSON.stringify(custOrders));
+      }
+
+      // Increment usedCount for the applied promo code
+      if (appliedPromoDetail) {
+        try {
+          const promosKey = STORAGE_KEYS.promos(rId);
+          const rawPromos = localStorage.getItem(promosKey);
+          if (rawPromos) {
+            const promoList = JSON.parse(rawPromos);
+            const updatedPromos = promoList.map((p: any) => {
+              if (p.code === appliedPromoDetail.code) {
+                return { ...p, usedCount: (p.usedCount || 0) + 1 };
+              }
+              return p;
+            });
+            localStorage.setItem(promosKey, JSON.stringify(updatedPromos));
+          }
+        } catch (e) {
+          console.error('Error updating promo usedCount:', e);
+        }
+      }
+
+      setLastCreatedOrder(newOrder);
       window.dispatchEvent(new Event('iGO_orders_updated'));
     } catch (err) {
       console.error('Error saving order to history:', err);
@@ -1119,11 +1365,11 @@ function CheckoutModal({
     deliveryType === 'tavolo'
       ? true
       : !!name &&
-        !!phone &&
-        !!email &&
-        email.includes('@') &&
-        !!deliveryTime &&
-        (deliveryType === 'asporto' || (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
+      !!phone &&
+      !!email &&
+      email.includes('@') &&
+      !!deliveryTime &&
+      (deliveryType === 'asporto' || (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
 
   return (
     <Modal
@@ -1153,24 +1399,22 @@ function CheckoutModal({
                   type="button"
                   disabled={currentTimeStr === '12:15'}
                   onClick={() => setDeliveryType('domicilio')}
-                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                    currentTimeStr === '12:15'
+                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${currentTimeStr === '12:15'
                       ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
                       : deliveryType === 'domicilio'
-                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                      : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                  }`}
+                        ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                        : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                    }`}
                 >
                   Consegna a domicilio
                 </button>
                 <button
                   type="button"
                   onClick={() => setDeliveryType('asporto')}
-                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                    deliveryType === 'asporto'
+                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
                       ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                       : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   Asporto
                 </button>
@@ -1478,11 +1722,10 @@ function CheckoutModal({
                         key={`pay-${opt.id}`}
                         type="button"
                         onClick={() => setPayMethod(opt.id as any)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
-                          active
+                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${active
                             ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                             : 'border-border/60 hover:border-muted-foreground/30 bg-card'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -1497,9 +1740,8 @@ function CheckoutModal({
                         </div>
 
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                            active ? 'border-primary' : 'border-border'
-                          }`}
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${active ? 'border-primary' : 'border-border'
+                            }`}
                         >
                           {active && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                         </div>
@@ -1554,12 +1796,11 @@ function CheckoutModal({
                             setNeedRest(false);
                           }
                         }}
-                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
-                          (opt.value === 'no' && needRest === false) ||
-                          (opt.value !== 'no' && needRest === true && restAmount === opt.value)
+                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${(opt.value === 'no' && needRest === false) ||
+                            (opt.value !== 'no' && needRest === true && restAmount === opt.value)
                             ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                             : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                        }`}
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -1708,22 +1949,35 @@ function CheckoutModal({
       )}
 
       {step === 'success' && (
-        <div className="space-y-6 text-center py-6">
-          <div className="w-20 h-20 bg-[var(--success-bg)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <CheckCircle size={40} className="text-[var(--success)]" />
+        <div className="space-y-6 text-center py-4">
+          <div className="w-16 h-16 bg-[var(--success-bg)] rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <CheckCircle size={32} className="text-[var(--success)]" />
           </div>
-          <h3 className="text-2xl font-black text-foreground">Ordine ricevuto!</h3>
-          <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto leading-relaxed">
-            {deliveryType === 'tavolo'
-              ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato in cucina. Inizieremo subito a prepararlo!`
-              : 'Abbiamo ricevuto il tuo ordine. Lo prepareremo al più presto.'}
-          </p>
+          <div className="space-y-1">
+            <h3 className="text-xl font-black text-foreground">Ordine ricevuto!</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+              {deliveryType === 'tavolo'
+                ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato in cucina. Inizieremo subito a prepararlo!`
+                : 'Abbiamo ricevuto il tuo ordine. Lo prepareremo al più presto.'}
+            </p>
+          </div>
+
+          {/* Digital Receipt */}
+          {lastCreatedOrder && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <DigitalReceipt
+                order={lastCreatedOrder}
+                onPrint={() => handlePrintReceipt(lastCreatedOrder)}
+              />
+            </div>
+          )}
+
           <button
             onClick={() => {
               onClose();
               setTimeout(() => window.location.reload(), 300);
             }}
-            className="w-full mt-6 py-3.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-sm shadow-lg shadow-primary/20"
+            className="w-full mt-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-xs shadow-md shadow-primary/20"
           >
             Torna al menu
           </button>
@@ -2005,11 +2259,10 @@ function CustomizationView({
                     key={`remove-${rem}`}
                     type="button"
                     onClick={() => toggleRemove(rem)}
-                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${
-                      isRemoved
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${isRemoved
                         ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
                         : 'border-border bg-card text-foreground hover:bg-muted'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -2070,11 +2323,10 @@ function CustomizationView({
                               key={`extra-${ext.name}`}
                               type="button"
                               onClick={() => toggleExtra(ext)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
-                                isAdded
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAdded
                                   ? 'border-primary bg-primary/5 text-primary shadow-sm'
                                   : 'border-border bg-card text-foreground hover:bg-muted'
-                              }`}
+                                }`}
                             >
                               <div className="flex flex-col items-start">
                                 <span>{ext.name}</span>
@@ -2103,39 +2355,38 @@ function CustomizationView({
         {(item.category.toLowerCase().includes('pizz') ||
           item.category.toLowerCase().includes('panin') ||
           item.category.toLowerCase().includes('burger')) && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Impasti & Cotture
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'classico', label: 'Classico', price: 0.0 },
-                { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
-                { id: 'calzone', label: 'A Calzone', price: 0.0 },
-                { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
-              ].map((style) => {
-                const isSelected = cookingStyle === style.id;
-                return (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => setCookingStyle(style.id as any)}
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${
-                      isSelected
-                        ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                        : 'border-border bg-card text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <span>{style.label}</span>
-                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
-                      {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Impasti & Cotture
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'classico', label: 'Classico', price: 0.0 },
+                  { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
+                  { id: 'calzone', label: 'A Calzone', price: 0.0 },
+                  { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
+                ].map((style) => {
+                  const isSelected = cookingStyle === style.id;
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setCookingStyle(style.id as any)}
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${isSelected
+                          ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                          : 'border-border bg-card text-foreground hover:bg-muted'
+                        }`}
+                    >
+                      <span>{style.label}</span>
+                      <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
+                        {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* 4. Notes */}
         <div className="space-y-2">
@@ -2211,7 +2462,7 @@ export default function CustomerStorefront() {
   const slug = (params?.slug as string) || 'pizzeria-bella-napoli';
 
   const { settings: restaurantSettings } = useRestaurantSettings(slug);
-  const { validatePromo } = usePromoCode(slug);
+  const { validatePromo, promos } = usePromoCode(slug);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [appliedPromoDetail, setAppliedPromoDetail] = useState<any>(null);
   const [serviceHoursConfig, setServiceHoursConfig] = useState<any>(null);
@@ -2264,10 +2515,232 @@ export default function CustomerStorefront() {
   const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
   const [simulatedDay, setSimulatedDay] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
+  const [myOrdersEmail, setMyOrdersEmail] = useState('');
+  const [historyOrders, setHistoryOrders] = useState<any[]>([]);
+  const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<any | null>(null);
+  const [historyEmailInput, setHistoryEmailInput] = useState('');
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const handleShare = () => {
+    if (typeof window !== 'undefined') {
+      const url = window.location.href.split('?')[0];
+      navigator.clipboard.writeText(url).then(() => {
+        setShowCopiedToast(true);
+        setTimeout(() => setShowCopiedToast(false), 2000);
+      });
+    }
+  };
+
+  const handlePrintReceipt = (order: any) => {
+    if (!order) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const restName = restaurantSettings.name || 'iGOdelivering';
+    const logoHtml = restaurantSettings.logoUrl
+      ? `<img src="${restaurantSettings.logoUrl}" style="max-height: 48px; margin-bottom: 8px;" />`
+      : ``;
+
+    const itemsHtml = order.items.map((item: any) => {
+      const customNotes = (item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0)
+        ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
+        item.addedIngredients?.map((i: any) => '+' + i.name).concat(item.removedIngredients?.map((i: string) => '-' + i)).join(', ') +
+        '</div>'
+        : '';
+      const itemPrice = (item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty;
+      return '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
+        '<div>' +
+        '<strong>' + item.qty + 'x ' + item.name + '</strong>' +
+        customNotes +
+        '</div>' +
+        '<span>&euro; ' + itemPrice.toFixed(2) + '</span>' +
+        '</div>';
+    }).join('');
+
+    const tableRow = order.type === 'tavolo'
+      ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
+      : '<div class="row"><strong>Cliente:</strong> <span>' + (order.customer?.name || order.customerName) + '</span></div>' +
+      '<div class="row"><strong>Telefono:</strong> <span>' + order.customer?.phone + '</span></div>' +
+      (order.type === 'domicilio' ? '<div class="row"><strong>Indirizzo:</strong> <span>' + order.customer?.address + '</span></div>' : '');
+
+    const deliveryFeeRow = order.deliveryFee > 0
+      ? '<div class="row"><span>Consegna:</span> <span>&euro; ' + order.deliveryFee.toFixed(2) + '</span></div>'
+      : '';
+    const discountRow = order.discount > 0
+      ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' + order.discount.toFixed(2) + '</span></div>'
+      : '';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ricevuta Ordine - ${order.id}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.4; }
+            .container { max-width: 320px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+            .header { text-align: center; border-bottom: 2px dashed #eee; padding-bottom: 12px; margin-bottom: 12px; }
+            .row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+            .section { border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px; }
+            .totals { margin-top: 8px; font-size: 12px; }
+            .total-row { display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; color: #e11d48; }
+            .footer { text-align: center; margin-top: 16px; font-size: 10px; color: #888; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              ${logoHtml}
+              <div style="font-size: 16px; font-weight: 800; text-transform: uppercase;">${restName}</div>
+              <div style="font-size: 10px; color: #777; margin-top: 4px;">Ricevuta Digitale</div>
+            </div>
+            
+            <div class="section">
+              <div class="row"><strong>ID Ordine:</strong> <span>${order.id}</span></div>
+              <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
+              <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
+              ${tableRow}
+              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'Online' : 'Contanti'}</span></div>
+            </div>
+            
+            <div class="section">
+              ${itemsHtml}
+            </div>
+            
+            <div class="totals">
+              <div class="row"><span>Subtotale:</span> <span>&euro; ${order.subtotal.toFixed(2)}</span></div>
+              ${deliveryFeeRow}
+              ${discountRow}
+              <div class="total-row"><span>Totale:</span> <span>&euro; ${order.total.toFixed(2)}</span></div>
+            </div>
+            
+            <div class="footer">
+              Grazie per il tuo ordine!<br>A presto!
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const DigitalReceipt = ({ order, onPrint }: { order: any, onPrint?: () => void }) => {
+    if (!order) return null;
+    return (
+      <div className="border border-border/80 rounded-xl bg-muted/30 p-4 text-left space-y-4 max-w-md mx-auto relative overflow-hidden" id={`receipt-${order.id}`}>
+        <div className="flex justify-between items-start border-b border-border/40 pb-3">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ID ORDINE</p>
+            <p className="text-sm font-black font-mono text-foreground">{order.id}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">DATA & ORA</p>
+            <p className="text-xs font-semibold text-foreground">
+              {new Date(order.timestamp).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-1 text-xs">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Riferimenti</p>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Servizio:</span>
+            <span className="font-bold text-foreground capitalize">{order.type}</span>
+          </div>
+          {order.type === 'tavolo' ? (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tavolo:</span>
+              <span className="font-extrabold text-primary">{order.tableNumber}</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cliente:</span>
+                <span className="font-semibold text-foreground">{order.customer?.name || order.customerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Telefono:</span>
+                <span className="font-semibold text-foreground">{order.customer?.phone}</span>
+              </div>
+              {order.type === 'domicilio' && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Indirizzo:</span>
+                  <span className="font-semibold text-foreground text-right max-w-[200px] truncate" title={order.customer?.address}>
+                    {order.customer?.address}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Pagamento:</span>
+            <span className="font-semibold text-foreground uppercase">{order.payMethod === 'online' ? 'Carta (Online)' : 'Alla consegna'}</span>
+          </div>
+        </div>
+
+        <div className="border-t border-border/40 pt-3">
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">Prodotti Ordinati</p>
+          <ul className="space-y-2 text-xs">
+            {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
+              <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
+                <div className="flex-1 min-w-0 pr-2">
+                  <p className="font-bold text-foreground truncate">{item.qty}× {item.name}</p>
+                  {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                      {item.addedIngredients?.map((i: any) => `+${i.name}`).concat(item.removedIngredients?.map((i: string) => `-${i}`)).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <span className="font-bold text-foreground tabular-nums">€ {((item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty).toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="border-t border-border/40 pt-3 text-xs space-y-1.5">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Subtotale:</span>
+            <span className="tabular-nums">€ {order.subtotal.toFixed(2)}</span>
+          </div>
+          {order.deliveryFee > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Consegna:</span>
+              <span className="tabular-nums">€ {order.deliveryFee.toFixed(2)}</span>
+            </div>
+          )}
+          {order.discount > 0 && (
+            <div className="flex justify-between text-[var(--success)] font-semibold">
+              <span>Sconto {order.promoApplied ? `(${order.promoApplied})` : ''}:</span>
+              <span className="tabular-nums">- € {order.discount.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-black text-foreground border-t border-border/40 pt-2">
+            <span>Totale Ordine:</span>
+            <span className="text-primary tabular-nums">€ {order.total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {onPrint && (
+          <button
+            onClick={onPrint}
+            className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-lg text-xs font-bold transition-all active:scale-95 shadow-xs"
+          >
+            <Printer size={12} />
+            Stampa Ricevuta
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const [promoCode, setPromoCode] = useState('');
 
@@ -2331,7 +2804,10 @@ export default function CustomerStorefront() {
         const data = JSON.parse(saved);
         if (data.name) setName(data.name);
         if (data.phone) setPhone(data.phone);
-        if (data.email) setEmail(data.email);
+        if (data.email) {
+          setEmail(data.email);
+          setMyOrdersEmail(data.email.trim().toLowerCase());
+        }
         if (data.address) setAddress(data.address);
         if (data.deliveryType) setDeliveryType(data.deliveryType);
       }
@@ -2360,7 +2836,7 @@ export default function CustomerStorefront() {
       if (stored) {
         try {
           config = JSON.parse(stored);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -2376,10 +2852,10 @@ export default function CustomerStorefront() {
           return false;
         }
         const currentStr = getCurrentTimeStr();
-        
+
         const lunchEnabled = dayConfig.lunchEnabled !== false;
         const inLunch = currentStr >= dayConfig.lunch.from && currentStr <= dayConfig.lunch.to;
-        
+
         const dinnerEnabled = dayConfig.dinnerEnabled !== false;
         const inDinner = currentStr >= dayConfig.dinner.from && currentStr <= dayConfig.dinner.to;
 
@@ -2404,34 +2880,34 @@ export default function CustomerStorefront() {
     if (simulatedTime === 'paused') {
       return 'Il ristorante ha temporaneamente sospeso la ricezione degli ordini. Puoi consultare il menu ma non ordinare.';
     }
-    
+
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
       const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
-        try { config = JSON.parse(stored); } catch (e) {}
+        try { config = JSON.parse(stored); } catch (e) { }
       }
     }
-    
+
     const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
     const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
-    
+
     if (config) {
       if (config.serviceSuspended?.[activeType] === true) {
         return `Il servizio di ${activeType === 'delivery' ? 'Consegna' : 'Asporto'} è stato temporaneamente sospeso dal gestore.`;
       }
-      
+
       const dayConfig = config.serviceHours?.[activeType]?.[todayDayName];
       if (dayConfig) {
         if (dayConfig.enabled === false) {
           return `Spiacenti, il ristorante è chiuso il ${todayDayName} per il servizio di ${activeType === 'delivery' ? 'consegna' : 'asporto'}.`;
         }
-        
+
         const lunchEnabled = dayConfig.lunchEnabled !== false;
         const dinnerEnabled = dayConfig.dinnerEnabled !== false;
-        
+
         let hoursStr = '';
         if (lunchEnabled && dinnerEnabled) {
           hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}, cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
@@ -2445,7 +2921,7 @@ export default function CustomerStorefront() {
         return `Ci dispiace, siamo fuori dall'orario di servizio. Orari ${todayDayName}: ${hoursStr}.`;
       }
     }
-    
+
     return 'Ci dispiace, il ristorante è chiuso in questo momento. Puoi consultare il menu ma non ordinare.';
   };
 
@@ -2624,11 +3100,11 @@ export default function CustomerStorefront() {
       if (existing) {
         return prev.map((c) =>
           c.id === item.id &&
-          JSON.stringify({
-            addedIngredients: c.addedIngredients || [],
-            removedIngredients: c.removedIngredients || [],
-            note: c.note || '',
-          }) === customizationsKey
+            JSON.stringify({
+              addedIngredients: c.addedIngredients || [],
+              removedIngredients: c.removedIngredients || [],
+              note: c.note || '',
+            }) === customizationsKey
             ? { ...c, qty: c.qty + qty }
             : c
         );
@@ -2729,6 +3205,32 @@ export default function CustomerStorefront() {
 
   const status = getRestaurantStatus();
 
+  // Dynamic promo banner text
+  const activePromo = promos.find(p => p.active);
+  let bannerText = '';
+  if (activePromo) {
+    if (activePromo.customBannerText) {
+      bannerText = activePromo.customBannerText;
+    } else {
+      const minStr = activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0
+        ? ` con spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`
+        : '';
+      if (activePromo.type === 'percentage') {
+        bannerText = `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto${minStr}!`;
+      } else if (activePromo.type === 'first_order') {
+        bannerText = `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto sul tuo primo ordine${minStr}!`;
+      } else if (activePromo.type === 'fixed_amount') {
+        bannerText = `Usa il codice ${activePromo.code} per uno sconto fisso di € ${activePromo.value.toFixed(2)}${minStr}!`;
+      } else if (activePromo.type === 'threshold_based') {
+        bannerText = `Usa il codice ${activePromo.code} per uno sconto di € ${activePromo.value.toFixed(2)}${minStr}!`;
+      } else if (activePromo.type === 'free_delivery') {
+        bannerText = `Usa il codice ${activePromo.code} per ottenere la consegna gratuita${minStr}!`;
+      }
+    }
+  } else {
+    bannerText = 'Usa il codice WELCOME10 per il 10% di sconto sul tuo primo ordine!';
+  }
+
   const handleCheckoutClick = () => {
     if (deliveryType === 'tavolo') {
       setCartOpen(false);
@@ -2768,8 +3270,30 @@ export default function CustomerStorefront() {
     setCheckoutOpen(true);
   };
 
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  // Delivery Fee is applied conditionally based on delivery method and promo threshold
+  const isFreeDeliveryEligible =
+    !!restaurantSettings.freeDeliveryActive &&
+    subtotal >= (restaurantSettings.freeDeliveryThreshold || 0);
+  const actualDeliveryFee =
+    deliveryType === 'domicilio' && !isFreeDeliveryEligible
+      ? (restaurantSettings.deliveryFee ?? 0)
+      : 0;
+
+  const discount =
+    promoApplied && appliedPromoDetail
+      ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order')
+        ? subtotal * (appliedPromoDetail.value / 100)
+        : appliedPromoDetail.type === 'free_delivery'
+          ? actualDeliveryFee
+          : Math.min(appliedPromoDetail.value, subtotal)
+      : 0;
+
+  const total = subtotal - discount + actualDeliveryFee;
+
   const applyPromo = () => {
-    const res = validatePromo(promoCode, subtotal, email);
+    const res = validatePromo(promoCode, subtotal, email, deliveryType, actualDeliveryFee);
     if (res.isValid) {
       setPromoApplied(true);
       setPromoError(null);
@@ -2781,36 +3305,17 @@ export default function CustomerStorefront() {
     }
   };
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-
   // Dynamic promo validation when subtotal changes
   useEffect(() => {
     if (promoApplied && appliedPromoDetail) {
-      const res = validatePromo(appliedPromoDetail.code, subtotal, email);
+      const res = validatePromo(appliedPromoDetail.code, subtotal, email, deliveryType, actualDeliveryFee);
       if (!res.isValid) {
         setPromoApplied(false);
         setPromoError(res.error || "L'ordine non soddisfa più i requisiti della promo");
         setAppliedPromoDetail(null);
       }
     }
-  }, [subtotal, promoApplied, appliedPromoDetail, validatePromo, email]);
-
-  const discount =
-    promoApplied && appliedPromoDetail
-      ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order')
-        ? subtotal * (appliedPromoDetail.value / 100)
-        : Math.min(appliedPromoDetail.value, subtotal)
-      : 0;
-
-  // Delivery Fee is applied conditionally based on delivery method and promo threshold
-  const isFreeDeliveryEligible =
-    !!restaurantSettings.freeDeliveryActive &&
-    subtotal >= (restaurantSettings.freeDeliveryThreshold || 0);
-  const actualDeliveryFee =
-    deliveryType === 'domicilio' && !isFreeDeliveryEligible
-      ? (restaurantSettings.deliveryFee ?? 0)
-      : 0;
-  const total = subtotal - discount + actualDeliveryFee;
+  }, [subtotal, promoApplied, appliedPromoDetail, validatePromo, email, deliveryType, actualDeliveryFee]);
 
   const filteredItems = menuItemsList.filter(
     (item) =>
@@ -2905,26 +3410,68 @@ export default function CustomerStorefront() {
                 placeholder="Cerca nel menu..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${
-                  !isScrolled
+                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
                     ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
                     : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
-                }`}
+                  }`}
               />
             </div>
           </div>
 
           {/* Desktop Booking & Cart Button */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* Share Button */}
+            <button
+              onClick={handleShare}
+              title="Condividi Vetrina"
+              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                }`}
+            >
+              <Share2 size={16} />
+            </button>
+
+            {/* My Orders Button */}
+            {deliveryType !== 'tavolo' && (
+              <button
+                onClick={() => {
+                  setShowMyOrdersModal(true);
+                  if (myOrdersEmail) {
+                    try {
+                      const rId = getRestaurantId(slug);
+                      const custOrdersKey = STORAGE_KEYS.customerOrders(rId, myOrdersEmail);
+                      const raw = localStorage.getItem(custOrdersKey);
+                      if (raw) {
+                        setHistoryOrders(JSON.parse(raw));
+                      } else {
+                        setHistoryOrders([]);
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  } else {
+                    setHistoryOrders([]);
+                  }
+                }}
+                title="I miei ordini"
+                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
+                    ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                    : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                  }`}
+              >
+                <History size={16} />
+              </button>
+            )}
+
             {/* Desktop Booking Button */}
             {deliveryType !== 'tavolo' && (
               <button
                 onClick={() => setShowBookingModal(true)}
-                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
-                  !isScrolled
+                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
                     ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
                     : 'bg-[var(--success)] text-white hover:bg-green-700'
-                }`}
+                  }`}
               >
                 <CalendarCheck size={14} />
                 PRENOTA TAVOLO
@@ -2934,11 +3481,10 @@ export default function CustomerStorefront() {
             {/* Cart Button (Visible on both desktop & mobile) */}
             <button
               onClick={() => setCartOpen((o) => !o)}
-              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
-                !isScrolled
+              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
                   ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
                   : 'bg-primary text-white hover:bg-[#d43d22]'
-              }`}
+                }`}
             >
               <ShoppingCart size={14} />
               <span className="hidden sm:inline">Carrello</span>
@@ -3005,33 +3551,38 @@ export default function CustomerStorefront() {
                 </span>
               </div>
             </div>
-
-            {/* Share and Booking Buttons */}
-            <div className="flex flex-wrap gap-2.5 mt-4 sm:mt-0 flex-shrink-0">
-              <button
-                onClick={() => {
-                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                    navigator.clipboard.writeText(window.location.href);
-                    alert('Link del menu copiato negli appunti!');
-                  }
-                }}
-                className="flex items-center gap-2 bg-white/10 backdrop-blur-md hover:bg-white/20 text-white px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-white/20 transition-all active:scale-95 shadow-sm"
-              >
-                <Share2 size={16} />
-                CONDIVIDI
-              </button>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Promo banner */}
-      {deliveryType !== 'tavolo' && (
+      {deliveryType !== 'tavolo' && bannerText && (
         <div className="bg-secondary border-b border-orange-200">
           <div className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-2.5 flex items-center gap-3">
             <Tag size={14} className="text-primary flex-shrink-0" />
             <p className="text-sm text-primary font-semibold">
-              🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo ordine!
+              {activePromo ? (
+                <>
+                  {activePromo.customBannerText ? (
+                    activePromo.customBannerText
+                  ) : (
+                    <>
+                      Usa il codice <strong>{activePromo.code}</strong> per{' '}
+                      {activePromo.type === 'percentage' && `ricevere il ${activePromo.value}% di sconto`}
+                      {activePromo.type === 'first_order' && `ricevere il ${activePromo.value}% di sconto sul tuo primo ordine`}
+                      {activePromo.type === 'fixed_amount' && `ricevere uno sconto fisso di € ${activePromo.value.toFixed(2)}`}
+                      {activePromo.type === 'threshold_based' && `ricevere uno sconto di € ${activePromo.value.toFixed(2)}`}
+                      {activePromo.type === 'free_delivery' && `ottenere la consegna gratuita`}
+                      {activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0 && ` su una spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`}
+                      !
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo ordine!
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -3048,11 +3599,10 @@ export default function CustomerStorefront() {
                 <button
                   key={`cat-nav-${cat}`}
                   onClick={() => handleCategoryClick(cat)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${
-                    isActive
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
                       ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
                       : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
-                  }`}
+                    }`}
                 >
                   <span className="text-base">{icon}</span>
                   <span>{cat}</span>
@@ -3276,13 +3826,12 @@ export default function CustomerStorefront() {
       >
         <div className="space-y-4 text-center py-1">
           <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
-              availabilityError === 'closed'
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed'
                 ? 'bg-red-500/10 text-red-500'
                 : availabilityError === 'paused'
-                ? 'bg-zinc-500/10 text-zinc-500'
-                : 'bg-amber-500/10 text-amber-500'
-            }`}
+                  ? 'bg-zinc-500/10 text-zinc-500'
+                  : 'bg-amber-500/10 text-amber-500'
+              }`}
           >
             {availabilityError === 'closed' ? (
               <Clock size={22} />
@@ -3297,8 +3846,8 @@ export default function CustomerStorefront() {
               {availabilityError === 'closed'
                 ? 'Locale Chiuso'
                 : availabilityError === 'paused'
-                ? 'Ristorante in Pausa'
-                : 'Consegna Non Disponibile'}
+                  ? 'Ristorante in Pausa'
+                  : 'Consegna Non Disponibile'}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
               {getClosedReason()}
@@ -3460,7 +4009,7 @@ export default function CustomerStorefront() {
                           'iGO_booking_info',
                           JSON.stringify({ name: bookingName, phone: bookingPhone })
                         );
-                        
+
                         const rId = getRestaurantId(slug);
                         const bookingsKey = STORAGE_KEYS.bookings(rId);
                         const existingStr = localStorage.getItem(bookingsKey);
@@ -3472,7 +4021,7 @@ export default function CustomerStorefront() {
                             console.error(e);
                           }
                         }
-                        
+
                         const newBooking = {
                           id: `booking-${Date.now()}`,
                           restaurantId: rId,
@@ -3486,7 +4035,7 @@ export default function CustomerStorefront() {
                           notes: '',
                           createdAt: new Date().toISOString(),
                         };
-                        
+
                         bookingsArray.push(newBooking);
                         localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
                         window.dispatchEvent(new Event('iGO_bookings_updated'));
@@ -3579,11 +4128,10 @@ export default function CustomerStorefront() {
                     setSimulatedTime('paused');
                   }
                 }}
-                className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                  simulatedTime === 'paused'
+                className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${simulatedTime === 'paused'
                     ? 'bg-red-600 text-white shadow-sm'
                     : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
-                }`}
+                  }`}
               >
                 <span>Forza Locale Chiuso (Pausa)</span>
                 <span className="w-2 h-2 rounded-full bg-red-500" />
@@ -3596,7 +4144,164 @@ export default function CustomerStorefront() {
         </div>
       )}
 
+      {/* My Orders Modal */}
+      <Modal
+        open={showMyOrdersModal}
+        onClose={() => {
+          setShowMyOrdersModal(false);
+          setSelectedHistoryOrder(null);
+        }}
+        size="md"
+        title={selectedHistoryOrder ? 'Dettaglio Ordine' : 'I Miei Ordini'}
+      >
+        {selectedHistoryOrder ? (
+          <div className="space-y-4">
+            <button
+              onClick={() => setSelectedHistoryOrder(null)}
+              className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2 animate-fade-in"
+            >
+              ← Torna alla lista
+            </button>
+            <DigitalReceipt order={selectedHistoryOrder} onPrint={() => handlePrintReceipt(selectedHistoryOrder)} />
+          </div>
+        ) : !myOrdersEmail ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (historyEmailInput.trim() && historyEmailInput.includes('@')) {
+                const cleanedEmail = historyEmailInput.trim().toLowerCase();
+                setMyOrdersEmail(cleanedEmail);
+                try {
+                  const rId = getRestaurantId(slug);
+                  const custOrdersKey = STORAGE_KEYS.customerOrders(rId, cleanedEmail);
+                  const raw = localStorage.getItem(custOrdersKey);
+                  if (raw) {
+                    setHistoryOrders(JSON.parse(raw));
+                  } else {
+                    setHistoryOrders([]);
+                  }
+                } catch (err) {
+                  console.error(err);
+                }
+              }
+            }}
+            className="space-y-4 py-4 text-center"
+          >
+            <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
+              <History size={24} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-foreground">Visualizza i tuoi ordini</h3>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                Inserisci l'email utilizzata per gli ordini per recuperare lo storico dei tuoi ultimi 10 acquisti.
+              </p>
+            </div>
+            <div className="max-w-xs mx-auto space-y-3">
+              <input
+                type="email"
+                required
+                value={historyEmailInput}
+                onChange={(e) => setHistoryEmailInput(e.target.value)}
+                placeholder="La tua email..."
+                className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground/50"
+              />
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-colors"
+              >
+                Cerca Ordini
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-4 py-2">
+            <div className="flex justify-between items-center pb-2 border-b border-border/40">
+              <span className="text-xs text-muted-foreground">
+                Ordini per: <strong className="text-foreground">{myOrdersEmail}</strong>
+              </span>
+              <button
+                onClick={() => {
+                  setMyOrdersEmail('');
+                  setHistoryEmailInput('');
+                  setHistoryOrders([]);
+                }}
+                className="text-[10px] text-red-500 font-bold hover:underline"
+              >
+                Cambia Email
+              </button>
+            </div>
+
+            {historyOrders.length === 0 ? (
+              <div className="text-center py-8 space-y-2 text-muted-foreground">
+                <p className="text-sm">Nessun ordine trovato per questa email.</p>
+                <p className="text-xs">Gli ordini effettuati compariranno qui.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                {historyOrders.map((order: any) => {
+                  // Fetch live status if changed in localstorage
+                  let liveStatus = order.status;
+                  try {
+                    const rId = getRestaurantId(slug);
+                    const rawAll = localStorage.getItem(STORAGE_KEYS.orders(rId));
+                    if (rawAll) {
+                      const allOrders = JSON.parse(rawAll);
+                      const found = allOrders.find((o: any) => o.id === order.id);
+                      if (found) liveStatus = found.status;
+                    }
+                  } catch (e) { }
+
+                  const getStatusBadge = (st: string) => {
+                    switch (st) {
+                      case 'new':
+                        return <Badge variant="info">Ricevuto</Badge>;
+                      case 'accepted':
+                        return <Badge variant="warning">In Cucina</Badge>;
+                      case 'preparing':
+                        return <Badge variant="warning">In Preparazione</Badge>;
+                      case 'delivering':
+                        return <Badge variant="primary">In Consegna</Badge>;
+                      case 'completed':
+                        return <Badge variant="success">Consegnato</Badge>;
+                      default:
+                        return <Badge>{st}</Badge>;
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={order.id}
+                      onClick={() => setSelectedHistoryOrder({ ...order, status: liveStatus })}
+                      className="border border-border hover:border-primary/30 rounded-xl p-3 bg-card flex justify-between items-center cursor-pointer transition-colors"
+                    >
+                      <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold font-mono text-foreground">{order.id}</span>
+                          {getStatusBadge(liveStatus)}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(order.timestamp).toLocaleDateString('it-IT')} - {order.itemsCount} {order.itemsCount === 1 ? 'prodotto' : 'prodotti'}
+                        </p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="text-xs font-extrabold text-foreground">€ {order.total.toFixed(2)}</p>
+                        <p className="text-[9px] font-bold text-primary uppercase">{order.type}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
       {/* Mobile Sticky Bottom Bar for Cart */}
+      {showCopiedToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-black/85 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 animate-fade-in backdrop-blur-xs">
+          <span>Link copiato negli appunti!</span>
+        </div>
+      )}
     </div>
   );
 }

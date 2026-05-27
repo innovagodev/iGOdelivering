@@ -151,18 +151,28 @@ export default function AdminRestaurantsPage() {
   }, []);
 
   const handleToggleSuspend = (id: string) => {
-    setRestaurants((prev) =>
-      prev.map((r) => {
-        if (r.id !== id) return r;
-        const newStatus = r.status === 'suspended' ? 'published' : 'suspended';
-        return { ...r, status: newStatus };
-      })
-    );
+    const updated = restaurants.map((r) => {
+      if (r.id !== id) return r;
+      const newStatus: 'published' | 'suspended' = r.status === 'suspended' ? 'published' : 'suspended';
+      return { ...r, status: newStatus };
+    });
+    setRestaurants(updated);
+    try {
+      localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleDeleteConfirm = () => {
     if (!deleteTarget) return;
-    setRestaurants((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+    const updated = restaurants.filter((r) => r.id !== deleteTarget.id);
+    setRestaurants(updated);
+    try {
+      localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
     setDeleteTarget(null);
   };
 

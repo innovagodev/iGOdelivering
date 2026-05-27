@@ -109,6 +109,42 @@ export default function AdminUtentiPage() {
     }
   }, []);
 
+  const updateRestaurantInStorage = (userEmail: string, updater: (r: any) => any) => {
+    try {
+      const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+      let list = storedStr ? JSON.parse(storedStr) : [];
+      
+      const hasRestaurant = list.some((r: any) => r.email === userEmail);
+      if (!hasRestaurant) {
+        const matchedMock = mockUsers.find(u => u.email === userEmail);
+        if (matchedMock) {
+          list.push({
+            id: matchedMock.id.replace('u-', 'r-'),
+            name: matchedMock.restaurantName,
+            email: matchedMock.email,
+            owner: matchedMock.name,
+            status: matchedMock.status === 'suspended' ? 'suspended' : matchedMock.status === 'pending' ? 'draft' : 'published',
+            createdAt: '2026-01-15',
+            menuItems: 0,
+            ordersToday: 0,
+            category: 'Pizzeria'
+          });
+        }
+      }
+      
+      list = list.map((r: any) => {
+        if (r.email === userEmail) {
+          return updater(r);
+        }
+        return r;
+      });
+      
+      localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(list));
+    } catch (e) {
+      console.error('Error updating restaurant in storage:', e);
+    }
+  };
+
   const handlePasswordReset = (user: RestorateurUser) => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
     let pass = '';
@@ -118,6 +154,13 @@ export default function AdminUtentiPage() {
     setTempPassword(pass);
     setResettingUser(user);
     setCopied(false);
+    
+    // Persist the temp password on the restaurant object
+    updateRestaurantInStorage(user.email, (r) => ({
+      ...r,
+      tempPassword: pass,
+      password: undefined // Clear old password since it's reset
+    }));
   };
 
   const handleCopyPassword = () => {
@@ -133,6 +176,14 @@ export default function AdminUtentiPage() {
         return { ...u, status: newStatus };
       })
     );
+
+    const targetUser = users.find(u => u.id === id);
+    if (targetUser) {
+      updateRestaurantInStorage(targetUser.email, (r) => ({
+        ...r,
+        status: newStatus === 'suspended' ? 'suspended' : 'published'
+      }));
+    }
   };
 
   const filteredUsers = users.filter((u) => {

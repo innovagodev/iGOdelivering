@@ -11,7 +11,7 @@ import {
   Tag,
 } from 'lucide-react';
 
-import { RestaurantInfo, DeliveryZone, DayHours, MenuItemWizardDraft } from '@/types';
+import { RestaurantInfo, DeliveryZone, DayHours, MenuItemWizardDraft, PromoCode } from '@/types';
 
 interface ReviewStepProps {
   info: RestaurantInfo;
@@ -19,6 +19,7 @@ interface ReviewStepProps {
   hours: Record<string, DayHours>;
   menuItems: MenuItemWizardDraft[];
   menuCategories: string[];
+  promos?: PromoCode[];
   handlePublish: () => void;
 }
 
@@ -58,11 +59,13 @@ export default function ReviewStep({
   hours,
   menuItems,
   menuCategories,
+  promos,
   handlePublish,
 }: ReviewStepProps) {
   const activeZones = zones.filter((z) => z.enabled);
   const openDays = Object.values(hours).filter((h) => h.open).length;
   const maxRadius = Math.max(...zones.map((z) => z.radius), 0);
+  const activePromos = promos?.filter((p) => p.active) || [];
 
   return (
     <div className="space-y-6">
@@ -101,6 +104,14 @@ export default function ReviewStep({
           primary={`${menuItems.length} Piatti`}
           secondary={`${menuCategories.length} Categorie configurate`}
         />
+        {promos !== undefined && (
+          <SummaryCard
+            icon={<Tag size={16} />}
+            title="Promozioni"
+            primary={`${activePromos.length} Attive`}
+            secondary={`${promos.length} Codici in totale`}
+          />
+        )}
       </div>
 
       {/* Category chips (optional, shows categories at a glance) */}
@@ -120,6 +131,44 @@ export default function ReviewStep({
                 {cat}
               </span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Promo codes summary */}
+      {promos && promos.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+            <Tag size={13} />
+            Codici Promo & Offerte
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {promos.map((p) => {
+              const promoLabels: Record<string, string> = {
+                percentage: 'Sconto %',
+                fixed_amount: 'Sconto Fisso',
+                threshold_based: 'A Soglia',
+                first_order: 'Primo Ordine',
+                free_delivery: 'Consegna Gratuita',
+              };
+              return (
+                <div key={p.id} className="border border-border/80 rounded-xl p-3 flex items-center justify-between bg-muted/40">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-xs bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 uppercase">
+                        {p.code}
+                      </span>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${p.active ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}>
+                        {p.active ? 'Attivo' : 'Inattivo'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5 font-medium">
+                      {p.description || `${promoLabels[p.type] || p.type} - Valore: ${p.type === 'free_delivery' ? 'Gratis' : p.value + (p.type === 'percentage' || p.type === 'first_order' ? '%' : '€')}`}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

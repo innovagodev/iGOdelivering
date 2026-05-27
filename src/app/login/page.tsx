@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { useAuth } from '@/context/AuthContext';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 import {
   Eye,
   EyeOff,
@@ -124,26 +125,77 @@ export default function LoginPage() {
         (c) => c.email === data.email && c.password === data.password
       );
 
-      if (!match) {
-        setLoginError("Credenziali non valide. Contatta il supporto se hai perso l'accesso.");
+      if (match) {
+        if (match.isFirstLogin) {
+          setIsFirstLogin(true);
+          setPendingEmail(data.email);
+          setPendingRole(match.role);
+        } else {
+          login(data.email, match.role);
+          window.location.href = match.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
+        }
         return;
       }
 
-      if (match.isFirstLogin) {
-        setIsFirstLogin(true);
-        setPendingEmail(data.email);
-        setPendingRole(match.role);
-      } else {
-        login(data.email, match.role);
-        window.location.href = match.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
+      // Check dynamic restaurants in localStorage
+      try {
+        const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+        if (storedStr) {
+          const restaurants = JSON.parse(storedStr);
+          const matchedRest = restaurants.find((r: any) => r.email === data.email);
+          
+          if (matchedRest) {
+            if (matchedRest.status === 'suspended') {
+              setLoginError("Questo account è sospeso. Contatta l'amministratore.");
+              return;
+            }
+            
+            const correctPass = matchedRest.password || matchedRest.tempPassword || 'Ristoro2026!';
+            if (data.password === correctPass) {
+              if (matchedRest.tempPassword && data.password === matchedRest.tempPassword) {
+                setIsFirstLogin(true);
+                setPendingEmail(data.email);
+                setPendingRole('ristoratore');
+              } else {
+                login(data.email, 'ristoratore');
+                window.location.href = '/ristoratore/dashboard';
+              }
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error during login check in localStorage:', e);
       }
+
+      setLoginError("Credenziali non valide. Contatta il supporto se hai perso l'accesso.");
     }, 800);
   });
 
-  const handleChangePassword = changePasswordForm.handleSubmit(() => {
+  const handleChangePassword = changePasswordForm.handleSubmit((data) => {
     setLoginLoading(true);
     setTimeout(() => {
       setLoginLoading(false);
+      try {
+        const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+        if (storedStr) {
+          let list = JSON.parse(storedStr);
+          list = list.map((r: any) => {
+            if (r.email === pendingEmail) {
+              return {
+                ...r,
+                password: data.newPassword,
+                tempPassword: undefined,
+              };
+            }
+            return r;
+          });
+          localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(list));
+        }
+      } catch (e) {
+        console.error('Error updating password in localStorage:', e);
+      }
+
       login(pendingEmail, pendingRole);
       window.location.href =
         pendingRole === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';

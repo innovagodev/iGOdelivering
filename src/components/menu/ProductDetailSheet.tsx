@@ -2,7 +2,41 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus, Check, Star } from 'lucide-react';
 import AppImage from '@/components/ui/AppImage';
 import Badge from '@/components/ui/Badge';
-import { MenuItemType, CartItem } from './PopularSection';
+export interface OptionChoice {
+  id: string;
+  name: string;
+  price: string | number;
+}
+
+export interface OptionGroup {
+  id: string;
+  name: string;
+  choices: OptionChoice[];
+}
+
+export interface MenuItemType {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  originalPrice?: number;
+  description: string;
+  image: string;
+  imageAlt: string;
+  popular?: boolean;
+  veg?: boolean;
+  spicy?: boolean;
+  allergens: string[];
+  optionGroups?: OptionGroup[];
+}
+
+export interface CartItem extends MenuItemType {
+  qty: number;
+  note?: string;
+  cartId?: string;
+  addedIngredients?: { name: string; price: number }[];
+  removedIngredients?: string[];
+}
 
 interface ProductDetailSheetProps {
   item: MenuItemType | null;
@@ -115,7 +149,8 @@ export default function ProductDetailSheet({
 
   if (!isOpen || !item) return null;
 
-  const { extras, removes } = getCustomizationOptions(item.category);
+  const hasCustomOptions = !!(item.optionGroups && item.optionGroups.length > 0);
+  const { extras, removes } = hasCustomOptions ? { extras: [], removes: [] } : getCustomizationOptions(item.category);
 
   const toggleExtra = (ext: { name: string; price: number }) => {
     setAdded((prev) =>
@@ -127,6 +162,42 @@ export default function ProductDetailSheet({
 
   const toggleRemove = (rem: string) => {
     setRemoved((prev) => (prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]));
+  };
+
+  const isGroupSingleSelect = (groupName: string) => {
+    const normalized = groupName.toLowerCase();
+    return (
+      normalized.includes('scegli') ||
+      normalized.includes('tipo') ||
+      normalized.includes('formato') ||
+      normalized.includes('impasto') ||
+      normalized.includes('cottura') ||
+      normalized.includes('gusto') ||
+      normalized.includes('base') ||
+      normalized.includes('stile') ||
+      normalized.includes('dimensione') ||
+      normalized.includes('taglia')
+    );
+  };
+
+  const toggleGroupOption = (group: OptionGroup, choice: OptionChoice) => {
+    const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+    const isSingle = isGroupSingleSelect(group.name);
+    
+    if (isSingle) {
+      const otherChoiceNames = group.choices.map((c) => c.name);
+      setAdded((prev) => {
+        const filtered = prev.filter((e) => !otherChoiceNames.includes(e.name));
+        const alreadySelected = prev.some((e) => e.name === choice.name);
+        if (alreadySelected) {
+          return filtered;
+        } else {
+          return [...filtered, { name: choice.name, price: priceVal }];
+        }
+      });
+    } else {
+      toggleExtra({ name: choice.name, price: priceVal });
+    }
   };
 
   const handleQuickTag = (tag: string) => {
@@ -322,6 +393,58 @@ export default function ProductDetailSheet({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Dynamic Option Groups */}
+          {item.optionGroups && item.optionGroups.length > 0 && (
+            <div className="space-y-4">
+              {item.optionGroups.map((group) => {
+                const isSingle = isGroupSingleSelect(group.name);
+                return (
+                  <div key={group.id} className="space-y-2.5">
+                    <h5 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center justify-between">
+                      <span>{group.name}</span>
+                      <span className="text-[9px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border/40">
+                        {isSingle ? 'Scelta Singola' : 'Scelte Multiple'}
+                      </span>
+                    </h5>
+                    <div className="divide-y divide-border/40 border border-border/40 rounded-2xl bg-card overflow-hidden">
+                      {group.choices.map((choice) => {
+                        const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+                        const isChecked = added.some((e) => e.name === choice.name);
+                        return (
+                          <div
+                            key={choice.id}
+                            onClick={() => toggleGroupOption(group, choice)}
+                            className="flex items-center justify-between p-3.5 hover:bg-muted/20 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-4.5 h-4.5 border flex items-center justify-center transition-all ${
+                                  isSingle ? 'rounded-full' : 'rounded-md'
+                                } ${
+                                  isChecked
+                                    ? 'bg-primary border-primary text-white shadow-xs'
+                                    : 'border-border-strong bg-muted/20'
+                                }`}
+                              >
+                                {isChecked && <Check size={11} className="stroke-[3.5]" />}
+                              </div>
+                              <span className="text-xs font-medium text-foreground">{choice.name}</span>
+                            </div>
+                            {priceVal > 0 && (
+                              <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                                + € {priceVal.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 

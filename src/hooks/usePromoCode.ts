@@ -70,7 +70,9 @@ export function usePromoCode(slugOrId: string) {
   const validatePromo = (
     code: string,
     subtotal: number,
-    email?: string
+    email?: string,
+    deliveryMode?: 'domicilio' | 'asporto' | 'tavolo',
+    deliveryFee?: number
   ): {
     isValid: boolean;
     error?: string;
@@ -143,6 +145,34 @@ export function usePromoCode(slugOrId: string) {
       return { isValid: false, error: 'Questa promozione è scaduta' };
     }
 
+    // Max Uses Check
+    if (
+      found.maxUses !== undefined &&
+      found.usedCount !== undefined &&
+      found.maxUses > 0 &&
+      found.usedCount >= found.maxUses
+    ) {
+      return { isValid: false, error: 'Questo codice ha raggiunto il limite massimo di utilizzi' };
+    }
+
+    // Order Mode Check
+    if (found.applicableDeliveryModes && found.applicableDeliveryModes.length > 0 && deliveryMode) {
+      if (!found.applicableDeliveryModes.includes(deliveryMode)) {
+        const modeLabels: Record<string, string> = {
+          domicilio: 'Consegna a Domicilio',
+          asporto: 'Asporto',
+          tavolo: 'Ordine al Tavolo',
+        };
+        const allowedModesStr = found.applicableDeliveryModes
+          .map((m) => modeLabels[m] || m)
+          .join(', ');
+        return {
+          isValid: false,
+          error: `Questo codice è applicabile solo per: ${allowedModesStr}`,
+        };
+      }
+    }
+
     // Threshold Check (Sconto a Soglia)
     if (found.minOrderSubtotal && subtotal < found.minOrderSubtotal) {
       return {
@@ -181,6 +211,14 @@ export function usePromoCode(slugOrId: string) {
     let discount = 0;
     if (found.type === 'percentage' || found.type === 'first_order') {
       discount = subtotal * (found.value / 100);
+    } else if (found.type === 'free_delivery') {
+      if (deliveryMode !== 'domicilio') {
+        return {
+          isValid: false,
+          error: 'Il codice di consegna gratuita è applicabile solo per ordini a domicilio.',
+        };
+      }
+      discount = deliveryFee || 0;
     } else {
       discount = Math.min(found.value, subtotal);
     }

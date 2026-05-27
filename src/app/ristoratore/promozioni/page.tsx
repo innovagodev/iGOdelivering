@@ -54,6 +54,9 @@ export default function PromozioniPage() {
   const [endDate, setEndDate] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [description, setDescription] = useState('');
+  const [maxUses, setMaxUses] = useState('');
+  const [customBannerText, setCustomBannerText] = useState('');
+  const [applicableDeliveryModes, setApplicableDeliveryModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>(['domicilio', 'asporto', 'tavolo']);
 
   useEffect(() => {
     // Restore sidebar state
@@ -108,6 +111,9 @@ export default function PromozioniPage() {
     setEndDate('');
     setIsActive(true);
     setDescription('');
+    setMaxUses('');
+    setCustomBannerText('');
+    setApplicableDeliveryModes(['domicilio', 'asporto', 'tavolo']);
     setShowModal(true);
   };
 
@@ -121,6 +127,9 @@ export default function PromozioniPage() {
     setEndDate(promo.endDate || '');
     setIsActive(promo.active);
     setDescription(promo.description || '');
+    setMaxUses(promo.maxUses !== undefined ? promo.maxUses.toString() : '');
+    setCustomBannerText(promo.customBannerText || '');
+    setApplicableDeliveryModes(promo.applicableDeliveryModes || ['domicilio', 'asporto', 'tavolo']);
     setShowModal(true);
   };
 
@@ -148,6 +157,10 @@ export default function PromozioniPage() {
       startDate: startDate ? startDate : undefined,
       endDate: endDate ? endDate : undefined,
       description: description.trim() ? description.trim() : undefined,
+      maxUses: maxUses ? parseInt(maxUses, 10) : undefined,
+      usedCount: editingPromo ? (editingPromo.usedCount || 0) : 0,
+      customBannerText: customBannerText.trim() ? customBannerText.trim() : undefined,
+      applicableDeliveryModes: applicableDeliveryModes.length > 0 ? applicableDeliveryModes : undefined,
     };
 
     let updated: PromoCode[];
@@ -286,6 +299,11 @@ export default function PromozioniPage() {
                                   € {promo.value.toFixed(2)} a Soglia
                                 </Badge>
                               )}
+                              {promo.type === 'free_delivery' && (
+                                <Badge variant="primary" icon={<Euro size={11} />}>
+                                  Consegna Gratuita
+                                </Badge>
+                              )}
                             </td>
                             <td className="px-6 py-4 font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
                               {promo.minOrderSubtotal
@@ -296,17 +314,29 @@ export default function PromozioniPage() {
                               <p className="text-foreground font-medium line-clamp-1">
                                 {promo.description || 'Nessuna descrizione'}
                               </p>
-                              {(promo.startDate || promo.endDate) && (
-                                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                                  <Calendar size={11} />
-                                  {promo.startDate
-                                    ? `Dal ${new Date(promo.startDate).toLocaleDateString('it')}`
-                                    : ''}
-                                  {promo.endDate
-                                    ? ` al ${new Date(promo.endDate).toLocaleDateString('it')}`
-                                    : ' (Senza scadenza)'}
-                                </p>
-                              )}
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                {(promo.startDate || promo.endDate) && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar size={11} />
+                                    {promo.startDate
+                                      ? `Dal ${new Date(promo.startDate).toLocaleDateString('it')}`
+                                      : ''}
+                                    {promo.endDate
+                                      ? ` al ${new Date(promo.endDate).toLocaleDateString('it')}`
+                                      : ' (Senza scadenza)'}
+                                  </span>
+                                )}
+                                {promo.maxUses !== undefined && promo.maxUses > 0 && (
+                                  <span className="font-semibold text-primary">
+                                    Uso: {promo.usedCount || 0}/{promo.maxUses}
+                                  </span>
+                                )}
+                                {promo.applicableDeliveryModes && promo.applicableDeliveryModes.length > 0 && (
+                                  <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+                                    Canali: {promo.applicableDeliveryModes.join(', ')}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
@@ -383,6 +413,11 @@ export default function PromozioniPage() {
                                   € {promo.value.toFixed(2)} Soglia
                                 </Badge>
                               )}
+                              {promo.type === 'free_delivery' && (
+                                <Badge variant="primary" icon={<Euro size={11} />}>
+                                  Cons. Gratuita
+                                </Badge>
+                              )}
                             </div>
                           </div>
 
@@ -403,19 +438,31 @@ export default function PromozioniPage() {
                           <p className="text-sm font-medium text-foreground">
                             {promo.description || 'Nessuna descrizione'}
                           </p>
-                          {(promo.startDate || promo.endDate) && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <Calendar size={12} />
-                              <span>
-                                {promo.startDate
-                                  ? `Dal ${new Date(promo.startDate).toLocaleDateString('it')}`
-                                  : ''}
-                                {promo.endDate
-                                  ? ` al ${new Date(promo.endDate).toLocaleDateString('it')}`
-                                  : ' (Senza scadenza)'}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            {(promo.startDate || promo.endDate) && (
+                              <span className="flex items-center gap-1.5">
+                                <Calendar size={12} />
+                                <span>
+                                  {promo.startDate
+                                    ? `Dal ${new Date(promo.startDate).toLocaleDateString('it')}`
+                                    : ''}
+                                  {promo.endDate
+                                    ? ` al ${new Date(promo.endDate).toLocaleDateString('it')}`
+                                    : ' (Senza scadenza)'}
+                                </span>
                               </span>
-                            </p>
-                          )}
+                            )}
+                            {promo.maxUses !== undefined && promo.maxUses > 0 && (
+                              <span className="font-semibold text-primary">
+                                Uso: {promo.usedCount || 0}/{promo.maxUses}
+                              </span>
+                            )}
+                            {promo.applicableDeliveryModes && promo.applicableDeliveryModes.length > 0 && (
+                              <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+                                Canali: {promo.applicableDeliveryModes.join(', ')}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Actions */}
@@ -480,36 +527,39 @@ export default function PromozioniPage() {
               <option value="fixed_amount">Fisso (€)</option>
               <option value="threshold_based">A Soglia (€)</option>
               <option value="first_order">Primo Ordine (%)</option>
+              <option value="free_delivery">Consegna Gratuita</option>
             </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Valore Sconto *
-            </label>
-            <div className="relative">
-              {type === 'percentage' || type === 'first_order' ? (
-                <Percent
-                  size={14}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+          {type !== 'free_delivery' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Valore Sconto *
+              </label>
+              <div className="relative">
+                {type === 'percentage' || type === 'first_order' ? (
+                  <Percent
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                ) : (
+                  <Euro
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                )}
+                <input
+                  type="number"
+                  min="0.1"
+                  step={type === 'percentage' || type === 'first_order' ? '1' : '0.5'}
+                  required
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
                 />
-              ) : (
-                <Euro
-                  size={14}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-              )}
-              <input
-                type="number"
-                min="0.1"
-                step={type === 'percentage' || type === 'first_order' ? '1' : '0.5'}
-                required
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
-              />
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -566,6 +616,64 @@ export default function PromozioniPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Es. Offerta di primavera, riservata a clienti registrati..."
               className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Limite Utilizzi Totale (Opzionale)
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value)}
+              placeholder="Nessun limite"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Canali d'ordine abilitati
+            </label>
+            <div className="flex flex-wrap gap-4 mt-2 bg-muted/30 border border-border/50 p-3.5 rounded-xl">
+              {[
+                { id: 'domicilio', label: 'Domicilio' },
+                { id: 'asporto', label: 'Asporto' },
+                { id: 'tavolo', label: 'Tavolo' },
+              ].map((mode) => {
+                const isSelected = applicableDeliveryModes.includes(mode.id as any);
+                return (
+                  <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        if (isSelected) {
+                          setApplicableDeliveryModes(applicableDeliveryModes.filter((m) => m !== mode.id));
+                        } else {
+                          setApplicableDeliveryModes([...applicableDeliveryModes, mode.id as any]);
+                        }
+                      }}
+                      className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                    />
+                    <span className="text-sm text-foreground font-medium">{mode.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Testo personalizzato per il Banner in Vetrina (Opzionale)
+            </label>
+            <textarea
+              value={customBannerText}
+              onChange={(e) => setCustomBannerText(e.target.value)}
+              placeholder="Es. 🎉 Usa il codice WELCOME10 per ricevere il 10% di sconto sul primo ordine!"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
             />
           </div>
 

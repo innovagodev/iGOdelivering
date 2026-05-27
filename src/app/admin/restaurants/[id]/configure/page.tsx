@@ -18,7 +18,17 @@ import {
   Printer,
   Download,
   Plus,
-  Minus
+  Minus,
+  Tag,
+  Percent,
+  Euro,
+  Calendar,
+  Edit2,
+  Trash2,
+  UserCheck,
+  TrendingUp,
+  Info,
+  AlertCircle
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
@@ -65,7 +75,9 @@ import {
   WizardOptionChoice,
   MenuItemDraft,
   OptionGroup,
-  MenuItem
+  MenuItem,
+  PromoCode,
+  PromoType
 } from '@/types';
 
 import {
@@ -76,7 +88,11 @@ import {
   TIME_WINDOWS
 } from '@/lib/constants';
 
-type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'payment' | 'menu' | 'tavoli' | 'review';
+import Toggle from '@/components/ui/Toggle';
+import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
+
+type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'payment' | 'menu' | 'tavoli' | 'promozioni' | 'review';
 
 const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'info', label: 'Informazioni', description: 'Dati anagrafici e contatti' },
@@ -86,6 +102,7 @@ const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'payment', label: 'Pagamento', description: 'Metodi di pagamento accettati' },
   { id: 'menu', label: 'Menu', description: 'Categorie, piatti e opzioni' },
   { id: 'tavoli', label: 'Tavoli & QR', description: 'Configurazione tavoli e QR code' },
+  { id: 'promozioni', label: 'Promozioni', description: 'Codici sconto e offerte' },
   { id: 'review', label: 'Salva', description: 'Revisione e salvataggio' },
 ];
 
@@ -172,6 +189,95 @@ export default function RestaurantConfigurePage() {
   const restaurantId = params?.id as string;
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [promos, setPromos] = useState<PromoCode[]>([]);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
+
+  // Promo Form states
+  const [promoCode, setPromoCode] = useState('');
+  const [promoType, setPromoType] = useState<PromoType>('percentage');
+  const [promoValue, setPromoValue] = useState('10');
+  const [promoMinOrder, setPromoMinOrder] = useState('15');
+  const [promoStart, setPromoStart] = useState('');
+  const [promoEnd, setPromoEnd] = useState('');
+  const [promoActive, setPromoActive] = useState(true);
+  const [promoDesc, setPromoDesc] = useState('');
+  const [promoMaxUses, setPromoMaxUses] = useState('');
+  const [promoCustomBanner, setPromoCustomBanner] = useState('');
+  const [promoModes, setPromoModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>(['domicilio', 'asporto', 'tavolo']);
+
+  const handleTogglePromo = (id: string) => {
+    setPromos(promos.map((p) => (p.id === id ? { ...p, active: !p.active } : p)));
+  };
+
+  const handleOpenAddPromoModal = () => {
+    setEditingPromo(null);
+    setPromoCode('');
+    setPromoType('percentage');
+    setPromoValue('10');
+    setPromoMinOrder('0');
+    setPromoStart('');
+    setPromoEnd('');
+    setPromoActive(true);
+    setPromoDesc('');
+    setPromoMaxUses('');
+    setPromoCustomBanner('');
+    setPromoModes(['domicilio', 'asporto', 'tavolo']);
+    setShowPromoModal(true);
+  };
+
+  const handleOpenEditPromoModal = (promo: PromoCode) => {
+    setEditingPromo(promo);
+    setPromoCode(promo.code);
+    setPromoType(promo.type);
+    setPromoValue(promo.value.toString());
+    setPromoMinOrder((promo.minOrderSubtotal || 0).toString());
+    setPromoStart(promo.startDate || '');
+    setPromoEnd(promo.endDate || '');
+    setPromoActive(promo.active);
+    setPromoDesc(promo.description || '');
+    setPromoMaxUses(promo.maxUses !== undefined ? promo.maxUses.toString() : '');
+    setPromoCustomBanner(promo.customBannerText || '');
+    setPromoModes(promo.applicableDeliveryModes || ['domicilio', 'asporto', 'tavolo']);
+    setShowPromoModal(true);
+  };
+
+  const handleDeletePromo = (id: string) => {
+    if (confirm('Sei sicuro di voler eliminare questo codice promozionale?')) {
+      setPromos(promos.filter((p) => p.id !== id));
+    }
+  };
+
+  const handlePromoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoCode.trim()) return;
+
+    const cleanCode = promoCode.trim().toUpperCase().replace(/\s+/g, '');
+
+    const promoData: PromoCode = {
+      id: editingPromo ? editingPromo.id : `promo-${Date.now()}`,
+      code: cleanCode,
+      type: promoType,
+      value: promoType === 'free_delivery' ? 0 : parseFloat(promoValue) || 0,
+      minOrderSubtotal: parseFloat(promoMinOrder) || undefined,
+      active: promoActive,
+      startDate: promoStart ? promoStart : undefined,
+      endDate: promoEnd ? promoEnd : undefined,
+      description: promoDesc.trim() ? promoDesc.trim() : undefined,
+      maxUses: promoMaxUses ? parseInt(promoMaxUses, 10) : undefined,
+      usedCount: editingPromo ? (editingPromo.usedCount || 0) : 0,
+      customBannerText: promoCustomBanner.trim() ? promoCustomBanner.trim() : undefined,
+      applicableDeliveryModes: promoModes.length > 0 ? promoModes : undefined,
+    };
+
+    if (editingPromo) {
+      setPromos(promos.map((p) => (p.id === editingPromo.id ? promoData : p)));
+    } else {
+      setPromos([...promos, promoData]);
+    }
+    setShowPromoModal(false);
+  };
+
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [saved, setSaved] = useState(false);
@@ -345,7 +451,7 @@ export default function RestaurantConfigurePage() {
 
   // --- HELPERS ---
   const stepOrder: WizardStep[] = [
-    'info', 'delivery', 'hours', 'scheduled', 'payment', 'menu', 'tavoli', 'review',
+    'info', 'delivery', 'hours', 'scheduled', 'payment', 'menu', 'tavoli', 'promozioni', 'review',
   ];
   const currentIndex = stepOrder.indexOf(currentStep);
   const progressPercent = Math.round((currentIndex / (stepOrder.length - 1)) * 100);
@@ -727,6 +833,21 @@ export default function RestaurantConfigurePage() {
       });
 
       setMenuItems(mappedWizardItems);
+
+      // Restore promos
+      try {
+        const storedPromos = localStorage.getItem(`iGO_promos_${restaurantId}`);
+        if (storedPromos) {
+          const parsed = JSON.parse(storedPromos).map((p: any) => ({
+            ...p,
+            type: p.type === 'fixed' ? 'fixed_amount' : p.type,
+          }));
+          setPromos(parsed);
+        } else {
+          setPromos([]);
+        }
+      } catch (e) {}
+
       setIsHydrated(true);
     } catch (err) {
       console.error('Error hydrating configuration page:', err);
@@ -883,6 +1004,9 @@ export default function RestaurantConfigurePage() {
       // Save menu items
       localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
       localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
+
+      // Save promos
+      localStorage.setItem(`iGO_promos_${restaurantId}`, JSON.stringify(promos));
 
       // Save in restaurant lists
       const saveRestaurantInList = (key: string) => {
@@ -1758,6 +1882,164 @@ export default function RestaurantConfigurePage() {
               )}
             </div>
           )}
+            {currentStep === 'promozioni' && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground font-sans">Gestione Promozioni & Codici Sconto</h2>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">
+                      Definisci i codici promozionali, le soglie d'ordine e le offerte di spedizione gratuita per questo ristorante.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleOpenAddPromoModal}
+                    className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
+                  >
+                    <Plus size={16} />
+                    Aggiungi Codice
+                  </button>
+                </div>
+
+                <div className="bg-card border border-border rounded-xl p-4 flex gap-3 shadow-card">
+                  <Info size={20} className="text-primary flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <h4 className="font-semibold text-foreground">Campagne Promo professionali!</h4>
+                    <p className="text-muted-foreground mt-1 leading-relaxed">
+                      I codici sconto possono essere a percentuale, importo fisso, primo ordine o consegna gratuita. Puoi configurare scadenze temporali, limiti massimi di utilizzo e canali d'ordine specifici (es. solo domicilio).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+                  {promos.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <AlertCircle size={32} className="text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-foreground">
+                        Nessuna promozione configurata
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Clicca su &quot;Aggiungi Codice&quot; per crearne una.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            <th className="px-6 py-4">Stato</th>
+                            <th className="px-6 py-4">Codice</th>
+                            <th className="px-6 py-4">Valore Sconto</th>
+                            <th className="px-6 py-4 hidden lg:table-cell">Ordine Minimo</th>
+                            <th className="px-6 py-4">Descrizione / Validità</th>
+                            <th className="px-6 py-4 text-center">Azioni</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border text-sm">
+                          {promos.map((promo) => (
+                            <tr
+                              key={promo.id}
+                              className={`hover:bg-muted/30 transition-colors ${!promo.active ? 'opacity-65' : ''}`}
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <Toggle
+                                  checked={promo.active}
+                                  onChange={() => handleTogglePromo(promo.id)}
+                                  size="sm"
+                                />
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="font-bold text-foreground bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs tracking-wider font-mono">
+                                  {promo.code}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 font-semibold text-foreground whitespace-nowrap">
+                                {promo.type === 'percentage' && (
+                                  <Badge variant="primary" icon={<Percent size={11} />}>
+                                    {promo.value}% di sconto
+                                  </Badge>
+                                )}
+                                {promo.type === 'first_order' && (
+                                  <Badge variant="warning" icon={<UserCheck size={11} />}>
+                                    {promo.value}% 1° Ordine
+                                  </Badge>
+                                )}
+                                {promo.type === 'fixed_amount' && (
+                                  <Badge variant="success" icon={<Euro size={11} />}>
+                                    € {promo.value.toFixed(2)} fisso
+                                  </Badge>
+                                )}
+                                {promo.type === 'threshold_based' && (
+                                  <Badge variant="info" icon={<TrendingUp size={11} />}>
+                                    € {promo.value.toFixed(2)} a Soglia
+                                  </Badge>
+                                )}
+                                {promo.type === 'free_delivery' && (
+                                  <Badge variant="primary" icon={<Euro size={11} />}>
+                                    Consegna Gratuita
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
+                                {promo.minOrderSubtotal
+                                  ? `€ ${promo.minOrderSubtotal.toFixed(2)}`
+                                  : 'Nessuno'}
+                              </td>
+                              <td className="px-6 py-4">
+                                <p className="text-foreground font-semibold line-clamp-1">
+                                  {promo.description || 'Nessuna descrizione'}
+                                </p>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground font-medium">
+                                  {(promo.startDate || promo.endDate) && (
+                                    <span className="flex items-center gap-1">
+                                      <Calendar size={11} />
+                                      {promo.startDate
+                                        ? `Dal ${new Date(promo.startDate).toLocaleDateString('it')}`
+                                        : ''}
+                                      {promo.endDate
+                                        ? ` al ${new Date(promo.endDate).toLocaleDateString('it')}`
+                                        : ' (Senza scadenza)'}
+                                    </span>
+                                  )}
+                                  {promo.maxUses !== undefined && promo.maxUses > 0 && (
+                                    <span className="font-bold text-primary">
+                                      Uso: {promo.usedCount || 0}/{promo.maxUses}
+                                    </span>
+                                  )}
+                                  {promo.applicableDeliveryModes && promo.applicableDeliveryModes.length > 0 && (
+                                    <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                      Canali: {promo.applicableDeliveryModes.join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleOpenEditPromoModal(promo)}
+                                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                    title="Modifica"
+                                  >
+                                    <Edit2 size={15} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePromo(promo.id)}
+                                    className="p-1.5 rounded-lg hover:bg-[var(--danger-bg)] text-muted-foreground hover:text-[var(--danger)] transition-colors cursor-pointer"
+                                    title="Elimina"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {currentStep === 'review' && (
               <ReviewStep
                 info={info}
@@ -1765,6 +2047,7 @@ export default function RestaurantConfigurePage() {
                 hours={hours}
                 menuItems={menuItems}
                 menuCategories={menuCategories}
+                promos={promos}
                 handlePublish={handleSave}
               />
             )}
@@ -1801,6 +2084,215 @@ export default function RestaurantConfigurePage() {
                 </button>
               )}
             </div>
+      {/* Add/Edit Promo Modal */}
+      <Modal
+        open={showPromoModal}
+        onClose={() => setShowPromoModal(false)}
+        title={editingPromo ? 'Modifica Codice Sconto' : 'Crea Codice Sconto'}
+        size="md"
+      >
+        <form onSubmit={handlePromoSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Codice Sconto *
+            </label>
+            <input
+              type="text"
+              required
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              placeholder="Es. SCONTO20, ESTATEDICI"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring uppercase font-bold tracking-wider"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Tipo Sconto *
+            </label>
+            <select
+              value={promoType}
+              onChange={(e) => setPromoType(e.target.value as any)}
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring font-medium"
+            >
+              <option value="percentage">Percentuale (%)</option>
+              <option value="fixed_amount">Fisso (€)</option>
+              <option value="threshold_based">A Soglia (€)</option>
+              <option value="first_order">Primo Ordine (%)</option>
+              <option value="free_delivery">Consegna Gratuita</option>
+            </select>
+          </div>
+
+          {promoType !== 'free_delivery' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Valore Sconto *
+              </label>
+              <div className="relative">
+                {promoType === 'percentage' || promoType === 'first_order' ? (
+                  <Percent
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                ) : (
+                  <Euro
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                )}
+                <input
+                  type="number"
+                  min="0.1"
+                  step={promoType === 'percentage' || promoType === 'first_order' ? '1' : '0.5'}
+                  required
+                  value={promoValue}
+                  onChange={(e) => setPromoValue(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+                />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Spesa Minima Ordine (€)
+            </label>
+            <div className="relative">
+              <Euro
+                size={14}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="number"
+                min="0"
+                step="1"
+                required={promoType === 'threshold_based'}
+                value={promoMinOrder}
+                onChange={(e) => setPromoMinOrder(e.target.value)}
+                placeholder={promoType === 'threshold_based' ? 'Inserisci spesa minima' : '0 per nessuna spesa minima'}
+                className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Inizio Validità
+            </label>
+            <input
+              type="date"
+              value={promoStart}
+              onChange={(e) => setPromoStart(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Fine Validità
+            </label>
+            <input
+              type="date"
+              value={promoEnd}
+              onChange={(e) => setPromoEnd(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Descrizione
+            </label>
+            <textarea
+              value={promoDesc}
+              onChange={(e) => setPromoDesc(e.target.value)}
+              placeholder="Es. Offerta di primavera, riservata a clienti registrati..."
+              className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Limite Utilizzi Totale (Opzionale)
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={promoMaxUses}
+              onChange={(e) => setPromoMaxUses(e.target.value)}
+              placeholder="Nessun limite"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Canali d'ordine abilitati
+            </label>
+            <div className="flex flex-wrap gap-4 mt-2 bg-muted/30 border border-border/50 p-3.5 rounded-xl">
+              {[
+                { id: 'domicilio', label: 'Domicilio' },
+                { id: 'asporto', label: 'Asporto' },
+                { id: 'tavolo', label: 'Tavolo' },
+              ].map((mode) => {
+                const isSelected = promoModes.includes(mode.id as any);
+                return (
+                  <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        if (isSelected) {
+                          setPromoModes(promoModes.filter((m) => m !== mode.id));
+                        } else {
+                          setPromoModes([...promoModes, mode.id as any]);
+                        }
+                      }}
+                      className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                    />
+                    <span className="text-sm text-foreground font-medium">{mode.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Testo personalizzato per il Banner in Vetrina (Opzionale)
+            </label>
+            <textarea
+              value={promoCustomBanner}
+              onChange={(e) => setPromoCustomBanner(e.target.value)}
+              placeholder="Es. 🎉 Usa il codice WELCOME10 per ricevere il 10% di sconto sul primo ordine!"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <Toggle checked={promoActive} onChange={setPromoActive} size="sm" />
+            <span className="text-sm font-semibold text-foreground">
+              Attiva subito questo codice
+            </span>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setShowPromoModal(false)}
+              className="px-4 py-2 bg-muted hover:bg-border text-foreground text-sm font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              Annulla
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              {editingPromo ? 'Salva Modifiche' : 'Crea Codice'}
+            </button>
+          </div>
+        </form>
+      </Modal>
           </div>
         </main>
       </div>
