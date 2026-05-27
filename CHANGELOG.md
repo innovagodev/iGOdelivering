@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.13.0](https://github.com/innovagodev/iGOdelivering/compare/v1.11.2...v1.13.0) (2026-05-27)
+
+
+### Features
+
+* persistenza azioni amministratore, ottimizzazione controlli promozioni e incremento versione a 1.12.0 ([7b1e433](https://github.com/innovagodev/iGOdelivering/commit/7b1e4334d828e808f6c4607719eb40cd37156cdc))
+
 ### [1.11.2](https://github.com/innovagodev/iGOdelivering/compare/v1.11.1...v1.11.2) (2026-05-26)
 
 
