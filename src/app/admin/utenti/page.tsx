@@ -16,6 +16,7 @@ import {
   UserCheck,
   UserX,
   Plus,
+  AlertCircle,
 } from 'lucide-react';
 
 interface RestorateurUser {
@@ -73,6 +74,132 @@ export default function AdminUtentiPage() {
   const [resettingUser, setResettingUser] = useState<RestorateurUser | null>(null);
   const [tempPassword, setTempPassword] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // States for manual account creation (Block B2)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newOwnerName, setNewOwnerName] = useState('');
+  const [newRestaurantName, setNewRestaurantName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newTempPassword, setNewTempPassword] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
+    let pass = '';
+    for (let i = 0; i < 10; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  };
+
+  const handleOpenCreateModal = () => {
+    setNewOwnerName('');
+    setNewRestaurantName('');
+    setNewEmail('');
+    setNewTempPassword(generateRandomPassword());
+    setCreateError('');
+    setCreateSuccess(false);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateRistoratore = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError('');
+    setCreateSuccess(false);
+
+    if (!newOwnerName.trim() || !newRestaurantName.trim() || !newEmail.trim() || !newTempPassword.trim()) {
+      setCreateError('Tutti i campi sono obbligatori.');
+      return;
+    }
+
+    // Check email uniqueness
+    const emailExists = users.some((u) => u.email.toLowerCase() === newEmail.trim().toLowerCase());
+    if (emailExists) {
+      setCreateError('Un utente con questa email esiste già.');
+      return;
+    }
+
+    const newRestId = `r-${Date.now()}`;
+    const newUserId = `u-${Date.now()}`;
+
+    // Create dynamic restaurant object
+    const newRestaurantObj = {
+      id: newRestId,
+      name: newRestaurantName.trim(),
+      email: newEmail.trim(),
+      owner: newOwnerName.trim(),
+      status: 'draft',
+      createdAt: new Date().toISOString().split('T')[0],
+      menuItems: 0,
+      ordersToday: 0,
+      category: 'Da configurare',
+      tempPassword: newTempPassword.trim(),
+    };
+
+    // Pre-initialize clean settings in localStorage for the new restaurant
+    const cleanSettings = {
+      profile: {
+        name: newRestaurantName.trim(),
+        logoUrl: '',
+        category: '',
+        address: '',
+        phone: '',
+        email: newEmail.trim(),
+        tagline: '',
+      },
+      orderModes: {
+        delivery: false,
+        pickup: false,
+        table: false,
+      },
+      deliveryConfig: {
+        fixedFee: 0,
+        minOrder: 0,
+        freeDeliveryThreshold: 0,
+        freeDeliveryActive: false,
+      },
+      paymentMethods: {
+        card_delivery: false,
+        card_pickup: false,
+        cash_delivery: false,
+        cash_pickup: false,
+      },
+    };
+
+    try {
+      // 1. Save restaurant settings (clean slate)
+      localStorage.setItem(STORAGE_KEYS.settings(newRestId), JSON.stringify(cleanSettings));
+
+      // 2. Pre-initialize empty menu list in localStorage
+      localStorage.setItem(`iGO_menu_items_${newRestId}`, JSON.stringify([]));
+
+      // 3. Save restaurant to general list
+      const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+      const currentList = storedStr ? JSON.parse(storedStr) : [];
+      currentList.push(newRestaurantObj);
+      localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(currentList));
+
+      // 4. Update local users state
+      const newUser: RestorateurUser = {
+        id: newUserId,
+        name: newOwnerName.trim(),
+        email: newEmail.trim(),
+        restaurantName: newRestaurantName.trim(),
+        status: 'pending',
+        lastLogin: 'Mai',
+      };
+      setUsers((prev) => [newUser, ...prev]);
+
+      setCreateSuccess(true);
+      setTimeout(() => {
+        setIsCreateModalOpen(false);
+      }, 1500);
+    } catch (err) {
+      console.error('Error creating dynamic restaurant:', err);
+      setCreateError('Errore durante la creazione del ristoratore.');
+    }
+  };
 
   useEffect(() => {
     // Restore sidebar state
@@ -232,6 +359,7 @@ export default function AdminUtentiPage() {
               </div>
               <button
                 type="button"
+                onClick={handleOpenCreateModal}
                 className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap"
               >
                 <Plus size={16} />
@@ -472,6 +600,154 @@ export default function AdminUtentiPage() {
           </div>
         </main>
       </div>
+
+      {/* Aggiungi Ristoratore Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsCreateModalOpen(false)}
+          />
+          <form
+            onSubmit={handleCreateRistoratore}
+            className="relative bg-card rounded-2xl border border-border shadow-xl w-full max-w-md p-6 space-y-4"
+          >
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-primary">
+                <Plus size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold text-foreground">Nuovo Ristoratore</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Crea un nuovo account ristoratore pulito e senza wizard precompilato.
+                </p>
+              </div>
+            </div>
+
+            {createSuccess && (
+              <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-3 flex items-center gap-2">
+                <CheckCircle size={16} className="text-[var(--success)] shrink-0" />
+                <p className="text-xs font-semibold text-foreground">
+                  Ristoratore creato con successo!
+                </p>
+              </div>
+            )}
+
+            {createError && (
+              <div className="bg-[var(--danger-bg)] border border-red-200 rounded-xl p-3 flex items-start gap-2 text-xs text-[var(--danger)]">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{createError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Nome Gestore (Proprietario)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newOwnerName}
+                  onChange={(e) => setNewOwnerName(e.target.value)}
+                  placeholder="Es. Giuseppe Esposito"
+                  className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Nome Ristorante
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newRestaurantName}
+                  onChange={(e) => setNewRestaurantName(e.target.value)}
+                  placeholder="Es. Pizzeria Bella Napoli"
+                  className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Email Ristoratore
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Es. giuseppe@bellanapoli.it"
+                  className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Password Temporanea
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newTempPassword}
+                    onChange={(e) => setNewTempPassword(e.target.value)}
+                    className="flex-1 px-3 py-2 text-sm bg-muted border border-border rounded-xl focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(newTempPassword).catch(() => {});
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    }}
+                    className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors"
+                    title="Copia Password"
+                  >
+                    {copied ? 'Copiato' : 'Copia'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewTempPassword(generateRandomPassword())}
+                    className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors"
+                    title="Rigenera Password"
+                  >
+                    Rigenera
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                  Al primo accesso al ristoratore verrà richiesto di cambiare questa password.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="px-4 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary hover:bg-[#d43d22] text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+              >
+                Crea Account
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Password Reset Modal */}
       {resettingUser && (

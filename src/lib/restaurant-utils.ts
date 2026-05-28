@@ -40,3 +40,23 @@ export const getRestaurantId = (slug: string): string => {
   }
   return 'r-001';
 };
+
+/**
+ * Checks if a restaurant ID or slug is one of the built-in mock/demo accounts.
+ */
+export const isMockRestaurant = (slugOrId: string): boolean => {
+  const normalized = (slugOrId || '').toLowerCase();
+  return (
+    normalized === 'r-001' ||
+    normalized === 'r-002' ||
+    normalized === 'r-003' ||
+    normalized === 'r-004' ||
+    normalized === 'r-005' ||
+    normalized === 'pizzeria-bella-napoli' ||
+    normalized === 'trattoria-da-mario' ||
+    normalized === 'sushi-zen' ||
+    normalized === 'osteria-del-porto' ||
+    normalized === 'burger-house'
+  );
+};
+

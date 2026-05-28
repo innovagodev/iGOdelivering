@@ -45,7 +45,7 @@ import { usePromoCode } from '@/hooks/usePromoCode';
 import CardPaymentForm from '@/components/menu/CardPaymentForm';
 import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
-import { getRestaurantId } from '@/lib/restaurant-utils';
+import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -2481,7 +2481,15 @@ export default function CustomerStorefront() {
     }
   }, [slug]);
 
-  const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>(menuItems);
+  const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>(() => {
+    if (typeof window !== 'undefined' && slug) {
+      const restaurantId = getRestaurantId(slug);
+      if (!isMockRestaurant(slug) && !isMockRestaurant(restaurantId)) {
+        return [];
+      }
+    }
+    return menuItems;
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
@@ -2490,12 +2498,18 @@ export default function CustomerStorefront() {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setMenuItemsList(parsed);
+            return;
           }
         } catch (e) {
           console.error('Error parsing stored menu items:', e);
         }
+      }
+      if (!isMockRestaurant(slug) && !isMockRestaurant(restaurantId)) {
+        setMenuItemsList([]);
+      } else {
+        setMenuItemsList(menuItems);
       }
     }
   }, [slug]);
@@ -3077,6 +3091,66 @@ export default function CustomerStorefront() {
     }
   }, [restaurantSettings]);
 
+  const triggerFlyToCart = () => {
+    const sourceEl = document.getElementById('add-to-cart-confirm-btn');
+    const targetEl = document.getElementById('header-cart-button');
+    if (!sourceEl || !targetEl) return;
+
+    const sourceRect = sourceEl.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+
+    // Create a temporary fly dot
+    const flyDot = document.createElement('div');
+    flyDot.className = 'fixed z-[9999] flex items-center justify-center bg-primary text-white text-[11px] font-black rounded-full pointer-events-none shadow-lg';
+    flyDot.style.width = '30px';
+    flyDot.style.height = '30px';
+    flyDot.style.left = `${sourceRect.left + sourceRect.width / 2 - 15}px`;
+    flyDot.style.top = `${sourceRect.top + sourceRect.height / 2 - 15}px`;
+    flyDot.innerHTML = '+1';
+    
+    document.body.appendChild(flyDot);
+
+    // Calculate relative translation distances
+    const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
+    const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
+
+    // Peak height of the parabolic arc
+    const peakY = Math.min(0, dy) - 120;
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        flyDot.remove();
+        // Subtle bounce/shake animation on the header cart button
+        gsap.timeline()
+          .to(targetEl, { scale: 1.15, duration: 0.1 })
+          .to(targetEl, { rotation: 8, duration: 0.05, repeat: 3, yoyo: true })
+          .to(targetEl, { rotation: 0, scale: 1, duration: 0.1 });
+      }
+    });
+
+    // Horizontal linear movement
+    tl.to(flyDot, {
+      x: dx,
+      duration: 0.75,
+      ease: 'power1.inOut'
+    }, 0);
+
+    // Vertical arc (goes up then falls down)
+    tl.to(flyDot, {
+      y: peakY,
+      scale: 1.3,
+      duration: 0.35,
+      ease: 'power1.out'
+    }, 0)
+    .to(flyDot, {
+      y: dy,
+      scale: 0.4,
+      opacity: 0.5,
+      duration: 0.4,
+      ease: 'power2.in'
+    }, 0.35);
+  };
+
   const addToCartCustom = (
     item: MenuItemType,
     qty: number,
@@ -3085,6 +3159,10 @@ export default function CustomerStorefront() {
     note: string
   ) => {
     if (isCurrentlyClosed) return;
+    
+    // Trigger fly-to-cart animation
+    triggerFlyToCart();
+
     const customizationsKey = JSON.stringify({ addedIngredients, removedIngredients, note });
     setCart((prev) => {
       const existing = prev.find(
@@ -3480,6 +3558,7 @@ export default function CustomerStorefront() {
 
             {/* Cart Button (Visible on both desktop & mobile) */}
             <button
+              id="header-cart-button"
               onClick={() => setCartOpen((o) => !o)}
               className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
                   ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'

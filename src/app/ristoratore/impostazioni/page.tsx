@@ -4,10 +4,12 @@ import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import Toggle from '@/components/ui/Toggle';
 import { useAuth } from '@/context/AuthContext';
-import { Settings, Save, Sparkles, AlertCircle, CheckCircle, Camera, Store } from 'lucide-react';
+import { Settings, Save, Sparkles, AlertCircle, CheckCircle, Camera, Store, Link as LinkIcon, Copy, Download, Printer } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { RestaurantSettingsFull as SettingsData } from '@/types/settings';
+import { isMockRestaurant } from '@/lib/restaurant-utils';
 
 export default function ImpostazioniPage() {
   const { user } = useAuth();
@@ -16,6 +18,160 @@ export default function ImpostazioniPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // Hydration state & Copy/QR actions
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const restaurantSlug = user?.restaurantName
+    ? user.restaurantName
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/[^\w-]+/g, '')
+    : 'pizzeria-bella-napoli';
+
+  const showcaseUrl = isHydrated && typeof window !== 'undefined'
+    ? `${window.location.origin}/menu/${restaurantSlug}`
+    : `https://igodelivering.it/menu/${restaurantSlug}`;
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(showcaseUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadQr = () => {
+    const canvas = document.getElementById('showcase-qr-canvas') as HTMLCanvasElement;
+    if (canvas) {
+      try {
+        const url = canvas.toDataURL("image/png");
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qr-vetrina-${restaurantSlug}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      } catch (e) {
+        console.error("Canvas export failed", e);
+      }
+    }
+  };
+
+  const handlePrintQr = () => {
+    const canvas = document.getElementById('showcase-qr-canvas') as HTMLCanvasElement;
+    let qrDataUrl = '';
+    if (canvas) {
+      try {
+        qrDataUrl = canvas.toDataURL("image/png");
+      } catch (e) { }
+    }
+    if (!qrDataUrl) {
+      qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(showcaseUrl)}&ecc=H`;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const restName = profileName || user?.restaurantName || 'Il mio Ristorante';
+    const logoHtml = `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+        <div style="font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;">${restName}</div>
+      </div>
+    `;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Stampa QR Code - Vetrina ${restName}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background-color: #fff;
+            }
+            .card {
+              border: 1px solid #cbd5e1;
+              border-radius: 12px;
+              padding: 24px;
+              text-align: center;
+              width: 280px;
+              height: 280px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: space-between;
+              box-sizing: border-box;
+              box-shadow: none;
+            }
+            .qr-wrapper {
+              position: relative;
+              display: inline-block;
+              width: 170px;
+              height: 170px;
+              margin: 0 auto;
+            }
+            .qr-image {
+              width: 170px;
+              height: 170px;
+              display: block;
+            }
+            .title-badge {
+              background-color: #f97316;
+              color: white;
+              font-size: 14px;
+              font-weight: 800;
+              padding: 4px 14px;
+              border-radius: 9999px;
+              letter-spacing: 0.05em;
+              display: inline-block;
+            }
+            .footer-text {
+              font-size: 10px;
+              color: #64748b;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            @media print {
+              body { height: auto; }
+              @page { size: portrait; margin: 0; }
+              .card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            ${logoHtml}
+            <div class="qr-wrapper">
+              <img class="qr-image" src="${qrDataUrl}" alt="QR Code" />
+            </div>
+            <div>
+              <div class="title-badge">MENU DIGITALE</div>
+              <div class="footer-text" style="margin-top: 6px;">Inquadra e Ordina</div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 800);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   // Form states
   const [profileName, setProfileName] = useState('');
@@ -57,6 +213,37 @@ export default function ImpostazioniPage() {
 
         if (storedStr) {
           data = JSON.parse(storedStr);
+        } else if (!isMockRestaurant(restaurantId)) {
+          // Defaults for newly created custom restaurants (clean slate)
+          data = {
+            profile: {
+              name: user?.restaurantName || '',
+              logoUrl: '',
+              category: '',
+              address: '',
+              phone: '',
+              email: user?.email || '',
+              tagline: '',
+            },
+            orderModes: {
+              delivery: false,
+              pickup: false,
+              table: false,
+            },
+            deliveryConfig: {
+              fixedFee: 0,
+              minOrder: 0,
+              freeDeliveryThreshold: 0,
+              freeDeliveryActive: false,
+            },
+            paymentMethods: {
+              card_delivery: false,
+              card_pickup: false,
+              cash_delivery: false,
+              cash_pickup: false,
+            },
+          };
+          localStorage.setItem(STORAGE_KEYS.settings(restaurantId), JSON.stringify(data));
         } else {
           // Defaults based on auth user
           data = {
@@ -99,7 +286,7 @@ export default function ImpostazioniPage() {
         setAddress(data.profile.address || '');
         setPhone(data.profile.phone || '');
         setEmail(data.profile.email || '');
-        setTagline(data.profile.tagline || '');
+        setTagline(data.profile.tagline || data.profile.description || '');
 
         setDeliveryMode(data.orderModes.delivery !== false);
         setPickupMode(data.orderModes.pickup !== false);
@@ -133,6 +320,7 @@ export default function ImpostazioniPage() {
         phone,
         email,
         tagline,
+        description: tagline,
       },
       orderModes: {
         delivery: deliveryMode,
@@ -173,7 +361,7 @@ export default function ImpostazioniPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-impostazioni"
-        onSectionChange={() => {}}
+        onSectionChange={() => { }}
         role="ristoratore"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -461,6 +649,72 @@ export default function ImpostazioniPage() {
 
               {/* Order Modes & Payments (Right Column) */}
               <div className="space-y-6">
+                {/* Link & QR Code Vetrina */}
+                <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-4">
+                  <h3 className="text-base font-bold text-foreground flex items-center gap-2 pb-3 border-b border-border">
+                    <LinkIcon size={16} className="text-primary" />
+                    Link & QR Code Vetrina
+                  </h3>
+
+                  <p className="text-xs text-muted-foreground">
+                    Condividi il link della tua vetrina digitale o scarica il QR Code da stampare per asporto e consegne.
+                  </p>
+
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                        Link Vetrina Pubblica
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={showcaseUrl}
+                          className="flex-1 px-3 py-2 text-xs bg-muted border border-border rounded-xl focus:outline-none font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCopyLink}
+                          className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          {copied ? <CheckCircle size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                          {copied ? 'Copiato' : 'Copia'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-xl border border-border/60 relative min-h-[148px]">
+                      <QRCodeCanvas
+                        id="showcase-qr-canvas"
+                        value={showcaseUrl}
+                        size={512}
+                        level="H"
+                        includeMargin={true}
+                        style={{ width: "120px", height: "120px" }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadQr}
+                        className="flex items-center justify-center gap-1 py-2 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border cursor-pointer"
+                      >
+                        <Download size={12} className="text-muted-foreground" />
+                        Scarica QR
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePrintQr}
+                        className="flex items-center justify-center gap-1 py-2 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border cursor-pointer"
+                      >
+                        <Printer size={12} className="text-muted-foreground" />
+                        Stampa QR
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Order Modes */}
                 <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-4">
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2 pb-3 border-b border-border">
@@ -557,7 +811,7 @@ export default function ImpostazioniPage() {
                         Conto di Accredito
                       </h4>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        IBAN / Conto di accredito pagamenti online (Facoltativo)
+                        IBAN / Conto di accredito pagamenti online
                       </label>
                       <input
                         type="text"

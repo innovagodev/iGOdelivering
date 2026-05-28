@@ -496,6 +496,7 @@ export default function ProductDetailSheet({
           </div>
 
           <button
+            id="add-to-cart-confirm-btn"
             onClick={handleConfirm}
             disabled={disabled}
             className="flex-1 py-3 bg-primary hover:bg-[#d43d22] text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 
 import MenuEditorTab from '@/components/ristoratore/menu-management/MenuEditorTab';
 import { MenuItem, MenuItemDraft } from '@/types';
+import { isMockRestaurant } from '@/lib/restaurant-utils';
 
 // Constants
 const ALLERGENS_LIST = [
@@ -139,10 +140,13 @@ export default function RistoratoreMenuPage() {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             return parsed;
           }
         } catch {}
+      }
+      if (!isMockRestaurant(rId) && !isMockRestaurant(slg)) {
+        return [];
       }
     }
     return initialMenuItems;

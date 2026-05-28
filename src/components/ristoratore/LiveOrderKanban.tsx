@@ -161,6 +161,88 @@ export default function LiveOrderKanban() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const seenOrderIdsRef = React.useRef<Set<string>>(new Set());
+  const isFirstLoadRef = React.useRef(true);
+
+  // Request browser notification permissions on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // Synthesize double-chime notification sound using Web Audio API
+  const playNotificationSound = () => {
+    if (!soundEnabled) return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // First chime note (C5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.frequency.value = 523.25;
+      gain1.gain.setValueAtTime(0, ctx.currentTime);
+      gain1.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.3);
+
+      // Second chime note (E5)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 659.25;
+      gain2.gain.setValueAtTime(0, ctx.currentTime + 0.15);
+      gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.2);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.55);
+      osc2.start(ctx.currentTime + 0.15);
+      osc2.stop(ctx.currentTime + 0.55);
+    } catch (e) {
+      console.error('Audio play failed', e);
+    }
+  };
+
+  // Watch for new live orders to play audio & trigger browser push alert
+  useEffect(() => {
+    if (orders.length > 0) {
+      if (isFirstLoadRef.current) {
+        // Initialize seen IDs so we don't notify for past orders on load
+        orders.forEach((o) => seenOrderIdsRef.current.add(o.id));
+        isFirstLoadRef.current = false;
+        return;
+      }
+
+      const pendingList = orders.filter((o) => o.status === 'new' || o.status === 'pending');
+      let lastNewOrder: any = null;
+      let hasNew = false;
+
+      pendingList.forEach((o) => {
+        if (!seenOrderIdsRef.current.has(o.id)) {
+          seenOrderIdsRef.current.add(o.id);
+          hasNew = true;
+          lastNewOrder = o;
+        }
+      });
+
+      if (hasNew && lastNewOrder) {
+        playNotificationSound();
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification("Nuovo Ordine Ricevuto!", {
+            body: `Nuovo ordine #${lastNewOrder.id.replace('ord-', '').toUpperCase()} da ${lastNewOrder.customerName || 'Cliente'} - € ${(lastNewOrder.total || 0).toFixed(2)}`,
+            icon: '/favicon.ico',
+          });
+        }
+      }
+    }
+  }, [orders, soundEnabled]);
+
   const mapFlatOrder = (o: any): LiveOrder => {
     const mins = Math.max(0, Math.floor((Date.now() - new Date(o.timestamp || o.createdAt).getTime()) / 60000));
     

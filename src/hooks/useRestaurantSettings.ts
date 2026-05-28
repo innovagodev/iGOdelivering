@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RestaurantSettings } from '@/types/settings';
-import { getRestaurantId } from '@/lib/restaurant-utils';
+import { getRestaurantId, isMockRestaurant, slugify } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 export interface UnifiedSettings extends RestaurantSettings {
@@ -60,7 +60,99 @@ interface BaseRestaurant {
 const getBaseRestaurantBySlug = (slug: string): BaseRestaurant => {
   const normalizedSlug = (slug || '').toLowerCase();
 
+  if (!isMockRestaurant(slug)) {
+    // Look up in localStorage restaurants list if not mock
+    if (typeof window !== 'undefined') {
+      try {
+        const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+        if (storedStr) {
+          const restaurants = JSON.parse(storedStr);
+          const matched = restaurants.find(
+            (r: any) =>
+              (r.name && slugify(r.name) === normalizedSlug) ||
+              r.id === normalizedSlug ||
+              (r.email && r.email.toLowerCase() === normalizedSlug)
+          );
+          if (matched) {
+            return {
+              name: matched.name,
+              tagline: '',
+              address: '',
+              rating: 5.0,
+              reviews: 0,
+              deliveryTime: '',
+              minOrder: 0,
+              deliveryFee: 0,
+              phone: matched.phone || '',
+              email: matched.email || '',
+              image: '',
+              imageAlt: '',
+              logoUrl: '',
+              freeDeliveryActive: false,
+              freeDeliveryThreshold: 0,
+              paymentMethods: {
+                cash_delivery: false,
+                cash_pickup: false,
+                card_delivery: false,
+                card_pickup: false,
+                cash: false,
+                card: false,
+                paypal: false,
+              },
+              orderModes: {
+                delivery: false,
+                pickup: false,
+                table: false,
+              },
+            };
+          }
+        }
+      } catch (e) {
+        console.error('Error looking up dynamic restaurant in hook:', e);
+      }
+    }
+
+    // Fallback blank settings for custom restaurants
+    const formattedName = slug
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    return {
+      name: formattedName || 'Nuovo Ristorante',
+      tagline: '',
+      address: '',
+      rating: 5.0,
+      reviews: 0,
+      deliveryTime: '',
+      minOrder: 0,
+      deliveryFee: 0,
+      phone: '',
+      email: '',
+      image: '',
+      imageAlt: '',
+      logoUrl: '',
+      freeDeliveryActive: false,
+      freeDeliveryThreshold: 0,
+      paymentMethods: {
+        cash_delivery: false,
+        cash_pickup: false,
+        card_delivery: false,
+        card_pickup: false,
+        cash: false,
+        card: false,
+        paypal: false,
+      },
+      orderModes: {
+        delivery: false,
+        pickup: false,
+        table: false,
+      },
+    };
+  }
+
   if (normalizedSlug === 'pizzeria-bella-napoli' || normalizedSlug === 'r-001') {
+
     return {
       name: 'Pizzeria Bella Napoli',
       tagline: 'Autentica pizza napoletana dal 1987',
@@ -236,7 +328,7 @@ export function useRestaurantSettings(slugOrId: string) {
 
         const unified: UnifiedSettings = {
           name: profile.name || base.name,
-          tagline: profile.tagline || base.tagline,
+          tagline: profile.tagline || profile.description || base.tagline,
           address: profile.address || base.address,
           phone: profile.phone || base.phone,
           email: profile.email || base.email,

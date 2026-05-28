@@ -78,6 +78,26 @@ export default function OrderTrackingContent() {
   const [estimatedMinutes, setEstimatedMinutes] = useState(35);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      const step = STEPS.find((s) => s.id === currentStatus);
+      if (step) {
+        new Notification(`Stato Ordine: ${step.label}`, {
+          body: step.description,
+          icon: '/favicon.ico',
+        });
+      }
+    }
+  }, [currentStatus]);
+
+  useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => setCurrentStatus('preparing'), 4000));
     timers.push(

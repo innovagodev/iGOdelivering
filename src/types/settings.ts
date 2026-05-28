@@ -6,6 +6,7 @@ export interface RestaurantProfile {
   phone: string;
   email: string;
   tagline: string;
+  description?: string;
 }
 
 export interface RestaurantOrderModes {
