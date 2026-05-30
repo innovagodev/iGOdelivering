@@ -33,6 +33,9 @@ import {
   Share2,
   Printer,
   History,
+  UtensilsCrossed,
+  ChevronRight,
+  Users,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -41,12 +44,14 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
 import { useRestaurantSettings } from '@/hooks/useRestaurantSettings';
+import { ScheduledOrdersConfig } from '@/types/wizard';
 import { usePromoCode } from '@/hooks/usePromoCode';
 import CardPaymentForm from '@/components/menu/CardPaymentForm';
 import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
 import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
+import { generateId } from '@/lib/id-generator';
 
 // ─── Types ────────────────────────────────────────────────────
 interface MenuItemType {
@@ -61,7 +66,9 @@ interface MenuItemType {
   popular?: boolean;
   veg?: boolean;
   spicy?: boolean;
+  available?: boolean;
   allergens: string[];
+  dishTags?: string[];
 }
 
 interface CartItem extends MenuItemType {
@@ -90,6 +97,7 @@ interface RestaurantType {
   paymentMethods?: { cash: boolean; card: boolean; paypal: boolean };
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];
+  scheduledOrders?: ScheduledOrdersConfig;
 }
 
 // ─── Dynamic Restaurant Resolver ──────────────────────────────
@@ -111,8 +119,14 @@ const getRestaurantBySlug = (slug: string): RestaurantType => {
       imageAlt: 'Pizza margherita appena sfornata da forno a legna in una pizzeria napoletana',
       logoUrl: '/assets/images/logo_pizzeria.png',
       paymentMethods: { cash: true, card: true, paypal: true },
-      openingHours: [{ start: '00:00', end: '23:59' }],
-      deliveryHours: [{ start: '00:00', end: '23:59' }],
+      openingHours: [
+        { start: '11:30', end: '14:30' },
+        { start: '19:00', end: '22:30' },
+      ],
+      deliveryHours: [
+        { start: '11:30', end: '14:30' },
+        { start: '19:00', end: '22:30' },
+      ],
     };
   } else if (normalizedSlug === 'sushi-zen') {
     return {
@@ -669,7 +683,7 @@ function CartSidebar({
               disabled={!meetsMin || isCurrentlyClosed}
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
-              {isCurrentlyClosed ? 'Locale Chiuso' : deliveryType === 'tavolo' ? 'Invia ordine' : 'Procedi'}
+              {isCurrentlyClosed ? 'Locale Chiuso' : deliveryType === 'tavolo' ? 'Procedi' : 'Invia Ordine'}
             </button>
           </div>
         </>
@@ -732,6 +746,18 @@ function MenuItemCard({
           >
             {item.name}
           </h4>
+          {item.dishTags && item.dishTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2 mt-0.5 animate-in fade-in duration-200">
+              {item.dishTags.map((tag) => (
+                <span
+                  key={`${item.id}-${tag}`}
+                  className="inline-flex items-center text-[9px] font-extrabold bg-primary/5 text-primary border border-primary/10 rounded px-1.5 py-0.5 shadow-sm"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
           <p
             className={`text-muted-foreground leading-relaxed ${compact ? 'text-[10px] mb-1.5 line-clamp-1 leading-normal' : 'text-xs mb-3 line-clamp-2'}`}
           >
@@ -833,7 +859,6 @@ function CheckoutModal({
   slug,
   tableNumber,
   paymentMethods,
-  autoSubmit,
   currentTimeStr,
   openingHours,
   deliveryHours,
@@ -843,6 +868,13 @@ function CheckoutModal({
   applyPromo,
   promoError,
   appliedPromoDetail,
+  guests,
+  setGuests,
+  lastCreatedOrder,
+  setLastCreatedOrder,
+  clearCart,
+  bookingContext,
+  setBookingContext,
 }: {
   open: boolean;
   onClose: () => void;
@@ -864,7 +896,6 @@ function CheckoutModal({
   slug: string;
   tableNumber?: string | null;
   paymentMethods?: any;
-  autoSubmit?: boolean;
   currentTimeStr: string;
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];
@@ -874,10 +905,22 @@ function CheckoutModal({
   applyPromo: () => void;
   promoError?: string | null;
   appliedPromoDetail?: any;
+  guests: number;
+  setGuests: (v: number) => void;
+  lastCreatedOrder: any;
+  setLastCreatedOrder: (order: any) => void;
+  clearCart: () => void;
+  bookingContext: any;
+  setBookingContext: (v: any) => void;
 }) {
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
-  const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
   const { settings: restaurantSettings } = useRestaurantSettings(slug);
+
+  const isEmailValid = React.useMemo(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }, [email]);
 
   const handlePrintReceipt = (order: any) => {
     if (!order) return;
@@ -911,11 +954,11 @@ function CheckoutModal({
       '<div class="row"><strong>Telefono:</strong> <span>' + order.customer?.phone + '</span></div>' +
       (order.type === 'domicilio' ? '<div class="row"><strong>Indirizzo:</strong> <span>' + order.customer?.address + '</span></div>' : '');
 
-    const deliveryFeeRow = order.deliveryFee > 0
-      ? '<div class="row"><span>Consegna:</span> <span>&euro; ' + order.deliveryFee.toFixed(2) + '</span></div>'
+    const deliveryFeeRow = (order.deliveryFee || 0) > 0
+      ? '<div class="row"><span>Consegna:</span> <span>&euro; ' + (order.deliveryFee || 0).toFixed(2) + '</span></div>'
       : '';
-    const discountRow = order.discount > 0
-      ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' + order.discount.toFixed(2) + '</span></div>'
+    const discountRow = (order.discount || 0) > 0
+      ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' + (order.discount || 0).toFixed(2) + '</span></div>'
       : '';
 
     printWindow.document.write(`
@@ -954,10 +997,10 @@ function CheckoutModal({
             </div>
             
             <div class="totals">
-              <div class="row"><span>Subtotale:</span> <span>&euro; ${order.subtotal.toFixed(2)}</span></div>
+              <div class="row"><span>Subtotale:</span> <span>&euro; ${(order.subtotal || 0).toFixed(2)}</span></div>
               ${deliveryFeeRow}
               ${discountRow}
-              <div class="total-row"><span>Totale:</span> <span>&euro; ${order.total.toFixed(2)}</span></div>
+              <div class="total-row"><span>Totale:</span> <span>&euro; ${(order.total || 0).toFixed(2)}</span></div>
             </div>
             
             <div class="footer">
@@ -999,6 +1042,15 @@ function CheckoutModal({
             <span className="text-muted-foreground">Servizio:</span>
             <span className="font-bold text-foreground capitalize">{order.type}</span>
           </div>
+          {order.deliveryTime && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Programmato per:</span>
+              <span className="font-bold text-amber-500">
+                {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
+                {order.deliveryTime === 'asap' ? 'Il prima possibile' : `alle ${order.deliveryTime}`}
+              </span>
+            </div>
+          )}
           {order.type === 'tavolo' ? (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tavolo:</span>
@@ -1052,23 +1104,23 @@ function CheckoutModal({
         <div className="border-t border-border/40 pt-3 text-xs space-y-1.5">
           <div className="flex justify-between text-muted-foreground">
             <span>Subtotale:</span>
-            <span className="tabular-nums">€ {order.subtotal.toFixed(2)}</span>
+            <span className="tabular-nums">€ {(order.subtotal || 0).toFixed(2)}</span>
           </div>
-          {order.deliveryFee > 0 && (
+          {(order.deliveryFee || 0) > 0 && (
             <div className="flex justify-between text-muted-foreground">
               <span>Consegna:</span>
-              <span className="tabular-nums">€ {order.deliveryFee.toFixed(2)}</span>
+              <span className="tabular-nums">€ {(order.deliveryFee || 0).toFixed(2)}</span>
             </div>
           )}
-          {order.discount > 0 && (
+          {(order.discount || 0) > 0 && (
             <div className="flex justify-between text-[var(--success)] font-semibold">
               <span>Sconto {order.promoApplied ? `(${order.promoApplied})` : ''}:</span>
-              <span className="tabular-nums">- € {order.discount.toFixed(2)}</span>
+              <span className="tabular-nums">- € {(order.discount || 0).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-black text-foreground border-t border-border/40 pt-2">
             <span>Totale Ordine:</span>
-            <span className="text-primary tabular-nums">€ {order.total.toFixed(2)}</span>
+            <span className="text-primary tabular-nums">€ {(order.total || 0).toFixed(2)}</span>
           </div>
         </div>
 
@@ -1165,6 +1217,71 @@ function CheckoutModal({
     return clean;
   };
 
+  // 1. Get current scheduled orders configuration
+  const scheduledOrdersConfig = restaurantSettings?.scheduledOrders;
+  const isScheduledEnabled = !!scheduledOrdersConfig?.enabled;
+
+  const currentConfig = React.useMemo(() => {
+    if (!isScheduledEnabled || !scheduledOrdersConfig) return null;
+    if (deliveryType === 'domicilio') return scheduledOrdersConfig.delivery;
+    if (deliveryType === 'asporto') return scheduledOrdersConfig.pickup;
+    return scheduledOrdersConfig.onPremise;
+  }, [isScheduledEnabled, scheduledOrdersConfig, deliveryType]);
+
+  const minNoticeMinutes = React.useMemo(() => {
+    if (!currentConfig) return 30; // default 30 mins
+    const val = currentConfig.minNoticeValue || 0;
+    const unit = currentConfig.minNoticeUnit || 'minutes';
+    if (unit === 'hours') return val * 60;
+    return val;
+  }, [currentConfig]);
+
+  const timeInterval = React.useMemo(() => {
+    if (deliveryType === 'domicilio' && currentConfig && 'timeWindowMinutes' in currentConfig) {
+      return (currentConfig as any).timeWindowMinutes || 15;
+    }
+    return 15; // default 15 mins for pickup/onPremise
+  }, [currentConfig, deliveryType]);
+
+  const maxDays = React.useMemo(() => {
+    if (!currentConfig) return 0; // only today
+    return currentConfig.maxNoticeDays || 0;
+  }, [currentConfig]);
+
+  const dateOptions = React.useMemo(() => {
+    const options = [];
+    const today = new Date();
+    for (let i = 0; i <= maxDays; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      let label = '';
+      if (i === 0) label = 'Oggi';
+      else if (i === 1) label = 'Domani';
+      else {
+        const dayName = d.toLocaleDateString('it-IT', { weekday: 'short' });
+        const dayNum = d.getDate();
+        const monthName = d.toLocaleDateString('it-IT', { month: 'short' });
+        label = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dayNum} ${monthName}`;
+      }
+      const value = d.toISOString().split('T')[0];
+      options.push({ value, label });
+    }
+    return options;
+  }, [maxDays]);
+
+  const [selectedDate, setSelectedDate] = useState('');
+
+  useEffect(() => {
+    if (dateOptions.length > 0) {
+      const exists = dateOptions.some(opt => opt.value === selectedDate);
+      if (!exists) {
+        setSelectedDate(dateOptions[0].value);
+      }
+    } else {
+      setSelectedDate('');
+    }
+  }, [dateOptions, selectedDate]);
+
   const timeSlots = React.useMemo(() => {
     if (deliveryType === 'tavolo') return [];
     const activeRanges =
@@ -1172,28 +1289,33 @@ function CheckoutModal({
     const slots: string[] = [];
     if (activeRanges.length === 0) return [];
 
+    const isToday = !selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value);
+
     // Parse current time in minutes
     const [currH, currM] = (currentTimeStr || '00:00').split(':').map(Number);
     const currMin = currH * 60 + currM;
 
-    // Prep/delivery buffer (in minutes): 30 mins
-    const buffer = 30;
-    const minTimeStart = currMin + buffer;
+    // Apply minimum notice buffer if it's today
+    const minTimeStart = isToday ? currMin + minNoticeMinutes : 0;
 
     for (let h = 0; h < 24; h++) {
-      for (let m = 0; m < 60; m += 15) {
+      for (let m = 0; m < 60; m += timeInterval) {
         const slotMin = h * 60 + m;
         const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
         const inRange = activeRanges.some((r) => timeStr >= r.start && timeStr <= r.end);
 
-        if (inRange && slotMin >= minTimeStart) {
-          slots.push(timeStr);
+        if (inRange) {
+          if (!isToday || slotMin >= minTimeStart) {
+            slots.push(timeStr);
+          }
         }
       }
     }
     return slots;
-  }, [deliveryType, openingHours, deliveryHours, currentTimeStr]);
+  }, [deliveryType, openingHours, deliveryHours, currentTimeStr, selectedDate, dateOptions, minNoticeMinutes, timeInterval]);
+
+  const showAsapOption = !scheduledOrdersConfig?.hideAsap && (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
 
   useEffect(() => {
     if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
@@ -1202,14 +1324,20 @@ function CheckoutModal({
   }, [currentTimeStr, deliveryType, setDeliveryType]);
 
   useEffect(() => {
-    if (timeSlots.length > 0) {
-      if (!deliveryTime || !timeSlots.includes(deliveryTime)) {
-        setDeliveryTime(timeSlots[0]);
+    if (showAsapOption) {
+      if (!deliveryTime || (deliveryTime !== 'asap' && !timeSlots.includes(deliveryTime))) {
+        setDeliveryTime('asap');
       }
     } else {
-      setDeliveryTime('');
+      if (timeSlots.length > 0) {
+        if (!deliveryTime || deliveryTime === 'asap' || !timeSlots.includes(deliveryTime)) {
+          setDeliveryTime(timeSlots[0]);
+        }
+      } else {
+        setDeliveryTime('');
+      }
     }
-  }, [timeSlots, deliveryTime, setDeliveryTime]);
+  }, [timeSlots, deliveryTime, setDeliveryTime, showAsapOption]);
 
   useEffect(() => {
     if (open && paymentMethods) {
@@ -1235,15 +1363,10 @@ function CheckoutModal({
 
   useEffect(() => {
     if (open) {
-      if (autoSubmit) {
-        setStep('details'); // Reset
-        handleOrder();
-      } else {
-        setStep('details');
-        setLoading(false);
-      }
+      setStep('details');
+      setLoading(false);
     }
-  }, [open, autoSubmit]);
+  }, [open]);
 
   const handleOrder = () => {
     if (payMethod === 'card' && !isCardFormValid) {
@@ -1251,8 +1374,66 @@ function CheckoutModal({
       return;
     }
     setCardError(null);
-
     setLoading(true);
+
+    if (bookingContext) {
+      try {
+        const rId = getRestaurantId(slug);
+        const bookingsKey = STORAGE_KEYS.bookings(rId);
+        const existingStr = localStorage.getItem(bookingsKey);
+        let bookingsArray: any[] = [];
+        if (existingStr) {
+          try { bookingsArray = JSON.parse(existingStr); } catch (e) { console.error(e); }
+        }
+
+        const newBooking = {
+          id: generateId('PRE'),
+          restaurantId: rId,
+          name: bookingContext.name.trim(),
+          phone: bookingContext.phone.trim(),
+          email: '',
+          guests: bookingContext.guests,
+          date: bookingContext.date,
+          time: bookingContext.time,
+          status: 'pending',
+          notes: bookingContext.note.trim(),
+          preOrderItems: cart,
+          preOrderTotal: total,
+          payMethod: payMethod,
+          total: total,
+          createdAt: new Date().toISOString(),
+        };
+
+        bookingsArray.push(newBooking);
+        localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
+
+        // Sync with lastCreatedOrder so we can monitor status changes and show iOS notifications
+        const trackedOrder = {
+          ...newBooking,
+          type: 'prenotazione_tavolo',
+          customerName: bookingContext.name,
+          total: total,
+        };
+        setLastCreatedOrder(trackedOrder);
+        sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
+
+        clearCart();
+        setBookingContext(null); // Clear booking context!
+        window.dispatchEvent(new Event('iGO_bookings_updated'));
+      } catch (err) {
+        console.error('Error saving booking pre-order:', err);
+      }
+
+      setTimeout(
+        () => {
+          setLoading(false);
+          setStep('success');
+        },
+        payMethod === 'online' ? 2200 : 1500
+      );
+      return;
+    }
+
     if (rememberMe && deliveryType !== 'tavolo') {
       try {
         const guestData = JSON.stringify({ name, phone, email, address, deliveryType });
@@ -1285,8 +1466,15 @@ function CheckoutModal({
             : Math.min(appliedPromoDetail.value, itemsTotal))
         : 0;
 
+      const orderId =
+        deliveryType === 'domicilio'
+          ? generateId('ORD')
+          : deliveryType === 'asporto'
+            ? generateId('ASP')
+            : generateId('TAV', tableNumber || undefined);
+
       const newOrder = {
-        id: `ord-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        id: orderId,
         restaurantId: rId,
         timestamp: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -1296,20 +1484,23 @@ function CheckoutModal({
         deliveryFee: currentDeliveryFee,
         discount,
         total: finalTotal,
-        customerName: deliveryType === 'tavolo' ? `Tavolo ${tableNumber}` : name,
+        customerName: deliveryType === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
         email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
         customer: {
-          name: deliveryType === 'tavolo' ? `Tavolo ${tableNumber}` : name,
+          name: name,
           email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
-          phone: deliveryType === 'tavolo' ? '' : phone,
+          phone: phone,
           address: deliveryType === 'domicilio' ? `${address} (CAP: ${cap})` : '',
         },
         tableNumber: deliveryType === 'tavolo' ? tableNumber : undefined,
+        guests: deliveryType === 'tavolo' ? guests : undefined,
         status: 'new',
         promoApplied: appliedPromoDetail ? appliedPromoDetail.code : undefined,
         notes: notes || '',
         payMethod: payMethod,
         itemsCount: cart.reduce((s: number, i: any) => s + i.qty, 0),
+        deliveryTime: deliveryType !== 'tavolo' ? deliveryTime : undefined,
+        deliveryDate: deliveryType !== 'tavolo' ? selectedDate : undefined,
       };
       orders.push(newOrder);
       localStorage.setItem(ordersKey, JSON.stringify(orders));
@@ -1347,6 +1538,12 @@ function CheckoutModal({
       }
 
       setLastCreatedOrder(newOrder);
+      try {
+        sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(newOrder));
+      } catch (err) {
+        console.error('Error saving order to sessionStorage:', err);
+      }
+      clearCart();
       window.dispatchEvent(new Event('iGO_orders_updated'));
     } catch (err) {
       console.error('Error saving order to history:', err);
@@ -1361,299 +1558,501 @@ function CheckoutModal({
     );
   };
 
-  const detailsValid =
-    deliveryType === 'tavolo'
-      ? true
+  const detailsValid = bookingContext
+    ? !!bookingContext.name && !!bookingContext.phone
+    : (deliveryType === 'tavolo'
+      ? !!name && !!phone
       : !!name &&
       !!phone &&
       !!email &&
-      email.includes('@') &&
+      isEmailValid &&
       !!deliveryTime &&
-      (deliveryType === 'asporto' || (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
+      (deliveryType === 'asporto' || (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder)));
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       size="lg"
-      title={step === 'success' ? 'Ordine Confermato' : 'Checkout'}
+      title={step === 'success' ? 'Stato Ordine' : 'Checkout'}
     >
       {step === 'details' && (
         <div className="space-y-4 relative">
-          {loading && autoSubmit && (
-            <div className="absolute inset-0 bg-card/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-lg">
+          {loading && (
+            <div className="absolute inset-0 bg-card/85 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-lg">
               <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-3" />
               <p className="text-sm font-bold text-primary animate-pulse">
-                Invio ordine in cucina...
+                Elaborazione...
               </p>
             </div>
           )}
-          {/* Delivery type selector */}
-          {deliveryType !== 'tavolo' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-2">
-                Modalità di consegna
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={currentTimeStr === '12:15'}
-                  onClick={() => setDeliveryType('domicilio')}
-                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${currentTimeStr === '12:15'
+
+          {bookingContext ? (
+            <>
+              {/* Table Booking Summary Read-only card */}
+              <div className="bg-green-500/5 dark:bg-green-950/10 border border-green-500/20 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <CalendarCheck size={14} /> IL TUO TAVOLO
+                  </h4>
+                  <span className="bg-green-500/10 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    Da Confermare
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Data e Ora</span>
+                    <strong className="text-foreground text-sm">
+                      {new Date(bookingContext.date).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })} alle {bookingContext.time}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Persone</span>
+                    <strong className="text-foreground text-sm">{bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Nome Cliente</span>
+                    <strong className="text-foreground">{bookingContext.name}</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Telefono</span>
+                    <strong className="text-foreground">{bookingContext.phone}</strong>
+                  </div>
+                </div>
+                {bookingContext.note && (
+                  <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                    <span className="font-bold text-foreground">Note:</span> &quot;{bookingContext.note}&quot;
+                  </div>
+                )}
+              </div>
+
+              {/* Order Summary */}
+              <div className="border border-border/80 bg-muted/20 rounded-2xl p-4 space-y-3">
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">I Piatti Pre-ordinati</h4>
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                  {cart.map((item, idx) => (
+                    <div key={`summary-item-${idx}`} className="flex justify-between items-start text-xs border-b border-border/10 pb-2 last:border-0 last:pb-0">
+                      <div>
+                        <p className="font-bold text-foreground">{item.qty}x {item.name}</p>
+                        {((item.addedIngredients && item.addedIngredients.length > 0) ||
+                          (item.removedIngredients && item.removedIngredients.length > 0) ||
+                          item.note) && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
+                              {item.addedIngredients?.map((ext) => (
+                                <div key={ext.name} className="text-primary font-medium">+ {ext.name}</div>
+                              ))}
+                              {item.removedIngredients?.map((rem) => (
+                                <div key={rem} className="text-red-500">- Senza {rem}</div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                      <span className="font-bold text-foreground tabular-nums">
+                        € {(item.price * item.qty).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-border/40 pt-3 flex justify-between text-sm font-black text-foreground">
+                  <span>Totale Pre-ordine</span>
+                  <span className="text-primary tabular-nums">€ {total.toFixed(2)}</span>
+                </div>
+              </div>
+            </>
+          ) : deliveryType === 'tavolo' ? (
+            <>
+              {/* Tavolo specifico */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                    Tavolo Numero
+                  </label>
+                  <div className="relative">
+                    <MapPin
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <input
+                      type="text"
+                      value={tableNumber || ''}
+                      readOnly
+                      className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted border border-border/80 rounded-lg focus:outline-none focus:ring-0 font-bold text-foreground cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                    Numero di Persone *
+                  </label>
+                  <div className="flex items-center gap-2.5 h-10 border border-border/80 rounded-lg px-2 bg-card">
+                    <button
+                      type="button"
+                      onClick={() => setGuests(Math.max(1, guests - 1))}
+                      className="w-7 h-7 rounded-md bg-muted hover:bg-border transition-colors font-bold text-sm flex items-center justify-center text-foreground"
+                    >
+                      −
+                    </button>
+                    <span className="text-sm font-bold text-foreground w-6 text-center select-none">
+                      {guests}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setGuests(guests + 1)}
+                      className="w-7 h-7 rounded-md bg-muted hover:bg-border transition-colors font-bold text-sm flex items-center justify-center text-foreground"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                    Nome e Cognome *
+                  </label>
+                  <div className="relative">
+                    <User
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Mario Rossi"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                    Numero di telefono *
+                  </label>
+                  <div className="relative">
+                    <Phone
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                      placeholder="+39 3331234567"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Note per il ristorante (opzionale)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Allergie, preferenze..."
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
+
+              {/* Order Summary (Riepilogo Ordine) */}
+              <div className="border border-border/80 bg-muted/20 rounded-xl p-3.5 space-y-2">
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Riepilogo Ordine</h4>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                  {cart.map((item, idx) => (
+                    <div key={`summary-item-${idx}`} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">
+                        {item.qty}x {item.name}
+                      </span>
+                      <span className="font-bold text-foreground tabular-nums">
+                        € {(item.price * item.qty).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-border/40 pt-2 flex justify-between text-sm font-extrabold text-foreground">
+                  <span>Totale Ordine al tavolo</span>
+                  <span className="text-primary tabular-nums">€ {total.toFixed(2)}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Delivery type selector */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-2">
+                  Modalità di consegna
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={currentTimeStr === '12:15'}
+                    onClick={() => setDeliveryType('domicilio')}
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${currentTimeStr === '12:15'
                       ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
                       : deliveryType === 'domicilio'
                         ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                         : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                    }`}
-                >
-                  Consegna a domicilio
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeliveryType('asporto')}
-                  className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
+                      }`}
+                  >
+                    Consegna a domicilio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType('asporto')}
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
                       ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                       : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                    }`}
-                >
-                  Asporto
-                </button>
+                      }`}
+                  >
+                    Asporto
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Table info - only for tavolo */}
-          {deliveryType === 'tavolo' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Tavolo Numero
-              </label>
-              <div className="relative">
-                <MapPin
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="text"
-                  value={tableNumber || ''}
-                  readOnly
-                  className="w-full pl-9 pr-3 py-2.5 text-base bg-muted border border-border/80 rounded-lg focus:outline-none focus:ring-0 font-bold text-foreground"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Name - hidden for tavolo */}
-          {deliveryType !== 'tavolo' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Nome e Cognome *
-              </label>
-              <div className="relative">
-                <User
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Mario Rossi"
-                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Address — only for home delivery */}
-          {deliveryType === 'domicilio' && (
-            <div className="space-y-4">
+              {/* Name */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Indirizzo di consegna *
+                  Nome e Cognome *
                 </label>
                 <div className="relative">
-                  <MapPin
+                  <User
                     size={14}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   />
                   <input
                     type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Via, numero civico, città"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Mario Rossi"
                     className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
 
+              {/* Address — only for home delivery */}
+              {deliveryType === 'domicilio' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                      Indirizzo di consegna *
+                    </label>
+                    <div className="relative">
+                      <MapPin
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Via, numero civico, città"
+                        className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                      CAP (Codice Avviamento Postale) *
+                    </label>
+                    <div className="relative">
+                      <MapPin
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <input
+                        type="text"
+                        maxLength={5}
+                        value={cap}
+                        onChange={(e) => setCap(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                        placeholder="Es. 20121"
+                        className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50 font-bold tracking-widest"
+                      />
+                    </div>
+                    {cap.length === 5 && !matchedZone && (
+                      <p className="text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 p-2 rounded-lg">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                        Spiacenti, la consegna a domicilio non è disponibile per il CAP inserito.
+                      </p>
+                    )}
+                    {cap.length === 5 && matchedZone && itemsTotal < matchedZone.minOrder && (
+                      <p className="text-xs text-amber-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2 rounded-lg">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                        L'ordine minimo per questo CAP è € {matchedZone.minOrder.toFixed(2)} (Mancano € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
+                      </p>
+                    )}
+                    {cap.length === 5 && matchedZone && itemsTotal >= matchedZone.minOrder && (
+                      <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1.5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 p-2 rounded-lg">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                        Zona servita! Consegna: {currentDeliveryFee === 0 ? 'Gratis' : `€ ${currentDeliveryFee.toFixed(2)}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Phone */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  CAP (Codice Avviamento Postale) *
+                  Numero di telefono *
                 </label>
                 <div className="relative">
-                  <MapPin
+                  <Phone
                     size={14}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   />
                   <input
-                    type="text"
-                    maxLength={5}
-                    value={cap}
-                    onChange={(e) => setCap(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                    placeholder="Es. 20121"
-                    className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50 font-bold tracking-widest"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                    placeholder="+39 3331234567"
+                    className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
                   />
                 </div>
-                {cap.length === 5 && !matchedZone && (
-                  <p className="text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 p-2 rounded-lg">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                    Spiacenti, la consegna a domicilio non è disponibile per il CAP inserito.
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Indirizzo Email *
+                </label>
+                <div className="relative">
+                  <Mail
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                    }}
+                    onBlur={() => setEmailTouched(true)}
+                    placeholder="mario.rossi@email.com"
+                    className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                  />
+                </div>
+                {emailTouched && email && !isEmailValid && (
+                  <p className="text-xs text-red-500 font-semibold mt-1">
+                    Inserisci un indirizzo email valido.
                   </p>
                 )}
-                {cap.length === 5 && matchedZone && itemsTotal < matchedZone.minOrder && (
-                  <p className="text-xs text-amber-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2 rounded-lg">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
-                    L'ordine minimo per questo CAP è € {matchedZone.minOrder.toFixed(2)} (Mancano € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
-                  </p>
-                )}
-                {cap.length === 5 && matchedZone && itemsTotal >= matchedZone.minOrder && (
-                  <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1.5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 p-2 rounded-lg">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                    Zona servita! Consegna: {currentDeliveryFee === 0 ? 'Gratis' : `€ ${currentDeliveryFee.toFixed(2)}`}
-                  </p>
-                )}
               </div>
-            </div>
-          )}
 
-          {/* Phone - hidden for tavolo */}
-          {deliveryType !== 'tavolo' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Numero di telefono *
-              </label>
-              <div className="relative">
-                <Phone
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+39 333 000 0000"
-                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Email — only for home delivery and takeaway */}
-          {deliveryType !== 'tavolo' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Indirizzo Email *
-              </label>
-              <div className="relative">
-                <Mail
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="mario.rossi@email.com"
-                  className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Orario di consegna / ritiro */}
-          {deliveryType !== 'tavolo' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                <Clock size={12} />
-                Orario di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
-              </label>
-              <div className="relative">
-                <Clock
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
-                />
-                <select
-                  value={deliveryTime}
-                  onChange={(e) => setDeliveryTime(e.target.value)}
-                  className="w-full pl-9 pr-10 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-foreground cursor-pointer"
-                >
-                  <option value="">Seleziona orario...</option>
-                  {timeSlots.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {timeSlots.length === 0 && (
-                <p className="text-xs text-red-500 font-semibold mt-1">
-                  Nessun orario disponibile per oggi (il locale è in chiusura).
-                </p>
+              {/* Data di consegna / ritiro (Scheduled Orders) */}
+              {isScheduledEnabled && maxDays > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <Calendar size={12} />
+                    Giorno di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 mb-1 scrollbar-none no-scrollbar">
+                    {dateOptions.map((opt) => {
+                      const isSelected = selectedDate === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSelectedDate(opt.value)}
+                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                            isSelected
+                              ? 'bg-primary text-white border-primary shadow-sm'
+                              : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
-            </div>
-          )}
 
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-              Note per il ristorante
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={
-                deliveryType === 'domicilio'
-                  ? 'Allergie, preferenze, istruzioni per la consegna...'
-                  : deliveryType === 'tavolo'
-                    ? 'Allergie, preferenze...'
-                    : 'Allergie, preferenze, orario di ritiro...'
-              }
-              rows={2}
-              className="w-full px-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
-            />
-          </div>
+              {/* Orario di consegna / ritiro */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <Clock size={12} />
+                  Orario di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
+                </label>
+                <div className="relative">
+                  <Clock
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
+                  />
+                  <select
+                    value={deliveryTime}
+                    onChange={(e) => setDeliveryTime(e.target.value)}
+                    className="w-full pl-9 pr-10 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-foreground cursor-pointer"
+                  >
+                    {!showAsapOption && <option value="">Seleziona orario...</option>}
+                    {showAsapOption && <option value="asap">Il prima possibile</option>}
+                    {timeSlots.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {timeSlots.length === 0 && !showAsapOption && (
+                  <p className="text-xs text-red-500 font-semibold mt-1">
+                    Nessun orario disponibile per questo giorno.
+                  </p>
+                )}
+              </div>
 
-          <div className="flex justify-between items-center py-2.5 border-t border-border/40 mt-4 text-sm font-bold text-foreground">
-            <span>Prezzo</span>
-            <span className="tabular-nums text-primary text-base">€ {itemsTotal.toFixed(2)}</span>
-          </div>
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Note per il ristorante
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={
+                    deliveryType === 'domicilio'
+                      ? 'Allergie, preferenze, istruzioni per la consegna...'
+                      : 'Allergie, preferenze, orario di ritiro...'
+                  }
+                  rows={2}
+                  className="w-full px-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
 
-          {/* Remember me checkbox - hidden for tavolo */}
-          {deliveryType !== 'tavolo' && (
-            <div className="flex items-center gap-2.5 py-1">
-              <input
-                type="checkbox"
-                id="remember-me"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-border text-primary focus:ring-1 focus:ring-primary/20 focus:ring-offset-0 cursor-pointer"
-              />
-              <label
-                htmlFor="remember-me"
-                className="text-xs text-muted-foreground font-medium cursor-pointer select-none"
-              >
-                Ricordami su questo dispositivo
-              </label>
-            </div>
+              <div className="flex justify-between items-center py-2.5 border-t border-border/40 mt-4 text-sm font-bold text-foreground">
+                <span>Prezzo</span>
+                <span className="tabular-nums text-primary text-base">€ {itemsTotal.toFixed(2)}</span>
+              </div>
+
+              {/* Remember me checkbox */}
+              <div className="flex items-center gap-2.5 py-1">
+                <input
+                  type="checkbox"
+                  id="remember-me"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-primary focus:ring-1 focus:ring-primary/20 focus:ring-offset-0 cursor-pointer"
+                />
+                <label
+                  htmlFor="remember-me"
+                  className="text-xs text-muted-foreground font-medium cursor-pointer select-none"
+                >
+                  Ricordami su questo dispositivo
+                </label>
+              </div>
+            </>
           )}
 
           <button
-            onClick={() => (deliveryType === 'tavolo' ? handleOrder() : setStep('payment'))}
+            onClick={() => setStep('payment')}
             disabled={!detailsValid || loading}
             className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
           >
-            {loading ? 'Elaborazione...' : deliveryType === 'tavolo' ? 'Invia ordine' : 'Procedi'}
+            Invia Ordine
           </button>
         </div>
       )}
@@ -1664,7 +2063,7 @@ function CheckoutModal({
             const payOptions = [
               {
                 id: 'card',
-                title: 'Carta di Credito / Debito',
+                title: bookingContext ? 'Paga adesso (carta)' : (deliveryType === 'tavolo' ? 'Paga adesso con Carta' : 'Carta di Credito / Debito'),
                 desc: 'Visa, Mastercard, Maestro, PostePay',
                 icon: (
                   <CreditCard
@@ -1672,14 +2071,15 @@ function CheckoutModal({
                     className={payMethod === 'card' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled:
+                enabled: bookingContext ? (paymentMethods?.card !== false) : (
                   deliveryType === 'domicilio'
                     ? paymentMethods?.card_delivery !== false
-                    : paymentMethods?.card_pickup !== false,
+                    : paymentMethods?.card_pickup !== false
+                ),
               },
               {
                 id: 'online',
-                title: 'Pagamento Online',
+                title: bookingContext ? 'Paga adesso con PayPal' : (deliveryType === 'tavolo' ? 'Paga adesso con PayPal' : 'Pagamento Online'),
                 desc: 'PayPal, Satispay, Apple/Google Pay',
                 icon: (
                   <Wallet
@@ -1691,21 +2091,25 @@ function CheckoutModal({
               },
               {
                 id: 'cash',
-                title: deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna',
-                desc:
-                  deliveryType === 'asporto'
-                    ? 'Paga direttamente in cassa'
-                    : "Paga all'arrivo del corriere",
+                title: bookingContext ? 'Paga alla cassa (Invia ordine)' : (deliveryType === 'tavolo' ? 'Paga in Cassa' : deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna'),
+                desc: bookingContext ? 'Invia l\'ordine direttamente e paga in cassa a fine pasto' : (
+                  deliveryType === 'tavolo'
+                    ? 'Invia l\'ordine e paga al tavolo/cassa a fine pasto'
+                    : deliveryType === 'asporto'
+                      ? 'Paga direttamente in cassa'
+                      : "Paga all'arrivo del corriere"
+                ),
                 icon: (
                   <Banknote
                     size={18}
                     className={payMethod === 'cash' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled:
+                enabled: bookingContext ? true : (
                   deliveryType === 'domicilio'
                     ? paymentMethods?.cash_delivery !== false
-                    : paymentMethods?.cash_pickup !== false,
+                    : paymentMethods?.cash_pickup !== false
+                ),
               },
             ].filter((opt) => opt.enabled);
 
@@ -1723,8 +2127,8 @@ function CheckoutModal({
                         type="button"
                         onClick={() => setPayMethod(opt.id as any)}
                         className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${active
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                            : 'border-border/60 hover:border-muted-foreground/30 bg-card'
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                          : 'border-border/60 hover:border-muted-foreground/30 bg-card'
                           }`}
                       >
                         <div className="flex items-center gap-3">
@@ -1755,6 +2159,11 @@ function CheckoutModal({
 
           {payMethod === 'card' && (
             <div className="space-y-2">
+              {bookingContext && (
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3.5 text-xs text-blue-700 dark:text-blue-300 mb-2 leading-relaxed">
+                  💳 <strong>Pre-autorizzazione:</strong> I dati della carta serviranno solo a pre-autorizzare l'importo. L'addebito effettivo avverrà <strong>solo dopo la conferma</strong> della prenotazione da parte del ristorante.
+                </div>
+              )}
               <CardPaymentForm
                 onChange={(data, isValid) => {
                   setCardNumber(data.number);
@@ -1770,8 +2179,11 @@ function CheckoutModal({
           {payMethod === 'cash' && (
             <div className="space-y-3">
               <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
-                Assicurati di avere il contante pronto{' '}
-                {deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.
+                {bookingContext
+                  ? "Invia la prenotazione e l'ordine. Pagherai comodamente in cassa a fine pasto (dopo che il ristorante avrà accettato e confermato)."
+                  : (deliveryType === 'tavolo'
+                    ? 'Invia l\'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto.'
+                    : `Assicurati di avere il contante pronto ${deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.`)}
               </div>
               {deliveryType === 'domicilio' && (
                 <div className="space-y-2">
@@ -1797,9 +2209,9 @@ function CheckoutModal({
                           }
                         }}
                         className={`py-2 rounded-lg border text-xs font-semibold transition-all ${(opt.value === 'no' && needRest === false) ||
-                            (opt.value !== 'no' && needRest === true && restAmount === opt.value)
-                            ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                            : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                          (opt.value !== 'no' && needRest === true && restAmount === opt.value)
+                          ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                          : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                           }`}
                       >
                         {opt.label}
@@ -1939,6 +2351,8 @@ function CheckoutModal({
                   </>
                 ) : payMethod === 'card' ? (
                   'Conferma pagamento'
+                ) : deliveryType === 'tavolo' ? (
+                  'Invia ordine in cucina'
                 ) : (
                   'Conferma ordine'
                 )}
@@ -1950,15 +2364,19 @@ function CheckoutModal({
 
       {step === 'success' && (
         <div className="space-y-6 text-center py-4">
-          <div className="w-16 h-16 bg-[var(--success-bg)] rounded-full flex items-center justify-center mx-auto shadow-inner">
-            <CheckCircle size={32} className="text-[var(--success)]" />
+          <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto shadow-inner border border-amber-500/20">
+            <Clock size={32} className="text-amber-500 animate-pulse" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-xl font-black text-foreground">Ordine ricevuto!</h3>
+            <h3 className="text-xl font-black text-foreground">
+              {lastCreatedOrder?.type === 'prenotazione_tavolo' ? 'Prenotazione Inviata!' : 'Ordine inviato!'}
+            </h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-              {deliveryType === 'tavolo'
-                ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato in cucina. Inizieremo subito a prepararlo!`
-                : 'Abbiamo ricevuto il tuo ordine. Lo prepareremo al più presto.'}
+              {lastCreatedOrder?.type === 'prenotazione_tavolo'
+                ? 'La tua prenotazione e pre-ordine del cibo sono stati inviati. Attendi la conferma direttamente da questa pagina del menu.'
+                : (deliveryType === 'tavolo'
+                  ? `Il tuo ordine per il tavolo ${tableNumber} è in attesa di accettazione. Torna alla pagina del menu per ricevere aggiornamenti.`
+                  : 'Il tuo ordine è in attesa di essere accettato dal ristorante. Torna alla pagina del menu per ricevere la notifica di conferma.')}
             </p>
           </div>
 
@@ -1975,7 +2393,6 @@ function CheckoutModal({
           <button
             onClick={() => {
               onClose();
-              setTimeout(() => window.location.reload(), 300);
             }}
             className="w-full mt-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-xs shadow-md shadow-primary/20"
           >
@@ -1984,6 +2401,128 @@ function CheckoutModal({
         </div>
       )}
     </Modal>
+  );
+}
+
+interface NotificationProps {
+  notification: {
+    variant: 'success' | 'warning' | 'danger';
+    title: string;
+    message: string;
+    orderId: string;
+  };
+  onClose: () => void;
+}
+
+function NotificationToast({ notification, onClose }: NotificationProps) {
+  useEffect(() => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playBeep = (delay: number, frequency: number, duration: number) => {
+        setTimeout(() => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+          osc.start(audioCtx.currentTime);
+          osc.stop(audioCtx.currentTime + duration);
+        }, delay);
+      };
+      if (notification.variant === 'danger') {
+        playBeep(0, 330, 0.2);
+        playBeep(220, 280, 0.3);
+      } else {
+        playBeep(0, 880, 0.1);
+        playBeep(110, 1100, 0.15);
+      }
+    } catch (e) {
+      console.log('Audio feedback not supported or allowed:', e);
+    }
+
+    const timer = setTimeout(() => onClose(), 8000);
+    return () => clearTimeout(timer);
+  }, [notification, onClose]);
+
+  const colorMap = {
+    success: {
+      icon: '✓',
+      iconBg: 'bg-emerald-500',
+      bar: 'bg-emerald-500',
+      label: 'Ordine Confermato',
+    },
+    warning: {
+      icon: '⊙',
+      iconBg: 'bg-amber-500',
+      bar: 'bg-amber-500',
+      label: 'Aggiornamento Ordine',
+    },
+    danger: {
+      icon: '✕',
+      iconBg: 'bg-red-500',
+      bar: 'bg-red-500',
+      label: 'Ordine Rifiutato',
+    },
+  };
+
+  const c = colorMap[notification.variant];
+
+  return (
+    <div
+      className="fixed top-5 right-5 z-[9999] w-[340px] max-w-[calc(100vw-32px)] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden cursor-pointer animate-slide-in-notification"
+      onClick={onClose}
+      role="alert"
+    >
+      <style>{`
+        @keyframes slideInNotification {
+          from { transform: translateX(110%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+        @keyframes shrinkBar {
+          from { width: 100%; }
+          to   { width: 0%; }
+        }
+        .animate-slide-in-notification {
+          animation: slideInNotification 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .notification-progress {
+          animation: shrinkBar 8s linear forwards;
+        }
+      `}</style>
+
+      {/* Colored accent top bar */}
+      <div className={`h-1 w-full ${c.bar}`} />
+
+      <div className="px-4 py-3 flex items-start gap-3">
+        {/* Icon dot */}
+        <div className={`mt-0.5 w-7 h-7 rounded-full ${c.iconBg} text-white flex items-center justify-center text-xs font-black flex-shrink-0`}>
+          {c.icon}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">{c.label}</p>
+          <p className="text-sm font-bold text-foreground leading-snug">{notification.title}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{notification.message}</p>
+        </div>
+
+        {/* Close */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          className="flex-shrink-0 w-5 h-5 rounded-full bg-muted hover:bg-border text-muted-foreground flex items-center justify-center transition-colors"
+          aria-label="Chiudi"
+        >
+          <X size={10} />
+        </button>
+      </div>
+
+      {/* Auto-dismiss progress bar */}
+      <div className="h-0.5 bg-muted">
+        <div className={`h-full notification-progress ${c.bar} opacity-40`} />
+      </div>
+    </div>
   );
 }
 
@@ -2032,17 +2571,6 @@ const getCustomizationOptions = (category: string) => {
     };
   }
   return { extras: [], removes: [] };
-};
-
-const getCategoryIcon = (category: string) => {
-  const norm = (category || '').toLowerCase();
-  if (norm.includes('pizza')) return '🍕';
-  if (norm.includes('antipast')) return '🥗';
-  if (norm.includes('prim')) return '🍝';
-  if (norm.includes('second')) return '🥩';
-  if (norm.includes('dolc') || norm.includes('dessert')) return '🍰';
-  if (norm.includes('bevand') || norm.includes('bibit')) return '🥤';
-  return '🏷️';
 };
 
 function CustomizationView({
@@ -2260,8 +2788,8 @@ function CustomizationView({
                     type="button"
                     onClick={() => toggleRemove(rem)}
                     className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${isRemoved
-                        ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
-                        : 'border-border bg-card text-foreground hover:bg-muted'
+                      ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
+                      : 'border-border bg-card text-foreground hover:bg-muted'
                       }`}
                   >
                     <div className="flex items-center gap-2">
@@ -2324,8 +2852,8 @@ function CustomizationView({
                               type="button"
                               onClick={() => toggleExtra(ext)}
                               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAdded
-                                  ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                                  : 'border-border bg-card text-foreground hover:bg-muted'
+                                ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                                : 'border-border bg-card text-foreground hover:bg-muted'
                                 }`}
                             >
                               <div className="flex flex-col items-start">
@@ -2373,8 +2901,8 @@ function CustomizationView({
                       type="button"
                       onClick={() => setCookingStyle(style.id as any)}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${isSelected
-                          ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                          : 'border-border bg-card text-foreground hover:bg-muted'
+                        ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
                         }`}
                     >
                       <span>{style.label}</span>
@@ -2470,14 +2998,39 @@ export default function CustomerStorefront() {
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          setServiceHoursConfig(JSON.parse(stored));
-        } catch (e) {
-          console.error('Error loading service hours in storefront:', e);
+      const loadConfig = () => {
+        const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+        if (stored) {
+          try {
+            setServiceHoursConfig(JSON.parse(stored));
+          } catch (e) {
+            console.error('Error loading service hours in storefront:', e);
+          }
+        } else {
+          setServiceHoursConfig(null);
         }
-      }
+      };
+
+      loadConfig();
+
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === STORAGE_KEYS.serviceHours(rId) || e.key === STORAGE_KEYS.serviceHours(slug)) {
+          loadConfig();
+        }
+      };
+      window.addEventListener('storage', handleStorageChange);
+
+      const handleCustomEvent = () => {
+        loadConfig();
+      };
+      window.addEventListener(`iGO_service_hours_${rId}_updated`, handleCustomEvent);
+      window.addEventListener(`iGO_service_hours_${slug}_updated`, handleCustomEvent);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener(`iGO_service_hours_${rId}_updated`, handleCustomEvent);
+        window.removeEventListener(`iGO_service_hours_${slug}_updated`, handleCustomEvent);
+      };
     }
   }, [slug]);
 
@@ -2525,20 +3078,186 @@ export default function CustomerStorefront() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(`iGO_last_order_${slug}`);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+  const [incomingNotification, setIncomingNotification] = useState<{
+    variant: 'success' | 'warning' | 'danger';
+    title: string;
+    message: string;
+    orderId: string;
+  } | null>(null);
   const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | 'paused' | null>(null);
   const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
   const [simulatedDay, setSimulatedDay] = useState<string | null>(null);
+  const [simulatedDate, setSimulatedDate] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Listen to order updates in localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined' || !lastCreatedOrder) return;
+    const rId = getRestaurantId(slug);
+    const ordersKey = STORAGE_KEYS.orders(rId);
+    const bookingsKey = STORAGE_KEYS.bookings(rId);
+
+    const checkOrderStatusUpdate = () => {
+      try {
+        if (lastCreatedOrder.type === 'prenotazione_tavolo' || lastCreatedOrder.id.startsWith('booking-')) {
+          const rawBookings = localStorage.getItem(bookingsKey);
+          if (!rawBookings) return;
+          const bookings = JSON.parse(rawBookings);
+          const currentBooking = bookings.find((b: any) => b.id === lastCreatedOrder.id);
+
+          if (currentBooking) {
+            if (currentBooking.status !== lastCreatedOrder.status) {
+              const oldStatus = lastCreatedOrder.status;
+              const newStatus = currentBooking.status;
+
+              // Only transition if oldStatus is pending and newStatus is confirmed/cancelled
+              if (oldStatus === 'pending' && (newStatus === 'confirmed' || newStatus === 'cancelled')) {
+                const restName = restaurantSettings?.name || 'iGOdelivering';
+                const customerName = lastCreatedOrder.name || 'Cliente';
+                const dateFormatted = new Date(lastCreatedOrder.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+                const timeStr = lastCreatedOrder.time;
+
+                let variant: 'success' | 'warning' | 'danger' = 'success';
+                let title = '';
+                let message = '';
+
+                if (newStatus === 'cancelled') {
+                  variant = 'danger';
+                  title = `Prenotazione Rifiutata ❌`;
+                  message = `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${dateFormatted} alle ${timeStr} non è stata accettata dal ristorante. Contattaci per trovare un'alternativa.`;
+                } else if (newStatus === 'confirmed') {
+                  variant = 'success';
+                  title = `Tavolo Confermato! 📅`;
+                  message = `Ottime notizie ${customerName}! La tua prenotazione per il tavolo il ${dateFormatted} alle ${timeStr} è stata confermata da ${restName}. ${lastCreatedOrder.preOrderItems && lastCreatedOrder.preOrderItems.length > 0 ? 'Anche i piatti pre-ordinati sono confermati ed in preparazione.' : 'Ti aspettiamo al locale!'}`;
+                }
+
+                setIncomingNotification({ variant, title, message, orderId: lastCreatedOrder.id });
+                setLastCreatedOrder(currentBooking);
+                sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(currentBooking));
+              }
+            }
+          }
+        } else {
+          const rawOrders = localStorage.getItem(ordersKey);
+          if (!rawOrders) return;
+          const orders = JSON.parse(rawOrders);
+          const currentOrder = orders.find((o: any) => o.id === lastCreatedOrder.id);
+
+          if (currentOrder) {
+            // If status transitioned
+            if (currentOrder.status !== lastCreatedOrder.status) {
+              const oldStatus = lastCreatedOrder.status;
+              const newStatus = currentOrder.status;
+
+              // Trigger notification only for valid transitions
+              const validTransitions = [
+                ['new', 'accepted'],
+                ['new', 'rejected'],
+                ['accepted', 'completed'],
+                ['new', 'completed'],
+              ];
+              const isValidTransition = validTransitions.some(
+                ([from, to]) => oldStatus === from && newStatus === to
+              );
+
+              if (isValidTransition) {
+                const restName = restaurantSettings?.name || 'iGOdelivering';
+                const customerName = lastCreatedOrder.customer?.name || lastCreatedOrder.customerName || 'Cliente';
+                const tableNum = lastCreatedOrder.tableNumber;
+                const isTable = lastCreatedOrder.type === 'tavolo';
+
+                let variant: 'success' | 'warning' | 'danger' = 'success';
+                let title = '';
+                let message = '';
+
+                if (newStatus === 'rejected') {
+                  variant = 'danger';
+                  title = isTable
+                    ? `Ordine Tavolo ${tableNum} non accettato`
+                    : `Il tuo ordine non è stato accettato`;
+                  message = isTable
+                    ? `Spiacenti, il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante. Chiedi al personale di sala.`
+                    : `Spiacenti, ${customerName}, il tuo ordine (${lastCreatedOrder.id}) non è stato accettato da ${restName}. Contatta il ristorante per maggiori informazioni.`;
+                } else if (newStatus === 'accepted') {
+                  variant = 'success';
+                  title = isTable
+                    ? `Tavolo ${tableNum} — Ordine accettato`
+                    : `Ordine confermato`;
+                  message = isTable
+                    ? `Il tuo ordine è stato accettato ed è ora in preparazione!`
+                    : `${customerName}, il tuo ordine (${lastCreatedOrder.id}) è stato accettato da ${restName} ed è in preparazione.`;
+                } else if (newStatus === 'completed') {
+                  variant = 'warning';
+                  title = isTable
+                    ? `Tavolo ${tableNum} — Ordine pronto`
+                    : `Ordine pronto`;
+                  message = isTable
+                    ? `Il tuo ordine è pronto e sta arrivando al tavolo. Buon appetito!`
+                    : `${customerName}, il tuo ordine è pronto! ${lastCreatedOrder.type === 'domicilio'
+                      ? 'Il corriere è in arrivo.'
+                      : 'Puoi ritirarlo al locale.'
+                    }`;
+                }
+
+                setIncomingNotification({ variant, title, message, orderId: lastCreatedOrder.id });
+
+                // Update tracked state so next transition is detected correctly
+                setLastCreatedOrder(currentOrder);
+                sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(currentOrder));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error checking order status:', e);
+      }
+    };
+
+    // Run initially in case it changed while offline or in transition
+    checkOrderStatusUpdate();
+
+    // Listen to standard storage events (across tabs)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === ordersKey || e.key === bookingsKey) {
+        checkOrderStatusUpdate();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // Listen to custom local events (same tab)
+    window.addEventListener('iGO_orders_updated', checkOrderStatusUpdate);
+    window.addEventListener('iGO_bookings_updated', checkOrderStatusUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('iGO_orders_updated', checkOrderStatusUpdate);
+      window.removeEventListener('iGO_bookings_updated', checkOrderStatusUpdate);
+    };
+  }, [lastCreatedOrder, slug, restaurantSettings]);
+
   const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
   const [myOrdersEmail, setMyOrdersEmail] = useState('');
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<any | null>(null);
   const [historyEmailInput, setHistoryEmailInput] = useState('');
+  const [historyEmailError, setHistoryEmailError] = useState<string | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const handleShare = () => {
     if (typeof window !== 'undefined') {
@@ -2670,6 +3389,15 @@ export default function CustomerStorefront() {
             <span className="text-muted-foreground">Servizio:</span>
             <span className="font-bold text-foreground capitalize">{order.type}</span>
           </div>
+          {order.deliveryTime && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Programmato per:</span>
+              <span className="font-bold text-amber-500">
+                {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
+                {order.deliveryTime === 'asap' ? 'Il prima possibile' : `alle ${order.deliveryTime}`}
+              </span>
+            </div>
+          )}
           {order.type === 'tavolo' ? (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tavolo:</span>
@@ -2765,7 +3493,199 @@ export default function CustomerStorefront() {
   const [bookingTime, setBookingTime] = useState('20:00');
   const [bookingName, setBookingName] = useState('');
   const [bookingPhone, setBookingPhone] = useState('');
+  const [bookingNote, setBookingNote] = useState('');
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [bookingWithPreOrder, setBookingWithPreOrder] = useState(false);
+  const [bookingPreOrderItems, setBookingPreOrderItems] = useState<CartItem[]>([]);
+  const [bookingStep, setBookingStep] = useState<'info' | 'preorder' | 'summary'>('info');
+  const [isBookingPreOrderCustomizing, setIsBookingPreOrderCustomizing] = useState(false);
+  const [bookingContext, setBookingContext] = useState<{
+    date: string;
+    time: string;
+    guests: number;
+    name: string;
+    phone: string;
+    note: string;
+  } | null>(null);
+
+  // Genera intervalli orari in cui il locale è effettivamente aperto per prenotazioni
+  const bookingTimeSlots = React.useMemo(() => {
+    // 1. Determina il giorno della settimana per la data selezionata
+    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    let targetDayName = '';
+    if (bookingDate) {
+      const parts = bookingDate.split('-');
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      targetDayName = DAYS_MAP[d.getDay()];
+    } else {
+      targetDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+    }
+
+    // 2. Cerca le fasce orarie specifiche di prenotazione (reservation) o general
+    let activeRanges: { start: string; end: string }[] = [];
+    let hasDedicatedReservationHours = false;
+
+    if (serviceHoursConfig) {
+      const useGeneral = serviceHoursConfig.useGeneral?.reservation !== false && !!serviceHoursConfig.serviceHours?.general;
+      const targetHoursKey = useGeneral ? 'general' : 'reservation';
+      const dayConfig = serviceHoursConfig.serviceHours?.[targetHoursKey]?.[targetDayName];
+
+      if (dayConfig && dayConfig.enabled !== false) {
+        if (dayConfig.lunchEnabled !== false && dayConfig.lunch) {
+          activeRanges.push({ start: dayConfig.lunch.from, end: dayConfig.lunch.to });
+        }
+        if (dayConfig.dinnerEnabled !== false && dayConfig.dinner) {
+          activeRanges.push({ start: dayConfig.dinner.from, end: dayConfig.dinner.to });
+        }
+        if (targetHoursKey === 'reservation') {
+          hasDedicatedReservationHours = true;
+        }
+      }
+    }
+
+    // Se non troviamo configurazioni avanzate, usiamo gli orari di apertura generali del locale
+    if (activeRanges.length === 0) {
+      activeRanges = restaurantSettings.openingHours || [];
+    }
+
+    const slots: string[] = [];
+    if (activeRanges.length === 0) {
+      // Fallback standard pranzo e cena (con cut-off di 1 ora: pranzo fino alle 14:00, cena fino alle 22:00)
+      for (let h = 12; h <= 14; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          if (h === 14 && m > 0) continue; // Ultimo slot ore 14:00
+          slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        }
+      }
+      for (let h = 19; h <= 22; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          if (h === 22 && m > 0) continue; // Ultimo slot ore 22:00
+          slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+        }
+      }
+      return slots;
+    }
+
+    activeRanges.forEach((range) => {
+      const [startH, startM] = range.start.split(':').map(Number);
+      const [endH, endM] = range.end.split(':').map(Number);
+      const startMin = startH * 60 + startM;
+      const endMin = endH * 60 + endM;
+
+      // Se l'admin ha definito orari dedicati alle prenotazioni, li applichiamo esattamente (senza sottrarre orari).
+      // Se invece usiamo gli orari generali come ripiego, applichiamo un cut-off protettivo di 1 ora prima della chiusura.
+      const cutoffMin = hasDedicatedReservationHours ? endMin : (endMin - 60);
+
+      for (let min = startMin; min <= cutoffMin; min += 15) {
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+      }
+    });
+
+    return Array.from(new Set(slots)).sort();
+  }, [restaurantSettings.openingHours, serviceHoursConfig, bookingDate, simulatedDay]);
+
+  // Sincronizza orario di prenotazione con gli slot orari validi
+  useEffect(() => {
+    if (bookingTimeSlots.length > 0) {
+      if (!bookingTime || !bookingTimeSlots.includes(bookingTime)) {
+        if (bookingTimeSlots.includes('20:00')) {
+          setBookingTime('20:00');
+        } else if (bookingTimeSlots.includes('13:00')) {
+          setBookingTime('13:00');
+        } else {
+          setBookingTime(bookingTimeSlots[0]);
+        }
+      }
+    }
+  }, [bookingTimeSlots, bookingTime]);
+
+  const addBookingPreOrderItemCustom = (
+    item: MenuItemType,
+    qty: number,
+    addedIngredients: { name: string; price: number }[],
+    removedIngredients: string[],
+    note: string
+  ) => {
+    const customizationsKey = JSON.stringify({ addedIngredients, removedIngredients, note });
+    setBookingPreOrderItems((prev) => {
+      const existing = prev.find(
+        (c) =>
+          c.id === item.id &&
+          JSON.stringify({
+            addedIngredients: c.addedIngredients || [],
+            removedIngredients: c.removedIngredients || [],
+            note: c.note || '',
+          }) === customizationsKey
+      );
+
+      if (existing) {
+        return prev.map((c) =>
+          c.id === item.id &&
+            JSON.stringify({
+              addedIngredients: c.addedIngredients || [],
+              removedIngredients: c.removedIngredients || [],
+              note: c.note || '',
+            }) === customizationsKey
+            ? { ...c, qty: c.qty + qty }
+            : c
+        );
+      }
+
+      const extraPrice = addedIngredients.reduce((sum, ext) => sum + ext.price, 0);
+      const customizedItem: CartItem = {
+        ...item,
+        cartId: `bk-${item.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        price: item.price + extraPrice,
+        qty,
+        addedIngredients,
+        removedIngredients,
+        note,
+      };
+
+      return [...prev, customizedItem];
+    });
+  };
+
+  const updateBookingPreOrderItem = (
+    cartId: string,
+    qty: number,
+    addedIngredients: { name: string; price: number }[],
+    removedIngredients: string[],
+    note: string
+  ) => {
+    setBookingPreOrderItems((prev) =>
+      prev.map((c) => {
+        if (c.cartId !== cartId) return c;
+        const extraPrice = addedIngredients.reduce((sum, ext) => sum + ext.price, 0);
+        const baseItem = menuItemsList.find((m) => m.id === c.id) || c;
+        return {
+          ...c,
+          qty,
+          price: baseItem.price + extraPrice,
+          addedIngredients,
+          removedIngredients,
+          note,
+        };
+      })
+    );
+  };
+
+  const handleEditBookingPreOrderItem = (item: CartItem) => {
+    const baseItem = menuItemsList.find((m) => m.id === item.id);
+    if (baseItem) {
+      setCustomizingCartItem(item);
+      setCustomizingItem(baseItem);
+      setIsBookingPreOrderCustomizing(true);
+    }
+  };
+
+  const handleCustomizeBookingPreOrderItem = (item: MenuItemType) => {
+    setCustomizingCartItem(null);
+    setCustomizingItem(item);
+    setIsBookingPreOrderCustomizing(true);
+  };
   const [isScrolled, setIsScrolled] = useState(false);
 
   // Detail Sheet State
@@ -2840,6 +3760,15 @@ export default function CustomerStorefront() {
     );
   };
 
+  const getCurrentDateStr = React.useCallback(() => {
+    if (simulatedDate) return simulatedDate;
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [simulatedDate]);
+
   const checkServiceOpen = React.useCallback((serviceType: 'pickup' | 'delivery' | 'reservation') => {
     if (simulatedTime === 'paused') return false;
 
@@ -2855,12 +3784,24 @@ export default function CustomerStorefront() {
     }
 
     if (config) {
+      // Controllo chiusura temporanea (es. ferie)
+      if (config.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+        const currentDate = getCurrentDateStr();
+        if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+          return false;
+        }
+      }
+
       if (config.serviceSuspended?.[serviceType] === true) {
         return false;
       }
       const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
       const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
-      const dayConfig = config.serviceHours?.[serviceType]?.[todayDayName];
+
+      const useGeneral = config.useGeneral?.[serviceType] !== false && !!config.serviceHours?.general;
+      const targetHoursKey = useGeneral ? 'general' : serviceType;
+
+      const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
       if (dayConfig) {
         if (dayConfig.enabled === false) {
           return false;
@@ -2888,7 +3829,7 @@ export default function CustomerStorefront() {
         restaurantSettings.openingHours.length === 0 ||
         restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
     }
-  }, [simulatedTime, simulatedDay, serviceHoursConfig, slug, restaurantSettings]);
+  }, [simulatedTime, simulatedDay, simulatedDate, serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]);
 
   const getClosedReason = () => {
     if (simulatedTime === 'paused') {
@@ -2904,6 +3845,16 @@ export default function CustomerStorefront() {
       }
     }
 
+    if (config) {
+      // Controllo chiusura temporanea (es. ferie)
+      if (config.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+        const currentDate = getCurrentDateStr();
+        if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+          return config.temporaryClosure.message || `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`;
+        }
+      }
+    }
+
     const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
     const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
@@ -2913,7 +3864,10 @@ export default function CustomerStorefront() {
         return `Il servizio di ${activeType === 'delivery' ? 'Consegna' : 'Asporto'} è stato temporaneamente sospeso dal gestore.`;
       }
 
-      const dayConfig = config.serviceHours?.[activeType]?.[todayDayName];
+      const useGeneral = config.useGeneral?.[activeType] !== false && !!config.serviceHours?.general;
+      const targetHoursKey = useGeneral ? 'general' : activeType;
+
+      const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
       if (dayConfig) {
         if (dayConfig.enabled === false) {
           return `Spiacenti, il ristorante è chiuso il ${todayDayName} per il servizio di ${activeType === 'delivery' ? 'consegna' : 'asporto'}.`;
@@ -2966,7 +3920,7 @@ export default function CustomerStorefront() {
     }
 
     setAvailabilityError(null);
-  }, [simulatedTime, simulatedDay, deliveryType, checkServiceOpen, searchParams]);
+  }, [simulatedTime, simulatedDay, simulatedDate, deliveryType, checkServiceOpen, searchParams]);
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -3079,10 +4033,11 @@ export default function CustomerStorefront() {
         if (data.name) setBookingName(data.name);
         if (data.phone) setBookingPhone(data.phone);
       }
+      setBookingDate(getCurrentDateStr());
     } catch (err) {
       console.error('Error loading saved booking info:', err);
     }
-  }, []);
+  }, [getCurrentDateStr]);
 
   // Dynamic Browser Tab Title Update
   useEffect(() => {
@@ -3107,7 +4062,7 @@ export default function CustomerStorefront() {
     flyDot.style.left = `${sourceRect.left + sourceRect.width / 2 - 15}px`;
     flyDot.style.top = `${sourceRect.top + sourceRect.height / 2 - 15}px`;
     flyDot.innerHTML = '+1';
-    
+
     document.body.appendChild(flyDot);
 
     // Calculate relative translation distances
@@ -3142,13 +4097,13 @@ export default function CustomerStorefront() {
       duration: 0.35,
       ease: 'power1.out'
     }, 0)
-    .to(flyDot, {
-      y: dy,
-      scale: 0.4,
-      opacity: 0.5,
-      duration: 0.4,
-      ease: 'power2.in'
-    }, 0.35);
+      .to(flyDot, {
+        y: dy,
+        scale: 0.4,
+        opacity: 0.5,
+        duration: 0.4,
+        ease: 'power2.in'
+      }, 0.35);
   };
 
   const addToCartCustom = (
@@ -3159,7 +4114,7 @@ export default function CustomerStorefront() {
     note: string
   ) => {
     if (isCurrentlyClosed) return;
-    
+
     // Trigger fly-to-cart animation
     triggerFlyToCart();
 
@@ -3269,6 +4224,25 @@ export default function CustomerStorefront() {
     if (simulatedTime === 'paused') {
       return { label: 'TEMPORANEAMENTE CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
+
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      if (stored) {
+        try {
+          config = JSON.parse(stored);
+        } catch (e) { }
+      }
+    }
+
+    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+      const currentDate = getCurrentDateStr();
+      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+        return { label: 'CHIUSO PER FERIE', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
+      }
+    }
+
     const isPickupOpen = checkServiceOpen('pickup');
     const isDeliveryOpen = checkServiceOpen('delivery');
 
@@ -3282,6 +4256,73 @@ export default function CustomerStorefront() {
   };
 
   const status = getRestaurantStatus();
+
+  const formattedTodayHours = React.useMemo(() => {
+    if (!isMounted) return '';
+
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      if (stored) {
+        try {
+          config = JSON.parse(stored);
+        } catch (e) { }
+      }
+    }
+
+    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+      const currentDate = getCurrentDateStr();
+      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+        return 'Ferie';
+      }
+    }
+
+    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+
+    const activeType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
+
+    if (config) {
+      if (config.serviceSuspended?.[activeType] === true) {
+        return 'Sospeso';
+      }
+
+      const useGeneral = config.useGeneral?.[activeType] !== false && !!config.serviceHours?.general;
+      const targetHoursKey = useGeneral ? 'general' : activeType;
+
+      const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
+      if (dayConfig) {
+        if (dayConfig.enabled === false) {
+          return 'Chiuso';
+        }
+        const lunchEnabled = dayConfig.lunchEnabled !== false;
+        const dinnerEnabled = dayConfig.dinnerEnabled !== false;
+        const parts = [];
+        if (lunchEnabled && dayConfig.lunch) {
+          parts.push(`${dayConfig.lunch.from}-${dayConfig.lunch.to}`);
+        }
+        if (dinnerEnabled && dayConfig.dinner) {
+          parts.push(`${dayConfig.dinner.from}-${dayConfig.dinner.to}`);
+        }
+        return parts.length > 0 ? parts.join(', ') : 'Chiuso';
+      }
+    }
+
+    const legacyHours = deliveryType === 'domicilio'
+      ? restaurantSettings.deliveryHours
+      : restaurantSettings.openingHours;
+
+    if (legacyHours && legacyHours.length > 0) {
+      const is24h = legacyHours.length === 1 && legacyHours[0].start === '00:00' && legacyHours[0].end === '23:59';
+      if (is24h) {
+        return '24 Ore';
+      }
+      return legacyHours.map(h => `${h.start}-${h.end}`).join(', ');
+    }
+
+    return 'Chiuso';
+  }, [isMounted, simulatedDay, simulatedDate, serviceHoursConfig, slug, deliveryType, restaurantSettings, getCurrentDateStr]);
 
   // Dynamic promo banner text
   const activePromo = promos.find(p => p.active);
@@ -3432,7 +4473,7 @@ export default function CustomerStorefront() {
       {isCurrentlyClosed && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md">
           <Clock size={12} className="animate-pulse flex-shrink-0" />
-          <span>Siamo spiacenti, il locale è attualmente CHIUSO.</span>
+          <span>{getClosedReason()}</span>
         </div>
       )}
 
@@ -3489,8 +4530,8 @@ export default function CustomerStorefront() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
-                    ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
-                    : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
+                  ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
+                  : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
                   }`}
               />
             </div>
@@ -3503,8 +4544,8 @@ export default function CustomerStorefront() {
               onClick={handleShare}
               title="Condividi Vetrina"
               className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                : 'bg-secondary text-foreground hover:bg-muted border border-border'
                 }`}
             >
               <Share2 size={16} />
@@ -3534,8 +4575,8 @@ export default function CustomerStorefront() {
                 }}
                 title="I miei ordini"
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
-                    ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                    : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
                   }`}
               >
                 <History size={16} />
@@ -3547,8 +4588,8 @@ export default function CustomerStorefront() {
               <button
                 onClick={() => setShowBookingModal(true)}
                 className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                    ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
-                    : 'bg-[var(--success)] text-white hover:bg-green-700'
+                  ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                  : 'bg-[var(--success)] text-white hover:bg-green-700'
                   }`}
               >
                 <CalendarCheck size={14} />
@@ -3561,8 +4602,8 @@ export default function CustomerStorefront() {
               id="header-cart-button"
               onClick={() => setCartOpen((o) => !o)}
               className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-primary text-white hover:bg-[#d43d22]'
+                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                : 'bg-primary text-white hover:bg-[#d43d22]'
                 }`}
             >
               <ShoppingCart size={14} />
@@ -3576,6 +4617,39 @@ export default function CustomerStorefront() {
           </div>
         </div>
       </header>
+
+      {/* Booking Context Bar (sticky under navbar) */}
+      {bookingContext && (
+        <div className={`fixed left-0 right-0 z-35 transition-all duration-300 ${isCurrentlyClosed ? 'top-[4.5rem]' : 'top-[3.5rem] sm:top-[4rem] md:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}>
+          <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold">
+              <Calendar size={14} className="flex-shrink-0 animate-pulse text-green-600" />
+              <span className="truncate text-foreground font-semibold">
+                Tavolo: <span className="font-extrabold text-green-600 dark:text-green-400">{new Date(bookingContext.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} {bookingContext.time}</span> · {bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setCheckoutOpen(true)}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm text-[11px] uppercase tracking-wider"
+              >
+                Completa →
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm("Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.")) {
+                    setBookingContext(null);
+                    setCart([]);
+                  }
+                }}
+                className="text-red-500 hover:text-red-700 font-bold px-2 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors text-[11px] uppercase tracking-wider"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Restaurant Hero */}
       <div className="relative h-[22rem] sm:h-[26rem] md:h-[30rem] overflow-hidden">
@@ -3606,11 +4680,19 @@ export default function CustomerStorefront() {
               </p>
 
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
-                <span
-                  className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}
-                >
-                  {status.label}
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}
+                  >
+                    {status.label}
+                  </span>
+                  {isMounted && formattedTodayHours && (
+                    <span className="flex items-center gap-1.5 border border-white/20 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs text-white">
+                      <Clock size={11} className="text-white/70" />
+                      <span>{formattedTodayHours}</span>
+                    </span>
+                  )}
+                </div>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Star size={14} className="fill-amber-400 text-amber-400" />
                   <strong>{restaurantSettings.rating}</strong>
@@ -3668,22 +4750,20 @@ export default function CustomerStorefront() {
       )}
 
       {/* Sticky category nav */}
-      <div className="sticky top-16 z-30 bg-card border-b border-border shadow-card">
+      <div className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-32' : 'top-24 sm:top-28') : (isCurrentlyClosed ? 'top-24' : 'top-16')}`}>
         <div className="max-w-screen-2xl mx-auto px-4 lg:px-8">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-3">
             {categories.map((cat) => {
-              const icon = getCategoryIcon(cat);
               const isActive = activeCategory === cat;
               return (
                 <button
                   key={`cat-nav-${cat}`}
                   onClick={() => handleCategoryClick(cat)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
-                      ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
-                      : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
+                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
+                    : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
                     }`}
                 >
-                  <span className="text-base">{icon}</span>
                   <span>{cat}</span>
                 </button>
               );
@@ -3756,7 +4836,6 @@ export default function CustomerStorefront() {
 
               <div className="flex items-center gap-3 mb-5">
                 <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
-                  <span>{getCategoryIcon(activeCategory)}</span>
                   <span>{activeCategory}</span>
                 </h2>
                 <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full font-bold">
@@ -3845,16 +4924,31 @@ export default function CustomerStorefront() {
         }}
         onConfirm={(qty, addedIngredients, removedIngredients, note) => {
           if (customizingItem) {
-            if (customizingCartItem) {
-              updateCartItem(
-                customizingCartItem.cartId!,
-                qty,
-                addedIngredients,
-                removedIngredients,
-                note
-              );
+            if (isBookingPreOrderCustomizing) {
+              if (customizingCartItem) {
+                updateBookingPreOrderItem(
+                  customizingCartItem.cartId!,
+                  qty,
+                  addedIngredients,
+                  removedIngredients,
+                  note
+                );
+              } else {
+                addBookingPreOrderItemCustom(customizingItem, qty, addedIngredients, removedIngredients, note);
+              }
+              setIsBookingPreOrderCustomizing(false);
             } else {
-              addToCartCustom(customizingItem, qty, addedIngredients, removedIngredients, note);
+              if (customizingCartItem) {
+                updateCartItem(
+                  customizingCartItem.cartId!,
+                  qty,
+                  addedIngredients,
+                  removedIngredients,
+                  note
+                );
+              } else {
+                addToCartCustom(customizingItem, qty, addedIngredients, removedIngredients, note);
+              }
             }
             setCustomizingItem(null);
             setCustomizingCartItem(null);
@@ -3884,7 +4978,6 @@ export default function CustomerStorefront() {
         slug={slug}
         tableNumber={tableNumber}
         paymentMethods={restaurantSettings.paymentMethods}
-        autoSubmit={deliveryType === 'tavolo'}
         currentTimeStr={getCurrentTimeStr()}
         openingHours={restaurantSettings.openingHours}
         deliveryHours={restaurantSettings.deliveryHours}
@@ -3894,6 +4987,13 @@ export default function CustomerStorefront() {
         applyPromo={applyPromo}
         promoError={promoError}
         appliedPromoDetail={appliedPromoDetail}
+        guests={guests}
+        setGuests={setGuests}
+        lastCreatedOrder={lastCreatedOrder}
+        setLastCreatedOrder={setLastCreatedOrder}
+        clearCart={() => setCart([])}
+        bookingContext={bookingContext}
+        setBookingContext={setBookingContext}
       />
 
       {/* Availability Error Modal */}
@@ -3906,10 +5006,10 @@ export default function CustomerStorefront() {
         <div className="space-y-4 text-center py-1">
           <div
             className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed'
-                ? 'bg-red-500/10 text-red-500'
-                : availabilityError === 'paused'
-                  ? 'bg-zinc-500/10 text-zinc-500'
-                  : 'bg-amber-500/10 text-amber-500'
+              ? 'bg-red-500/10 text-red-500'
+              : availabilityError === 'paused'
+                ? 'bg-zinc-500/10 text-zinc-500'
+                : 'bg-amber-500/10 text-amber-500'
               }`}
           >
             {availabilityError === 'closed' ? (
@@ -3965,169 +5065,256 @@ export default function CustomerStorefront() {
 
       {/* Booking modal */}
       {showBookingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => {
               setShowBookingModal(false);
               setBookingConfirmed(false);
+              setBookingStep('info');
+              setBookingPreOrderItems([]);
             }}
           />
-          <div className="relative bg-card rounded-2xl shadow-modal w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <CalendarCheck size={20} className="text-[var(--success)]" />
-                <h3 className="font-bold text-foreground">Prenota un Tavolo</h3>
+          <div className="relative bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[92vh]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[var(--success-bg)] flex items-center justify-center">
+                  <CalendarCheck size={16} className="text-[var(--success)]" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-sm leading-tight">Prenota un Tavolo</h3>
+                  {!bookingConfirmed && (
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      Dati prenotazione
+                    </p>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => {
                   setShowBookingModal(false);
                   setBookingConfirmed(false);
+                  setBookingStep('info');
+                  setBookingPreOrderItems([]);
                 }}
-                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                className="p-1.5 rounded-xl hover:bg-muted transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
-            {bookingConfirmed ? (
-              <div className="px-6 py-10 text-center">
-                <div className="w-16 h-16 rounded-full bg-[var(--success-bg)] flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle size={32} className="text-[var(--success)]" />
+
+            {/* ── Scrollable body ─────────────────────────────────── */}
+            <div className="overflow-y-auto flex-1 min-h-0">
+
+              {/* CONFIRMED */}
+              {bookingConfirmed ? (
+                <div className="px-6 py-10 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-[var(--success-bg)] flex items-center justify-center mx-auto">
+                    <CheckCircle size={32} className="text-[var(--success)]" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-foreground mb-1">Prenotazione Inviata!</h4>
+                    <p className="text-xs text-muted-foreground">In attesa di conferma dal ristorante. Ti invieremo una notifica di conferma qui sul menu.</p>
+                  </div>
+                  <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2.5 text-sm">
+                    <div className="flex items-center gap-2 text-foreground font-medium">
+                      <Users size={14} className="text-muted-foreground flex-shrink-0" />
+                      <span>{bookingGuests} {bookingGuests === 1 ? 'persona' : 'persone'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-foreground font-medium">
+                      <CalendarCheck size={14} className="text-muted-foreground flex-shrink-0" />
+                      <span>{bookingDate} alle {bookingTime}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-foreground font-medium">
+                      <User size={14} className="text-muted-foreground flex-shrink-0" />
+                      <span>{bookingName} ({bookingPhone})</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowBookingModal(false);
+                      setBookingConfirmed(false);
+                      setBookingStep('info');
+                      setBookingPreOrderItems([]);
+                    }}
+                    className="w-full bg-[var(--success)] text-white py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
+                  >
+                    Chiudi
+                  </button>
                 </div>
-                <h4 className="text-lg font-bold text-foreground mb-2">Prenotazione Confermata!</h4>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Tavolo per <strong>{bookingGuests} persone</strong>
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {bookingDate} alle {bookingTime}
-                </p>
-                <button
-                  onClick={() => {
-                    setShowBookingModal(false);
-                    setBookingConfirmed(false);
-                  }}
-                  className="bg-[var(--success)] text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
-                >
-                  Chiudi
-                </button>
-              </div>
-            ) : (
-              <div className="px-6 py-5 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Numero di persone
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setBookingGuests((g) => Math.max(1, g - 1))}
-                      className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center hover:bg-border transition-colors font-bold text-lg"
-                    >
-                      −
-                    </button>
-                    <span className="text-xl font-bold text-foreground w-8 text-center">
-                      {bookingGuests}
-                    </span>
-                    <button
-                      onClick={() => setBookingGuests((g) => Math.min(20, g + 1))}
-                      className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center hover:bg-border transition-colors font-bold text-lg"
-                    >
-                      +
-                    </button>
+              ) : (
+                <div className="px-5 py-5 space-y-5">
+                  {/* Date + Time side by side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">Giorno *</label>
+                      <input
+                        type="date"
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors appearance-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">Orario *</label>
+                      {bookingTimeSlots.length > 0 ? (
+                        <select
+                          value={bookingTime}
+                          onChange={(e) => setBookingTime(e.target.value)}
+                          className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
+                        >
+                          <option value="">Orario...</option>
+                          {bookingTimeSlots.map((slot) => (
+                            <option key={`bk-slot-${slot}`} value={slot}>
+                              {slot}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="time"
+                          value={bookingTime}
+                          onChange={(e) => setBookingTime(e.target.value)}
+                          className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors appearance-none"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Guests stepper */}
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">Persone *</label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setBookingGuests((g) => Math.max(1, g - 1))}
+                        className="w-10 h-10 rounded-xl bg-muted hover:bg-border transition-colors font-bold text-xl leading-none select-none"
+                      >−</button>
+                      <span className="text-2xl font-bold text-foreground w-10 text-center tabular-nums">{bookingGuests}</span>
+                      <button
+                        onClick={() => setBookingGuests((g) => Math.min(20, g + 1))}
+                        className="w-10 h-10 rounded-xl bg-muted hover:bg-border transition-colors font-bold text-xl leading-none select-none"
+                      >+</button>
+                      <span className="text-xs text-muted-foreground">{bookingGuests === 1 ? 'persona' : 'persone'}</span>
+                    </div>
+                  </div>
+
+                  {/* Name + Phone side by side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">Nome *</label>
+                      <input
+                        type="text"
+                        value={bookingName}
+                        onChange={(e) => setBookingName(e.target.value)}
+                        placeholder="Il tuo nome"
+                        className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">Telefono *</label>
+                      <input
+                        type="tel"
+                        value={bookingPhone}
+                        onChange={(e) => setBookingPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                        placeholder="+39 3331234567"
+                        className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">Note (opzionale)</label>
+                    <textarea
+                      value={bookingNote}
+                      onChange={(e) => setBookingNote(e.target.value)}
+                      placeholder="Allergie, occasione speciale, seggiolone…"
+                      rows={2}
+                      className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors resize-none"
+                    />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Giorno
-                  </label>
-                  <input
-                    type="date"
-                    value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-[180px] max-w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Orario
-                  </label>
-                  <input
-                    type="time"
-                    value={bookingTime}
-                    onChange={(e) => setBookingTime(e.target.value)}
-                    className="w-[180px] max-w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors min-w-0 appearance-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">Nome</label>
-                  <input
-                    type="text"
-                    value={bookingName}
-                    onChange={(e) => setBookingName(e.target.value)}
-                    placeholder="Il tuo nome"
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Telefono
-                  </label>
-                  <input
-                    type="tel"
-                    value={bookingPhone}
-                    onChange={(e) => setBookingPhone(e.target.value)}
-                    placeholder="+39 ..."
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
+              )}
+            </div>
+
+            {/* ── Footer CTA ──────────────────────────────────────── */}
+            {!bookingConfirmed && (
+              <div className="px-5 py-4 border-t border-border flex-shrink-0 flex flex-col sm:flex-row gap-3">
                 <button
+                  disabled={!bookingDate || !bookingTime || bookingGuests < 1 || !bookingName.trim() || !bookingPhone.trim()}
                   onClick={() => {
-                    if (bookingDate && bookingName) {
-                      setBookingConfirmed(true);
-                      try {
-                        localStorage.setItem(
-                          'iGO_booking_info',
-                          JSON.stringify({ name: bookingName, phone: bookingPhone })
-                        );
-
-                        const rId = getRestaurantId(slug);
-                        const bookingsKey = STORAGE_KEYS.bookings(rId);
-                        const existingStr = localStorage.getItem(bookingsKey);
-                        let bookingsArray = [];
-                        if (existingStr) {
-                          try {
-                            bookingsArray = JSON.parse(existingStr);
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }
-
-                        const newBooking = {
-                          id: `booking-${Date.now()}`,
-                          restaurantId: rId,
-                          name: bookingName.trim(),
-                          phone: bookingPhone.trim(),
-                          email: '',
-                          guests: bookingGuests,
-                          date: bookingDate,
-                          time: bookingTime,
-                          status: 'pending',
-                          notes: '',
-                          createdAt: new Date().toISOString(),
-                        };
-
-                        bookingsArray.push(newBooking);
-                        localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
-                        window.dispatchEvent(new Event('iGO_bookings_updated'));
-                      } catch (err) {
-                        console.error('Error saving booking info:', err);
+                    // Submit Solo Tavolo
+                    try {
+                      localStorage.setItem('iGO_booking_info', JSON.stringify({ name: bookingName, phone: bookingPhone }));
+                      const rId = getRestaurantId(slug);
+                      const bookingsKey = STORAGE_KEYS.bookings(rId);
+                      const existingStr = localStorage.getItem(bookingsKey);
+                      let bookingsArray: any[] = [];
+                      if (existingStr) {
+                        try { bookingsArray = JSON.parse(existingStr); } catch (e) { console.error(e); }
                       }
+                      const newBooking = {
+                        id: `booking-${Date.now()}`,
+                        restaurantId: rId,
+                        name: bookingName.trim(),
+                        phone: bookingPhone.trim(),
+                        email: '',
+                        guests: bookingGuests,
+                        date: bookingDate,
+                        time: bookingTime,
+                        status: 'pending',
+                        notes: bookingNote.trim(),
+                        preOrderItems: [],
+                        createdAt: new Date().toISOString(),
+                      };
+                      bookingsArray.push(newBooking);
+                      localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
+
+                      const trackedOrder = {
+                        ...newBooking,
+                        type: 'prenotazione_tavolo',
+                        customerName: bookingName,
+                        total: 0,
+                      };
+                      setLastCreatedOrder(trackedOrder);
+                      sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
+
+                      window.dispatchEvent(new Event('iGO_bookings_updated'));
+                      setBookingConfirmed(true);
+                    } catch (err) {
+                      console.error('Error saving booking:', err);
                     }
                   }}
-                  disabled={!bookingDate || !bookingName}
-                  className="w-full flex items-center justify-center gap-2 bg-[var(--success)] text-white py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 flex items-center justify-center gap-2 border border-border hover:bg-muted text-foreground py-3 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CalendarCheck size={16} />
-                  Conferma Prenotazione
+                  <Calendar size={14} /> Solo Tavolo
+                </button>
+                <button
+                  disabled={!bookingDate || !bookingTime || bookingGuests < 1 || !bookingName.trim() || !bookingPhone.trim()}
+                  onClick={() => {
+                    // Ordina anche il cibo
+                    if (cart.length > 0) {
+                      const ok = window.confirm("Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?");
+                      if (!ok) return;
+                    }
+                    setCart([]);
+                    setBookingContext({
+                      name: bookingName.trim(),
+                      phone: bookingPhone.trim(),
+                      guests: bookingGuests,
+                      date: bookingDate,
+                      time: bookingTime,
+                      note: bookingNote.trim(),
+                    });
+                    setDeliveryType('tavolo');
+                    setShowBookingModal(false);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white py-3 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-500/10"
+                >
+                  <UtensilsCrossed size={14} /> Sì, ordina piatti
                 </button>
               </div>
             )}
@@ -4150,6 +5337,26 @@ export default function CustomerStorefront() {
             Test Orari & Disponibilità
           </h4>
           <div className="grid grid-cols-1 gap-2 text-[11px]">
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-zinc-400">Data Simulata (YYYY-MM-DD):</span>
+              <input
+                type="date"
+                value={simulatedDate || ''}
+                onChange={(e) => {
+                  setAvailabilityError(null);
+                  setSimulatedDate(e.target.value || null);
+                  if (e.target.value) {
+                    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+                    const parts = e.target.value.split('-');
+                    const localDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                    const dayName = DAYS_MAP[localDate.getDay()];
+                    setSimulatedDay(dayName);
+                  }
+                }}
+                className="bg-zinc-100 dark:bg-zinc-800 text-[10px] rounded p-1 text-foreground border border-border focus:outline-none w-full"
+              />
+            </div>
+
             <div className="flex flex-col gap-1">
               <span className="text-[9px] font-bold text-zinc-400">Giorno Simulato:</span>
               <select
@@ -4189,6 +5396,7 @@ export default function CustomerStorefront() {
                     setAvailabilityError(null);
                     setSimulatedTime(null);
                     setSimulatedDay(null);
+                    setSimulatedDate(null);
                   }}
                   className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 px-2 rounded text-[9px] font-bold"
                 >
@@ -4208,8 +5416,8 @@ export default function CustomerStorefront() {
                   }
                 }}
                 className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${simulatedTime === 'paused'
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
                   }`}
               >
                 <span>Forza Locale Chiuso (Pausa)</span>
@@ -4247,21 +5455,29 @@ export default function CustomerStorefront() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (historyEmailInput.trim() && historyEmailInput.includes('@')) {
-                const cleanedEmail = historyEmailInput.trim().toLowerCase();
-                setMyOrdersEmail(cleanedEmail);
-                try {
-                  const rId = getRestaurantId(slug);
-                  const custOrdersKey = STORAGE_KEYS.customerOrders(rId, cleanedEmail);
-                  const raw = localStorage.getItem(custOrdersKey);
-                  if (raw) {
-                    setHistoryOrders(JSON.parse(raw));
-                  } else {
-                    setHistoryOrders([]);
-                  }
-                } catch (err) {
-                  console.error(err);
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!historyEmailInput.trim()) {
+                setHistoryEmailError('L\'email è obbligatoria.');
+                return;
+              }
+              if (!emailRegex.test(historyEmailInput.trim())) {
+                setHistoryEmailError('Inserisci un indirizzo email valido.');
+                return;
+              }
+              setHistoryEmailError(null);
+              const cleanedEmail = historyEmailInput.trim().toLowerCase();
+              setMyOrdersEmail(cleanedEmail);
+              try {
+                const rId = getRestaurantId(slug);
+                const custOrdersKey = STORAGE_KEYS.customerOrders(rId, cleanedEmail);
+                const raw = localStorage.getItem(custOrdersKey);
+                if (raw) {
+                  setHistoryOrders(JSON.parse(raw));
+                } else {
+                  setHistoryOrders([]);
                 }
+              } catch (err) {
+                console.error(err);
               }
             }}
             className="space-y-4 py-4 text-center"
@@ -4280,10 +5496,18 @@ export default function CustomerStorefront() {
                 type="email"
                 required
                 value={historyEmailInput}
-                onChange={(e) => setHistoryEmailInput(e.target.value)}
+                onChange={(e) => {
+                  setHistoryEmailInput(e.target.value);
+                  if (historyEmailError) setHistoryEmailError(null);
+                }}
                 placeholder="La tua email..."
                 className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground/50"
               />
+              {historyEmailError && (
+                <p className="text-xs text-red-500 font-semibold mt-1 text-left px-1">
+                  {historyEmailError}
+                </p>
+              )}
               <button
                 type="submit"
                 className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-colors"
@@ -4380,6 +5604,13 @@ export default function CustomerStorefront() {
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-black/85 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 animate-fade-in backdrop-blur-xs">
           <span>Link copiato negli appunti!</span>
         </div>
+      )}
+
+      {incomingNotification && (
+        <NotificationToast
+          notification={incomingNotification}
+          onClose={() => setIncomingNotification(null)}
+        />
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Plus, Trash2, Edit2, Upload, X, Euro, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
+import { DISH_TAGS_LIST } from '@/lib/constants';
 
 import {
   MenuItemWizardDraft,
@@ -106,6 +107,21 @@ export default function MenuStep({
   const [isPromo, setIsPromo] = React.useState(!!newItem.originalPrice);
   const [availableAllergens, setAvailableAllergens] = React.useState<string[]>([]);
   const [customAllergen, setCustomAllergen] = React.useState('');
+  const [availableDishTags, setAvailableDishTags] = React.useState<string[]>([]);
+  const [customTag, setCustomTag] = React.useState('');
+
+  // Emoji Picker States
+  const [allergenEmoji, setAllergenEmoji] = React.useState('➕');
+  const [showAllergenEmojiPicker, setShowAllergenEmojiPicker] = React.useState(false);
+  const [tagEmoji, setTagEmoji] = React.useState('➕');
+  const [showTagEmojiPicker, setShowTagEmojiPicker] = React.useState(false);
+
+  const EMOJI_LIST = [
+    '🌱', '🥗', '🌶️', '🔥', '🆕', '⭐', '👑',
+    '🍕', '🍔', '🍣', '🥩', '🐟', '🥛', '🥚',
+    '🥜', '🌾', '🍪', '🍇', '🍋', '🥤', '🍷',
+    '❄️', '🧪'
+  ];
 
   React.useEffect(() => {
     setIsPromo(!!newItem.originalPrice);
@@ -127,6 +143,25 @@ export default function MenuStep({
       setAvailableAllergens(merged);
     }
   }, [newItem.allergens]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('iGO_dish_tags_list');
+      let list: string[] = [];
+      if (stored) {
+        try {
+          list = JSON.parse(stored);
+        } catch (e) {
+          list = [];
+        }
+      } else {
+        list = DISH_TAGS_LIST;
+      }
+      const initialSet = new Set([...list, ...(newItem.dishTags || [])]);
+      const merged = Array.from(initialSet).filter(Boolean);
+      setAvailableDishTags(merged);
+    }
+  }, [newItem.dishTags]);
 
   const saveAllergensToLocalStorage = (list: string[]) => {
     if (typeof window !== 'undefined') {
@@ -157,6 +192,50 @@ export default function MenuStep({
     if (newItem.allergens.includes(a)) {
       toggleAllergen(a);
     }
+  };
+
+  const saveDishTagsToLocalStorage = (list: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iGO_dish_tags_list', JSON.stringify(list));
+    }
+  };
+
+  const handleAddDishTag = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    setAvailableDishTags((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      const next = [...prev, trimmed];
+      saveDishTagsToLocalStorage(next);
+      return next;
+    });
+    const currentTags = newItem.dishTags || [];
+    if (!currentTags.includes(trimmed)) {
+      toggleDishTag(trimmed);
+    }
+  };
+
+  const handleDeleteDishTag = (a: string) => {
+    setAvailableDishTags((prev) => {
+      const next = prev.filter((x) => x !== a);
+      saveDishTagsToLocalStorage(next);
+      return next;
+    });
+    if ((newItem.dishTags || []).includes(a)) {
+      toggleDishTag(a);
+    }
+  };
+
+  const toggleDishTag = (tag: string) => {
+    setNewItem((p) => {
+      const currentTags = p.dishTags || [];
+      return {
+        ...p,
+        dishTags: currentTags.includes(tag)
+          ? currentTags.filter((x: string) => x !== tag)
+          : [...currentTags, tag],
+      };
+    });
   };
 
   return (
@@ -547,7 +626,7 @@ export default function MenuStep({
               </div>
             </div>
 
-            {/* Opzioni & Allergeni Panels */}
+            {/* Opzioni & Allergeni & Tag Panels */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-border">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -562,6 +641,7 @@ export default function MenuStep({
                   {optionGroups.map((g) => (
                     <button
                       key={g.id}
+                      type="button"
                       onClick={() => toggleItemOptionGroup(g.id)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors ${newItem.optionGroups.includes(g.id) ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}
                     >
@@ -571,100 +651,290 @@ export default function MenuStep({
                   ))}
                 </div>
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    Allergeni
-                  </p>
-                  <div className="flex items-center gap-1.5">
+
+              <div className="space-y-6">
+                {/* Allergeni section */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Allergeni
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewItem((p) => ({ ...p, allergens: [] }));
+                        }}
+                        className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                      >
+                        Pulisci
+                      </button>
+                      <span className="text-[9px] text-muted-foreground">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewItem((p) => ({ ...p, allergens: [...availableAllergens] }));
+                        }}
+                        className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                      >
+                        Tutti
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1">
+                    {availableAllergens.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
+                    )}
+                    {availableAllergens.map((a) => {
+                      const isActive = newItem.allergens.includes(a);
+                      return (
+                        <div
+                          key={a}
+                          onClick={() => toggleAllergen(a)}
+                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
+                            isActive
+                              ? 'bg-amber-100 border-amber-300 text-amber-800'
+                              : 'bg-card border-border text-muted-foreground hover:bg-muted'
+                          }`}
+                        >
+                          {a}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteAllergen(a);
+                            }}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95"
+                            style={{ fontSize: '7px', lineHeight: '1' }}
+                            title={`Elimina ${a}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-2 relative">
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAllergenEmojiPicker(!showAllergenEmojiPicker);
+                          setShowTagEmojiPicker(false);
+                        }}
+                        className="px-2.5 py-2 bg-input border border-border rounded-lg hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[38px] h-[34px]"
+                        title="Seleziona Emoji"
+                      >
+                        {allergenEmoji}
+                      </button>
+                      {showAllergenEmojiPicker && (
+                        <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-lg shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-40 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAllergenEmoji('➕');
+                              setShowAllergenEmojiPicker(false);
+                            }}
+                            className="p-1 hover:bg-muted rounded text-[10px] text-muted-foreground"
+                          >
+                            Nessuna
+                          </button>
+                          {EMOJI_LIST.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => {
+                                setAllergenEmoji(emoji);
+                                setShowAllergenEmojiPicker(false);
+                              }}
+                              className="p-1 hover:bg-muted rounded text-base cursor-pointer"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={customAllergen}
+                      onChange={(e) => setCustomAllergen(e.target.value)}
+                      placeholder="Nuovo allergene (es. Arachidi)"
+                      className="flex-1 px-3 py-2 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring min-w-0"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const txt = customAllergen.trim();
+                          if (txt) {
+                            const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
+                            handleAddAllergen(finalVal);
+                            setCustomAllergen('');
+                            setAllergenEmoji('➕');
+                          }
+                        }
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => {
-                        setNewItem((p) => ({ ...p, allergens: [] }));
+                        const txt = customAllergen.trim();
+                        if (txt) {
+                          const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
+                          handleAddAllergen(finalVal);
+                          setCustomAllergen('');
+                          setAllergenEmoji('➕');
+                        }
                       }}
-                      className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
-                      Pulisci
-                    </button>
-                    <span className="text-[9px] text-muted-foreground">|</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewItem((p) => ({ ...p, allergens: [...availableAllergens] }));
-                      }}
-                      className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
-                    >
-                      Tutti
+                      <Plus size={10} />
+                      Aggiungi
                     </button>
                   </div>
                 </div>
-                
-                <div className="flex flex-wrap gap-2 mb-3 max-h-36 overflow-y-auto pr-1">
-                  {availableAllergens.length === 0 && (
-                    <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
-                  )}
-                  {availableAllergens.map((a) => {
-                    const isActive = newItem.allergens.includes(a);
-                    return (
-                      <div
-                        key={a}
-                        onClick={() => toggleAllergen(a)}
-                        className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
-                          isActive
-                            ? 'bg-amber-100 border-amber-300 text-amber-800'
-                            : 'bg-card border-border text-muted-foreground hover:bg-muted'
-                        }`}
-                      >
-                        {a}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteAllergen(a);
-                          }}
-                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95"
-                          style={{ fontSize: '7px', lineHeight: '1' }}
-                          title={`Elimina ${a}`}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customAllergen}
-                    onChange={(e) => setCustomAllergen(e.target.value)}
-                    placeholder="Nuovo allergene (es. Arachidi)"
-                    className="flex-1 px-3 py-2 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring min-w-0"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const val = customAllergen.trim();
-                        if (val) {
-                          handleAddAllergen(val);
-                          setCustomAllergen('');
+                {/* Tag Piatto section */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Etichette / Tag Piatto (es. Vegano)
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewItem((p) => ({ ...p, dishTags: [] }));
+                        }}
+                        className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                      >
+                        Pulisci
+                      </button>
+                      <span className="text-[9px] text-muted-foreground">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewItem((p) => ({ ...p, dishTags: [...availableDishTags] }));
+                        }}
+                        className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                      >
+                        Tutti
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1">
+                    {availableDishTags.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">Nessuna etichetta inserita</p>
+                    )}
+                    {availableDishTags.map((t) => {
+                      const isActive = (newItem.dishTags || []).includes(t);
+                      return (
+                        <div
+                          key={t}
+                          onClick={() => toggleDishTag(t)}
+                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
+                            isActive
+                              ? 'bg-primary/10 border-primary text-primary'
+                              : 'bg-card border-border text-muted-foreground hover:bg-muted'
+                          }`}
+                        >
+                          {t}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDishTag(t);
+                            }}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95"
+                            style={{ fontSize: '7px', lineHeight: '1' }}
+                            title={`Elimina ${t}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-2 relative">
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowTagEmojiPicker(!showTagEmojiPicker);
+                          setShowAllergenEmojiPicker(false);
+                        }}
+                        className="px-2.5 py-2 bg-input border border-border rounded-lg hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[38px] h-[34px]"
+                        title="Seleziona Emoji"
+                      >
+                        {tagEmoji}
+                      </button>
+                      {showTagEmojiPicker && (
+                        <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-lg shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-40 overflow-y-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTagEmoji('➕');
+                              setShowTagEmojiPicker(false);
+                            }}
+                            className="p-1 hover:bg-muted rounded text-[10px] text-muted-foreground"
+                          >
+                            Nessuna
+                          </button>
+                          {EMOJI_LIST.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => {
+                                setTagEmoji(emoji);
+                                setShowTagEmojiPicker(false);
+                              }}
+                              className="p-1 hover:bg-muted rounded text-base cursor-pointer"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={customTag}
+                      onChange={(e) => setCustomTag(e.target.value)}
+                      placeholder="Aggiungi etichetta (es. Vegano)"
+                      className="flex-1 px-3 py-2 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring min-w-0"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const txt = customTag.trim();
+                          if (txt) {
+                            const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
+                            handleAddDishTag(finalVal);
+                            setCustomTag('');
+                            setTagEmoji('➕');
+                          }
                         }
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const val = customAllergen.trim();
-                      if (val) {
-                        handleAddAllergen(val);
-                        setCustomAllergen('');
-                      }
-                    }}
-                    className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
-                  >
-                    <Plus size={10} />
-                    Aggiungi
-                  </button>
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const txt = customTag.trim();
+                        if (txt) {
+                          const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
+                          handleAddDishTag(finalVal);
+                          setCustomTag('');
+                          setTagEmoji('➕');
+                        }
+                      }}
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                    >
+                      <Plus size={10} />
+                      Aggiungi
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

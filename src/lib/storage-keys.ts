@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   RESTAURANTS: 'iGOdelivering_restaurants',
   SIDEBAR_COLLAPSED: 'iGO_sidebar_collapsed',
   ALLERGENS_LIST: 'iGO_allergens_list',
+  DISH_TAGS_LIST: 'iGO_dish_tags_list',
 
   // Restaurant-specific Keys (functions to resolve using restaurantId or slug)
   settings: (restaurantId: string) => `iGO_settings_${restaurantId}`,

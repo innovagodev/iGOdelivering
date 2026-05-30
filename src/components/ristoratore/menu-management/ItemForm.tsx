@@ -11,6 +11,8 @@ import {
   Trash2,
 } from 'lucide-react';
 
+import { DISH_TAGS_LIST } from '@/lib/constants';
+
 type VisibilityType = 'always' | 'hidden' | 'scheduled';
 
 interface OptionChoice {
@@ -35,6 +37,7 @@ interface MenuItemDraft {
   available: boolean;
   imageUrl: string;
   allergens: string[];
+  dishTags?: string[];
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];
@@ -65,6 +68,7 @@ export default function ItemForm({
     ...item,
     optionGroups: item.optionGroups ? [...item.optionGroups] : [],
     visibility: 'always',
+    dishTags: item.dishTags ? [...item.dishTags] : [],
   });
   const [isPromo, setIsPromo] = useState(!!item.originalPrice);
   const [newCategoryInput, setNewCategoryInput] = useState('');
@@ -78,6 +82,22 @@ export default function ItemForm({
   const [modalOptionGroups, setModalOptionGroups] = useState<OptionGroup[]>([]);
   const [customAllergen, setCustomAllergen] = useState('');
   const [availableAllergens, setAvailableAllergens] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState('');
+  const [availableDishTags, setAvailableDishTags] = useState<string[]>([]);
+
+  // Emoji Picker States
+  const [allergenEmoji, setAllergenEmoji] = useState('➕');
+  const [showAllergenEmojiPicker, setShowAllergenEmojiPicker] = useState(false);
+  const [tagEmoji, setTagEmoji] = useState('➕');
+  const [showTagEmojiPicker, setShowTagEmojiPicker] = useState(false);
+
+  const EMOJI_LIST = [
+    '🌱', '🥗', '🌶️', '🔥', '🆕', '⭐', '👑',
+    '🍕', '🍔', '🍣', '🥩', '🐟', '🥛', '🥚',
+    '🥜', '🌾', '🍪', '🍇', '🍋', '🥤', '🍷',
+    '❄️', '🧪'
+  ];
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -85,6 +105,7 @@ export default function ItemForm({
       ...item,
       optionGroups: item.optionGroups ? [...item.optionGroups] : [],
       visibility: 'always',
+      dishTags: item.dishTags ? [...item.dishTags] : [],
     });
     setIsPromo(!!item.originalPrice);
   }, [item]);
@@ -105,6 +126,25 @@ export default function ItemForm({
       setAvailableAllergens(merged);
     }
   }, [item.allergens]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('iGO_dish_tags_list');
+      let list: string[] = [];
+      if (stored) {
+        try {
+          list = JSON.parse(stored);
+        } catch (e) {
+          list = [];
+        }
+      } else {
+        list = DISH_TAGS_LIST;
+      }
+      const initialSet = new Set([...list, ...(item.dishTags || [])]);
+      const merged = Array.from(initialSet).filter(Boolean);
+      setAvailableDishTags(merged);
+    }
+  }, [item.dishTags]);
 
   useEffect(() => {
     if (isSupplementsModalOpen) {
@@ -147,6 +187,44 @@ export default function ItemForm({
     setDraft((p) => ({
       ...p,
       allergens: p.allergens.includes(a) ? p.allergens.filter((x) => x !== a) : [...p.allergens, a],
+    }));
+  };
+
+  const saveDishTagsToLocalStorage = (list: string[]) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iGO_dish_tags_list', JSON.stringify(list));
+    }
+  };
+
+  const handleAddDishTag = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    setAvailableDishTags((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      const next = [...prev, trimmed];
+      saveDishTagsToLocalStorage(next);
+      return next;
+    });
+    const currentTags = draft.dishTags || [];
+    if (!currentTags.includes(trimmed)) {
+      setDraft((p) => ({ ...p, dishTags: [...(p.dishTags || []), trimmed] }));
+    }
+  };
+
+  const handleDeleteDishTag = (a: string) => {
+    setAvailableDishTags((prev) => {
+      const next = prev.filter((x: string) => x !== a);
+      saveDishTagsToLocalStorage(next);
+      return next;
+    });
+    setDraft((p) => ({ ...p, dishTags: (p.dishTags || []).filter((x: string) => x !== a) }));
+  };
+
+  const toggleDishTag = (a: string) => {
+    const currentTags = draft.dishTags || [];
+    setDraft((p) => ({
+      ...p,
+      dishTags: currentTags.includes(a) ? currentTags.filter((x: string) => x !== a) : [...currentTags, a],
     }));
   };
 
@@ -277,146 +355,151 @@ export default function ItemForm({
           </div>
         </div>
 
-        {/* Price & Promotion Section */}
-<div className="w-full">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
-    
-    {/* COLONNA SINISTRA: Layout originale (Prezzo + Checkbox) */}
-    <div className="flex items-end gap-4">
-      <div className="flex-1">
-        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-          Prezzo di Listino (€) *
-        </label>
-        <div className="relative">
-          <Euro
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            type="number"
-            value={draft.price}
-            onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
-            placeholder="9.50"
-            className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Checkbox Promozione (allineata all'input) */}
-      <label className="flex items-center gap-2 cursor-pointer select-none mb-3.5">
-        <input
-          type="checkbox"
-          checked={isPromo}
-          onChange={(e) => {
-            setIsPromo(e.target.checked);
-            if (!e.target.checked) setDraft((p) => ({ ...p, originalPrice: '' }));
-          }}
-          className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer"
-        />
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
-          Promozione
-        </span>
-      </label>
-    </div>
-
-    {/* COLONNA DESTRA: Prezzo Scontato (appare nella parte vuota) */}
-    <div className="min-h-[70px] flex flex-col justify-end">
-      {isPromo && (
-        <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-            Prezzo Scontato (€) *
-          </label>
-          <div className="relative">
-            <Euro
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="number"
-              value={draft.originalPrice || ''}
-              onChange={(e) => setDraft((p) => ({ ...p, originalPrice: e.target.value }))}
-              placeholder="7.50"
-              className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
+        {/* Price, Promotion & Image unified row layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-end sm:col-span-2">
+          
+          {/* COLONNA SINISTRA: Prezzo di Listino (largo quanto Nome Piatto) */}
+          <div className="w-full">
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+              Prezzo di Listino (€) *
+            </label>
+            <div className="relative">
+              <Euro
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="number"
+                value={draft.price}
+                onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
+                placeholder="9.50"
+                className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
           </div>
-        </div>
-      )}
-    </div>
 
-  </div>
-</div>
-
-
-
-        {/* Image Drag-and-Drop Dropzone */}
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-            Immagine del Piatto
-          </label>
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-              const file = e.dataTransfer.files?.[0];
-              if (file && file.type.startsWith('image/')) {
-                const url = URL.createObjectURL(file);
-                setDraft((p) => ({ ...p, imageUrl: url }));
-              }
-            }}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 transition-all cursor-pointer select-none min-h-[140px] relative overflow-hidden ${isDragging
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20'
-              }`}
-          >
-            {draft.imageUrl ? (
-              <>
-                <img
-                  src={draft.imageUrl}
-                  alt="Anteprima piatto"
-                  className="absolute inset-0 w-full h-full object-cover opacity-20"
+          {/* COLONNA DESTRA: Promozione Check + Prezzo Scontato + Caricamento Immagine */}
+          <div className="flex flex-col sm:flex-row gap-3.5 items-end w-full">
+            
+            {/* Checkbox Promozione (styled premium as a toggle button) */}
+            <div className="w-full sm:w-auto flex-shrink-0">
+              <span className="block text-xs font-bold text-transparent select-none mb-1.5 hidden sm:block">
+                Promo
+              </span>
+              <label 
+                className={`flex items-center justify-center gap-2 px-3.5 h-[46px] border rounded-xl cursor-pointer select-none transition-all w-full sm:w-auto ${
+                  isPromo 
+                    ? 'border-primary/40 bg-primary/5 text-primary' 
+                    : 'border-border bg-input text-muted-foreground hover:bg-muted/45'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isPromo}
+                  onChange={(e) => {
+                    setIsPromo(e.target.checked);
+                    if (!e.target.checked) setDraft((p) => ({ ...p, originalPrice: '' }));
+                  }}
+                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer"
                 />
-                <div className="relative z-10 flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-xl bg-card/90 border border-border flex items-center justify-center text-primary shadow-sm">
-                    <Upload size={20} />
-                  </div>
-                  <p className="text-xs font-bold text-foreground text-center bg-card/85 px-3 py-1.5 rounded-lg border border-border/60 shadow-sm">
-                    Trascina o clicca per cambiare immagine
-                  </p>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDraft((p) => ({ ...p, imageUrl: '' }));
-                    }}
-                    className="mt-1 px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg cursor-pointer transition-all"
-                  >
-                    Rimuovi immagine
-                  </button>
+                <span className="text-xs font-bold uppercase tracking-wider">
+                  Promo
+                </span>
+              </label>
+            </div>
+
+            {/* Prezzo Scontato (se attivo) */}
+            {isPromo && (
+              <div className="w-full sm:w-36 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-200">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Scontato (€) *
+                </label>
+                <div className="relative">
+                  <Euro
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="number"
+                    value={draft.originalPrice || ''}
+                    onChange={(e) => setDraft((p) => ({ ...p, originalPrice: e.target.value }))}
+                    placeholder="7.50"
+                    className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground mb-2 shadow-sm">
-                  <Upload size={20} />
-                </div>
-                <p className="text-xs sm:text-sm font-bold text-foreground">Trascina qui l&apos;immagine del piatto</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Oppure clicca per sfogliare i file (PNG, JPG, WEBP)</p>
               </div>
             )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageFile}
-            />
+            {/* Immagine del Piatto (stessa altezza h-[46px], allineata tutto a destra) */}
+            <div className="flex-1 w-full">
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Immagine Piatto
+              </label>
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && file.type.startsWith('image/')) {
+                    const url = URL.createObjectURL(file);
+                    setDraft((p) => ({ ...p, imageUrl: url }));
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border border-dashed rounded-xl h-[46px] px-3 flex items-center justify-center gap-2 transition-all cursor-pointer select-none relative overflow-hidden ${
+                  isDragging
+                    ? 'border-primary bg-primary/5'
+                    : draft.imageUrl 
+                      ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10'
+                      : 'border-border hover:border-primary/50 bg-input hover:bg-muted/40'
+                }`}
+              >
+                {draft.imageUrl ? (
+                  <div className="flex items-center justify-between w-full h-full gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={draft.imageUrl}
+                        alt="Preview"
+                        className="w-7 h-7 rounded-lg object-cover border border-emerald-500/20 flex-shrink-0"
+                      />
+                      <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold truncate">
+                        Foto caricata
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDraft((p) => ({ ...p, imageUrl: '' }));
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                      title="Rimuovi immagine"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+                    <Plus size={14} className="text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs font-semibold whitespace-nowrap">Carica Foto</span>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFile}
+                />
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -434,7 +517,7 @@ export default function ItemForm({
           />
         </div>
 
-        {/* Allergen Input (Pills + Inline custom allergen input) */}
+        {/* Allergen Input (Pills + Inline custom allergen input with Emoji) */}
         <div className="sm:col-span-2">
           <div className="flex items-center justify-between mb-2">
             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -470,8 +553,8 @@ export default function ItemForm({
                   key={a}
                   onClick={() => toggleAllergen(a)}
                   className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-7 ${isActive
-                      ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm shadow-amber-300/10'
-                      : 'bg-card border-border text-muted-foreground hover:border-amber-300 hover:text-foreground'
+                    ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm shadow-amber-300/10'
+                    : 'bg-card border-border text-muted-foreground hover:border-amber-300 hover:text-foreground'
                     }`}
                 >
                   {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 mr-1.5 animate-pulse" />}
@@ -493,8 +576,48 @@ export default function ItemForm({
             })}
           </div>
 
-          {/* Inline input to add a custom allergen */}
-          <div className="mt-3 flex gap-2">
+          {/* Inline input with Emoji Selector to add a custom allergen */}
+          <div className="mt-3 flex gap-2 relative">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAllergenEmojiPicker(!showAllergenEmojiPicker);
+                  setShowTagEmojiPicker(false);
+                }}
+                className="px-3.5 py-2.5 bg-input border border-border rounded-xl hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[46px]"
+                title="Seleziona Icona/Emoji"
+              >
+                {allergenEmoji}
+              </button>
+              {showAllergenEmojiPicker && (
+                <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-xl shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-48 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAllergenEmoji('➕');
+                      setShowAllergenEmojiPicker(false);
+                    }}
+                    className="p-1 hover:bg-muted rounded text-xs text-muted-foreground"
+                  >
+                    Nessuna
+                  </button>
+                  {EMOJI_LIST.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setAllergenEmoji(emoji);
+                        setShowAllergenEmojiPicker(false);
+                      }}
+                      className="p-1 hover:bg-muted rounded text-lg cursor-pointer"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <input
               type="text"
               value={customAllergen}
@@ -504,10 +627,12 @@ export default function ItemForm({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  const val = customAllergen.trim();
-                  if (val) {
-                    handleAddAllergen(val);
+                  const txt = customAllergen.trim();
+                  if (txt) {
+                    const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
+                    handleAddAllergen(finalVal);
                     setCustomAllergen('');
+                    setAllergenEmoji('➕');
                   }
                 }
               }}
@@ -515,10 +640,151 @@ export default function ItemForm({
             <button
               type="button"
               onClick={() => {
-                const val = customAllergen.trim();
-                if (val) {
-                  handleAddAllergen(val);
+                const txt = customAllergen.trim();
+                if (txt) {
+                  const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
+                  handleAddAllergen(finalVal);
                   setCustomAllergen('');
+                  setAllergenEmoji('➕');
+                }
+              }}
+              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+            >
+              <Plus size={14} />
+              Aggiungi
+            </button>
+          </div>
+        </div>
+
+        {/* Dish Tags Input (Pills + Inline custom tag input with Emoji) */}
+        <div className="sm:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Etichette / Tag Piatto (es. Vegano, Piccante)
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDraft((p) => ({ ...p, dishTags: [] }))}
+                className="text-[10px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+              >
+                Pulisci
+              </button>
+              <span className="text-[10px] text-muted-foreground">|</span>
+              <button
+                type="button"
+                onClick={() => setDraft((p) => ({ ...p, dishTags: [...availableDishTags] }))}
+                className="text-[10px] font-bold text-primary hover:underline uppercase cursor-pointer"
+              >
+                Seleziona Tutti
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2.5 p-3 bg-muted/20 border border-border rounded-xl">
+            {availableDishTags.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nessuna etichetta inserita</p>
+            )}
+            {availableDishTags.map((t) => {
+              const isActive = (draft.dishTags || []).includes(t);
+              return (
+                <div
+                  key={t}
+                  onClick={() => toggleDishTag(t)}
+                  className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-7 ${isActive
+                    ? 'bg-primary/10 border-primary/40 text-primary shadow-sm shadow-primary/5'
+                    : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                    }`}
+                >
+                  {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5 animate-pulse" />}
+                  {t}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDishTag(t);
+                    }}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95"
+                    style={{ fontSize: '8px', lineHeight: '1' }}
+                    title={`Elimina ${t}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Inline input with Emoji Selector to add a custom tag */}
+          <div className="mt-3 flex gap-2 relative">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTagEmojiPicker(!showTagEmojiPicker);
+                  setShowAllergenEmojiPicker(false);
+                }}
+                className="px-3.5 py-2.5 bg-input border border-border rounded-xl hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[46px]"
+                title="Seleziona Icona/Emoji"
+              >
+                {tagEmoji}
+              </button>
+              {showTagEmojiPicker && (
+                <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-xl shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-48 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTagEmoji('➕');
+                      setShowTagEmojiPicker(false);
+                    }}
+                    className="p-1 hover:bg-muted rounded text-xs text-muted-foreground"
+                  >
+                    Nessuna
+                  </button>
+                  {EMOJI_LIST.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setTagEmoji(emoji);
+                        setShowTagEmojiPicker(false);
+                      }}
+                      className="p-1 hover:bg-muted rounded text-lg cursor-pointer"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <input
+              type="text"
+              value={customTag}
+              onChange={(e) => setCustomTag(e.target.value)}
+              placeholder="Aggiungi etichetta (es. Vegano)"
+              className="flex-1 px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const txt = customTag.trim();
+                  if (txt) {
+                    const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
+                    handleAddDishTag(finalVal);
+                    setCustomTag('');
+                    setTagEmoji('➕');
+                  }
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const txt = customTag.trim();
+                if (txt) {
+                  const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
+                  handleAddDishTag(finalVal);
+                  setCustomTag('');
+                  setTagEmoji('➕');
                 }
               }}
               className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
@@ -741,8 +1007,8 @@ export default function ItemForm({
                             key={g.id}
                             onClick={() => setSelectedGroupId(g.id)}
                             className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isSelected
-                                ? 'bg-primary/5 border-primary text-primary font-semibold shadow-sm'
-                                : 'bg-card border-border hover:border-primary/30 text-foreground'
+                              ? 'bg-primary/5 border-primary text-primary font-semibold shadow-sm'
+                              : 'bg-card border-border hover:border-primary/30 text-foreground'
                               }`}
                           >
                             <span className="text-xs truncate font-medium">{g.name}</span>

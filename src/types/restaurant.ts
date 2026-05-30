@@ -25,6 +25,7 @@ export interface MenuItem {
   image: string;
   imageAlt: string;
   allergens: string[];
+  dishTags?: string[];
   orders: number;
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
@@ -41,6 +42,7 @@ export interface MenuItemDraft {
   available: boolean;
   imageUrl: string;
   allergens: string[];
+  dishTags?: string[];
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];

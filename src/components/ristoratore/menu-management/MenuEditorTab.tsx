@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { Search, Zap, Eye, EyeOff, Plus, Trash2, Pencil, AlertTriangle, X } from 'lucide-react';
+import { Search, Eye, EyeOff, Trash2, Pencil, AlertTriangle, X, PauseCircle, PlayCircle, Plus } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import AppImage from '@/components/ui/AppImage';
 import Toggle from '@/components/ui/Toggle';
@@ -81,13 +81,13 @@ export default function MenuEditorTab({
             onClick={pauseAllDishes}
             className="flex items-center gap-2 px-4 py-2.5 bg-muted text-muted-foreground hover:text-[var(--warning)] hover:bg-[var(--warning-bg)] rounded-xl text-sm font-semibold transition-all"
           >
-            <Zap size={14} /> Sospendi Tutto
+            <PauseCircle size={14} /> Sospendi Tutto
           </button>
           <button
             onClick={resumeAllDishes}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-sm font-semibold transition-all"
           >
-            <Plus size={14} /> Riattiva Tutto
+            <PlayCircle size={14} /> Riattiva Tutto
           </button>
         </div>
       </div>

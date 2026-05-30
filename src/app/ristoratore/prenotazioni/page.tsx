@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
+import { generateId } from '@/lib/id-generator';
 import {
   Calendar,
   Plus,
@@ -108,6 +109,13 @@ export default function PrenotazioniPage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const isEmailValid = React.useMemo(() => {
+    if (!email) return true; // optional field
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }, [email]);
   const [guests, setGuests] = useState(2);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('20:00');
@@ -153,6 +161,7 @@ export default function PrenotazioniPage() {
     setName('');
     setPhone('');
     setEmail('');
+    setEmailTouched(false);
     setGuests(2);
     // Set tomorrow date by default
     const tomorrow = new Date();
@@ -169,6 +178,7 @@ export default function PrenotazioniPage() {
     setName(booking.name);
     setPhone(booking.phone);
     setEmail(booking.email || '');
+    setEmailTouched(false);
     setGuests(booking.guests);
     setDate(booking.date);
     setTime(booking.time);
@@ -178,7 +188,73 @@ export default function PrenotazioniPage() {
   };
 
   const handleUpdateStatus = (id: string, newStatus: 'pending' | 'confirmed' | 'cancelled') => {
-    const updated = bookings.map((b) => (b.id === id ? { ...b, status: newStatus } : b));
+    const targetBooking = bookings.find((b) => b.id === id);
+    if (!targetBooking) return;
+
+    let updatedLinkedOrderId = targetBooking.linkedOrderId;
+
+    if (newStatus === 'confirmed' && targetBooking.preOrderItems && targetBooking.preOrderItems.length > 0 && !targetBooking.linkedOrderId) {
+      try {
+        const ordersKey = `iGO_orders_${restaurantId}`;
+        const rawOrders = localStorage.getItem(ordersKey);
+        const ordersArray = rawOrders ? JSON.parse(rawOrders) : [];
+
+        const exists = ordersArray.some((o: any) => o.id === targetBooking.id || o.sourceBookingId === targetBooking.id);
+        if (!exists) {
+          const generatedOrderId = targetBooking.id;
+          const calculatedTotal = targetBooking.preOrderTotal || targetBooking.preOrderItems.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.qty || 1)), 0);
+          const newOrder = {
+            id: generatedOrderId,
+            restaurantId,
+            timestamp: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            type: 'prenotazione_tavolo',
+            items: targetBooking.preOrderItems,
+            subtotal: calculatedTotal,
+            deliveryFee: 0,
+            discount: 0,
+            total: calculatedTotal,
+            customerName: targetBooking.name,
+            email: targetBooking.email || 'prenotazione@internal.it',
+            customer: {
+              name: targetBooking.name,
+              email: targetBooking.email || 'prenotazione@internal.it',
+              phone: targetBooking.phone,
+              address: '',
+            },
+            status: 'accepted',
+            notes: targetBooking.notes || '',
+            payMethod: 'cash',
+            itemsCount: targetBooking.preOrderItems.reduce((s: number, i: any) => s + (i.qty || 1), 0),
+            sourceBookingId: targetBooking.id,
+          };
+          ordersArray.push(newOrder);
+          localStorage.setItem(ordersKey, JSON.stringify(ordersArray));
+          updatedLinkedOrderId = generatedOrderId;
+
+          window.dispatchEvent(new Event('iGO_orders_updated'));
+        }
+      } catch (e) {
+        console.error('Error bridging booking to orders:', e);
+      }
+    } else if (newStatus === 'cancelled' && targetBooking.linkedOrderId) {
+      try {
+        const ordersKey = `iGO_orders_${restaurantId}`;
+        const rawOrders = localStorage.getItem(ordersKey);
+        if (rawOrders) {
+          const ordersArray = JSON.parse(rawOrders);
+          const updatedOrders = ordersArray.map((o: any) => 
+            (o.id === targetBooking.linkedOrderId || o.sourceBookingId === targetBooking.id) ? { ...o, status: 'rejected' } : o
+          );
+          localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
+          window.dispatchEvent(new Event('iGO_orders_updated'));
+        }
+      } catch (e) {
+        console.error('Error cancelling linked order:', e);
+      }
+    }
+
+    const updated = bookings.map((b) => (b.id === id ? { ...b, status: newStatus, linkedOrderId: updatedLinkedOrderId } : b));
     saveBookingsToStorage(updated);
   };
 
@@ -194,7 +270,7 @@ export default function PrenotazioniPage() {
     if (!name.trim() || !phone.trim() || !date || !time) return;
 
     const bookingData: TableBooking = {
-      id: editingBooking ? editingBooking.id : `booking-${Date.now()}`,
+      id: editingBooking ? editingBooking.id : generateId('PRE'),
       restaurantId,
       name: name.trim(),
       phone: phone.trim(),
@@ -205,6 +281,7 @@ export default function PrenotazioniPage() {
       status,
       notes: notes.trim() ? notes.trim() : undefined,
       createdAt: editingBooking ? editingBooking.createdAt : new Date().toISOString(),
+      preOrderItems: editingBooking ? editingBooking.preOrderItems : undefined,
     };
 
     let updated: TableBooking[];
@@ -220,11 +297,11 @@ export default function PrenotazioniPage() {
 
   const filteredBookings = bookings.filter((b) => {
     const statusMatch = filterStatus === 'all' || b.status === filterStatus;
-    
+
     let dateMatch = true;
     const todayStr = getTodayStr();
     const tomorrowStr = getTomorrowStr();
-    
+
     if (dateFilterType === 'today') {
       dateMatch = b.date === todayStr;
     } else if (dateFilterType === 'tomorrow') {
@@ -238,7 +315,7 @@ export default function PrenotazioniPage() {
     } else if (dateFilterType === 'custom') {
       dateMatch = !filterDate || b.date === filterDate;
     }
-    
+
     return statusMatch && dateMatch;
   });
 
@@ -248,7 +325,7 @@ export default function PrenotazioniPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-prenotazioni"
-        onSectionChange={() => {}}
+        onSectionChange={() => { }}
         role="ristoratore"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -362,9 +439,8 @@ export default function PrenotazioniPage() {
                       setDateFilterType('today');
                       setFilterDate(getTodayStr());
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                      dateFilterType === 'today' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateFilterType === 'today' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`}
                   >
                     Oggi
                   </button>
@@ -373,9 +449,8 @@ export default function PrenotazioniPage() {
                       setDateFilterType('tomorrow');
                       setFilterDate(getTomorrowStr());
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                      dateFilterType === 'tomorrow' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateFilterType === 'tomorrow' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`}
                   >
                     Domani
                   </button>
@@ -384,9 +459,8 @@ export default function PrenotazioniPage() {
                       setDateFilterType('next7');
                       setFilterDate('');
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                      dateFilterType === 'next7' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateFilterType === 'next7' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`}
                   >
                     Prossimi 7 Giorni
                   </button>
@@ -437,13 +511,12 @@ export default function PrenotazioniPage() {
                   {filteredBookings.map((booking) => (
                     <div
                       key={booking.id}
-                      className={`p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-muted/30 transition-all duration-200 border-l-4 ${
-                        booking.status === 'confirmed'
-                          ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
-                          : booking.status === 'cancelled'
-                            ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
-                            : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
-                      }`}
+                      className={`p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-muted/30 transition-all duration-200 border-l-4 ${booking.status === 'confirmed'
+                        ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
+                        : booking.status === 'cancelled'
+                          ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
+                          : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
+                        }`}
                     >
                       {/* Date & Time Widget */}
                       <div className="flex items-center gap-3 flex-shrink-0">
@@ -508,15 +581,43 @@ export default function PrenotazioniPage() {
                           )}
                         </div>
 
-                        <div className="lg:col-span-1">
-                          {booking.notes ? (
-                            <div className="bg-background/80 p-2 rounded-lg border border-border/60 text-xs flex gap-1.5 max-w-xs lg:max-w-none">
+                        <div className="lg:col-span-1 space-y-2">
+                          {booking.notes && (
+                            <div className="bg-background/80 p-2.5 rounded-lg border border-border/60 text-xs flex gap-1.5 max-w-xs lg:max-w-none">
                               <MessageSquare size={12} className="text-primary/75 flex-shrink-0 mt-0.5" />
                               <p className="text-muted-foreground italic line-clamp-2 leading-tight">
                                 &quot;{booking.notes}&quot;
                               </p>
                             </div>
-                          ) : (
+                          )}
+                          {booking.preOrderItems && booking.preOrderItems.length > 0 && (
+                            <div className="bg-green-500/5 dark:bg-green-950/10 p-2.5 rounded-lg border border-green-500/20 text-xs space-y-1.5 max-w-xs lg:max-w-none">
+                              <div className="flex items-center justify-between gap-1 text-green-700 dark:text-green-400 font-bold text-[9px] uppercase tracking-wider">
+                                <span>Pre-Ordine Cibo</span>
+                                {booking.status === 'confirmed' && (
+                                  <a
+                                    href="/ristoratore/ordini"
+                                    className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] px-2 py-0.5 rounded-full transition-colors shadow-sm cursor-pointer border border-transparent"
+                                  >
+                                    In cucina &rarr;
+                                  </a>
+                                )}
+                              </div>
+                              <div className="space-y-1 font-medium text-foreground text-[11px]">
+                                {booking.preOrderItems.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex justify-between gap-2">
+                                    <span className="truncate">{item.qty}x {item.name}</span>
+                                    <span className="font-semibold text-muted-foreground">€{(item.price * item.qty).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                                <div className="border-t border-green-500/15 pt-1 mt-1 flex justify-between font-bold text-green-700 dark:text-green-400">
+                                  <span>Totale:</span>
+                                  <span>€{booking.preOrderItems.reduce((acc: number, item: any) => acc + item.price * item.qty, 0).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {!booking.notes && (!booking.preOrderItems || booking.preOrderItems.length === 0) && (
                             <span className="text-xs text-muted-foreground/40 italic">Nessuna nota</span>
                           )}
                         </div>
@@ -618,8 +719,8 @@ export default function PrenotazioniPage() {
                 type="text"
                 required
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+39 333 123 4567"
+                onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                placeholder="+39 3331234567"
                 className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
@@ -633,10 +734,18 @@ export default function PrenotazioniPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                }}
+                onBlur={() => setEmailTouched(true)}
                 placeholder="mario.rossi@email.it"
                 className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
               />
+              {emailTouched && email && !isEmailValid && (
+                <p className="text-xs text-red-500 font-semibold mt-1">
+                  Inserisci un indirizzo email valido.
+                </p>
+              )}
             </div>
 
             <div>
@@ -720,7 +829,8 @@ export default function PrenotazioniPage() {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              disabled={!isEmailValid}
+              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {editingBooking ? 'Salva Modifiche' : 'Aggiungi Prenotazione'}
             </button>

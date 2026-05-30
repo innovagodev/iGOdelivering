@@ -10,6 +10,9 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { RestaurantSettingsFull as SettingsData } from '@/types/settings';
 import { isMockRestaurant } from '@/lib/restaurant-utils';
+import ScheduledOrdersStep from '@/components/admin/restaurant-wizard/ScheduledOrdersStep';
+import { ScheduledOrdersConfig } from '@/types';
+import { TIME_UNITS, TIME_WINDOWS } from '@/lib/constants';
 
 export default function ImpostazioniPage() {
   const { user } = useAuth();
@@ -180,6 +183,12 @@ export default function ImpostazioniPage() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const isEmailValid = React.useMemo(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }, [email]);
   const [tagline, setTagline] = useState('');
 
   const [deliveryMode, setDeliveryMode] = useState(true);
@@ -196,6 +205,18 @@ export default function ImpostazioniPage() {
   const [cashDelivery, setCashDelivery] = useState(true);
   const [cashPickup, setCashPickup] = useState(true);
   const [onlinePaymentAccount, setOnlinePaymentAccount] = useState('');
+
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({
+    enabled: true,
+    pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
+    delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
+    onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
+    hideAsap: false,
+    pickupExpanded: true,
+    deliveryExpanded: true,
+    onPremiseExpanded: true,
+    altroExpanded: true,
+  });
 
   useEffect(() => {
     // Restore sidebar state
@@ -302,6 +323,10 @@ export default function ImpostazioniPage() {
         setCashDelivery(data.paymentMethods?.cash_delivery !== false);
         setCashPickup(data.paymentMethods?.cash_pickup !== false);
         setOnlinePaymentAccount(data.paymentMethods?.onlinePaymentAccount || '');
+
+        if (data.scheduledOrders) {
+          setScheduledOrders(data.scheduledOrders);
+        }
       } catch (e) {
         console.error('Error parsing settings:', e);
       }
@@ -310,6 +335,10 @@ export default function ImpostazioniPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isEmailValid) {
+      setEmailTouched(true);
+      return;
+    }
 
     const updatedData: SettingsData = {
       profile: {
@@ -340,6 +369,7 @@ export default function ImpostazioniPage() {
         cash_pickup: cashPickup,
         onlinePaymentAccount,
       },
+      scheduledOrders,
     };
 
     try {
@@ -562,7 +592,7 @@ export default function ImpostazioniPage() {
                           type="text"
                           required
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
+                          onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
                           className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
@@ -574,9 +604,17 @@ export default function ImpostazioniPage() {
                           type="email"
                           required
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                          }}
+                          onBlur={() => setEmailTouched(true)}
                           className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
                         />
+                        {emailTouched && email && !isEmailValid && (
+                          <p className="text-xs text-red-500 font-semibold mt-1">
+                            Inserisci un indirizzo email valido.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -644,6 +682,16 @@ export default function ImpostazioniPage() {
                       Attiva soglia di consegna gratuita
                     </span>
                   </div>
+                </div>
+
+                {/* Scheduled Orders Configuration */}
+                <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-4">
+                  <ScheduledOrdersStep
+                    scheduledOrders={scheduledOrders}
+                    setScheduledOrders={setScheduledOrders}
+                    timeUnits={TIME_UNITS}
+                    timeWindows={TIME_WINDOWS}
+                  />
                 </div>
               </div>
 

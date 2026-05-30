@@ -1,3 +1,5 @@
+import { ScheduledOrdersConfig } from './wizard';
+
 export interface RestaurantProfile {
   name: string;
   logoUrl: string;
@@ -40,6 +42,7 @@ export interface RestaurantSettingsFull {
   paymentMethods: RestaurantPaymentMethods;
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];
+  scheduledOrders?: ScheduledOrdersConfig;
 }
 
 // Legacy flat interface kept for client-side / hook backwards compatibility
@@ -67,4 +70,5 @@ export interface RestaurantSettings {
   };
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];
+  scheduledOrders?: ScheduledOrdersConfig;
 }

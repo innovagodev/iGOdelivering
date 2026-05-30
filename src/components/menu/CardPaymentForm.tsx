@@ -36,6 +36,17 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
     cvv?: string;
   }>({});
 
+  const [touched, setTouched] = useState<{
+    name?: boolean;
+    number?: boolean;
+    expiry?: boolean;
+    cvv?: boolean;
+  }>({});
+
+  const handleBlur = (field: 'name' | 'number' | 'expiry' | 'cvv') => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
   const formatCardNumber = (value: string) => {
     const clean = value.replace(/\D/g, '').substring(0, 16);
     const parts = [];
@@ -126,13 +137,14 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={() => handleBlur('name')}
             placeholder="Nome Cognome"
             className={`w-full pl-9 pr-3.5 py-2 text-base bg-input border ${
-              errors.name ? 'border-red-500' : 'border-border'
+              touched.name && errors.name ? 'border-red-500' : 'border-border'
             } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring`}
           />
         </div>
-        {errors.name && <p className="text-[10px] text-red-500 font-semibold">{errors.name}</p>}
+        {touched.name && errors.name && <p className="text-[10px] text-red-500 font-semibold">{errors.name}</p>}
       </div>
 
       {/* Numero Carta */}
@@ -147,13 +159,14 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
             inputMode="numeric"
             value={cardNumber}
             onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+            onBlur={() => handleBlur('number')}
             placeholder="0000 0000 0000 0000"
             className={`w-full pl-9 pr-3.5 py-2 text-base bg-input border ${
-              errors.number ? 'border-red-500' : 'border-border'
+              touched.number && errors.number ? 'border-red-500' : 'border-border'
             } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums`}
           />
         </div>
-        {errors.number && <p className="text-[10px] text-red-500 font-semibold">{errors.number}</p>}
+        {touched.number && errors.number && <p className="text-[10px] text-red-500 font-semibold">{errors.number}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -169,13 +182,14 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
               inputMode="numeric"
               value={expiry}
               onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+              onBlur={() => handleBlur('expiry')}
               placeholder="MM/YY"
               className={`w-full pl-9 pr-3.5 py-2 text-base bg-input border ${
-                errors.expiry ? 'border-red-500' : 'border-border'
+                touched.expiry && errors.expiry ? 'border-red-500' : 'border-border'
               } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums`}
             />
           </div>
-          {errors.expiry && (
+          {touched.expiry && errors.expiry && (
             <p className="text-[10px] text-red-500 font-semibold">{errors.expiry}</p>
           )}
         </div>
@@ -192,13 +206,14 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
               inputMode="numeric"
               value={cvv}
               onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').substring(0, 4))}
+              onBlur={() => handleBlur('cvv')}
               placeholder="•••"
               className={`w-full pl-9 pr-3.5 py-2 text-base bg-input border ${
-                errors.cvv ? 'border-red-500' : 'border-border'
+                touched.cvv && errors.cvv ? 'border-red-500' : 'border-border'
               } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring`}
             />
           </div>
-          {errors.cvv && <p className="text-[10px] text-red-500 font-semibold">{errors.cvv}</p>}
+          {touched.cvv && errors.cvv && <p className="text-[10px] text-red-500 font-semibold">{errors.cvv}</p>}
         </div>
       </div>
     </div>

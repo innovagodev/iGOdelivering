@@ -19,6 +19,7 @@ interface DayServiceHours {
 }
 
 interface ServiceHoursState {
+  general: Record<string, DayServiceHours>;
   pickup: Record<string, DayServiceHours>;
   delivery: Record<string, DayServiceHours>;
   reservation: Record<string, DayServiceHours>;
@@ -57,15 +58,29 @@ export default function RistoratoreOrariPage() {
   };
 
   const [serviceHours, setServiceHours] = useState<ServiceHoursState>(() => ({
+    general: buildDefaultDays(),
     pickup: buildDefaultDays(),
     delivery: buildDefaultDays(),
     reservation: buildDefaultDays(),
   }));
 
+  const [useGeneral, setUseGeneral] = useState<{ pickup: boolean; delivery: boolean; reservation: boolean }>({
+    pickup: true,
+    delivery: true,
+    reservation: true,
+  });
+
   const [serviceSuspended, setServiceSuspended] = useState<ServiceSuspendedState>({
     pickup: false,
     delivery: false,
     reservation: false,
+  });
+
+  const [temporaryClosure, setTemporaryClosure] = useState({
+    enabled: false,
+    from: '',
+    to: '',
+    message: '',
   });
 
   const showFeedback = (msg: string) => {
@@ -89,10 +104,29 @@ export default function RistoratoreOrariPage() {
         if (storedStr) {
           const parsed = JSON.parse(storedStr);
           if (parsed.serviceHours) {
-            setServiceHours(parsed.serviceHours);
+            setServiceHours({
+              general: parsed.serviceHours.general || buildDefaultDays(),
+              pickup: parsed.serviceHours.pickup || buildDefaultDays(),
+              delivery: parsed.serviceHours.delivery || buildDefaultDays(),
+              reservation: parsed.serviceHours.reservation || buildDefaultDays(),
+            });
+          }
+          if (parsed.useGeneral) {
+            setUseGeneral(parsed.useGeneral);
+          } else {
+            // Legacy default: if raw general doesn't exist, we default useCustom to true, meaning useGeneral to false
+            const hasGen = !!parsed.serviceHours?.general;
+            setUseGeneral({
+              pickup: hasGen,
+              delivery: hasGen,
+              reservation: hasGen,
+            });
           }
           if (parsed.serviceSuspended) {
             setServiceSuspended(parsed.serviceSuspended);
+          }
+          if (parsed.temporaryClosure) {
+            setTemporaryClosure(parsed.temporaryClosure);
           }
         }
       } catch (e) {
@@ -109,7 +143,7 @@ export default function RistoratoreOrariPage() {
     });
   };
 
-  const toggleServiceDay = (s: 'pickup' | 'delivery' | 'reservation', d: string) => {
+  const toggleServiceDay = (s: 'general' | 'pickup' | 'delivery' | 'reservation', d: string) => {
     setServiceHours((p) => ({
       ...p,
       [s]: {
@@ -123,7 +157,7 @@ export default function RistoratoreOrariPage() {
   };
 
   const toggleServiceSlot = (
-    s: 'pickup' | 'delivery' | 'reservation',
+    s: 'general' | 'pickup' | 'delivery' | 'reservation',
     d: string,
     svc: 'lunch' | 'dinner'
   ) => {
@@ -145,7 +179,7 @@ export default function RistoratoreOrariPage() {
   };
 
   const updateServiceHour = (
-    s: 'pickup' | 'delivery' | 'reservation',
+    s: 'general' | 'pickup' | 'delivery' | 'reservation',
     d: string,
     svc: 'lunch' | 'dinner',
     f: 'from' | 'to',
@@ -166,10 +200,19 @@ export default function RistoratoreOrariPage() {
     }));
   };
 
+  const toggleUseGeneral = (s: 'pickup' | 'delivery' | 'reservation') => {
+    setUseGeneral((p) => ({
+      ...p,
+      [s]: !p[s],
+    }));
+  };
+
   const handleSaveHours = () => {
     const dataToSave = {
       serviceHours,
+      useGeneral,
       serviceSuspended,
+      temporaryClosure,
     };
     try {
       localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(dataToSave));
@@ -233,6 +276,10 @@ export default function RistoratoreOrariPage() {
               handleSaveHours={handleSaveHours}
               saved={saved}
               days={DAYS}
+              useGeneral={useGeneral}
+              toggleUseGeneral={toggleUseGeneral}
+              temporaryClosure={temporaryClosure}
+              setTemporaryClosure={setTemporaryClosure}
             />
           </div>
         </main>

@@ -27,6 +27,7 @@ export interface MenuItemType {
   veg?: boolean;
   spicy?: boolean;
   allergens: string[];
+  dishTags?: string[];
   optionGroups?: OptionGroup[];
 }
 
@@ -265,6 +266,18 @@ export default function ProductDetailSheet({
           {/* Details */}
           <div className="space-y-2">
             <h4 className="text-xl font-extrabold text-foreground">{item.name}</h4>
+            {item.dishTags && item.dishTags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1 mt-0.5 animate-in fade-in duration-200">
+                {item.dishTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center text-[10px] font-extrabold bg-primary/5 text-primary border border-primary/10 rounded px-2 py-0.5 shadow-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
 
             {/* Allergens */}

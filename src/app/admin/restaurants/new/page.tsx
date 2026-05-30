@@ -184,6 +184,7 @@ export default function NewRestaurantPage() {
     imageUrl: '',
     imageFile: null,
     allergens: [],
+    dishTags: [],
     optionGroups: [],
     visibility: {
       mode: 'always',
@@ -299,6 +300,7 @@ export default function NewRestaurantPage() {
       imageUrl: '',
       imageFile: null,
       allergens: [],
+      dishTags: [],
       optionGroups: [],
       visibility: {
         mode: 'always',
@@ -363,12 +365,10 @@ export default function NewRestaurantPage() {
   const handlePublish = () => {
     const restaurantId = `r-${Date.now()}`;
     const slug = slugify(info.name);
-
-    // 1. Wizard service hours to service hours storage format
-    const convertServiceHoursToStorage = (wizardSvc: ServiceHours) => {
+    const convertHoursToStorage = (hoursRecord: Record<string, DayHours>) => {
       const result: Record<string, any> = {};
       DAYS.forEach((d) => {
-        const dayData = wizardSvc.useCustom ? wizardSvc.hours[d] : hours[d];
+        const dayData = hoursRecord[d];
         result[d] = {
           enabled: dayData.open,
           suspended: false,
@@ -382,13 +382,19 @@ export default function NewRestaurantPage() {
     };
 
     const serviceHoursObj = {
-      pickup: convertServiceHoursToStorage(pickupHours),
-      delivery: convertServiceHoursToStorage(deliveryHours),
-      reservation: convertServiceHoursToStorage(bookingHours),
+      general: convertHoursToStorage(hours),
+      pickup: convertHoursToStorage(pickupHours.hours),
+      delivery: convertHoursToStorage(deliveryHours.hours),
+      reservation: convertHoursToStorage(bookingHours.hours),
     };
 
     const serviceHoursDataToSave = {
       serviceHours: serviceHoursObj,
+      useGeneral: {
+        pickup: !pickupHours.useCustom,
+        delivery: !deliveryHours.useCustom,
+        reservation: !bookingHours.useCustom,
+      },
       serviceSuspended: {
         pickup: false,
         delivery: false,
@@ -396,6 +402,7 @@ export default function NewRestaurantPage() {
       },
     };
 
+    localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
     const settingsObj = {
       profile: {
         name: info.name,
@@ -499,6 +506,7 @@ export default function NewRestaurantPage() {
           image: item.imageUrl,
           imageAlt: item.name,
           allergens: item.allergens,
+          dishTags: item.dishTags || [],
           orders: 0,
           visibility,
           visibilitySchedule,

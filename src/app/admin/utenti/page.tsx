@@ -113,6 +113,12 @@ export default function AdminUtentiPage() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail.trim())) {
+      setCreateError('Inserisci un indirizzo email valido.');
+      return;
+    }
+
     // Check email uniqueness
     const emailExists = users.some((u) => u.email.toLowerCase() === newEmail.trim().toLowerCase());
     if (emailExists) {

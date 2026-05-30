@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RestaurantSettings } from '@/types/settings';
+import { ScheduledOrdersConfig } from '@/types/wizard';
 import { getRestaurantId, isMockRestaurant, slugify } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 
@@ -55,6 +56,7 @@ interface BaseRestaurant {
   };
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];
+  scheduledOrders?: ScheduledOrdersConfig;
 }
 
 const getBaseRestaurantBySlug = (slug: string): BaseRestaurant => {
@@ -182,8 +184,14 @@ const getBaseRestaurantBySlug = (slug: string): BaseRestaurant => {
         pickup: true,
         table: true,
       },
-      openingHours: [{ start: '00:00', end: '23:59' }],
-      deliveryHours: [{ start: '00:00', end: '23:59' }],
+      openingHours: [
+        { start: '11:30', end: '14:30' },
+        { start: '19:00', end: '22:30' },
+      ],
+      deliveryHours: [
+        { start: '11:30', end: '14:30' },
+        { start: '19:00', end: '22:30' },
+      ],
     };
   } else if (normalizedSlug === 'sushi-zen' || normalizedSlug === 'r-003') {
     return {
@@ -299,8 +307,15 @@ export function useRestaurantSettings(slugOrId: string) {
         card: base.paymentMethods?.card ?? true,
         paypal: base.paymentMethods?.paypal ?? true,
       },
-      openingHours: base.openingHours || [{ start: '00:00', end: '23:59' }],
-      deliveryHours: base.deliveryHours || [{ start: '00:00', end: '23:59' }],
+      openingHours: base.openingHours || [
+        { start: '11:30', end: '14:30' },
+        { start: '19:00', end: '22:30' },
+      ],
+      deliveryHours: base.deliveryHours || [
+        { start: '11:30', end: '14:30' },
+        { start: '19:00', end: '22:30' },
+      ],
+      scheduledOrders: base.scheduledOrders,
     };
   });
   const [loading, setLoading] = useState(true);
@@ -371,9 +386,16 @@ export function useRestaurantSettings(slugOrId: string) {
             paypal: paymentMethodsData.paypal !== false,
           },
           openingHours: parsed.openingHours ||
-            base.openingHours || [{ start: '00:00', end: '23:59' }],
+            base.openingHours || [
+              { start: '11:30', end: '14:30' },
+              { start: '19:00', end: '22:30' },
+            ],
           deliveryHours: parsed.deliveryHours ||
-            base.deliveryHours || [{ start: '00:00', end: '23:59' }],
+            base.deliveryHours || [
+              { start: '11:30', end: '14:30' },
+              { start: '19:00', end: '22:30' },
+            ],
+          scheduledOrders: parsed.scheduledOrders || base.scheduledOrders,
         };
 
         setSettings(unified);
@@ -393,8 +415,15 @@ export function useRestaurantSettings(slugOrId: string) {
             card: base.paymentMethods?.card ?? true,
             paypal: base.paymentMethods?.paypal ?? true,
           },
-          openingHours: base.openingHours || [{ start: '00:00', end: '23:59' }],
-          deliveryHours: base.deliveryHours || [{ start: '00:00', end: '23:59' }],
+          openingHours: base.openingHours || [
+            { start: '11:30', end: '14:30' },
+            { start: '19:00', end: '22:30' },
+          ],
+          deliveryHours: base.deliveryHours || [
+            { start: '11:30', end: '14:30' },
+            { start: '19:00', end: '22:30' },
+          ],
+          scheduledOrders: base.scheduledOrders,
         });
       }
     } catch (e) {

@@ -56,6 +56,12 @@ export default function AdminImpostazioniPage() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [settings, setSettings] = useState<GlobalSettings>(defaultSettings);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const isEmailValid = React.useMemo(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(settings.supportEmail);
+  }, [settings.supportEmail]);
 
   useEffect(() => {
     // Restore sidebar state
@@ -78,6 +84,10 @@ export default function AdminImpostazioniPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isEmailValid) {
+      setEmailTouched(true);
+      return;
+    }
     localStorage.setItem('iGO_global_settings', JSON.stringify(settings));
     setShowSavedToast(true);
     setTimeout(() => {
@@ -351,8 +361,14 @@ export default function AdminImpostazioniPage() {
                       type="email"
                       value={settings.supportEmail}
                       onChange={(e) => handleChange('supportEmail', e.target.value)}
+                      onBlur={() => setEmailTouched(true)}
                       className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                     />
+                    {emailTouched && settings.supportEmail && !isEmailValid && (
+                      <p className="text-xs text-red-500 font-semibold mt-1">
+                        Inserisci un indirizzo email valido.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-zinc-300">
@@ -361,7 +377,7 @@ export default function AdminImpostazioniPage() {
                     <input
                       type="text"
                       value={settings.supportPhone}
-                      onChange={(e) => handleChange('supportPhone', e.target.value)}
+                      onChange={(e) => handleChange('supportPhone', e.target.value.replace(/[^\d+]/g, ''))}
                       className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                     />
                   </div>

@@ -48,6 +48,13 @@ export default function RestaurantInfoStep({
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const newCatInputRef = useRef<HTMLInputElement>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const isEmailValid = React.useMemo(() => {
+    if (!info.email) return true;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(info.email);
+  }, [info.email]);
 
   const handleAddCategory = () => {
     const trimmed = newCategoryInput.trim();
@@ -329,7 +336,7 @@ export default function RestaurantInfoStep({
               <input
                 type="tel"
                 value={info.phone}
-                onChange={(e) => setInfo((p) => ({ ...p, phone: e.target.value }))}
+                onChange={(e) => setInfo((p) => ({ ...p, phone: e.target.value.replace(/[^\d+]/g, '') }))}
                 placeholder="+39 081 123 4567"
                 className={inputIconCls}
               />
@@ -342,11 +349,19 @@ export default function RestaurantInfoStep({
               <input
                 type="email"
                 value={info.email}
-                onChange={(e) => setInfo((p) => ({ ...p, email: e.target.value }))}
+                onChange={(e) => {
+                  setInfo((p) => ({ ...p, email: e.target.value }));
+                }}
+                onBlur={() => setEmailTouched(true)}
                 placeholder="info@ristorante.it"
                 className={inputIconCls}
               />
             </div>
+            {emailTouched && info.email && !isEmailValid && (
+              <p className="text-xs text-red-500 font-semibold mt-1">
+                Inserisci un indirizzo email valido.
+              </p>
+            )}
           </div>
           <div className="sm:col-span-2">
             <label className={labelCls}>Sito web</label>

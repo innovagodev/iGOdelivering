@@ -17,6 +17,19 @@ export const ALLERGENS_LIST = [
   'Anidride solforosa',
 ];
 
+export const DISH_TAGS_LIST = [
+  '🌱 Vegano',
+  '🥗 Vegetariano',
+  '🌶️ Piccante',
+  '🔥 Molto Piccante',
+  '🆕 Nuovo',
+  '⭐ Specialità',
+  '🌾 Senza Glutine',
+  '🥛 Senza Lattosio',
+  '❄️ Surgelato',
+  '👑 Consigliato',
+];
+
 export const DEFAULT_CATEGORIES = ['Antipasti', 'Primi', 'Pizza', 'Secondi', 'Dolci', 'Bevande'];
 
 export const RESTAURANT_CATEGORIES = [

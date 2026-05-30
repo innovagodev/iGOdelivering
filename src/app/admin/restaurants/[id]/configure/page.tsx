@@ -382,6 +382,7 @@ export default function RestaurantConfigurePage() {
     imageUrl: '',
     imageFile: null,
     allergens: [],
+    dishTags: [],
     optionGroups: [],
     visibility: {
       mode: 'always',
@@ -677,7 +678,6 @@ export default function RestaurantConfigurePage() {
           }
         });
       }
-      setHours(hoursData);
 
       // Restore service-specific hours
       const defaultServiceHoursObj = (): ServiceHours => ({
@@ -692,11 +692,15 @@ export default function RestaurantConfigurePage() {
       try {
         const storedHoursStr = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
         let rawServiceHours: any = null;
+        let rawUseGeneral: any = null;
+
         if (storedHoursStr) {
           const parsed = JSON.parse(storedHoursStr);
           rawServiceHours = parsed.serviceHours;
+          rawUseGeneral = parsed.useGeneral;
         } else if (foundRestaurant?.serviceHours) {
           rawServiceHours = foundRestaurant.serviceHours;
+          rawUseGeneral = foundRestaurant.useGeneral;
         }
 
         if (rawServiceHours) {
@@ -717,27 +721,39 @@ export default function RestaurantConfigurePage() {
             return h;
           };
 
+          if (rawServiceHours.general) {
+            hoursData = convertToWizardFormat(rawServiceHours.general);
+          }
+
+          const hasGeneral = !!rawServiceHours.general;
+          const useGen = rawUseGeneral || {
+            pickup: hasGeneral,
+            delivery: hasGeneral,
+            reservation: hasGeneral,
+          };
+
           if (rawServiceHours.pickup) {
             pickupHoursData = {
-              useCustom: true,
+              useCustom: !useGen.pickup,
               hours: convertToWizardFormat(rawServiceHours.pickup),
             };
           }
           if (rawServiceHours.delivery) {
             deliveryHoursData = {
-              useCustom: true,
+              useCustom: !useGen.delivery,
               hours: convertToWizardFormat(rawServiceHours.delivery),
             };
           }
           if (rawServiceHours.reservation) {
             bookingHoursData = {
-              useCustom: true,
+              useCustom: !useGen.reservation,
               hours: convertToWizardFormat(rawServiceHours.reservation),
             };
           }
         }
       } catch (e) {}
 
+      setHours(hoursData);
       setPickupHours(pickupHoursData);
       setDeliveryHours(deliveryHoursData);
       setBookingHours(bookingHoursData);
@@ -826,6 +842,7 @@ export default function RestaurantConfigurePage() {
           available: item.available,
           imageUrl: (item as any).image || item.imageUrl || '',
           allergens: item.allergens || [],
+          dishTags: item.dishTags || [],
           imageFile: null,
           optionGroups: itemOptionGroupIds,
           visibility,
@@ -912,6 +929,7 @@ export default function RestaurantConfigurePage() {
           image: item.imageUrl,
           imageAlt: item.name,
           allergens: item.allergens || [],
+          dishTags: item.dishTags || [],
           orders: 0,
           visibility,
           visibilitySchedule,
@@ -920,10 +938,10 @@ export default function RestaurantConfigurePage() {
       });
 
       // 2. Wizard service hours to service hours storage format
-      const convertServiceHoursToStorage = (wizardSvc: ServiceHours) => {
+      const convertHoursToStorage = (hoursRecord: Record<string, DayHours>) => {
         const result: Record<string, any> = {};
         DAYS.forEach((d) => {
-          const dayData = wizardSvc.useCustom ? wizardSvc.hours[d] : hours[d];
+          const dayData = hoursRecord[d];
           result[d] = {
             enabled: dayData.open,
             suspended: false,
@@ -937,17 +955,31 @@ export default function RestaurantConfigurePage() {
       };
 
       const serviceHoursObj = {
-        pickup: convertServiceHoursToStorage(pickupHours),
-        delivery: convertServiceHoursToStorage(deliveryHours),
-        reservation: convertServiceHoursToStorage(bookingHours),
+        general: convertHoursToStorage(hours),
+        pickup: convertHoursToStorage(pickupHours.hours),
+        delivery: convertHoursToStorage(deliveryHours.hours),
+        reservation: convertHoursToStorage(bookingHours.hours),
       };
 
+      let existingHoursData = {};
+      try {
+        const stored = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
+        if (stored) existingHoursData = JSON.parse(stored);
+      } catch (e) {}
+
       const serviceHoursDataToSave = {
+        ...existingHoursData,
         serviceHours: serviceHoursObj,
+        useGeneral: {
+          pickup: !pickupHours.useCustom,
+          delivery: !deliveryHours.useCustom,
+          reservation: !bookingHours.useCustom,
+        },
         serviceSuspended: {
           pickup: false,
           delivery: false,
           reservation: false,
+          ...((existingHoursData as any).serviceSuspended || {})
         },
       };
 
@@ -1147,6 +1179,7 @@ export default function RestaurantConfigurePage() {
       imageUrl: '',
       imageFile: null,
       allergens: [],
+      dishTags: [],
       optionGroups: [],
       visibility: {
         mode: 'always',
