@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.13.0](https://github.com/innovagodev/iGOdelivering/compare/v1.12.0...v1.13.0) (2026-05-30)
+
+
+### Features
+
+* **saas:** implementa ID giornalieri semantici, bridge prenotazioni live, tag piatti unificati, timer dinamici in cucina e sidebar dettagli comanda ([f552a11](https://github.com/innovagodev/iGOdelivering/commit/f552a11d3653064b131dbcdfbc07d1dc1f34b864))
+
 ## [1.12.0](https://github.com/innovagodev/iGOdelivering/compare/v1.13.0...v1.12.0) (2026-05-28)
 
 

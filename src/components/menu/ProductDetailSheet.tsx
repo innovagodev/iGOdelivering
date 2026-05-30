@@ -100,6 +100,22 @@ const getCustomizationOptions = (category: string) => {
   return { extras: [], removes: [] };
 };
 
+const getTagStyle = (tag: string) => {
+  if (tag.includes('🌱') || tag.toLowerCase().includes('vegan') || tag.toLowerCase().includes('vegetar')) {
+    return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/40';
+  }
+  if (tag.includes('🌶️') || tag.includes('🔥') || tag.toLowerCase().includes('piccant')) {
+    return 'bg-rose-500/10 text-rose-700 border-rose-500/20 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/40';
+  }
+  if (tag.includes('🆕') || tag.toLowerCase().includes('nuov')) {
+    return 'bg-blue-500/10 text-blue-700 border-blue-500/20 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800/40';
+  }
+  if (tag.includes('⭐') || tag.includes('👑') || tag.toLowerCase().includes('special') || tag.toLowerCase().includes('consigliat')) {
+    return 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/40';
+  }
+  return 'bg-slate-500/10 text-slate-700 border-slate-500/20 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/40';
+};
+
 export default function ProductDetailSheet({
   item,
   cartItem,
@@ -271,7 +287,7 @@ export default function ProductDetailSheet({
                 {item.dishTags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center text-[10px] font-extrabold bg-primary/5 text-primary border border-primary/10 rounded px-2 py-0.5 shadow-sm"
+                    className={`inline-flex items-center text-[10px] font-extrabold border rounded px-2 py-0.5 shadow-sm ${getTagStyle(tag)}`}
                   >
                     {tag}
                   </span>
