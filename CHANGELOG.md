@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.14.0](https://github.com/innovagodev/iGOdelivering/compare/v1.13.0...v1.14.0) (2026-06-03)
+
+
+### Features
+
+* implementazione pre-ordini a locale chiuso, raggruppamento accordion varianti e audit responsivo completo ([db91324](https://github.com/innovagodev/iGOdelivering/commit/db91324dbe61ed6c4e2d4126a93db86a177c2cc5))
+
 ## [1.13.0](https://github.com/innovagodev/iGOdelivering/compare/v1.12.0...v1.13.0) (2026-05-30)
 
 
