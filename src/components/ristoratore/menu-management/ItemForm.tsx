@@ -13,6 +13,8 @@ import {
 
 import { DISH_TAGS_LIST } from '@/lib/constants';
 
+// Modelli predefiniti rimossi per creazione da zero
+
 type VisibilityType = 'always' | 'hidden' | 'scheduled';
 
 interface OptionChoice {
@@ -24,6 +26,8 @@ interface OptionChoice {
 interface OptionGroup {
   id: string;
   name: string;
+  minSelections: number;
+  maxSelections: number | null;
   choices: OptionChoice[];
 }
 
@@ -38,6 +42,7 @@ interface MenuItemDraft {
   imageUrl: string;
   allergens: string[];
   dishTags?: string[];
+  ingredients?: string[];
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];
@@ -64,11 +69,27 @@ export default function ItemForm({
   onAddCategory,
   allergensList,
 }: ItemFormProps) {
+  const [supplementiSingoli, setSupplementiSingoli] = useState<OptionChoice[]>(() => {
+    const group = item.optionGroups?.find((g) => g.name === 'Supplementi' || g.name === 'Supplementi Singoli' || g.id === 'supplementi-singoli');
+    return group ? [...group.choices] : [];
+  });
+  const [newSuppName, setNewSuppName] = useState('');
+  const [newSuppPrice, setNewSuppPrice] = useState('');
+
   const [draft, setDraft] = useState<MenuItemDraft>({
     ...item,
-    optionGroups: item.optionGroups ? [...item.optionGroups] : [],
+    optionGroups: item.optionGroups
+      ? item.optionGroups
+        .filter((g) => g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && g.id !== 'supplementi-singoli')
+        .map((g) => ({
+          ...g,
+          minSelections: g.minSelections ?? 0,
+          maxSelections: g.maxSelections !== undefined ? g.maxSelections : null,
+        }))
+      : [],
     visibility: 'always',
     dishTags: item.dishTags ? [...item.dishTags] : [],
+    ingredients: item.ingredients ? [...item.ingredients] : [],
   });
   const [isPromo, setIsPromo] = useState(!!item.originalPrice);
   const [newCategoryInput, setNewCategoryInput] = useState('');
@@ -84,6 +105,10 @@ export default function ItemForm({
   const [availableAllergens, setAvailableAllergens] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [availableDishTags, setAvailableDishTags] = useState<string[]>([]);
+  const [newIngredientInput, setNewIngredientInput] = useState('');
+  const [showErrors, setShowErrors] = useState(false);
+  const [sessionGroups, setSessionGroups] = useState<OptionGroup[]>([]);
+  const [activeGroupIds, setActiveGroupIds] = useState<string[]>([]);
 
   // Emoji Picker States
   const [allergenEmoji, setAllergenEmoji] = useState('➕');
@@ -101,13 +126,44 @@ export default function ItemForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const group = item.optionGroups?.find((g) => g.name === 'Supplementi' || g.name === 'Supplementi Singoli' || g.id === 'supplementi-singoli');
+    setSupplementiSingoli(group ? [...group.choices] : []);
+
+    const loadedGroups = item.optionGroups
+      ? item.optionGroups
+        .filter((g) => g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && g.id !== 'supplementi-singoli')
+        .map((g) => ({
+          ...g,
+          minSelections: g.minSelections ?? 0,
+          maxSelections: g.maxSelections !== undefined ? g.maxSelections : null,
+        }))
+      : [];
+
     setDraft({
       ...item,
-      optionGroups: item.optionGroups ? [...item.optionGroups] : [],
+      optionGroups: loadedGroups,
       visibility: 'always',
       dishTags: item.dishTags ? [...item.dishTags] : [],
+      ingredients: item.ingredients ? [...item.ingredients] : [],
     });
     setIsPromo(!!item.originalPrice);
+
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('iGO_session_option_groups');
+      let loadedSession: OptionGroup[] = [];
+      if (stored) {
+        try {
+          loadedSession = JSON.parse(stored);
+        } catch (e) {}
+      }
+      const mergedMap = new Map<string, OptionGroup>();
+      loadedSession.forEach((g) => mergedMap.set(g.id, g));
+      loadedGroups.forEach((g) => mergedMap.set(g.id, g));
+
+      const merged = Array.from(mergedMap.values());
+      setSessionGroups(merged);
+      sessionStorage.setItem('iGO_session_option_groups', JSON.stringify(merged));
+    }
   }, [item]);
 
   useEffect(() => {
@@ -148,9 +204,33 @@ export default function ItemForm({
 
   useEffect(() => {
     if (isSupplementsModalOpen) {
-      const groups = draft.optionGroups ? JSON.parse(JSON.stringify(draft.optionGroups)) : [];
-      setModalOptionGroups(groups);
-      setSelectedGroupId(groups.length > 0 ? groups[0].id : null);
+      const itemGroups = draft.optionGroups
+        ? draft.optionGroups.map((g) => ({
+          ...g,
+          minSelections: g.minSelections ?? 0,
+          maxSelections: g.maxSelections !== undefined ? g.maxSelections : null,
+          choices: g.choices ? [...g.choices] : [],
+        }))
+        : [];
+      
+      let sessionGroupsLoaded: OptionGroup[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = sessionStorage.getItem('iGO_session_option_groups');
+        if (stored) {
+          try {
+            sessionGroupsLoaded = JSON.parse(stored);
+          } catch (e) {}
+        }
+      }
+
+      const mergedMap = new Map<string, OptionGroup>();
+      sessionGroupsLoaded.forEach((g) => mergedMap.set(g.id, g));
+      itemGroups.forEach((g) => mergedMap.set(g.id, g));
+
+      const allGroups = Array.from(mergedMap.values());
+      setModalOptionGroups(allGroups);
+      setSelectedGroupId(allGroups.length > 0 ? allGroups[0].id : null);
+      setActiveGroupIds(itemGroups.map((g) => g.id));
     }
   }, [isSupplementsModalOpen, draft.optionGroups]);
 
@@ -228,6 +308,20 @@ export default function ItemForm({
     }));
   };
 
+  const handleAddIngredient = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    const currentIngredients = draft.ingredients || [];
+    if (!currentIngredients.includes(trimmed)) {
+      setDraft((p) => ({ ...p, ingredients: [...currentIngredients, trimmed] }));
+    }
+  };
+
+  const handleRemoveIngredient = (ing: string) => {
+    const currentIngredients = draft.ingredients || [];
+    setDraft((p) => ({ ...p, ingredients: currentIngredients.filter((x) => x !== ing) }));
+  };
+
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -250,6 +344,8 @@ export default function ItemForm({
     const newGroup: OptionGroup = {
       id: `og-${Date.now()}`,
       name: name,
+      minSelections: 0,
+      maxSelections: null,
       choices: [],
     };
     setModalOptionGroups((prev) => {
@@ -257,6 +353,7 @@ export default function ItemForm({
       setSelectedGroupId(newGroup.id);
       return updated;
     });
+    setActiveGroupIds((prev) => [...prev, newGroup.id]);
     setNewGroupName('');
   };
 
@@ -268,6 +365,7 @@ export default function ItemForm({
       }
       return updated;
     });
+    setActiveGroupIds((prev) => prev.filter((x) => x !== id));
   };
 
   const handleAddChoice = (gid: string) => {
@@ -321,10 +419,20 @@ export default function ItemForm({
           <input
             type="text"
             value={draft.name}
-            onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+            onChange={(e) => {
+              setDraft((p) => ({ ...p, name: e.target.value }));
+              if (e.target.value.trim()) setShowErrors(false);
+            }}
             placeholder="es. Pizza Margherita"
-            className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className={`w-full px-3.5 py-2.5 text-base bg-input border rounded-xl focus:outline-none focus:ring-2 transition-all ${
+              showErrors && !draft.name.trim()
+                ? 'border-red-500 focus:ring-red-200 focus:border-red-500'
+                : 'border-border focus:ring-primary/20 focus:border-primary'
+            }`}
           />
+          {showErrors && !draft.name.trim() && (
+            <p className="text-red-500 text-[10px] font-semibold mt-1">Il nome del piatto è obbligatorio</p>
+          )}
         </div>
 
         {/* Category Selector */}
@@ -357,7 +465,7 @@ export default function ItemForm({
 
         {/* Price, Promotion & Image unified row layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-end sm:col-span-2">
-          
+
           {/* COLONNA SINISTRA: Prezzo di Listino (largo quanto Nome Piatto) */}
           <div className="w-full">
             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -371,27 +479,36 @@ export default function ItemForm({
               <input
                 type="number"
                 value={draft.price}
-                onChange={(e) => setDraft((p) => ({ ...p, price: e.target.value }))}
+                onChange={(e) => {
+                  setDraft((p) => ({ ...p, price: e.target.value }));
+                  if (e.target.value.trim()) setShowErrors(false);
+                }}
                 placeholder="9.50"
-                className="w-full pl-9 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className={`w-full pl-9 pr-3 py-2.5 text-base bg-input border rounded-xl focus:outline-none focus:ring-2 transition-all ${
+                  showErrors && !draft.price.trim()
+                    ? 'border-red-500 focus:ring-red-200 focus:border-red-500'
+                    : 'border-border focus:ring-primary/20 focus:border-primary'
+                }`}
               />
             </div>
+            {showErrors && !draft.price.trim() && (
+              <p className="text-red-500 text-[10px] font-semibold mt-1">Il prezzo di listino è obbligatorio</p>
+            )}
           </div>
 
           {/* COLONNA DESTRA: Promozione Check + Prezzo Scontato + Caricamento Immagine */}
           <div className="flex flex-col sm:flex-row gap-3.5 items-end w-full">
-            
+
             {/* Checkbox Promozione (styled premium as a toggle button) */}
             <div className="w-full sm:w-auto flex-shrink-0">
               <span className="block text-xs font-bold text-transparent select-none mb-1.5 hidden sm:block">
                 Promo
               </span>
-              <label 
-                className={`flex items-center justify-center gap-2 px-3.5 h-[46px] border rounded-xl cursor-pointer select-none transition-all w-full sm:w-auto ${
-                  isPromo 
-                    ? 'border-primary/40 bg-primary/5 text-primary' 
-                    : 'border-border bg-input text-muted-foreground hover:bg-muted/45'
-                }`}
+              <label
+                className={`flex items-center justify-center gap-2 px-3.5 h-[46px] border rounded-xl cursor-pointer select-none transition-all w-full sm:w-auto ${isPromo
+                  ? 'border-primary/40 bg-primary/5 text-primary'
+                  : 'border-border bg-input text-muted-foreground hover:bg-muted/45'
+                  }`}
               >
                 <input
                   type="checkbox"
@@ -451,13 +568,12 @@ export default function ItemForm({
                   }
                 }}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border border-dashed rounded-xl h-[46px] px-3 flex items-center justify-center gap-2 transition-all cursor-pointer select-none relative overflow-hidden ${
-                  isDragging
-                    ? 'border-primary bg-primary/5'
-                    : draft.imageUrl 
-                      ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10'
-                      : 'border-border hover:border-primary/50 bg-input hover:bg-muted/40'
-                }`}
+                className={`border border-dashed rounded-xl h-[46px] px-3 flex items-center justify-center gap-2 transition-all cursor-pointer select-none relative overflow-hidden ${isDragging
+                  ? 'border-primary bg-primary/5'
+                  : draft.imageUrl
+                    ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10'
+                    : 'border-border hover:border-primary/50 bg-input hover:bg-muted/40'
+                  }`}
               >
                 {draft.imageUrl ? (
                   <div className="flex items-center justify-between w-full h-full gap-2">
@@ -512,9 +628,84 @@ export default function ItemForm({
             value={draft.description}
             onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
             rows={3}
-            placeholder="Descrivi gli ingredienti del piatto..."
+            placeholder="Descrivi il piatto"
             className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
           />
+        </div>
+
+        {/* Ingredients Section */}
+        <div className="sm:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Ingredienti del Piatto
+            </label>
+            {(draft.ingredients || []).length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDraft((p) => ({ ...p, ingredients: [] }))}
+                className="text-[10px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+              >
+                Pulisci tutto
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2.5 p-3 bg-muted/20 border border-border rounded-xl">
+            {(!draft.ingredients || draft.ingredients.length === 0) && (
+              <p className="text-xs text-muted-foreground italic">Nessun ingrediente inserito (verranno mostrati solo se aggiunti)</p>
+            )}
+            {(draft.ingredients || []).map((ing) => (
+              <div
+                key={ing}
+                className="relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-card border-border text-foreground select-none pr-7 flex items-center"
+              >
+                {ing}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveIngredient(ing)}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer animate-in zoom-in-50 duration-75"
+                  style={{ fontSize: '8px', lineHeight: '1' }}
+                  title={`Elimina ${ing}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={newIngredientInput}
+              onChange={(e) => setNewIngredientInput(e.target.value)}
+              placeholder="Aggiungi ingrediente (es. Pomodoro, Mozzarella...)"
+              className="flex-1 px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const txt = newIngredientInput.trim();
+                  if (txt) {
+                    handleAddIngredient(txt);
+                    setNewIngredientInput('');
+                  }
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const txt = newIngredientInput.trim();
+                if (txt) {
+                  handleAddIngredient(txt);
+                  setNewIngredientInput('');
+                }
+              }}
+              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+            >
+              <Plus size={14} />
+              Aggiungi
+            </button>
+          </div>
         </div>
 
         {/* Allergen Input (Pills + Inline custom allergen input with Emoji) */}
@@ -795,8 +986,135 @@ export default function ItemForm({
           </div>
         </div>
 
+        {/* Supplementi Singoli Section */}
+        <div className="sm:col-span-2 border-t border-border/60 pt-4 mt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            <div>
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Supplementi del Piatto
+              </label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Aggiungi ingredienti extra, oppure importa da un gruppo.
+              </p>
+            </div>
+            {/* Import from groups dropdown selector */}
+            {sessionGroups.filter((g) => g.id !== 'supplementi-singoli' && g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli').length > 0 && (
+              <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Inserisci da Gruppo:</label>
+                <select
+                  onChange={(e) => {
+                    const targetId = e.target.value;
+                    if (!targetId) return;
+
+                    const localGroup = sessionGroups.find((g) => g.id === targetId);
+                    if (localGroup) {
+                      setDraft((prev) => {
+                        const exists = prev.optionGroups.some((g) => g.id === localGroup.id || g.name.toLowerCase() === localGroup.name.toLowerCase());
+                        if (exists) return prev;
+                        return {
+                          ...prev,
+                          optionGroups: [...prev.optionGroups, localGroup],
+                        };
+                      });
+                    }
+                    e.target.value = ''; // Reset select
+                  }}
+                  className="px-2.5 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none cursor-pointer"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Scegli</option>
+                  {sessionGroups
+                    .filter((g) => g.id !== 'supplementi-singoli' && g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli')
+                    .map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border rounded-xl mb-3">
+            {supplementiSingoli.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nessun supplemento configurato. Aggiungilo qui sotto.</p>
+            )}
+            {supplementiSingoli.map((choice) => (
+              <div
+                key={choice.id}
+                className="relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-card border-border text-foreground pr-7"
+              >
+                <span>{choice.name}</span>
+                <span className="text-primary font-bold ml-1.5">(+€{parseFloat(choice.price || '0').toFixed(2)})</span>
+                <button
+                  type="button"
+                  onClick={() => setSupplementiSingoli((prev) => prev.filter((c) => c.id !== choice.id))}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                  style={{ fontSize: '8px', lineHeight: '1' }}
+                  title={`Elimina ${choice.name}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add custom single supplement input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSuppName}
+              onChange={(e) => setNewSuppName(e.target.value)}
+              placeholder="Aggiungi supplemento (es. Ketchup, Extra Cotto...)"
+              className="flex-1 px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (newSuppName.trim()) {
+                    const price = parseFloat(newSuppPrice) >= 0 ? parseFloat(newSuppPrice).toFixed(2) : '0.00';
+                    setSupplementiSingoli((prev) => [
+                      ...prev,
+                      { id: `choice-${Date.now()}`, name: newSuppName.trim(), price },
+                    ]);
+                    setNewSuppName('');
+                    setNewSuppPrice('');
+                  }
+                }
+              }}
+            />
+            <div className="relative w-28 flex-shrink-0">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">+€</span>
+              <input
+                type="number"
+                value={newSuppPrice}
+                onChange={(e) => setNewSuppPrice(e.target.value)}
+                placeholder="0.00"
+                min={0}
+                step={0.1}
+                className="w-full pl-8 pr-2.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (newSuppName.trim()) {
+                  const price = parseFloat(newSuppPrice) >= 0 ? parseFloat(newSuppPrice).toFixed(2) : '0.00';
+                  setSupplementiSingoli((prev) => [
+                    ...prev,
+                    { id: `choice-${Date.now()}`, name: newSuppName.trim(), price },
+                  ]);
+                  setNewSuppName('');
+                  setNewSuppPrice('');
+                }
+              }}
+              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+            >
+              <Plus size={14} />
+              Aggiungi
+            </button>
+          </div>
+        </div>
+
         {/* Supplements Section */}
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-2 border-t border-border/60 pt-4 mt-2">
           <div className="flex items-center justify-between mb-2">
             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Varianti & Opzioni Aggiuntive
@@ -829,9 +1147,15 @@ export default function ItemForm({
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center justify-between border-b border-border/60 pb-1.5 mb-1.5">
                       <span>{group.name}</span>
-                      <span className="text-[10px] font-medium text-muted-foreground bg-card px-1.5 py-0.5 rounded border border-border font-semibold">
-                        {group.choices.length} {group.choices.length === 1 ? 'scelta' : 'scelte'}
-                      </span>
+                      <div className="flex gap-1.5 items-center">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-bold">
+                          {group.minSelections > 0 ? 'Obblig.' : 'Opz.'}
+                          {group.maxSelections === 1 ? ' (Singola)' : group.maxSelections ? ` (Max ${group.maxSelections})` : ''}
+                        </span>
+                        <span className="text-[10px] font-medium text-muted-foreground bg-card px-1.5 py-0.5 rounded border border-border font-semibold">
+                          {group.choices.length} {group.choices.length === 1 ? 'scelta' : 'scelte'}
+                        </span>
+                      </div>
                     </h4>
                     {group.choices.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -861,10 +1185,24 @@ export default function ItemForm({
       <div className="flex items-center gap-3 pt-4 border-t border-border">
         <button
           onClick={() => {
-            if (!draft.name || !draft.price) return;
+            if (!draft.name || !draft.price) {
+              setShowErrors(true);
+              return;
+            }
+            const finalOptionGroups = [...draft.optionGroups];
+            if (supplementiSingoli.length > 0) {
+              finalOptionGroups.push({
+                id: 'supplementi-singoli',
+                name: 'Supplementi',
+                minSelections: 0,
+                maxSelections: null,
+                choices: supplementiSingoli,
+              });
+            }
             const finalDraft = {
               ...draft,
               originalPrice: isPromo ? (draft.originalPrice || '') : '',
+              optionGroups: finalOptionGroups,
             };
             onSave(finalDraft);
           }}
@@ -990,7 +1328,9 @@ export default function ItemForm({
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col min-h-[200px]">
+                {/* Modelli rimossi per creazione da zero */}
+
+                <div className="flex-1 flex flex-col min-h-[200px] border-t border-border/60 pt-3">
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     Gruppi Creati
                   </label>
@@ -1011,7 +1351,21 @@ export default function ItemForm({
                               : 'bg-card border-border hover:border-primary/30 text-foreground'
                               }`}
                           >
-                            <span className="text-xs truncate font-medium">{g.name}</span>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={activeGroupIds.includes(g.id)}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  const checked = e.target.checked;
+                                  setActiveGroupIds((prev) =>
+                                    checked ? [...prev, g.id] : prev.filter((id) => id !== g.id)
+                                  );
+                                }}
+                                className="w-4 h-4 text-primary border-border rounded focus:ring-primary/20 cursor-pointer flex-shrink-0"
+                              />
+                              <span className="text-xs truncate font-medium">{g.name}</span>
+                            </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
                                 {g.choices.length}
@@ -1068,6 +1422,131 @@ export default function ItemForm({
                           }}
                           className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
                         />
+                      </div>
+
+                      {/* Regole di Selezione & Vincoli */}
+                      <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
+                          ⚙️ Regole di comportamento per il cliente
+                        </h4>
+
+                        {/* Question 1: Solo una o più scelte? */}
+                        <div className="space-y-2">
+                          <span className="block text-xs font-bold text-foreground">
+                            1. Quante opzioni può selezionare il cliente?
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalOptionGroups((prev) =>
+                                  prev.map((g) => (g.id === gid ? { ...g, maxSelections: 1, minSelections: Math.min(1, g.minSelections) } : g))
+                                );
+                              }}
+                              className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${activeGroup.maxSelections === 1
+                                ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                                : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                                }`}
+                            >
+                              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${activeGroup.maxSelections === 1 ? 'border-primary' : 'border-muted-foreground'}`}>
+                                  {activeGroup.maxSelections === 1 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                                </span>
+                                Una sola scelta (es. Impasto)
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                                Il cliente può scegliere un solo elemento. La selezione di uno esclude gli altri.
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalOptionGroups((prev) =>
+                                  prev.map((g) => (g.id === gid ? { ...g, maxSelections: null } : g))
+                                );
+                              }}
+                              className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${activeGroup.maxSelections !== 1
+                                ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                                : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                                }`}
+                            >
+                              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${activeGroup.maxSelections !== 1 ? 'border-primary bg-primary/10' : 'border-muted-foreground'}`}>
+                                  {activeGroup.maxSelections !== 1 && <span className="w-1.5 h-1.5 bg-primary rounded-[2px]" />}
+                                </span>
+                                Scelte multiple (es. Aggiunte)
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                                Il cliente può selezionare più opzioni contemporaneamente o nessuna.
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Question 2: Obbligatorio o opzionale? */}
+                        <div className="space-y-2">
+                          <span className="block text-xs font-bold text-foreground">
+                            2. La scelta è obbligatoria per poter ordinare?
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalOptionGroups((prev) =>
+                                  prev.map((g) => (g.id === gid ? { ...g, minSelections: 0 } : g))
+                                );
+                              }}
+                              className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${activeGroup.minSelections === 0
+                                ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                                : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                                }`}
+                            >
+                              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                <span className="text-xs">⚪</span>
+                                Facoltativa
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                                Il cliente può procedere all'ordine anche senza selezionare alcuna opzione da questo gruppo.
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalOptionGroups((prev) =>
+                                  prev.map((g) => (g.id === gid ? { ...g, minSelections: 1 } : g))
+                                );
+                              }}
+                              className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${activeGroup.minSelections > 0
+                                ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                                : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                                }`}
+                            >
+                              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                <span className="text-xs">🔴</span>
+                                Obbligatoria
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                                Il cliente non può aggiungere il piatto al carrello se non seleziona almeno un'opzione.
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Summary rules badge */}
+                        <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+                          <span className="text-muted-foreground font-semibold">Regola applicata:</span>
+                          <span className="px-3 py-1 font-bold rounded-lg bg-primary/10 text-primary border border-primary/20">
+                            {activeGroup.minSelections > 0
+                              ? activeGroup.maxSelections === 1
+                                ? '🔴 Selezione Obbligatoria (1 sola scelta)'
+                                : '🔴 Selezione Obbligatoria (Scelte multiple)'
+                              : activeGroup.maxSelections === 1
+                                ? '⚪ Selezione Facoltativa (Max 1 scelta)'
+                                : '⚪ Selezione Facoltativa (Scelte multiple libere)'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Add Choice */}
@@ -1204,12 +1683,17 @@ export default function ItemForm({
               <button
                 type="button"
                 onClick={() => {
-                  setDraft((p) => ({ ...p, optionGroups: modalOptionGroups }));
+                  const activeGroups = modalOptionGroups.filter((g) => activeGroupIds.includes(g.id));
+                  setDraft((p) => ({ ...p, optionGroups: activeGroups }));
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('iGO_session_option_groups', JSON.stringify(modalOptionGroups));
+                  }
+                  setSessionGroups(modalOptionGroups);
                   setIsSupplementsModalOpen(false);
                 }}
-                className="px-4.5 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-[#d43d22] cursor-pointer"
+                className="w-[120px] px-4.5 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-[#d43d22] cursor-pointer"
               >
-                Salva e Applica
+                Salva
               </button>
             </div>
           </div>

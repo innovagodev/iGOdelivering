@@ -217,6 +217,11 @@ export default function MenuEditorTab({
                           <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
                             {item.name}
                           </h3>
+                          {item.ingredients && item.ingredients.length > 0 && (
+                            <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">
+                              {item.ingredients.join(', ')}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           {item.originalPrice && item.originalPrice > item.price ? (

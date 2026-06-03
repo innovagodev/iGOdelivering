@@ -185,7 +185,9 @@ export default function NewRestaurantPage() {
     imageFile: null,
     allergens: [],
     dishTags: [],
+    ingredients: [],
     optionGroups: [],
+    singleSupplements: [],
     visibility: {
       mode: 'always',
       timeFrom: '10:00',
@@ -301,7 +303,9 @@ export default function NewRestaurantPage() {
       imageFile: null,
       allergens: [],
       dishTags: [],
+      ingredients: [],
       optionGroups: [],
+      singleSupplements: [],
       visibility: {
         mode: 'always',
         timeFrom: '10:00',
@@ -483,6 +487,8 @@ export default function NewRestaurantPage() {
           return {
             id: matchedGroup.id,
             name: matchedGroup.name,
+            minSelections: matchedGroup.minSelections !== undefined ? matchedGroup.minSelections : 0,
+            maxSelections: matchedGroup.maxSelections !== undefined ? matchedGroup.maxSelections : null,
             choices: matchedGroup.choices.map((c) => ({
               id: c.id,
               name: c.name,
@@ -490,6 +496,20 @@ export default function NewRestaurantPage() {
             })),
           };
         }).filter((g): g is OptionGroup => g !== null);
+
+        if (item.singleSupplements && item.singleSupplements.length > 0) {
+          mappedOptionGroups.push({
+            id: 'supplementi-singoli',
+            name: 'Supplementi Singoli',
+            minSelections: 0,
+            maxSelections: null,
+            choices: item.singleSupplements.map((c) => ({
+              id: c.id,
+              name: c.name,
+              price: c.price.toString(),
+            })),
+          });
+        }
 
         const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
         const listPrice = parseFloat(item.price) || 0;
@@ -507,6 +527,7 @@ export default function NewRestaurantPage() {
           imageAlt: item.name,
           allergens: item.allergens,
           dishTags: item.dishTags || [],
+          ingredients: item.ingredients || [],
           orders: 0,
           visibility,
           visibilitySchedule,
@@ -607,7 +628,7 @@ export default function NewRestaurantPage() {
             </div>
 
             {/* Desktop: step pills */}
-            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-none">
+            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-hide">
               {steps.map((step, idx) => {
                 const isCompleted = stepOrder.indexOf(step.id) < currentIndex;
                 const isCurrent = step.id === currentStep;
@@ -730,7 +751,7 @@ export default function NewRestaurantPage() {
                   setNewGroupChoices((p) => p.map((c) => (c.id === id ? { ...c, [f]: v } : c)))
                 }
                 removeChoice={(id) => setNewGroupChoices((p) => p.filter((c) => c.id !== id))}
-                addWizardOptionGroup={() => {
+                addWizardOptionGroup={(minSel, maxSel) => {
                   if (!newGroupName.trim()) return;
                   setOptionGroups((p) => [
                     ...p,
@@ -739,6 +760,8 @@ export default function NewRestaurantPage() {
                       name: newGroupName.trim(),
                       choices: newGroupChoices.filter((c) => c.name.trim()),
                       appliedTo: [],
+                      minSelections: minSel ?? 0,
+                      maxSelections: maxSel !== undefined ? maxSel : null,
                     },
                   ]);
                   setShowAddGroup(false);

@@ -437,10 +437,10 @@ export default function RistoratoreTavoliPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={handlePrintAll}
-                  className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm"
+                  className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm w-full sm:w-auto"
                 >
                   <Printer size={14} />
                   Stampa Tutti i QR

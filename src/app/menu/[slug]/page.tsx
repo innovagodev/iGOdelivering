@@ -69,6 +69,8 @@ interface MenuItemType {
   available?: boolean;
   allergens: string[];
   dishTags?: string[];
+  ingredients?: string[];
+  optionGroups?: any[];
 }
 
 interface CartItem extends MenuItemType {
@@ -445,6 +447,7 @@ function CartSidebar({
   discount = 0,
   appliedPromoDetail,
   isCurrentlyClosed = false,
+  isPreOrderAllowed = false,
 }: {
   cart: CartItem[];
   onAdd: (item: MenuItemType) => void;
@@ -472,6 +475,7 @@ function CartSidebar({
   discount?: number;
   appliedPromoDetail?: any;
   isCurrentlyClosed?: boolean;
+  isPreOrderAllowed?: boolean;
 }) {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const total = subtotal - discount + (deliveryType === 'domicilio' ? actualDeliveryFee : 0);
@@ -685,10 +689,10 @@ function CartSidebar({
 
             <button
               onClick={onCheckout}
-              disabled={!meetsMin || isCurrentlyClosed}
+              disabled={!meetsMin || (isCurrentlyClosed && !isPreOrderAllowed)}
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
-              {isCurrentlyClosed ? 'Locale Chiuso' : deliveryType === 'tavolo' ? 'Procedi' : 'Invia Ordine'}
+              {isCurrentlyClosed && !isPreOrderAllowed ? 'Locale Chiuso' : isCurrentlyClosed ? 'Ordina per dopo' : deliveryType === 'tavolo' ? 'Procedi' : 'Invia Ordine'}
             </button>
           </div>
         </>
@@ -767,6 +771,11 @@ function MenuItemCard({
           >
             {item.name}
           </h4>
+          {item.ingredients && item.ingredients.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/80 font-medium mb-1 line-clamp-1 leading-normal">
+              {item.ingredients.join(', ')}
+            </p>
+          )}
           {item.dishTags && item.dishTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2 mt-0.5 animate-in fade-in duration-200">
               {item.dishTags.map((tag) => (
@@ -896,6 +905,7 @@ function CheckoutModal({
   clearCart,
   bookingContext,
   setBookingContext,
+  isCurrentlyClosed,
 }: {
   open: boolean;
   onClose: () => void;
@@ -933,6 +943,7 @@ function CheckoutModal({
   clearCart: () => void;
   bookingContext: any;
   setBookingContext: (v: any) => void;
+  isCurrentlyClosed?: boolean;
 }) {
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
   const [emailTouched, setEmailTouched] = useState(false);
@@ -1336,7 +1347,7 @@ function CheckoutModal({
     return slots;
   }, [deliveryType, openingHours, deliveryHours, currentTimeStr, selectedDate, dateOptions, minNoticeMinutes, timeInterval]);
 
-  const showAsapOption = !scheduledOrdersConfig?.hideAsap && (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
+  const showAsapOption = !isCurrentlyClosed && !scheduledOrdersConfig?.hideAsap && (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
 
   useEffect(() => {
     if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
@@ -1972,7 +1983,7 @@ function CheckoutModal({
                     <Calendar size={12} />
                     Giorno di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
                   </label>
-                  <div className="flex gap-2 overflow-x-auto pb-1.5 mb-1 scrollbar-none no-scrollbar">
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 mb-1 scrollbar-hide">
                     {dateOptions.map((opt) => {
                       const isSelected = selectedDate === opt.value;
                       return (
@@ -1980,11 +1991,10 @@ function CheckoutModal({
                           key={opt.value}
                           type="button"
                           onClick={() => setSelectedDate(opt.value)}
-                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                            isSelected
-                              ? 'bg-primary text-white border-primary shadow-sm'
-                              : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
-                          }`}
+                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isSelected
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
+                            }`}
                         >
                           {opt.label}
                         </button>
@@ -2788,6 +2798,11 @@ function CustomizationView({
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-foreground text-sm truncate">{item.name}</h4>
+            {item.ingredients && item.ingredients.length > 0 && (
+              <p className="text-[10px] text-muted-foreground/80 font-medium leading-normal mb-0.5 truncate">
+                {item.ingredients.join(', ')}
+              </p>
+            )}
             {item.dishTags && item.dishTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-1.5 mt-0.5 animate-in fade-in duration-200">
                 {item.dishTags.map((tag) => (
@@ -3080,7 +3095,11 @@ export default function CustomerStorefront() {
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
       const restaurantId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.menuItems(slug)) || localStorage.getItem(STORAGE_KEYS.menuItems(restaurantId));
+      const stored =
+        sessionStorage.getItem(STORAGE_KEYS.menuItems(slug)) ||
+        sessionStorage.getItem(STORAGE_KEYS.menuItems(restaurantId)) ||
+        localStorage.getItem(STORAGE_KEYS.menuItems(slug)) ||
+        localStorage.getItem(STORAGE_KEYS.menuItems(restaurantId));
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -3135,6 +3154,7 @@ export default function CustomerStorefront() {
   const [simulatedDay, setSimulatedDay] = useState<string | null>(null);
   const [simulatedDate, setSimulatedDate] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [preOrderAcknowledged, setPreOrderAcknowledged] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -3943,7 +3963,11 @@ export default function CustomerStorefront() {
     const isDeliveryOpen = checkServiceOpen('delivery');
 
     if (!isPickupOpen && !isDeliveryOpen) {
-      setAvailabilityError('closed');
+      if (!preOrderAcknowledged) {
+        setAvailabilityError('closed');
+      } else {
+        setAvailabilityError(null);
+      }
       return;
     }
 
@@ -3953,7 +3977,7 @@ export default function CustomerStorefront() {
     }
 
     setAvailabilityError(null);
-  }, [simulatedTime, simulatedDay, simulatedDate, deliveryType, checkServiceOpen, searchParams]);
+  }, [simulatedTime, simulatedDay, simulatedDate, deliveryType, checkServiceOpen, searchParams, preOrderAcknowledged]);
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -4146,7 +4170,7 @@ export default function CustomerStorefront() {
     removedIngredients: string[],
     note: string
   ) => {
-    if (isCurrentlyClosed) return;
+    if (isCurrentlyClosed && !isPreOrderAllowed) return;
 
     // Trigger fly-to-cart animation
     triggerFlyToCart();
@@ -4223,7 +4247,7 @@ export default function CustomerStorefront() {
   };
 
   const addToCart = (item: MenuItemType) => {
-    if (isCurrentlyClosed) return;
+    if (isCurrentlyClosed && !isPreOrderAllowed) return;
     const cartItem = item as CartItem;
     if (cartItem.cartId) {
       setCart((prev) =>
@@ -4250,6 +4274,30 @@ export default function CustomerStorefront() {
   const activeServiceType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
   const isCurrentlyClosed = isMounted ? !checkServiceOpen(activeServiceType) : false;
 
+  const isTemporaryClosure = React.useMemo(() => {
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      if (stored) {
+        try { config = JSON.parse(stored); } catch (e) { }
+      }
+    }
+    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+      const currentDate = getCurrentDateStr();
+      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+        return true;
+      }
+    }
+    return false;
+  }, [serviceHoursConfig, slug, getCurrentDateStr]);
+
+  const isPreOrderAllowed = React.useMemo(() => {
+    if (simulatedTime === 'paused') return false;
+    if (isTemporaryClosure) return false;
+    return true;
+  }, [simulatedTime, isTemporaryClosure]);
+
   const getRestaurantStatus = () => {
     if (!isMounted) {
       return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
@@ -4258,28 +4306,17 @@ export default function CustomerStorefront() {
       return { label: 'TEMPORANEAMENTE CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
 
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) { }
-      }
-    }
-
-    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
-      const currentDate = getCurrentDateStr();
-      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
-        return { label: 'CHIUSO PER FERIE', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
-      }
+    if (isTemporaryClosure) {
+      return { label: 'CHIUSO PER FERIE', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
 
     const isPickupOpen = checkServiceOpen('pickup');
     const isDeliveryOpen = checkServiceOpen('delivery');
 
     if (!isPickupOpen && !isDeliveryOpen) {
+      if (isPreOrderAllowed) {
+        return { label: 'PREORDINI ATTIVI', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
+      }
       return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
     if (isPickupOpen && !isDeliveryOpen) {
@@ -4395,27 +4432,23 @@ export default function CustomerStorefront() {
       return;
     }
 
-    const currentStr = getCurrentTimeStr();
+    const isPickupOpen = checkServiceOpen('pickup');
+    const isDeliveryOpen = checkServiceOpen('delivery');
 
-    const isOpen =
-      !restaurantSettings.openingHours ||
-      restaurantSettings.openingHours.length === 0 ||
-      restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-
-    if (!isOpen) {
-      setAvailabilityError('closed');
+    if (!isPickupOpen && !isDeliveryOpen) {
+      if (isPreOrderAllowed) {
+        setPreOrderAcknowledged(true);
+        setCartOpen(false);
+        setCheckoutOpen(true);
+      } else {
+        setAvailabilityError('closed');
+      }
       return;
     }
 
-    if (deliveryType === 'domicilio') {
-      const canDeliver =
-        !restaurantSettings.deliveryHours ||
-        restaurantSettings.deliveryHours.length === 0 ||
-        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-      if (!canDeliver) {
-        setAvailabilityError('no_delivery');
-        return;
-      }
+    if (deliveryType === 'domicilio' && !isDeliveryOpen) {
+      setAvailabilityError('no_delivery');
+      return;
     }
 
     setCartOpen(false);
@@ -4504,9 +4537,11 @@ export default function CustomerStorefront() {
     <div className={`min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : ''}`}>
       {/* Closed Banner */}
       {isCurrentlyClosed && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md">
+        <div className={`fixed top-0 left-0 right-0 z-50 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}>
           <Clock size={12} className="animate-pulse flex-shrink-0" />
-          <span>{getClosedReason()}</span>
+          <span className="truncate max-w-full">
+            {isPreOrderAllowed ? 'Siamo chiusi ora, ma puoi ordinare per dopo!' : 'Locale Chiuso - Solo consultazione menu'}
+          </span>
         </div>
       )}
 
@@ -4653,7 +4688,7 @@ export default function CustomerStorefront() {
 
       {/* Booking Context Bar (sticky under navbar) */}
       {bookingContext && (
-        <div className={`fixed left-0 right-0 z-35 transition-all duration-300 ${isCurrentlyClosed ? 'top-[4.5rem]' : 'top-[3.5rem] sm:top-[4rem] md:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}>
+        <div className={`fixed left-0 right-0 z-35 transition-all duration-300 ${isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-[4rem] sm:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}>
           <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold">
               <Calendar size={14} className="flex-shrink-0 animate-pulse text-green-600" />
@@ -4783,7 +4818,7 @@ export default function CustomerStorefront() {
       )}
 
       {/* Sticky category nav */}
-      <div className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-32' : 'top-24 sm:top-28') : (isCurrentlyClosed ? 'top-24' : 'top-16')}`}>
+      <div className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : (isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]')}`}>
         <div className="max-w-screen-2xl mx-auto px-4 lg:px-8">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-3">
             {categories.map((cat) => {
@@ -4939,6 +4974,7 @@ export default function CustomerStorefront() {
                 discount={discount}
                 appliedPromoDetail={appliedPromoDetail}
                 isCurrentlyClosed={isCurrentlyClosed}
+                isPreOrderAllowed={isPreOrderAllowed}
               />
             </div>
           </div>
@@ -4950,7 +4986,7 @@ export default function CustomerStorefront() {
         item={customizingItem}
         cartItem={customizingCartItem}
         isOpen={isDetailSheetOpen}
-        disabled={isCurrentlyClosed}
+        disabled={isCurrentlyClosed && !isPreOrderAllowed}
         onClose={() => {
           setCustomizingItem(null);
           setCustomizingCartItem(null);
@@ -5027,19 +5063,25 @@ export default function CustomerStorefront() {
         clearCart={() => setCart([])}
         bookingContext={bookingContext}
         setBookingContext={setBookingContext}
+        isCurrentlyClosed={isCurrentlyClosed}
       />
 
       {/* Availability Error Modal */}
       <Modal
         open={!!availabilityError}
-        onClose={() => setAvailabilityError(null)}
+        onClose={() => {
+          if (availabilityError === 'closed') {
+            setPreOrderAcknowledged(true);
+          }
+          setAvailabilityError(null);
+        }}
         hideClose={true}
         size="sm"
       >
         <div className="space-y-4 text-center py-1">
           <div
             className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed'
-              ? 'bg-red-500/10 text-red-500'
+              ? (isPreOrderAllowed ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500')
               : availabilityError === 'paused'
                 ? 'bg-zinc-500/10 text-zinc-500'
                 : 'bg-amber-500/10 text-amber-500'
@@ -5062,11 +5104,34 @@ export default function CustomerStorefront() {
                   : 'Consegna Non Disponibile'}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
-              {getClosedReason()}
+              {availabilityError === 'closed' && isPreOrderAllowed
+                ? 'Siamo chiusi in questo momento, ma puoi già ordinare per la prossima apertura! Seleziona l\'orario di ritiro o consegna al checkout.'
+                : getClosedReason()}
             </p>
           </div>
           <div className="space-y-1.5 pt-2">
-            {availabilityError === 'no_delivery' ? (
+            {availabilityError === 'closed' && isPreOrderAllowed ? (
+              <>
+                <button
+                  onClick={() => {
+                    setPreOrderAcknowledged(true);
+                    setAvailabilityError(null);
+                  }}
+                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
+                >
+                  Ordina per dopo
+                </button>
+                <button
+                  onClick={() => {
+                    setPreOrderAcknowledged(true);
+                    setAvailabilityError(null);
+                  }}
+                  className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 text-zinc-800 text-xs font-semibold rounded-xl transition-all active:scale-95"
+                >
+                  Consulta il Menu
+                </button>
+              </>
+            ) : availabilityError === 'no_delivery' ? (
               <>
                 <button
                   onClick={() => {
@@ -5086,7 +5151,12 @@ export default function CustomerStorefront() {
               </>
             ) : (
               <button
-                onClick={() => setAvailabilityError(null)}
+                onClick={() => {
+                  if (availabilityError === 'closed') {
+                    setPreOrderAcknowledged(true);
+                  }
+                  setAvailabilityError(null);
+                }}
                 className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
               >
                 Consulta il Menu

@@ -113,51 +113,48 @@ export default function RistoratoreMenuPage() {
   const restaurantId = user?.restaurantId || 'r-001';
   const slug = slugify(user?.restaurantName || 'Pizzeria Bella Napoli');
 
-  const [items, setItems] = useState<MenuItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('igodelivering_auth');
-      let rId = 'r-001';
-      let rName = 'Pizzeria Bella Napoli';
-      if (savedUser) {
-        try {
-          const parsedUser = JSON.parse(savedUser);
-          rId = parsedUser.restaurantId || 'r-001';
-          rName = parsedUser.restaurantName || 'Pizzeria Bella Napoli';
-        } catch {}
-      }
-      const slg = ((text: string) => {
-        return text
-          .toString()
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w\-]+/g, '')
-          .replace(/\-\-+/g, '-');
-      })(rName);
-      const stored =
-        localStorage.getItem(`iGO_menu_items_${slg}`) ||
-        localStorage.getItem(`iGO_menu_items_${rId}`);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            return parsed;
-          }
-        } catch {}
-      }
-      if (!isMockRestaurant(rId) && !isMockRestaurant(slg)) {
-        return [];
-      }
-    }
-    return initialMenuItems;
-  });
+  const [items, setItems] = useState<MenuItem[]>(initialMenuItems);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(items));
-      localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(items));
+    const savedUser = localStorage.getItem('igodelivering_auth');
+    let rId = 'r-001';
+    let rName = 'Pizzeria Bella Napoli';
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        rId = parsedUser.restaurantId || 'r-001';
+        rName = parsedUser.restaurantName || 'Pizzeria Bella Napoli';
+      } catch {}
     }
-  }, [items, restaurantId, slug]);
+    const slg = slugify(rName);
+    const stored =
+      sessionStorage.getItem(`iGO_menu_items_${slg}`) ||
+      sessionStorage.getItem(`iGO_menu_items_${rId}`) ||
+      localStorage.getItem(`iGO_menu_items_${slg}`) ||
+      localStorage.getItem(`iGO_menu_items_${rId}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setItems(parsed);
+        }
+      } catch {}
+    } else {
+      if (!isMockRestaurant(rId) && !isMockRestaurant(slg)) {
+        setItems([]);
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    sessionStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(items));
+    sessionStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(items));
+    localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(items));
+    localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(items));
+  }, [items, restaurantId, slug, isLoaded]);
 
   const showFeedback = (msg: string) => {
     setBulkActionFeedback(msg);
@@ -195,6 +192,8 @@ export default function RistoratoreMenuPage() {
       image: draft.imageUrl,
       imageAlt: draft.name,
       allergens: draft.allergens,
+      dishTags: draft.dishTags || [],
+      ingredients: draft.ingredients || [],
       orders: 0,
       visibility: draft.visibility,
       visibilitySchedule: draft.visibilitySchedule,
@@ -223,6 +222,8 @@ export default function RistoratoreMenuPage() {
               available: draft.available,
               image: draft.imageUrl || m.image,
               allergens: draft.allergens,
+              dishTags: draft.dishTags || [],
+              ingredients: draft.ingredients || [],
               visibility: draft.visibility,
               visibilitySchedule: draft.visibilitySchedule,
               optionGroups: draft.optionGroups,
@@ -246,6 +247,8 @@ export default function RistoratoreMenuPage() {
       available: i.available,
       imageUrl: i.image,
       allergens: i.allergens,
+      dishTags: i.dishTags || [],
+      ingredients: i.ingredients || [],
       visibility: i.visibility,
       visibilitySchedule: i.visibilitySchedule || { from: '', to: '' },
       optionGroups: i.optionGroups || [],
@@ -262,6 +265,8 @@ export default function RistoratoreMenuPage() {
     available: true,
     imageUrl: '',
     allergens: [],
+    dishTags: [],
+    ingredients: [],
     visibility: 'always',
     visibilitySchedule: { from: '', to: '' },
     optionGroups: [],

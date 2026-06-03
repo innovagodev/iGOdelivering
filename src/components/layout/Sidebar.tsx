@@ -260,7 +260,7 @@ export default function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 space-y-0.5 px-2 scrollbar-none">
+      <nav className="flex-1 overflow-y-auto py-4 space-y-0.5 px-2 scrollbar-hide">
         {navItems.map((item) => {
           const isActive = activeSection === item.id;
           return (

@@ -170,6 +170,7 @@ export default function LiveOrderKanban() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [ticker, setTicker] = useState(0);
+  const [activeMobileTab, setActiveMobileTab] = useState<OrderStatus>('pending');
 
   // Set up live ticking interval to refresh dynamic prep timers
   useEffect(() => {
@@ -886,12 +887,47 @@ export default function LiveOrderKanban() {
         </div>
       </div>
 
+      {/* Mobile Tab Bar */}
+      <div className="flex md:hidden border border-border rounded-xl p-1 bg-muted/30 mb-4 gap-1">
+        {columns.map((col) => {
+          const count = filteredOrders(col.key).length;
+          const isActive = activeMobileTab === col.key;
+          return (
+            <button
+              key={`tab-${col.key}`}
+              type="button"
+              onClick={() => setActiveMobileTab(col.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 text-xs font-bold rounded-lg transition-all ${
+                isActive
+                  ? 'bg-card text-foreground shadow-xs border border-border/80'
+                  : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+              }`}
+            >
+              {col.label}
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                isActive 
+                  ? 'bg-primary/10 text-primary border border-primary/20' 
+                  : 'bg-muted text-muted-foreground'
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Kanban Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {columns.map((col) => {
+          const isMobileHidden = activeMobileTab !== col.key;
           const colOrders = filteredOrders(col.key);
           return (
-            <div key={`col-${col.key}`} className={`flex flex-col gap-2.5 border rounded-lg p-3 ${col.bgClass}`}>
+            <div 
+              key={`col-${col.key}`} 
+              className={`flex flex-col gap-2.5 border rounded-lg p-3 ${col.bgClass} ${
+                isMobileHidden ? 'hidden md:flex' : 'flex'
+              }`}
+            >
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-2 px-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-600 dark:text-slate-400">{col.icon}</span>

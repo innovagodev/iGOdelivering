@@ -72,7 +72,7 @@ export default function ScheduledOrdersStep({
             </button>
             {scheduledOrders.pickupExpanded && (
               <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/50">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                       Preavviso minimo
@@ -135,7 +135,7 @@ export default function ScheduledOrdersStep({
             </button>
             {scheduledOrders.deliveryExpanded && (
               <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/50">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                       Preavviso minimo
@@ -204,7 +204,7 @@ export default function ScheduledOrdersStep({
             </button>
             {scheduledOrders.onPremiseExpanded && (
               <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/50">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                       Preavviso minimo

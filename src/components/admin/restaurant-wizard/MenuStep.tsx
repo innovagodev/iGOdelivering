@@ -28,7 +28,7 @@ interface MenuStepProps {
   addChoice: () => void;
   updateChoice: (id: string, field: 'name' | 'price', value: string | number) => void;
   removeChoice: (id: string) => void;
-  addWizardOptionGroup: () => void;
+  addWizardOptionGroup: (minSel?: number, maxSel?: number | null) => void;
   removeWizardOptionGroup: (id: string) => void;
   editingGroupId: string | null;
   startEditGroup: (group: WizardOptionGroup) => void;
@@ -105,10 +105,39 @@ export default function MenuStep({
   allergensList,
 }: MenuStepProps) {
   const [isPromo, setIsPromo] = React.useState(!!newItem.originalPrice);
+  const [newGroupMinSelections, setNewGroupMinSelections] = React.useState(0);
+  const [newGroupMaxSelections, setNewGroupMaxSelections] = React.useState<number | null>(null);
+  const [newWizardSuppName, setNewWizardSuppName] = React.useState('');
+  const [newWizardSuppPrice, setNewWizardSuppPrice] = React.useState('');
   const [availableAllergens, setAvailableAllergens] = React.useState<string[]>([]);
   const [customAllergen, setCustomAllergen] = React.useState('');
   const [availableDishTags, setAvailableDishTags] = React.useState<string[]>([]);
   const [customTag, setCustomTag] = React.useState('');
+  const [newIngredientInput, setNewIngredientInput] = React.useState('');
+  const [showErrors, setShowErrors] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!showAddItem) {
+      setShowErrors(false);
+    }
+  }, [showAddItem]);
+
+  const handleAddIngredient = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    setNewItem((p) => {
+      const currentIngredients = p.ingredients || [];
+      if (currentIngredients.includes(trimmed)) return p;
+      return { ...p, ingredients: [...currentIngredients, trimmed] };
+    });
+  };
+
+  const handleRemoveIngredient = (ing: string) => {
+    setNewItem((p) => {
+      const currentIngredients = p.ingredients || [];
+      return { ...p, ingredients: currentIngredients.filter((x) => x !== ing) };
+    });
+  };
 
   // Emoji Picker States
   const [allergenEmoji, setAllergenEmoji] = React.useState('➕');
@@ -360,8 +389,126 @@ export default function MenuStep({
               placeholder="Nome gruppo (es. Scegli impasto, Ingredienti extra...)"
               className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
             />
+            {/* Regole di Selezione & Vincoli per il Nuovo Gruppo */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
+                ⚙️ Regole di comportamento per il cliente
+              </h4>
+
+              {/* Question 1: Solo una o più scelte? */}
+              <div className="space-y-2">
+                <span className="block text-xs font-bold text-foreground">
+                  1. Quante opzioni può selezionare il cliente?
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewGroupMaxSelections(1);
+                      setNewGroupMinSelections((prev) => Math.min(1, prev));
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMaxSelections === 1
+                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                      }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${newGroupMaxSelections === 1 ? 'border-primary' : 'border-muted-foreground'}`}>
+                        {newGroupMaxSelections === 1 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                      </span>
+                      Una sola scelta (es. Impasto)
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente può scegliere un solo elemento. La selezione di uno esclude gli altri.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewGroupMaxSelections(null);
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMaxSelections !== 1
+                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                      }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${newGroupMaxSelections !== 1 ? 'border-primary bg-primary/10' : 'border-muted-foreground'}`}>
+                        {newGroupMaxSelections !== 1 && <span className="w-1.5 h-1.5 bg-primary rounded-[2px]" />}
+                      </span>
+                      Scelte multiple (es. Aggiunte)
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente può selezionare più opzioni contemporaneamente o nessuna.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Question 2: Obbligatorio o opzionale? */}
+              <div className="space-y-2">
+                <span className="block text-xs font-bold text-foreground">
+                  2. La scelta è obbligatoria per poter ordinare?
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewGroupMinSelections(0);
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMinSelections === 0
+                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                      }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className="text-xs">⚪</span>
+                      Facoltativa
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente può procedere all'ordine anche senza selezionare alcuna opzione da questo gruppo.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewGroupMinSelections(1);
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMinSelections > 0
+                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                      }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className="text-xs">🔴</span>
+                      Obbligatoria
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente non può aggiungere il piatto al carrello se non seleziona almeno un'opzione.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary rules badge */}
+              <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+                <span className="text-muted-foreground font-semibold">Regola applicata:</span>
+                <span className="px-3 py-1 font-bold rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  {newGroupMinSelections > 0
+                    ? newGroupMaxSelections === 1
+                      ? '🔴 Selezione Obbligatoria (1 sola scelta)'
+                      : '🔴 Selezione Obbligatoria (Scelte multiple)'
+                    : newGroupMaxSelections === 1
+                      ? '⚪ Selezione Facoltativa (Max 1 scelta)'
+                      : '⚪ Selezione Facoltativa (Scelte multiple libere)'}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
                 Opzioni
               </p>
               {newGroupChoices.map((choice) => (
@@ -390,7 +537,7 @@ export default function MenuStep({
                   </div>
                   <button
                     onClick={() => removeChoice(choice.id)}
-                    className="p-1.5 text-muted-foreground hover:text-[var(--danger)]"
+                    className="p-1.5 text-muted-foreground hover:text-[var(--danger)] cursor-pointer"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -398,7 +545,7 @@ export default function MenuStep({
               ))}
               <button
                 onClick={addChoice}
-                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Plus size={12} />
                 Aggiungi Opzione
@@ -406,14 +553,22 @@ export default function MenuStep({
             </div>
             <div className="flex items-center gap-3 pt-2">
               <button
-                onClick={addWizardOptionGroup}
-                className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold"
+                onClick={() => {
+                  addWizardOptionGroup(newGroupMinSelections, newGroupMaxSelections);
+                  setNewGroupMinSelections(0);
+                  setNewGroupMaxSelections(null);
+                }}
+                className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
               >
                 Salva Gruppo
               </button>
               <button
-                onClick={() => setShowAddGroup(false)}
-                className="text-xs font-semibold text-muted-foreground"
+                onClick={() => {
+                  setShowAddGroup(false);
+                  setNewGroupMinSelections(0);
+                  setNewGroupMaxSelections(null);
+                }}
+                className="text-xs font-semibold text-muted-foreground cursor-pointer"
               >
                 Annulla
               </button>
@@ -464,6 +619,11 @@ export default function MenuStep({
                   </button>
                 </div>
                 <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
+                {item.ingredients && item.ingredients.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">
+                    {item.ingredients.join(', ')}
+                  </p>
+                )}
                 {item.originalPrice ? (
                   <div className="mt-1 flex flex-col">
                     <span className="text-xs text-muted-foreground line-through">
@@ -496,12 +656,22 @@ export default function MenuStep({
                   <input
                     type="text"
                     value={newItem.name}
-                    onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
+                    onChange={(e) => {
+                      setNewItem((p) => ({ ...p, name: e.target.value }));
+                      if (e.target.value.trim()) setShowErrors(false);
+                    }}
                     placeholder="es. Margherita"
-                    className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                    className={`w-full px-3.5 py-2.5 text-base bg-input border rounded-xl focus:outline-none focus:ring-2 transition-all ${
+                      showErrors && !newItem.name.trim()
+                        ? 'border-red-500 focus:ring-red-200 focus:border-red-500'
+                        : 'border-border focus:ring-primary/20 focus:border-primary'
+                    }`}
                   />
+                  {showErrors && !newItem.name.trim() && (
+                    <p className="text-red-500 text-[10px] font-semibold mt-1">Il nome del piatto è obbligatorio</p>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                       Categoria *
@@ -529,10 +699,17 @@ export default function MenuStep({
                         <input
                           type="number"
                           value={newItem.price}
-                          onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))}
+                          onChange={(e) => {
+                            setNewItem((p) => ({ ...p, price: e.target.value }));
+                            if (e.target.value.trim()) setShowErrors(false);
+                          }}
                           placeholder="7.50"
                           step="0.1"
-                          className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                          className={`w-full pl-8 pr-3 py-2.5 text-base bg-input border rounded-xl focus:outline-none focus:ring-2 transition-all ${
+                            showErrors && !newItem.price.trim()
+                              ? 'border-red-500 focus:ring-red-200 focus:border-red-500'
+                              : 'border-border focus:ring-primary/20 focus:border-primary'
+                          }`}
                         />
                       </div>
                       <label className="flex items-center gap-1.5 cursor-pointer select-none py-2">
@@ -552,6 +729,9 @@ export default function MenuStep({
                         </span>
                       </label>
                     </div>
+                    {showErrors && !newItem.price.trim() && (
+                      <p className="text-red-500 text-[10px] font-semibold mt-1">Il prezzo di listino è obbligatorio</p>
+                    )}
                   </div>
                 </div>
                 {isPromo && (
@@ -586,6 +766,78 @@ export default function MenuStep({
                     rows={2}
                     className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                   />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Ingredienti del Piatto
+                    </p>
+                    {(newItem.ingredients || []).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setNewItem((p) => ({ ...p, ingredients: [] }))}
+                        className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                      >
+                        Pulisci tutto
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1 p-2 bg-muted/25 border border-border rounded-xl">
+                    {(!newItem.ingredients || newItem.ingredients.length === 0) && (
+                      <p className="text-xs text-muted-foreground italic">Nessun ingrediente inserito (es. Pomodoro, Mozzarella...)</p>
+                    )}
+                    {(newItem.ingredients || []).map((ing) => (
+                      <div
+                        key={ing}
+                        className="relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border bg-card border-border text-foreground select-none pr-6 flex items-center"
+                      >
+                        {ing}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveIngredient(ing)}
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                          style={{ fontSize: '7px', lineHeight: '1' }}
+                          title={`Elimina ${ing}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newIngredientInput}
+                      onChange={(e) => setNewIngredientInput(e.target.value)}
+                      placeholder="Aggiungi ingrediente..."
+                      className="flex-1 px-3 py-2 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring min-w-0"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const txt = newIngredientInput.trim();
+                          if (txt) {
+                            handleAddIngredient(txt);
+                            setNewIngredientInput('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const txt = newIngredientInput.trim();
+                        if (txt) {
+                          handleAddIngredient(txt);
+                          setNewIngredientInput('');
+                        }
+                      }}
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                    >
+                      <Plus size={10} />
+                      Aggiungi
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="space-y-4">
@@ -627,28 +879,162 @@ export default function MenuStep({
             </div>
 
             {/* Opzioni & Allergeni & Tag Panels */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-border">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                  Gruppi Opzioni Applicabili
-                </p>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                  {optionGroups.length === 0 && (
-                    <p className="text-xs text-muted-foreground italic">
-                      Nessun gruppo opzioni creato
-                    </p>
-                  )}
-                  {optionGroups.map((g) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-border text-left">
+              <div className="space-y-6">
+                {/* Supplementi Singoli Section */}
+                <div className="border border-border/80 rounded-2xl p-4 bg-muted/10 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        Supplementi Singoli del Piatto
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Aggiungi o importa da gruppi opzioni creati.
+                      </p>
+                    </div>
+                    {optionGroups.filter((g) => g.id !== 'supplementi-singoli' && g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && !newItem.optionGroups.includes(g.id)).length > 0 && (
+                      <select
+                        onChange={(e) => {
+                          const gid = e.target.value;
+                          if (!gid) return;
+                          setNewItem((prev) => {
+                            const currentGroups = prev.optionGroups || [];
+                            if (currentGroups.includes(gid)) return prev;
+                            return {
+                              ...prev,
+                              optionGroups: [...currentGroups, gid],
+                            };
+                          });
+                          e.target.value = ''; // Reset select
+                        }}
+                        className="px-2 py-0.5 text-[10px] bg-input border border-border rounded-md focus:outline-none cursor-pointer self-start sm:self-auto font-semibold"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Inserisci da gruppo...</option>
+                        {optionGroups
+                          .filter((g) => g.id !== 'supplementi-singoli' && g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && !newItem.optionGroups.includes(g.id))
+                          .map((g) => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-card border border-border rounded-xl">
+                    {(!newItem.singleSupplements || newItem.singleSupplements.length === 0) && (
+                      <p className="text-[10px] text-muted-foreground italic">Nessun supplemento singolo configurato.</p>
+                    )}
+                    {(newItem.singleSupplements || []).map((choice) => (
+                      <div
+                        key={choice.id}
+                        className="relative px-2 py-1 rounded-lg text-[10px] font-semibold border bg-card border-border text-foreground pr-6"
+                      >
+                        <span>{choice.name}</span>
+                        <span className="text-primary font-bold ml-1">(+€{choice.price.toFixed(2)})</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewItem((prev) => ({
+                            ...prev,
+                            singleSupplements: (prev.singleSupplements || []).filter((c) => c.id !== choice.id),
+                          }))}
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                          style={{ fontSize: '7px', lineHeight: '1' }}
+                          title={`Elimina ${choice.name}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Supplement inline form */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newWizardSuppName}
+                      onChange={(e) => setNewWizardSuppName(e.target.value)}
+                      placeholder="Nome supplemento..."
+                      className="flex-1 px-3 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none min-w-0"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newWizardSuppName.trim()) {
+                            const price = parseFloat(newWizardSuppPrice) >= 0 ? parseFloat(newWizardSuppPrice) : 0;
+                            setNewItem((prev) => ({
+                              ...prev,
+                              singleSupplements: [
+                                ...(prev.singleSupplements || []),
+                                { id: `choice-${Date.now()}`, name: newWizardSuppName.trim(), price },
+                              ],
+                            }));
+                            setNewWizardSuppName('');
+                            setNewWizardSuppPrice('');
+                          }
+                        }
+                      }}
+                    />
+                    <input
+                      type="number"
+                      value={newWizardSuppPrice}
+                      onChange={(e) => setNewWizardSuppPrice(e.target.value)}
+                      placeholder="Prezzo"
+                      min={0}
+                      step={0.1}
+                      className="w-16 px-2 py-1.5 text-xs bg-input border border-border rounded-lg text-center min-w-0"
+                    />
                     <button
-                      key={g.id}
                       type="button"
-                      onClick={() => toggleItemOptionGroup(g.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors ${newItem.optionGroups.includes(g.id) ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}
+                      onClick={() => {
+                        if (newWizardSuppName.trim()) {
+                          const price = parseFloat(newWizardSuppPrice) >= 0 ? parseFloat(newWizardSuppPrice) : 0;
+                          setNewItem((prev) => ({
+                            ...prev,
+                            singleSupplements: [
+                              ...(prev.singleSupplements || []),
+                              { id: `choice-${Date.now()}`, name: newWizardSuppName.trim(), price },
+                            ],
+                          }));
+                          setNewWizardSuppName('');
+                          setNewWizardSuppPrice('');
+                        }
+                      }}
+                      className="px-2.5 py-1.5 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
-                      <span className="text-xs font-semibold">{g.name}</span>
-                      {newItem.optionGroups.includes(g.id) && <X size={12} />}
+                      <Plus size={10} />
+                      Aggiungi
                     </button>
-                  ))}
+                  </div>
+                </div>
+
+                {/* Gruppi Opzioni Applicabili Section */}
+                <div>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                    Gruppi Opzioni Applicabili (con regole)
+                  </p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {optionGroups.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">
+                        Nessun gruppo opzioni creato
+                      </p>
+                    )}
+                    {optionGroups.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => toggleItemOptionGroup(g.id)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors cursor-pointer ${newItem.optionGroups.includes(g.id) ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold">{g.name}</span>
+                          <span className="text-[9px] text-muted-foreground font-semibold">
+                            {g.minSelections !== undefined && g.minSelections > 0 ? 'Obbligatorio' : 'Opzionale'}
+                            {g.maxSelections === 1 ? ' • Scelta Singola' : ' • Scelta Multipla'}
+                          </span>
+                        </div>
+                        {newItem.optionGroups.includes(g.id) && <X size={12} />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -681,7 +1067,7 @@ export default function MenuStep({
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1">
                     {availableAllergens.length === 0 && (
                       <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
@@ -692,11 +1078,10 @@ export default function MenuStep({
                         <div
                           key={a}
                           onClick={() => toggleAllergen(a)}
-                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
-                            isActive
+                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${isActive
                               ? 'bg-amber-100 border-amber-300 text-amber-800'
                               : 'bg-card border-border text-muted-foreground hover:bg-muted'
-                          }`}
+                            }`}
                         >
                           {a}
                           <button
@@ -823,7 +1208,7 @@ export default function MenuStep({
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1">
                     {availableDishTags.length === 0 && (
                       <p className="text-xs text-muted-foreground italic">Nessuna etichetta inserita</p>
@@ -834,11 +1219,10 @@ export default function MenuStep({
                         <div
                           key={t}
                           onClick={() => toggleDishTag(t)}
-                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
-                            isActive
+                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${isActive
                               ? 'bg-primary/10 border-primary text-primary'
                               : 'bg-card border-border text-muted-foreground hover:bg-muted'
-                          }`}
+                            }`}
                         >
                           {t}
                           <button
@@ -941,7 +1325,14 @@ export default function MenuStep({
 
             <div className="flex items-center gap-3 pt-4">
               <button
-                onClick={addMenuItem}
+                onClick={() => {
+                  if (!newItem.name || !newItem.price) {
+                    setShowErrors(true);
+                    return;
+                  }
+                  addMenuItem();
+                  setShowErrors(false);
+                }}
                 className="flex-1 bg-primary text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] hover:scale-[1.02] active:scale-95 transition-all"
               >
                 Salva Piatto

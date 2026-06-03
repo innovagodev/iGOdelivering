@@ -433,13 +433,13 @@ export default function PrenotazioniPage() {
 
               <div className="flex flex-wrap items-center gap-4">
                 {/* Quick Date Filters */}
-                <div className="flex items-center bg-muted p-1 rounded-lg">
+                <div className="flex items-center bg-muted p-1 rounded-lg overflow-x-auto max-w-full whitespace-nowrap scrollbar-hide">
                   <button
                     onClick={() => {
                       setDateFilterType('today');
                       setFilterDate(getTodayStr());
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateFilterType === 'today' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${dateFilterType === 'today' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     Oggi
@@ -449,7 +449,7 @@ export default function PrenotazioniPage() {
                       setDateFilterType('tomorrow');
                       setFilterDate(getTomorrowStr());
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateFilterType === 'tomorrow' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${dateFilterType === 'tomorrow' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     Domani
@@ -459,7 +459,7 @@ export default function PrenotazioniPage() {
                       setDateFilterType('next7');
                       setFilterDate('');
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${dateFilterType === 'next7' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${dateFilterType === 'next7' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     Prossimi 7 Giorni
@@ -470,7 +470,7 @@ export default function PrenotazioniPage() {
                         setDateFilterType('all');
                         setFilterDate('');
                       }}
-                      className="px-2 py-1 text-xs font-bold text-primary hover:underline ml-1"
+                      className="px-2 py-1 text-xs font-bold text-primary hover:underline ml-1 flex-shrink-0"
                     >
                       Azzera
                     </button>

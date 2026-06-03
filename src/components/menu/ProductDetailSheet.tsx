@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Check, Star } from 'lucide-react';
+import { X, Plus, Minus, Check, ChevronDown } from 'lucide-react';
 import AppImage from '@/components/ui/AppImage';
-import Badge from '@/components/ui/Badge';
+
 export interface OptionChoice {
   id: string;
   name: string;
@@ -11,6 +11,8 @@ export interface OptionChoice {
 export interface OptionGroup {
   id: string;
   name: string;
+  minSelections: number;
+  maxSelections: number | null;
   choices: OptionChoice[];
 }
 
@@ -28,6 +30,7 @@ export interface MenuItemType {
   spicy?: boolean;
   allergens: string[];
   dishTags?: string[];
+  ingredients?: string[];
   optionGroups?: OptionGroup[];
 }
 
@@ -52,53 +55,6 @@ interface ProductDetailSheetProps {
   ) => void;
   disabled?: boolean;
 }
-
-const getCustomizationOptions = (category: string) => {
-  const normalized = (category || '').toLowerCase();
-  if (normalized === 'pizza') {
-    return {
-      extras: [
-        { name: 'Doppia Mozzarella', price: 1.5 },
-        { name: 'Prosciutto Cotto', price: 1.5 },
-        { name: 'Funghi Champignon', price: 1.0 },
-        { name: 'Salame Piccante', price: 1.5 },
-        { name: 'Olive Nere', price: 0.8 },
-      ],
-      removes: ['Basilico', 'Origano', 'Mozzarella'],
-    };
-  }
-  if (normalized === 'primi' || normalized === 'secondi' || normalized === 'antipasti') {
-    return {
-      extras: [
-        { name: 'Parmigiano Reggiano', price: 1.2 },
-        { name: 'Pane extra', price: 1.0 },
-        { name: 'Olio al tartufo', price: 2.0 },
-        { name: 'Pancetta croccante', price: 1.5 },
-      ],
-      removes: ['Pepe', 'Cipolla', 'Aglio', 'Prezzemolo'],
-    };
-  }
-  if (normalized === 'dolci') {
-    return {
-      extras: [
-        { name: 'Panna montata', price: 1.0 },
-        { name: 'Granella di nocciole', price: 0.8 },
-        { name: 'Cioccolato fuso', price: 1.2 },
-      ],
-      removes: [],
-    };
-  }
-  if (normalized === 'bevande') {
-    return {
-      extras: [
-        { name: 'Ghiaccio', price: 0.0 },
-        { name: 'Fetta di limone', price: 0.5 },
-      ],
-      removes: ['Ghiaccio'],
-    };
-  }
-  return { extras: [], removes: [] };
-};
 
 const getTagStyle = (tag: string) => {
   if (tag.includes('🌱') || tag.toLowerCase().includes('vegan') || tag.toLowerCase().includes('vegetar')) {
@@ -128,93 +84,78 @@ export default function ProductDetailSheet({
   const [added, setAdded] = useState<{ name: string; price: number }[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [note, setNote] = useState('');
-  const [cookingStyle, setCookingStyle] = useState<
-    'classico' | 'ben-cotto' | 'calzone' | 'schiacciata'
-  >('classico');
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && item) {
+      setExpandedGroupId(null);
       if (cartItem) {
         setQty(cartItem.qty);
-        // filter out cooking styles
-        const baseAdded = (cartItem.addedIngredients || []).filter(
-          (e) => !e.name.startsWith('Stile:') && !e.name.startsWith('Cottura:')
-        );
-        setAdded(baseAdded);
+        setAdded(cartItem.addedIngredients || []);
         setRemoved(cartItem.removedIngredients || []);
         setNote(cartItem.note || '');
-
-        const styleItem = (cartItem.addedIngredients || []).find(
-          (e) => e.name.startsWith('Stile:') || e.name.startsWith('Cottura:')
-        );
-        if (styleItem) {
-          if (styleItem.name.includes('Schiacciata')) setCookingStyle('schiacciata');
-          else if (styleItem.name.includes('Calzone')) setCookingStyle('calzone');
-          else if (styleItem.name.includes('Ben Cotto')) setCookingStyle('ben-cotto');
-        } else {
-          setCookingStyle('classico');
-        }
       } else {
         setQty(1);
         setAdded([]);
         setRemoved([]);
         setNote('');
-        setCookingStyle('classico');
       }
     }
   }, [isOpen, item, cartItem]);
 
   if (!isOpen || !item) return null;
 
-  const hasCustomOptions = !!(item.optionGroups && item.optionGroups.length > 0);
-  const { extras, removes } = hasCustomOptions ? { extras: [], removes: [] } : getCustomizationOptions(item.category);
-
-  const toggleExtra = (ext: { name: string; price: number }) => {
-    setAdded((prev) =>
-      prev.some((e) => e.name === ext.name)
-        ? prev.filter((e) => e.name !== ext.name)
-        : [...prev, ext]
-    );
-  };
-
   const toggleRemove = (rem: string) => {
     setRemoved((prev) => (prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]));
   };
 
-  const isGroupSingleSelect = (groupName: string) => {
-    const normalized = groupName.toLowerCase();
-    return (
-      normalized.includes('scegli') ||
-      normalized.includes('tipo') ||
-      normalized.includes('formato') ||
-      normalized.includes('impasto') ||
-      normalized.includes('cottura') ||
-      normalized.includes('gusto') ||
-      normalized.includes('base') ||
-      normalized.includes('stile') ||
-      normalized.includes('dimensione') ||
-      normalized.includes('taglia')
-    );
-  };
-
   const toggleGroupOption = (group: OptionGroup, choice: OptionChoice) => {
     const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
-    const isSingle = isGroupSingleSelect(group.name);
-    
+    const isSingle = group.maxSelections === 1;
+
     if (isSingle) {
       const otherChoiceNames = group.choices.map((c) => c.name);
       setAdded((prev) => {
         const filtered = prev.filter((e) => !otherChoiceNames.includes(e.name));
         const alreadySelected = prev.some((e) => e.name === choice.name);
         if (alreadySelected) {
+          // If required selection (minSelections > 0), do not allow deselecting
+          if (group.minSelections > 0) {
+            return prev;
+          }
           return filtered;
         } else {
           return [...filtered, { name: choice.name, price: priceVal }];
         }
       });
     } else {
-      toggleExtra({ name: choice.name, price: priceVal });
+      setAdded((prev) => {
+        const isChecked = prev.some((e) => e.name === choice.name);
+        if (isChecked) {
+          return prev.filter((e) => e.name !== choice.name);
+        } else {
+          // If maxSelections is set, make sure we do not exceed it
+          const otherChoiceNames = group.choices.map((c) => c.name);
+          const currentGroupSelectionsCount = prev.filter((e) => otherChoiceNames.includes(e.name)).length;
+          if (group.maxSelections !== null && currentGroupSelectionsCount >= group.maxSelections) {
+            return prev; // Block selection
+          }
+          return [...prev, { name: choice.name, price: priceVal }];
+        }
+      });
     }
+  };
+
+  const handleSelectGroupOption = (group: OptionGroup, choiceName: string) => {
+    const otherChoiceNames = group.choices.map((c) => c.name);
+    const choice = group.choices.find((c) => c.name === choiceName);
+
+    setAdded((prev) => {
+      const filtered = prev.filter((e) => !otherChoiceNames.includes(e.name));
+      if (!choice) return filtered;
+      const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+      return [...filtered, { name: choice.name, price: priceVal }];
+    });
   };
 
   const handleQuickTag = (tag: string) => {
@@ -224,24 +165,34 @@ export default function ProductDetailSheet({
     });
   };
 
-  const stylePrice = cookingStyle === 'schiacciata' ? 1.5 : 0.0;
-  const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0) + stylePrice;
+  const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0);
   const totalPrice = unitPrice * qty;
 
   const handleConfirm = () => {
-    const finalAdded = [...added];
-    if (cookingStyle === 'schiacciata') {
-      finalAdded.push({ name: 'Stile: A Schiacciata', price: 1.5 });
-    } else if (cookingStyle === 'calzone') {
-      finalAdded.push({ name: 'Stile: A Calzone', price: 0.0 });
-    } else if (cookingStyle === 'ben-cotto') {
-      finalAdded.push({ name: 'Cottura: Ben Cotto', price: 0.0 });
-    }
-    onConfirm(qty, finalAdded, removed, note);
+    onConfirm(qty, added, removed, note);
   };
 
+  // Validation
+  const getValidationError = () => {
+    if (!item.optionGroups) return null;
+    for (const group of item.optionGroups) {
+      const min = group.minSelections ?? 0;
+      if (min > 0) {
+        const groupChoiceNames = group.choices.map((c) => c.name);
+        const selectedCount = added.filter((e) => groupChoiceNames.includes(e.name)).length;
+        if (selectedCount < min) {
+          return `Seleziona ${group.name} per continuare`;
+        }
+      }
+    }
+    return null;
+  };
+
+  const validationError = getValidationError();
+  const isConfirmDisabled = disabled || !!validationError;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
@@ -276,12 +227,16 @@ export default function ProductDetailSheet({
           {/* Cover image */}
           <div className="relative h-48 w-full rounded-2xl overflow-hidden shadow-xs">
             <AppImage src={item.image} alt={item.imageAlt} fill className="object-cover" />
-
           </div>
 
           {/* Details */}
           <div className="space-y-2">
             <h4 className="text-xl font-extrabold text-foreground">{item.name}</h4>
+            {item.ingredients && item.ingredients.length > 0 && (
+              <p className="text-xs text-muted-foreground/90 font-medium leading-relaxed">
+                <span className="font-bold text-foreground/80">Ingredienti:</span> {item.ingredients.join(', ')}
+              </p>
+            )}
             {item.dishTags && item.dishTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-1 mt-0.5 animate-in fade-in duration-200">
                 {item.dishTags.map((tag) => (
@@ -314,82 +269,14 @@ export default function ProductDetailSheet({
             )}
           </div>
 
-          {/* Pizza Specific Styles */}
-          {item.category.toLowerCase() === 'pizza' && (
-            <div className="space-y-3 bg-muted/20 border border-border/30 rounded-2xl p-4">
-              <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Stile & Cottura
-              </h5>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'classico', label: 'Classica', price: 0.0 },
-                  { id: 'ben-cotto', label: 'Ben Cotta', price: 0.0 },
-                  { id: 'calzone', label: 'A Calzone', price: 0.0 },
-                  { id: 'schiacciata', label: 'Schiacciata (+€1.50)', price: 1.5 },
-                ].map((style) => (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => setCookingStyle(style.id as any)}
-                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all ${
-                      cookingStyle === style.id
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border/60 bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <span>{style.label}</span>
-                    {cookingStyle === style.id && <Check size={12} className="stroke-[3]" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Extras / Additionals */}
-          {extras.length > 0 && (
-            <div className="space-y-3">
-              <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Aggiungi Ingredienti (Opzionale)
-              </h5>
-              <div className="divide-y divide-border/40 border border-border/40 rounded-2xl bg-card overflow-hidden">
-                {extras.map((ext) => {
-                  const isChecked = added.some((e) => e.name === ext.name);
-                  return (
-                    <div
-                      key={`extra-${ext.name}`}
-                      onClick={() => toggleExtra(ext)}
-                      className="flex items-center justify-between p-3.5 hover:bg-muted/20 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
-                            isChecked
-                              ? 'bg-primary border-primary text-white'
-                              : 'border-border-strong bg-muted/30'
-                          }`}
-                        >
-                          {isChecked && <Check size={10} className="stroke-[4]" />}
-                        </div>
-                        <span className="text-xs font-medium text-foreground">{ext.name}</span>
-                      </div>
-                      <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                        + € {ext.price.toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Removes / Exclusions */}
-          {removes.length > 0 && (
+          {/* Removes / Exclusions (Ingredients driven) */}
+          {item.ingredients && item.ingredients.length > 0 && (
             <div className="space-y-3">
               <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
                 Rimuovi Ingredienti (Opzionale)
               </h5>
               <div className="divide-y divide-border/40 border border-border/40 rounded-2xl bg-card overflow-hidden">
-                {removes.map((rem) => {
+                {item.ingredients.map((rem) => {
                   const isRemoved = removed.includes(rem);
                   return (
                     <div
@@ -399,16 +286,15 @@ export default function ProductDetailSheet({
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
-                            isRemoved
-                              ? 'bg-red-500 border-red-500 text-white'
-                              : 'border-border-strong bg-muted/30'
-                          }`}
+                          className={`w-4 h-4 rounded-md border flex items-center justify-center transition-all flex-shrink-0 ${isRemoved
+                            ? 'bg-red-500 border-red-500 text-white'
+                            : 'border-border-strong bg-muted/30'
+                            }`}
                         >
                           {isRemoved && <Check size={10} className="stroke-[4]" />}
                         </div>
                         <span
-                          className={`text-xs font-medium ${isRemoved ? 'text-red-500 line-through' : 'text-foreground'}`}
+                          className={`text-xs font-medium ${isRemoved ? 'text-red-500 line-through font-semibold' : 'text-foreground'}`}
                         >
                           Senza {rem}
                         </span>
@@ -426,56 +312,244 @@ export default function ProductDetailSheet({
           )}
 
           {/* Dynamic Option Groups */}
-          {item.optionGroups && item.optionGroups.length > 0 && (
-            <div className="space-y-4">
-              {item.optionGroups.map((group) => {
-                const isSingle = isGroupSingleSelect(group.name);
-                return (
-                  <div key={group.id} className="space-y-2.5">
-                    <h5 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center justify-between">
-                      <span>{group.name}</span>
-                      <span className="text-[9px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border/40">
-                        {isSingle ? 'Scelta Singola' : 'Scelte Multiple'}
-                      </span>
-                    </h5>
-                    <div className="divide-y divide-border/40 border border-border/40 rounded-2xl bg-card overflow-hidden">
-                      {group.choices.map((choice) => {
-                        const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
-                        const isChecked = added.some((e) => e.name === choice.name);
-                        return (
-                          <div
-                            key={choice.id}
-                            onClick={() => toggleGroupOption(group, choice)}
-                            className="flex items-center justify-between p-3.5 hover:bg-muted/20 transition-colors cursor-pointer"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`w-4.5 h-4.5 border flex items-center justify-center transition-all ${
-                                  isSingle ? 'rounded-full' : 'rounded-md'
-                                } ${
-                                  isChecked
-                                    ? 'bg-primary border-primary text-white shadow-xs'
-                                    : 'border-border-strong bg-muted/20'
-                                }`}
-                              >
-                                {isChecked && <Check size={11} className="stroke-[3.5]" />}
-                              </div>
-                              <span className="text-xs font-medium text-foreground">{choice.name}</span>
-                            </div>
-                            {priceVal > 0 && (
-                              <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                                + € {priceVal.toFixed(2)}
+          {item.optionGroups && item.optionGroups.length > 0 && (() => {
+            const mandatoryGroups = item.optionGroups.filter((g) => (g.minSelections ?? 0) > 0);
+            const optionalGroups = item.optionGroups
+              .filter((g) => (g.minSelections ?? 0) === 0)
+              .sort((a, b) => {
+                const isASingle = a.id === 'supplementi-singoli' || a.name === 'Supplementi' || a.name === 'Supplementi Singoli';
+                const isBSingle = b.id === 'supplementi-singoli' || b.name === 'Supplementi' || b.name === 'Supplementi Singoli';
+                if (isASingle && !isBSingle) return 1;
+                if (!isASingle && isBSingle) return -1;
+                return 0;
+              });
+
+            return (
+              <div className="space-y-6">
+                {/* Mandatory Groups (Dropdown select list) */}
+                {mandatoryGroups.length > 0 && (
+                  <div className="space-y-4">
+                    {mandatoryGroups.map((group) => {
+                      const isSingle = group.maxSelections === 1;
+                      const min = group.minSelections ?? 0;
+                      const max = group.maxSelections;
+
+                      // Helper to count how many are selected in this group
+                      const groupChoiceNames = group.choices.map((c) => c.name);
+                      const selectedInGroup = added.filter((e) => groupChoiceNames.includes(e.name));
+                      const selectedCount = selectedInGroup.length;
+                      const isSatisfied = selectedCount >= min && (max === null || selectedCount <= max);
+
+                      return (
+                        <div key={group.id} className="space-y-2.5">
+                          <h5 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              {group.name}
+                              <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.2 font-black animate-pulse">
+                                Obbligatorio
                               </span>
+                            </span>
+                            <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${isSatisfied ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border/40'}`}>
+                              {isSingle
+                                ? `Scegli 1`
+                                : max
+                                  ? `Scegli da ${min} a ${max} (${selectedCount}/${max})`
+                                  : `Scegli almeno ${min} (Selezionati: ${selectedCount})`}
+                            </span>
+                          </h5>
+
+                          {isSingle ? (
+                            <div className="relative">
+                              <select
+                                value={selectedInGroup[0]?.name || ''}
+                                onChange={(e) => handleSelectGroupOption(group, e.target.value)}
+                                className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
+                              >
+                                <option value="">
+                                  Seleziona un'opzione...
+                                </option>
+                                {group.choices.map((choice) => {
+                                  const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+                                  return (
+                                    <option key={choice.id} value={choice.name}>
+                                      {choice.name} {priceVal > 0 ? `(+€${priceVal.toFixed(2)})` : ''}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                <ChevronDown size={16} />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="relative">
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    const choice = group.choices.find(c => c.name === e.target.value);
+                                    if (choice) toggleGroupOption(group, choice);
+                                  }}
+                                  className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
+                                >
+                                  <option value="">Aggiungi un'opzione...</option>
+                                  {group.choices
+                                    .filter(choice => !added.some(e => e.name === choice.name))
+                                    .map((choice) => {
+                                      const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+                                      return (
+                                        <option key={choice.id} value={choice.name}>
+                                          {choice.name} {priceVal > 0 ? `(+€${priceVal.toFixed(2)})` : ''}
+                                        </option>
+                                      );
+                                    })}
+                                </select>
+                                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                  <ChevronDown size={16} />
+                                </div>
+                              </div>
+                              {selectedInGroup.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {selectedInGroup.map((choice) => {
+                                    const matchChoice = group.choices.find(c => c.name === choice.name);
+                                    return (
+                                      <span
+                                        key={choice.name}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 border border-primary/20 text-primary"
+                                      >
+                                        {choice.name}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (matchChoice) toggleGroupOption(group, matchChoice);
+                                          }}
+                                          className="text-primary hover:text-foreground transition-colors"
+                                        >
+                                          <X size={12} />
+                                        </button>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Optional Groups (Accordion) */}
+                {optionalGroups.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      Altre Aggiunte & Personalizzazioni
+                    </h5>
+                    <div className="space-y-2">
+                      {optionalGroups.map((group) => {
+                        const isExpanded = expandedGroupId === group.id;
+                        const isSingle = group.maxSelections === 1;
+                        const max = group.maxSelections;
+
+                        const groupChoiceNames = group.choices.map((c) => c.name);
+                        const selectedInGroup = added.filter((e) => groupChoiceNames.includes(e.name));
+                        const selectedCount = selectedInGroup.length;
+
+                        return (
+                          <div key={group.id} className="border border-border/60 rounded-2xl overflow-hidden bg-card transition-all duration-200">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}
+                              className="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-muted/10 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                                  {group.id === 'supplementi-singoli' || group.name === 'Supplementi' || group.name === 'Supplementi Singoli' ? 'Altro' : group.name}
+                                </span>
+                                {selectedCount > 0 && (
+                                  <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full border border-primary/20">
+                                    {selectedCount} {selectedCount === 1 ? 'selezionato' : 'selezionati'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <span className="text-[10px] font-medium">
+                                  {isSingle ? '' : max ? `Max ${max}` : ''}
+                                </span>
+                                <ChevronDown
+                                  size={16}
+                                  className={`transition-transform duration-200 ${isExpanded ? 'rotate-180 text-primary' : ''}`}
+                                />
+                              </div>
+                            </button>
+
+                            {isExpanded && (
+                              <div className="px-4 pb-4 pt-1 border-t border-border/40 bg-muted/5 animate-in slide-in-from-top-1 duration-150">
+                                {isSingle ? (
+                                  <div className="relative mt-2">
+                                    <select
+                                      value={selectedInGroup[0]?.name || ''}
+                                      onChange={(e) => handleSelectGroupOption(group, e.target.value)}
+                                      className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
+                                    >
+                                      <option value="">Nessuna selezione</option>
+                                      {group.choices.map((choice) => {
+                                        const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+                                        return (
+                                          <option key={choice.id} value={choice.name}>
+                                            {choice.name} {priceVal > 0 ? `(+€${priceVal.toFixed(2)})` : ''}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                                      <ChevronDown size={16} />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="divide-y divide-border/25 mt-1">
+                                    {group.choices.map((choice) => {
+                                      const priceVal = typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
+                                      const isChecked = added.some((e) => e.name === choice.name);
+                                      return (
+                                        <div
+                                          key={choice.id}
+                                          onClick={() => toggleGroupOption(group, choice)}
+                                          className="flex items-center justify-between py-3 px-1 hover:bg-muted/10 transition-colors cursor-pointer"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <div
+                                              className={`w-4.5 h-4.5 border flex items-center justify-center transition-all rounded-md flex-shrink-0 ${isChecked
+                                                ? 'bg-primary border-primary text-white shadow-xs'
+                                                : 'border-border-strong bg-muted/20'
+                                                }`}
+                                            >
+                                              {isChecked && <Check size={11} className="stroke-[3.5]" />}
+                                            </div>
+                                            <span className="text-xs font-medium text-foreground">{choice.name}</span>
+                                          </div>
+                                          {priceVal > 0 && (
+                                            <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                                              + € {priceVal.toFixed(2)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
           {/* Notes Input */}
           <div className="space-y-2.5">
@@ -505,35 +579,50 @@ export default function ProductDetailSheet({
         </div>
 
         {/* Footer actions */}
-        <div className="px-5 py-4 border-t border-border bg-card flex items-center gap-4 flex-shrink-0">
-          <div className="flex items-center bg-muted rounded-xl p-1 shadow-sm border border-border">
+        <div className="px-5 pt-4 pb-6 sm:pb-4 border-t border-border bg-card flex flex-col gap-2.5 flex-shrink-0">
+          {validationError && (
+            <p className="text-[11px] font-semibold text-primary animate-pulse text-center">
+              {validationError}
+            </p>
+          )}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-muted rounded-xl p-1 shadow-sm border border-border">
+              <button
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                className="w-8 h-8 rounded-lg bg-card hover:bg-border flex items-center justify-center transition-colors shadow-sm active:scale-90"
+              >
+                <Minus size={14} className="text-foreground" strokeWidth={2.5} />
+              </button>
+              <span className="w-6 text-center text-xs font-black tabular-nums text-foreground">
+                {qty}
+              </span>
+              <button
+                onClick={() => setQty((q) => q + 1)}
+                className="w-8 h-8 rounded-lg bg-primary text-white hover:bg-[#d43d22] flex items-center justify-center transition-colors shadow-sm active:scale-90"
+              >
+                <Plus size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+
             <button
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="w-8 h-8 rounded-lg bg-card hover:bg-border flex items-center justify-center transition-colors shadow-sm active:scale-90"
+              id="add-to-cart-confirm-btn"
+              onClick={handleConfirm}
+              disabled={isConfirmDisabled}
+              className="flex-1 py-3 bg-primary hover:bg-[#d43d22] text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Minus size={14} className="text-foreground" strokeWidth={2.5} />
-            </button>
-            <span className="w-6 text-center text-xs font-black tabular-nums text-foreground">
-              {qty}
-            </span>
-            <button
-              onClick={() => setQty((q) => q + 1)}
-              className="w-8 h-8 rounded-lg bg-primary text-white hover:bg-[#d43d22] flex items-center justify-center transition-colors shadow-sm active:scale-90"
-            >
-              <Plus size={14} strokeWidth={2.5} />
+              <span>
+                {disabled
+                  ? 'Locale Chiuso'
+                  : validationError
+                    ? validationError
+                    : cartItem
+                      ? 'Aggiorna Piatto'
+                      : 'Aggiungi al carrello'}
+              </span>
+              {!validationError && <span className="w-1.5 h-1.5 rounded-full bg-white/40" />}
+              {!validationError && <span className="tabular-nums">€ {totalPrice.toFixed(2)}</span>}
             </button>
           </div>
-
-          <button
-            id="add-to-cart-confirm-btn"
-            onClick={handleConfirm}
-            disabled={disabled}
-            className="flex-1 py-3 bg-primary hover:bg-[#d43d22] text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span>{disabled ? 'Locale Chiuso' : cartItem ? 'Aggiorna Piatto' : 'Aggiungi al carrello'}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-            <span className="tabular-nums">€ {totalPrice.toFixed(2)}</span>
-          </button>
         </div>
       </div>
     </div>

@@ -11,6 +11,8 @@ export interface OptionChoice {
 export interface OptionGroup {
   id: string;
   name: string;
+  minSelections: number;   // 0 = optional, 1+ = required
+  maxSelections: number | null; // null = unlimited, 1 = single choice
   choices: OptionChoice[];
 }
 
@@ -26,6 +28,7 @@ export interface MenuItem {
   imageAlt: string;
   allergens: string[];
   dishTags?: string[];
+  ingredients?: string[];
   orders: number;
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
@@ -43,6 +46,7 @@ export interface MenuItemDraft {
   imageUrl: string;
   allergens: string[];
   dishTags?: string[];
+  ingredients?: string[];
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];

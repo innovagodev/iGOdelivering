@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import Image from 'next/image';
 
 interface AppImageProps {
@@ -22,6 +22,19 @@ interface AppImageProps {
   [key: string]: any;
 }
 
+const getValidSrc = (src: any, fallbackSrc: string) => {
+  if (!src) return fallbackSrc;
+  if (typeof src === 'string') {
+    if (src.trim() === '') return fallbackSrc;
+    return src;
+  }
+  if (typeof src === 'object') {
+    if ('src' in src && src.src) return src;
+    if (Object.keys(src).length === 0) return fallbackSrc;
+  }
+  return src;
+};
+
 const AppImage = memo(function AppImage({
   src,
   alt,
@@ -41,9 +54,15 @@ const AppImage = memo(function AppImage({
   transparent = false,
   ...props
 }: AppImageProps) {
-  const [imageSrc, setImageSrc] = useState(src);
+  const [imageSrc, setImageSrc] = useState(() => getValidSrc(src, fallbackSrc));
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setImageSrc(getValidSrc(src, fallbackSrc));
+    setHasError(false);
+    setIsLoading(true);
+  }, [src, fallbackSrc]);
 
   const isExternalUrl = useMemo(
     () => typeof imageSrc === 'string' && imageSrc.startsWith('http'),

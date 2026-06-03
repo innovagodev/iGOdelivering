@@ -383,7 +383,9 @@ export default function RestaurantConfigurePage() {
     imageFile: null,
     allergens: [],
     dishTags: [],
+    ingredients: [],
     optionGroups: [],
+    singleSupplements: [],
     visibility: {
       mode: 'always',
       timeFrom: '10:00',
@@ -400,9 +402,9 @@ export default function RestaurantConfigurePage() {
 
   const restaurantSlug = info.name
     ? info.name
-        .toLowerCase()
-        .replace(/ /g, '-')
-        .replace(/[^\w-]+/g, '')
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/[^\w-]+/g, '')
     : 'pizzeria-bella-napoli';
 
 
@@ -443,7 +445,7 @@ export default function RestaurantConfigurePage() {
   const getCanvasDataUrl = (num: number) => {
     const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
     if (canvas) {
-      try { return canvas.toDataURL("image/png"); } catch(e) {}
+      try { return canvas.toDataURL("image/png"); } catch (e) { }
     }
     const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
     const tableUrl = `${origin}/menu/${restaurantSlug}?tavolo=${num}`;
@@ -479,13 +481,13 @@ export default function RestaurantConfigurePage() {
       try {
         const delivering = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
         foundRestaurant = delivering.find((r: any) => r.id === restaurantId);
-      } catch (e) {}
+      } catch (e) { }
 
       if (!foundRestaurant) {
         try {
           const gloria = JSON.parse(localStorage.getItem('gloriaorder_restaurants') || '[]');
           foundRestaurant = gloria.find((r: any) => r.id === restaurantId);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (!foundRestaurant) {
@@ -529,7 +531,7 @@ export default function RestaurantConfigurePage() {
         if (raw) {
           storedSettings = JSON.parse(raw);
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (storedSettings) {
         const isDashboardFormat = storedSettings.profile && storedSettings.deliveryConfig;
@@ -586,7 +588,7 @@ export default function RestaurantConfigurePage() {
             setTempTableCount(count);
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // Restore Table booking
       const tableBookingData: TableBookingConfig = {
@@ -661,7 +663,7 @@ export default function RestaurantConfigurePage() {
         } else if (foundRestaurant?.zones) {
           zonesData = foundRestaurant.zones;
         }
-      } catch (e) {}
+      } catch (e) { }
       setZones(zonesData);
 
       // Restore hours
@@ -751,7 +753,7 @@ export default function RestaurantConfigurePage() {
             };
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       setHours(hoursData);
       setPickupHours(pickupHoursData);
@@ -778,7 +780,7 @@ export default function RestaurantConfigurePage() {
             categoriesData = uniqueCats;
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       setMenuCategories(categoriesData);
 
@@ -790,6 +792,8 @@ export default function RestaurantConfigurePage() {
               groupMap.set(group.id, {
                 id: group.id,
                 name: group.name,
+                minSelections: group.minSelections ?? 0,
+                maxSelections: group.maxSelections !== undefined ? group.maxSelections : null,
                 choices: group.choices ? group.choices.map((c) => ({
                   id: c.id,
                   name: c.name,
@@ -826,7 +830,19 @@ export default function RestaurantConfigurePage() {
           dateToTime: '15:00',
         };
 
-        const itemOptionGroupIds = item.optionGroups ? item.optionGroups.map((g) => g.id) : [];
+        const singleSuppGroup = item.optionGroups?.find((g) => g.name === 'Supplementi' || g.name === 'Supplementi Singoli' || g.id === 'supplementi-singoli');
+        const singleSupplements = singleSuppGroup
+          ? singleSuppGroup.choices.map((c) => ({
+            id: c.id,
+            name: c.name,
+            price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price
+          }))
+          : [];
+        const itemOptionGroupIds = item.optionGroups
+          ? item.optionGroups
+            .filter((g) => g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && g.id !== 'supplementi-singoli')
+            .map((g) => g.id)
+          : [];
 
         const hasPromo = item.originalPrice !== undefined && item.originalPrice !== null && Number(item.originalPrice) > 0;
         const draftPrice = hasPromo ? item.originalPrice!.toString() : item.price.toString();
@@ -843,8 +859,10 @@ export default function RestaurantConfigurePage() {
           imageUrl: (item as any).image || item.imageUrl || '',
           allergens: item.allergens || [],
           dishTags: item.dishTags || [],
+          ingredients: item.ingredients || [],
           imageFile: null,
           optionGroups: itemOptionGroupIds,
+          singleSupplements,
           visibility,
         };
       });
@@ -863,7 +881,7 @@ export default function RestaurantConfigurePage() {
         } else {
           setPromos([]);
         }
-      } catch (e) {}
+      } catch (e) { }
 
       setIsHydrated(true);
     } catch (err) {
@@ -906,6 +924,8 @@ export default function RestaurantConfigurePage() {
           return {
             id: matchedGroup.id,
             name: matchedGroup.name,
+            minSelections: matchedGroup.minSelections !== undefined ? matchedGroup.minSelections : 0,
+            maxSelections: matchedGroup.maxSelections !== undefined ? matchedGroup.maxSelections : null,
             choices: matchedGroup.choices.map((c) => ({
               id: c.id,
               name: c.name,
@@ -913,6 +933,20 @@ export default function RestaurantConfigurePage() {
             })),
           };
         }).filter((g): g is OptionGroup => g !== null);
+
+        if (item.singleSupplements && item.singleSupplements.length > 0) {
+          mappedOptionGroups.push({
+            id: 'supplementi-singoli',
+            name: 'Supplementi',
+            minSelections: 0,
+            maxSelections: null,
+            choices: item.singleSupplements.map((c) => ({
+              id: c.id,
+              name: c.name,
+              price: c.price.toString(),
+            })),
+          });
+        }
 
         const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
         const listPrice = parseFloat(item.price) || 0;
@@ -930,6 +964,7 @@ export default function RestaurantConfigurePage() {
           imageAlt: item.name,
           allergens: item.allergens || [],
           dishTags: item.dishTags || [],
+          ingredients: item.ingredients || [],
           orders: 0,
           visibility,
           visibilitySchedule,
@@ -965,7 +1000,7 @@ export default function RestaurantConfigurePage() {
       try {
         const stored = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
         if (stored) existingHoursData = JSON.parse(stored);
-      } catch (e) {}
+      } catch (e) { }
 
       const serviceHoursDataToSave = {
         ...existingHoursData,
@@ -1072,7 +1107,7 @@ export default function RestaurantConfigurePage() {
             list.push(updatedRestaurant);
           }
           localStorage.setItem(key, JSON.stringify(list));
-        } catch (e) {}
+        } catch (e) { }
       };
 
       saveRestaurantInList('iGOdelivering_restaurants');
@@ -1180,7 +1215,9 @@ export default function RestaurantConfigurePage() {
       imageFile: null,
       allergens: [],
       dishTags: [],
+      ingredients: [],
       optionGroups: [],
+      singleSupplements: [],
       visibility: {
         mode: 'always',
         timeFrom: '10:00',
@@ -1245,7 +1282,7 @@ export default function RestaurantConfigurePage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         activeSection="nav-ristoranti"
-        onSectionChange={() => {}}
+        onSectionChange={() => { }}
         role="admin"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -1283,11 +1320,10 @@ export default function RestaurantConfigurePage() {
               </Link>
               <button
                 onClick={handleSave}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg ${
-                  saved
-                    ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30 shadow-none'
-                    : 'bg-primary text-white hover:bg-[#d43d22] shadow-primary/20'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg ${saved
+                  ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30 shadow-none'
+                  : 'bg-primary text-white hover:bg-[#d43d22] shadow-primary/20'
+                  }`}
               >
                 {saved ? <Check size={15} /> : <Save size={15} />}
                 {saved ? 'Salvato!' : 'Salva modifiche'}
@@ -1320,7 +1356,7 @@ export default function RestaurantConfigurePage() {
             </div>
 
             {/* Desktop: step pills */}
-            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-none">
+            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-hide">
               {steps.map((step, idx) => {
                 const isCompleted = stepOrder.indexOf(step.id) < currentIndex;
                 const isCurrent = step.id === currentStep;
@@ -1328,18 +1364,16 @@ export default function RestaurantConfigurePage() {
                   <React.Fragment key={step.id}>
                     <button
                       onClick={() => setCurrentStep(step.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
-                        isCurrent
-                          ? 'bg-primary text-white shadow-sm shadow-primary/30'
-                          : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer'
-                      }`}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${isCurrent
+                        ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                        : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer'
+                        }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
-                          isCurrent
-                            ? 'bg-white/25'
-                            : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
-                        }`}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${isCurrent
+                          ? 'bg-white/25'
+                          : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
+                          }`}
                       >
                         {isCompleted ? <Check size={11} /> : idx + 1}
                       </span>
@@ -1366,9 +1400,8 @@ export default function RestaurantConfigurePage() {
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-sm text-muted-foreground">{info.name || 'Ristorante'}</span>
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      statusBadgeClass[restaurantStatus] || statusBadgeClass['draft']
-                    }`}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusBadgeClass[restaurantStatus] || statusBadgeClass['draft']
+                      }`}
                   >
                     {statusLabel[restaurantStatus] || restaurantStatus}
                   </span>
@@ -1464,7 +1497,7 @@ export default function RestaurantConfigurePage() {
                   setNewGroupChoices((p) => p.map((c) => (c.id === id ? { ...c, [f]: v } : c)))
                 }
                 removeChoice={(id) => setNewGroupChoices((p) => p.filter((c) => c.id !== id))}
-                addWizardOptionGroup={() => {
+                addWizardOptionGroup={(minSel, maxSel) => {
                   if (!newGroupName.trim()) return;
                   setOptionGroups((p) => [
                     ...p,
@@ -1473,6 +1506,8 @@ export default function RestaurantConfigurePage() {
                       name: newGroupName.trim(),
                       choices: newGroupChoices.filter((c) => c.name.trim()),
                       appliedTo: [],
+                      minSelections: minSel ?? 0,
+                      maxSelections: maxSel !== undefined ? maxSel : null,
                     },
                   ]);
                   setShowAddGroup(false);
@@ -1543,7 +1578,7 @@ export default function RestaurantConfigurePage() {
                         const restName = info.name || 'Ristorante';
                         const printWindow = window.open('', '_blank');
                         if (!printWindow) return;
-                        
+
                         const logoHtml = `
                           <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
                             <div style="font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">${restName}</div>
@@ -1738,86 +1773,86 @@ export default function RestaurantConfigurePage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {Array.from({ length: tableCount }, (_, i) => i + 1).map((num) => {
-                    const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
-                    const tableUrl = `${origin}/menu/${restaurantSlug}?tavolo=${num}`;
-                    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tableUrl)}&ecc=H`;
-                    return (
-                      <div
-                        key={`admin-table-qr-${num}`}
-                        className="bg-card rounded-xl border border-border shadow-card p-4 flex flex-col items-center justify-between text-center space-y-4 group hover:border-primary/30 transition-colors"
-                      >
-                        <div className="space-y-1">
-                          <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
-                          <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]" title={tableUrl}>
-                            {tableUrl}
-                          </p>
-                        </div>
+                      const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
+                      const tableUrl = `${origin}/menu/${restaurantSlug}?tavolo=${num}`;
+                      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tableUrl)}&ecc=H`;
+                      return (
+                        <div
+                          key={`admin-table-qr-${num}`}
+                          className="bg-card rounded-xl border border-border shadow-card p-4 flex flex-col items-center justify-between text-center space-y-4 group hover:border-primary/30 transition-colors"
+                        >
+                          <div className="space-y-1">
+                            <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
+                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]" title={tableUrl}>
+                              {tableUrl}
+                            </p>
+                          </div>
 
-                        <div className="p-3 bg-muted rounded-xl border border-border/60 relative flex items-center justify-center min-h-[148px]">
-                          <QRCodeCanvas
-                            id={`qr-canvas-${num}`}
-                            value={tableUrl}
-                            size={512}
-                            level="H"
-                            includeMargin={true}
-                            style={{ width: "132px", height: "132px" }}
-                          />
-                        </div>
+                          <div className="p-3 bg-muted rounded-xl border border-border/60 relative flex items-center justify-center min-h-[148px]">
+                            <QRCodeCanvas
+                              id={`qr-canvas-${num}`}
+                              value={tableUrl}
+                              size={512}
+                              level="H"
+                              includeMargin={true}
+                              style={{ width: "132px", height: "132px" }}
+                            />
+                          </div>
 
-                        <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-border/40">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
-                              if (canvas) {
-                                try {
-                                  const url = canvas.toDataURL("image/png");
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `qr-tavolo-${num}-${restaurantSlug}.png`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  a.remove();
-                                  return;
-                                } catch (e) {
-                                  console.error("Canvas export failed", e);
+                          <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-border/40">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
+                                if (canvas) {
+                                  try {
+                                    const url = canvas.toDataURL("image/png");
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `qr-tavolo-${num}-${restaurantSlug}.png`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    a.remove();
+                                    return;
+                                  } catch (e) {
+                                    console.error("Canvas export failed", e);
+                                  }
                                 }
-                              }
-                              fetch(qrUrl)
-                                .then((res) => res.blob())
-                                .then((blob) => {
-                                  const url = window.URL.createObjectURL(blob);
-                                  const a = document.createElement('a');
-                                  a.href = url;
-                                  a.download = `qr-tavolo-${num}-${restaurantSlug}.png`;
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  a.remove();
-                                  window.URL.revokeObjectURL(url);
-                                })
-                                .catch(() => {
-                                  window.open(qrUrl, '_blank');
-                                });
-                            }}
-                            className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
-                          >
-                            <Download size={12} className="text-muted-foreground" />
-                            Scarica
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const restName = info.name || 'Ristorante';
-                              const printWindow = window.open('', '_blank');
-                              if (!printWindow) return;
-                              
-                              const logoHtml = `
+                                fetch(qrUrl)
+                                  .then((res) => res.blob())
+                                  .then((blob) => {
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `qr-tavolo-${num}-${restaurantSlug}.png`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    a.remove();
+                                    window.URL.revokeObjectURL(url);
+                                  })
+                                  .catch(() => {
+                                    window.open(qrUrl, '_blank');
+                                  });
+                              }}
+                              className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
+                            >
+                              <Download size={12} className="text-muted-foreground" />
+                              Scarica
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const restName = info.name || 'Ristorante';
+                                const printWindow = window.open('', '_blank');
+                                if (!printWindow) return;
+
+                                const logoHtml = `
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
                                   <div style="font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;">${restName}</div>
                                 </div>
                               `;
 
-                              printWindow.document.write(`
+                                printWindow.document.write(`
                                 <html>
                                   <head>
                                     <title>Stampa QR Code - Tavolo ${num}</title>
@@ -1900,21 +1935,21 @@ export default function RestaurantConfigurePage() {
                                   </body>
                                 </html>
                               `);
-                              printWindow.document.close();
-                            }}
-                            className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
-                          >
-                            <Printer size={12} className="text-muted-foreground" />
-                            Stampa
-                          </button>
+                                printWindow.document.close();
+                              }}
+                              className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
+                            >
+                              <Printer size={12} className="text-muted-foreground" />
+                              Stampa
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
             {currentStep === 'promozioni' && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -2106,226 +2141,225 @@ export default function RestaurantConfigurePage() {
               ) : (
                 <button
                   onClick={handleSave}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all active:scale-95 ${
-                    saved
-                      ? 'bg-[var(--success-bg)] text-[var(--success)]'
-                      : 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all active:scale-95 ${saved
+                    ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                    : 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
+                    }`}
                 >
                   {saved ? <Check size={16} /> : <Save size={16} />}
                   {saved ? 'Modifiche Salvate!' : 'Salva Modifiche'}
                 </button>
               )}
             </div>
-      {/* Add/Edit Promo Modal */}
-      <Modal
-        open={showPromoModal}
-        onClose={() => setShowPromoModal(false)}
-        title={editingPromo ? 'Modifica Codice Sconto' : 'Crea Codice Sconto'}
-        size="md"
-      >
-        <form onSubmit={handlePromoSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Codice Sconto *
-            </label>
-            <input
-              type="text"
-              required
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value)}
-              placeholder="Es. SCONTO20, ESTATEDICI"
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring uppercase font-bold tracking-wider"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Tipo Sconto *
-            </label>
-            <select
-              value={promoType}
-              onChange={(e) => setPromoType(e.target.value as any)}
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring font-medium"
+            {/* Add/Edit Promo Modal */}
+            <Modal
+              open={showPromoModal}
+              onClose={() => setShowPromoModal(false)}
+              title={editingPromo ? 'Modifica Codice Sconto' : 'Crea Codice Sconto'}
+              size="md"
             >
-              <option value="percentage">Percentuale (%)</option>
-              <option value="fixed_amount">Fisso (€)</option>
-              <option value="threshold_based">A Soglia (€)</option>
-              <option value="first_order">Primo Ordine (%)</option>
-              <option value="free_delivery">Consegna Gratuita</option>
-            </select>
-          </div>
-
-          {promoType !== 'free_delivery' && (
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                Valore Sconto *
-              </label>
-              <div className="relative">
-                {promoType === 'percentage' || promoType === 'first_order' ? (
-                  <Percent
-                    size={14}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                ) : (
-                  <Euro
-                    size={14}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                )}
-                <input
-                  type="number"
-                  min="0.1"
-                  step={promoType === 'percentage' || promoType === 'first_order' ? '1' : '0.5'}
-                  required
-                  value={promoValue}
-                  onChange={(e) => setPromoValue(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Spesa Minima Ordine (€)
-            </label>
-            <div className="relative">
-              <Euro
-                size={14}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="number"
-                min="0"
-                step="1"
-                required={promoType === 'threshold_based'}
-                value={promoMinOrder}
-                onChange={(e) => setPromoMinOrder(e.target.value)}
-                placeholder={promoType === 'threshold_based' ? 'Inserisci spesa minima' : '0 per nessuna spesa minima'}
-                className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Inizio Validità
-            </label>
-            <input
-              type="date"
-              value={promoStart}
-              onChange={(e) => setPromoStart(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Fine Validità
-            </label>
-            <input
-              type="date"
-              value={promoEnd}
-              onChange={(e) => setPromoEnd(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Descrizione
-            </label>
-            <textarea
-              value={promoDesc}
-              onChange={(e) => setPromoDesc(e.target.value)}
-              placeholder="Es. Offerta di primavera, riservata a clienti registrati..."
-              className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Limite Utilizzi Totale (Opzionale)
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={promoMaxUses}
-              onChange={(e) => setPromoMaxUses(e.target.value)}
-              placeholder="Nessun limite"
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Canali d'ordine abilitati
-            </label>
-            <div className="flex flex-wrap gap-4 mt-2 bg-muted/30 border border-border/50 p-3.5 rounded-xl">
-              {[
-                { id: 'domicilio', label: 'Domicilio' },
-                { id: 'asporto', label: 'Asporto' },
-                { id: 'tavolo', label: 'Tavolo' },
-              ].map((mode) => {
-                const isSelected = promoModes.includes(mode.id as any);
-                return (
-                  <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => {
-                        if (isSelected) {
-                          setPromoModes(promoModes.filter((m) => m !== mode.id));
-                        } else {
-                          setPromoModes([...promoModes, mode.id as any]);
-                        }
-                      }}
-                      className="rounded border-border text-primary focus:ring-primary w-4 h-4"
-                    />
-                    <span className="text-sm text-foreground font-medium">{mode.label}</span>
+              <form onSubmit={handlePromoSubmit} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Codice Sconto *
                   </label>
-                );
-              })}
-            </div>
-          </div>
+                  <input
+                    type="text"
+                    required
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    placeholder="Es. SCONTO20, ESTATEDICI"
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring uppercase font-bold tracking-wider"
+                  />
+                </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Testo personalizzato per il Banner in Vetrina (Opzionale)
-            </label>
-            <textarea
-              value={promoCustomBanner}
-              onChange={(e) => setPromoCustomBanner(e.target.value)}
-              placeholder="Es. 🎉 Usa il codice WELCOME10 per ricevere il 10% di sconto sul primo ordine!"
-              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
-            />
-          </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Tipo Sconto *
+                  </label>
+                  <select
+                    value={promoType}
+                    onChange={(e) => setPromoType(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring font-medium"
+                  >
+                    <option value="percentage">Percentuale (%)</option>
+                    <option value="fixed_amount">Fisso (€)</option>
+                    <option value="threshold_based">A Soglia (€)</option>
+                    <option value="first_order">Primo Ordine (%)</option>
+                    <option value="free_delivery">Consegna Gratuita</option>
+                  </select>
+                </div>
 
-          <div className="flex items-center gap-2 pt-2">
-            <Toggle checked={promoActive} onChange={setPromoActive} size="sm" />
-            <span className="text-sm font-semibold text-foreground">
-              Attiva subito questo codice
-            </span>
-          </div>
+                {promoType !== 'free_delivery' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      Valore Sconto *
+                    </label>
+                    <div className="relative">
+                      {promoType === 'percentage' || promoType === 'first_order' ? (
+                        <Percent
+                          size={14}
+                          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        />
+                      ) : (
+                        <Euro
+                          size={14}
+                          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        />
+                      )}
+                      <input
+                        type="number"
+                        min="0.1"
+                        step={promoType === 'percentage' || promoType === 'first_order' ? '1' : '0.5'}
+                        required
+                        value={promoValue}
+                        onChange={(e) => setPromoValue(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+                      />
+                    </div>
+                  </div>
+                )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <button
-              type="button"
-              onClick={() => setShowPromoModal(false)}
-              className="px-4 py-2 bg-muted hover:bg-border text-foreground text-sm font-bold rounded-xl transition-colors cursor-pointer"
-            >
-              Annulla
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
-            >
-              {editingPromo ? 'Salva Modifiche' : 'Crea Codice'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Spesa Minima Ordine (€)
+                  </label>
+                  <div className="relative">
+                    <Euro
+                      size={14}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      required={promoType === 'threshold_based'}
+                      value={promoMinOrder}
+                      onChange={(e) => setPromoMinOrder(e.target.value)}
+                      placeholder={promoType === 'threshold_based' ? 'Inserisci spesa minima' : '0 per nessuna spesa minima'}
+                      className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Inizio Validità
+                  </label>
+                  <input
+                    type="date"
+                    value={promoStart}
+                    onChange={(e) => setPromoStart(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Fine Validità
+                  </label>
+                  <input
+                    type="date"
+                    value={promoEnd}
+                    onChange={(e) => setPromoEnd(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Descrizione
+                  </label>
+                  <textarea
+                    value={promoDesc}
+                    onChange={(e) => setPromoDesc(e.target.value)}
+                    placeholder="Es. Offerta di primavera, riservata a clienti registrati..."
+                    className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Limite Utilizzi Totale (Opzionale)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={promoMaxUses}
+                    onChange={(e) => setPromoMaxUses(e.target.value)}
+                    placeholder="Nessun limite"
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Canali d'ordine abilitati
+                  </label>
+                  <div className="flex flex-wrap gap-4 mt-2 bg-muted/30 border border-border/50 p-3.5 rounded-xl">
+                    {[
+                      { id: 'domicilio', label: 'Domicilio' },
+                      { id: 'asporto', label: 'Asporto' },
+                      { id: 'tavolo', label: 'Tavolo' },
+                    ].map((mode) => {
+                      const isSelected = promoModes.includes(mode.id as any);
+                      return (
+                        <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isSelected) {
+                                setPromoModes(promoModes.filter((m) => m !== mode.id));
+                              } else {
+                                setPromoModes([...promoModes, mode.id as any]);
+                              }
+                            }}
+                            className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                          />
+                          <span className="text-sm text-foreground font-medium">{mode.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Testo personalizzato per il Banner in Vetrina (Opzionale)
+                  </label>
+                  <textarea
+                    value={promoCustomBanner}
+                    onChange={(e) => setPromoCustomBanner(e.target.value)}
+                    placeholder="Es. 🎉 Usa il codice WELCOME10 per ricevere il 10% di sconto sul primo ordine!"
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <Toggle checked={promoActive} onChange={setPromoActive} size="sm" />
+                  <span className="text-sm font-semibold text-foreground">
+                    Attiva subito questo codice
+                  </span>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoModal(false)}
+                    className="px-4 py-2 bg-muted hover:bg-border text-foreground text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    {editingPromo ? 'Salva Modifiche' : 'Crea Codice'}
+                  </button>
+                </div>
+              </form>
+            </Modal>
           </div>
         </main>
       </div>

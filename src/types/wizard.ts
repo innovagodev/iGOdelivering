@@ -42,6 +42,7 @@ export interface MenuItemWizardDraft extends Omit<
   imageFile: File | null;
   optionGroups: string[];
   visibility: DishVisibility;
+  singleSupplements?: { id: string; name: string; price: number }[];
 }
 
 export interface DeliveryZone {
@@ -81,4 +82,6 @@ export interface WizardOptionGroup {
   name: string;
   choices: WizardOptionChoice[];
   appliedTo: string[];
+  minSelections?: number;
+  maxSelections?: number | null;
 }

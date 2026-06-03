@@ -34,7 +34,7 @@ function KPICard({ label, value, sub, trend, icon, variant, hero }: KPICardProps
 
   return (
     <div
-      className={`rounded-xl border p-5 shadow-card flex flex-col gap-3 ${variantMap[variant]} ${hero ? 'lg:col-span-2' : ''}`}
+      className={`rounded-xl border p-4 sm:p-5 shadow-card flex flex-col gap-3 ${variantMap[variant]} ${hero ? 'lg:col-span-2' : ''}`}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -45,7 +45,7 @@ function KPICard({ label, value, sub, trend, icon, variant, hero }: KPICardProps
             {label}
           </p>
           <p
-            className={`tabular-nums font-bold leading-none ${hero ? 'text-4xl' : 'text-3xl'}`}
+            className={`tabular-nums font-bold leading-none ${hero ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'}`}
             style={{ fontWeight: 700 }}
           >
             {value}
