@@ -21,6 +21,17 @@ export interface UnifiedSettings extends RestaurantSettings {
     cash: boolean;
     card: boolean;
     paypal: boolean;
+    stripe_enabled?: boolean;
+    stripe_connected?: boolean;
+    stripe_account_label?: string;
+    stripe_account_id?: string;
+    paypal_enabled?: boolean;
+    paypal_connected?: boolean;
+    paypal_email?: string;
+    paypal_merchant_id?: string;
+    iban_enabled?: boolean;
+    onlinePaymentAccount?: string;
+    ibanHolder?: string;
   };
 }
 
@@ -41,13 +52,24 @@ interface BaseRestaurant {
   freeDeliveryActive?: boolean;
   freeDeliveryThreshold?: number;
   paymentMethods?: {
-    cash_delivery: boolean;
-    cash_pickup: boolean;
     card_delivery: boolean;
     card_pickup: boolean;
+    cash_delivery: boolean;
+    cash_pickup: boolean;
     cash: boolean;
     card: boolean;
     paypal: boolean;
+    stripe_enabled?: boolean;
+    stripe_connected?: boolean;
+    stripe_account_label?: string;
+    stripe_account_id?: string;
+    paypal_enabled?: boolean;
+    paypal_connected?: boolean;
+    paypal_email?: string;
+    paypal_merchant_id?: string;
+    iban_enabled?: boolean;
+    onlinePaymentAccount?: string;
+    ibanHolder?: string;
   };
   orderModes?: {
     delivery: boolean;
@@ -306,6 +328,17 @@ export function useRestaurantSettings(slugOrId: string) {
         cash: base.paymentMethods?.cash ?? true,
         card: base.paymentMethods?.card ?? true,
         paypal: base.paymentMethods?.paypal ?? true,
+        stripe_enabled: base.paymentMethods?.stripe_enabled ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card),
+        stripe_connected: base.paymentMethods?.stripe_connected ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card),
+        stripe_account_label: base.paymentMethods?.stripe_account_label ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card ? 'account_demo@stripe.com' : ''),
+        stripe_account_id: base.paymentMethods?.stripe_account_id ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card ? 'acct_demo' : ''),
+        paypal_enabled: base.paymentMethods?.paypal_enabled ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal),
+        paypal_connected: base.paymentMethods?.paypal_connected ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal),
+        paypal_email: base.paymentMethods?.paypal_email ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal ? 'account_demo@paypal.com' : ''),
+        paypal_merchant_id: base.paymentMethods?.paypal_merchant_id ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal ? 'merch_demo' : ''),
+        iban_enabled: base.paymentMethods?.iban_enabled ?? false,
+        onlinePaymentAccount: base.paymentMethods?.onlinePaymentAccount ?? '',
+        ibanHolder: base.paymentMethods?.ibanHolder ?? '',
       },
       openingHours: base.openingHours || [
         { start: '11:30', end: '14:30' },
@@ -334,11 +367,8 @@ export function useRestaurantSettings(slugOrId: string) {
       if (raw) {
         const parsed = JSON.parse(raw);
 
-        // Map from Dashboard SettingsData if applicable
-        const isDashboardFormat = parsed.profile && parsed.deliveryConfig;
-
-        const profile = isDashboardFormat ? parsed.profile : parsed;
-        const deliveryConfig = isDashboardFormat ? parsed.deliveryConfig : parsed;
+        const profile = parsed.profile || parsed;
+        const deliveryConfig = parsed.deliveryConfig || parsed;
         const paymentMethodsData = parsed.paymentMethods || {};
 
         const unified: UnifiedSettings = {
@@ -382,8 +412,27 @@ export function useRestaurantSettings(slugOrId: string) {
             cash_delivery: paymentMethodsData.cash_delivery !== false,
             cash_pickup: paymentMethodsData.cash_pickup !== false,
             cash: paymentMethodsData.cash !== false,
-            card: paymentMethodsData.card !== false,
-            paypal: paymentMethodsData.paypal !== false,
+            card: paymentMethodsData.stripe_enabled ? !!paymentMethodsData.stripe_connected : (paymentMethodsData.card !== false),
+            paypal: paymentMethodsData.paypal_enabled ? !!paymentMethodsData.paypal_connected : (paymentMethodsData.paypal !== false),
+            stripe_enabled: paymentMethodsData.stripe_enabled !== undefined
+              ? !!paymentMethodsData.stripe_enabled
+              : (isMockRestaurant(slugOrId) && paymentMethodsData.card !== false),
+            stripe_connected: paymentMethodsData.stripe_connected !== undefined
+              ? !!paymentMethodsData.stripe_connected
+              : (isMockRestaurant(slugOrId) && paymentMethodsData.card !== false),
+            stripe_account_id: paymentMethodsData.stripe_account_id || (isMockRestaurant(slugOrId) && paymentMethodsData.card !== false ? 'acct_demo' : ''),
+            stripe_account_label: paymentMethodsData.stripe_account_label || (isMockRestaurant(slugOrId) && paymentMethodsData.card !== false ? 'account_demo@stripe.com' : ''),
+            paypal_enabled: paymentMethodsData.paypal_enabled !== undefined
+              ? !!paymentMethodsData.paypal_enabled
+              : (isMockRestaurant(slugOrId) && paymentMethodsData.paypal !== false),
+            paypal_connected: paymentMethodsData.paypal_connected !== undefined
+              ? !!paymentMethodsData.paypal_connected
+              : (isMockRestaurant(slugOrId) && paymentMethodsData.paypal !== false),
+            paypal_merchant_id: paymentMethodsData.paypal_merchant_id || (isMockRestaurant(slugOrId) && paymentMethodsData.paypal !== false ? 'merch_demo' : ''),
+            paypal_email: paymentMethodsData.paypal_email || (isMockRestaurant(slugOrId) && paymentMethodsData.paypal !== false ? 'account_demo@paypal.com' : ''),
+            iban_enabled: !!paymentMethodsData.iban_enabled,
+            onlinePaymentAccount: paymentMethodsData.onlinePaymentAccount || '',
+            ibanHolder: paymentMethodsData.ibanHolder || '',
           },
           openingHours: parsed.openingHours ||
             base.openingHours || [
@@ -414,6 +463,17 @@ export function useRestaurantSettings(slugOrId: string) {
             cash: base.paymentMethods?.cash ?? true,
             card: base.paymentMethods?.card ?? true,
             paypal: base.paymentMethods?.paypal ?? true,
+            stripe_enabled: base.paymentMethods?.stripe_enabled ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card),
+            stripe_connected: base.paymentMethods?.stripe_connected ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card),
+            stripe_account_label: base.paymentMethods?.stripe_account_label ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card ? 'account_demo@stripe.com' : ''),
+            stripe_account_id: base.paymentMethods?.stripe_account_id ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.card ? 'acct_demo' : ''),
+            paypal_enabled: base.paymentMethods?.paypal_enabled ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal),
+            paypal_connected: base.paymentMethods?.paypal_connected ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal),
+            paypal_email: base.paymentMethods?.paypal_email ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal ? 'account_demo@paypal.com' : ''),
+            paypal_merchant_id: base.paymentMethods?.paypal_merchant_id ?? (isMockRestaurant(slugOrId) && !!base.paymentMethods?.paypal ? 'merch_demo' : ''),
+            iban_enabled: base.paymentMethods?.iban_enabled ?? false,
+            onlinePaymentAccount: base.paymentMethods?.onlinePaymentAccount ?? '',
+            ibanHolder: base.paymentMethods?.ibanHolder ?? '',
           },
           openingHours: base.openingHours || [
             { start: '11:30', end: '14:30' },

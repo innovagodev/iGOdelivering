@@ -639,9 +639,6 @@ function CartSidebar({
                         <strong>€ {(freeDeliveryThreshold - subtotal).toFixed(2)}</strong> per la
                         consegna gratuita!
                       </span>
-                      <span className="text-primary font-extrabold">
-                        {Math.round((subtotal / freeDeliveryThreshold) * 100)}%
-                      </span>
                     </p>
                     <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                       <div
@@ -692,7 +689,7 @@ function CartSidebar({
               disabled={!meetsMin || (isCurrentlyClosed && !isPreOrderAllowed)}
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
-              {isCurrentlyClosed && !isPreOrderAllowed ? 'Locale Chiuso' : isCurrentlyClosed ? 'Ordina per dopo' : deliveryType === 'tavolo' ? 'Procedi' : 'Invia Ordine'}
+              {isCurrentlyClosed && !isPreOrderAllowed ? 'Locale Chiuso' : isCurrentlyClosed ? 'Ordina per dopo' : deliveryType === 'tavolo' ? 'Procedi' : 'Procedi'}
             </button>
           </div>
         </>
@@ -1021,7 +1018,7 @@ function CheckoutModal({
               <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
               <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
               ${tableRow}
-              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'Online' : 'Contanti'}</span></div>
+              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? 'Carta (Online)' : order.payMethod === 'pos' ? 'POS Fisico' : 'Contanti'}</span></div>
             </div>
             
             <div class="section">
@@ -1110,7 +1107,15 @@ function CheckoutModal({
           )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Pagamento:</span>
-            <span className="font-semibold text-foreground uppercase">{order.payMethod === 'online' ? 'Carta (Online)' : 'Alla consegna'}</span>
+            <span className="font-semibold text-foreground uppercase">
+              {order.payMethod === 'online'
+                ? 'PayPal (Online)'
+                : order.payMethod === 'card'
+                  ? 'Stripe (Online)'
+                  : order.payMethod === 'pos'
+                    ? 'POS (Alla Consegna/Ritiro)'
+                    : 'Contanti'}
+            </span>
           </div>
         </div>
 
@@ -1171,7 +1176,7 @@ function CheckoutModal({
 
   const [notes, setNotes] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('');
-  const [payMethod, setPayMethod] = useState<'card' | 'cash' | 'online'>('card');
+  const [payMethod, setPayMethod] = useState<'card' | 'cash' | 'online' | 'pos'>('card');
   const [loading, setLoading] = useState(false);
   const itemsTotal = total - actualDeliveryFee;
   const [cardNumber, setCardNumber] = useState('');
@@ -1373,25 +1378,30 @@ function CheckoutModal({
 
   useEffect(() => {
     if (open && paymentMethods) {
-      const isCardEnabled =
+      const isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected);
+      const isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected);
+      const isPosEnabled = bookingContext ? false : (
         deliveryType === 'domicilio'
           ? paymentMethods.card_delivery !== false
-          : paymentMethods.card_pickup !== false;
-      const isCashEnabled =
+          : paymentMethods.card_pickup !== false
+      );
+      const isCashEnabled = bookingContext ? true : (
         deliveryType === 'domicilio'
           ? paymentMethods.cash_delivery !== false
-          : paymentMethods.cash_pickup !== false;
-      const isPaypalEnabled = paymentMethods.paypal !== false;
+          : paymentMethods.cash_pickup !== false
+      );
 
-      if (isCardEnabled) {
+      if (isStripeEnabled) {
         setPayMethod('card');
       } else if (isPaypalEnabled) {
         setPayMethod('online');
+      } else if (isPosEnabled) {
+        setPayMethod('pos');
       } else if (isCashEnabled) {
         setPayMethod('cash');
       }
     }
-  }, [open, deliveryType, paymentMethods]);
+  }, [open, deliveryType, paymentMethods, bookingContext]);
 
   useEffect(() => {
     if (open) {
@@ -1461,7 +1471,7 @@ function CheckoutModal({
           setLoading(false);
           setStep('success');
         },
-        payMethod === 'online' ? 2200 : 1500
+        (payMethod === 'online' || payMethod === 'card') ? 2200 : 1500
       );
       return;
     }
@@ -1586,7 +1596,7 @@ function CheckoutModal({
         setLoading(false);
         setStep('success');
       },
-      payMethod === 'online' ? 2200 : 1500
+      (payMethod === 'online' || payMethod === 'card') ? 2200 : 1500
     );
   };
 
@@ -2094,41 +2104,53 @@ function CheckoutModal({
             const payOptions = [
               {
                 id: 'card',
-                title: bookingContext ? 'Paga adesso (carta)' : (deliveryType === 'tavolo' ? 'Paga adesso con Carta' : 'Carta di Credito / Debito'),
-                desc: 'Visa, Mastercard, Maestro, PostePay',
+                title: bookingContext ? 'Paga con Carta' : (deliveryType === 'tavolo' ? 'Paga al Tavolo con Carta' : 'Carta di Credito (Stripe)'),
+                desc: 'Paga online con carta tramite Stripe',
                 icon: (
                   <CreditCard
                     size={18}
                     className={payMethod === 'card' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled: bookingContext ? (paymentMethods?.card !== false) : (
-                  deliveryType === 'domicilio'
-                    ? paymentMethods?.card_delivery !== false
-                    : paymentMethods?.card_pickup !== false
-                ),
+                enabled: !!(paymentMethods?.stripe_enabled && paymentMethods?.stripe_connected),
               },
               {
                 id: 'online',
-                title: bookingContext ? 'Paga adesso con PayPal' : (deliveryType === 'tavolo' ? 'Paga adesso con PayPal' : 'Pagamento Online'),
-                desc: 'PayPal, Satispay, Apple/Google Pay',
+                title: bookingContext ? 'Paga adesso con PayPal' : (deliveryType === 'tavolo' ? 'Paga adesso con PayPal' : 'PayPal'),
+                desc: 'Paga con il tuo account PayPal o carta',
                 icon: (
                   <Wallet
                     size={18}
                     className={payMethod === 'online' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled: paymentMethods?.paypal !== false,
+                enabled: !!(paymentMethods?.paypal_enabled && paymentMethods?.paypal_connected),
+              },
+              {
+                id: 'pos',
+                title: bookingContext ? 'Carta al ritiro (POS)' : (deliveryType === 'tavolo' ? 'Paga al tavolo con Carta' : (deliveryType === 'asporto' ? 'Carta al Ritiro (POS)' : 'Carta alla Consegna (POS)')),
+                desc: 'Pagamento con terminale POS fisico',
+                icon: (
+                  <CreditCard
+                    size={18}
+                    className={payMethod === 'pos' ? 'text-primary' : 'text-muted-foreground'}
+                  />
+                ),
+                enabled: bookingContext ? false : (
+                  deliveryType === 'domicilio'
+                    ? paymentMethods?.card_delivery !== false
+                    : paymentMethods?.card_pickup !== false
+                ),
               },
               {
                 id: 'cash',
-                title: bookingContext ? 'Paga alla cassa (Invia ordine)' : (deliveryType === 'tavolo' ? 'Paga in Cassa' : deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna'),
-                desc: bookingContext ? 'Invia l\'ordine direttamente e paga in cassa a fine pasto' : (
+                title: bookingContext ? 'Paga alla cassa' : (deliveryType === 'tavolo' ? 'Paga in Cassa' : deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna'),
+                desc: bookingContext ? 'Invia l\'ordine e paga in cassa' : (
                   deliveryType === 'tavolo'
-                    ? 'Invia l\'ordine e paga al tavolo/cassa a fine pasto'
+                    ? 'Invia l\'ordine e paga alla cassa'
                     : deliveryType === 'asporto'
-                      ? 'Paga direttamente in cassa'
-                      : "Paga all'arrivo del corriere"
+                      ? 'Paga in cassa'
+                      : "Paga alla consegna"
                 ),
                 icon: (
                   <Banknote
@@ -2267,6 +2289,23 @@ function CheckoutModal({
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 Verrai reindirizzato al portale sicuro di PayPal per autorizzare la transazione in
                 modo protetto.
+              </p>
+            </div>
+          )}
+
+          {payMethod === 'pos' && (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                  💳 Pagamento con POS portatile
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                {bookingContext
+                  ? "Pagherai comodamente al ristorante tramite carta di credito/debito."
+                  : (deliveryType === 'tavolo'
+                    ? 'Invia l\'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto.'
+                    : `Il corriere avrà con sé il terminale POS portatile per il pagamento con carta ${deliveryType === 'asporto' ? 'in cassa al ritiro' : 'alla consegna'}.`)}
               </p>
             </div>
           )}
@@ -3389,7 +3428,7 @@ export default function CustomerStorefront() {
               <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
               <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
               ${tableRow}
-              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'Online' : 'Contanti'}</span></div>
+              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? 'Carta (Online)' : order.payMethod === 'pos' ? 'POS Fisico' : 'Contanti'}</span></div>
             </div>
             
             <div class="section">
@@ -3478,7 +3517,15 @@ export default function CustomerStorefront() {
           )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Pagamento:</span>
-            <span className="font-semibold text-foreground uppercase">{order.payMethod === 'online' ? 'Carta (Online)' : 'Alla consegna'}</span>
+            <span className="font-semibold text-foreground uppercase">
+              {order.payMethod === 'online'
+                ? 'PayPal (Online)'
+                : order.payMethod === 'card'
+                  ? 'Stripe (Online)'
+                  : order.payMethod === 'pos'
+                    ? 'POS (Alla Consegna/Ritiro)'
+                    : 'Contanti'}
+            </span>
           </div>
         </div>
 
@@ -4762,21 +4809,12 @@ export default function CustomerStorefront() {
                   )}
                 </div>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
-                  <Star size={14} className="fill-amber-400 text-amber-400" />
-                  <strong>{restaurantSettings.rating}</strong>
-                  <span className="text-white/75">({restaurantSettings.reviews} recensioni)</span>
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
-                  <Clock size={14} />
-                  {restaurantSettings.deliveryTime}
+                  <MapPin size={14} />
+                  {restaurantSettings.address ?? ''}
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Bike size={14} />
                   Consegna € {(restaurantSettings.deliveryFee ?? 0).toFixed(2)}
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
-                  <MapPin size={14} />
-                  {restaurantSettings.address ?? ''}
                 </span>
               </div>
             </div>

@@ -158,7 +158,15 @@ export default function NewRestaurantPage() {
     card_pickup: true,
     cash_delivery: true,
     cash_pickup: true,
+    stripe_enabled: false,
+    stripe_connected: false,
+    stripe_account_label: '',
+    paypal_enabled: false,
+    paypal_connected: false,
+    paypal_email: '',
+    iban_enabled: false,
     onlinePaymentAccount: '',
+    ibanHolder: '',
   });
   const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -433,8 +441,15 @@ export default function NewRestaurantPage() {
         cash_pickup: paymentConfig.cash_pickup,
         cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
         card: paymentConfig.card_delivery || paymentConfig.card_pickup,
-        paypal: false,
+        stripe_enabled: paymentConfig.stripe_enabled,
+        stripe_connected: paymentConfig.stripe_connected,
+        stripe_account_label: paymentConfig.stripe_account_label,
+        paypal_enabled: paymentConfig.paypal_enabled,
+        paypal_connected: paymentConfig.paypal_connected,
+        paypal_email: paymentConfig.paypal_email,
+        iban_enabled: paymentConfig.iban_enabled,
         onlinePaymentAccount: paymentConfig.onlinePaymentAccount,
+        ibanHolder: paymentConfig.ibanHolder,
       },
       orderModes: {
         delivery: zones.some((z) => z.enabled),

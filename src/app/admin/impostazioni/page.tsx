@@ -17,16 +17,8 @@ interface GlobalSettings {
   defaultCurrency: string;
 
   // Servizi & Integrazioni (API)
-  stripeLiveMode: boolean;
-  stripePublishableKey: string;
-  stripeSecretKey: string;
-
   mapProvider: string;
   mapApiKey: string;
-
-  twilioEnabled: boolean;
-  twilioAccountSid: string;
-  twilioAuthToken: string;
 }
 
 const defaultSettings: GlobalSettings = {
@@ -39,16 +31,8 @@ const defaultSettings: GlobalSettings = {
   trialPeriodDays: 14,
   defaultCurrency: 'EUR',
 
-  stripeLiveMode: false,
-  stripePublishableKey: '',
-  stripeSecretKey: '',
-
   mapProvider: 'google',
   mapApiKey: '',
-
-  twilioEnabled: false,
-  twilioAccountSid: '',
-  twilioAuthToken: '',
 };
 
 export default function AdminImpostazioniPage() {
@@ -203,61 +187,6 @@ export default function AdminImpostazioniPage() {
               {/* Box 3: Servizi & Integrazioni (API) */}
               <div className="bg-card rounded-2xl border border-border p-6 space-y-6 shadow-card">
                 <h3 className="text-base font-bold text-foreground">Servizi & Integrazioni (API)</h3>
-                
-                {/* Stripe Integration */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-border pb-3">
-                    <div>
-                      <h4 className="text-sm font-bold text-foreground">Integrazione Stripe</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Configura i pagamenti online per la piattaforma.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-zinc-300">
-                        {settings.stripeLiveMode ? 'Live' : 'Sandbox'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleChange('stripeLiveMode', !settings.stripeLiveMode)}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${settings.stripeLiveMode ? 'bg-primary' : 'bg-muted'}`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings.stripeLiveMode ? 'translate-x-5' : 'translate-x-0'}`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Publishable Key
-                      </label>
-                      <input
-                        type="text"
-                        value={settings.stripePublishableKey || ''}
-                        onChange={(e) => handleChange('stripePublishableKey', e.target.value)}
-                        placeholder="pk_test_..."
-                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Secret Key
-                      </label>
-                      <input
-                        type="password"
-                        value={settings.stripeSecretKey || ''}
-                        onChange={(e) => handleChange('stripeSecretKey', e.target.value)}
-                        placeholder="sk_test_..."
-                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-border" />
 
                 {/* Map Provider Integration */}
                 <div className="space-y-4">
@@ -293,58 +222,6 @@ export default function AdminImpostazioniPage() {
                         onChange={(e) => handleChange('mapApiKey', e.target.value)}
                         placeholder="Inserisci la chiave API"
                         className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-border" />
-
-                {/* Twilio SMS Integration */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-border pb-3">
-                    <div>
-                      <h4 className="text-sm font-bold text-foreground">Twilio (SMS Gateway)</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Invia notifiche SMS per gli aggiornamenti dello stato dell&apos;ordine.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleChange('twilioEnabled', !settings.twilioEnabled)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${settings.twilioEnabled ? 'bg-primary' : 'bg-muted'}`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings.twilioEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                      />
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Account SID
-                      </label>
-                      <input
-                        type="text"
-                        value={settings.twilioAccountSid || ''}
-                        onChange={(e) => handleChange('twilioAccountSid', e.target.value)}
-                        placeholder="AC..."
-                        disabled={!settings.twilioEnabled}
-                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm disabled:opacity-50"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Auth Token
-                      </label>
-                      <input
-                        type="password"
-                        value={settings.twilioAuthToken || ''}
-                        onChange={(e) => handleChange('twilioAuthToken', e.target.value)}
-                        placeholder="••••••••••••••••••••••••••••••••"
-                        disabled={!settings.twilioEnabled}
-                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm disabled:opacity-50"
                       />
                     </div>
                   </div>

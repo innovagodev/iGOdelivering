@@ -105,7 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = (email: string, role: Role) => {
     let newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
+      // crypto.randomUUID() è crittograficamente sicuro (disponibile nei browser moderni)
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9),
       email,
       role,
     };

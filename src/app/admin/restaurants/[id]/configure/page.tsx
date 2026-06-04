@@ -355,7 +355,15 @@ export default function RestaurantConfigurePage() {
     card_pickup: true,
     cash_delivery: true,
     cash_pickup: true,
+    stripe_enabled: false,
+    stripe_connected: false,
+    stripe_account_label: '',
+    paypal_enabled: false,
+    paypal_connected: false,
+    paypal_email: '',
+    iban_enabled: false,
     onlinePaymentAccount: '',
+    ibanHolder: '',
   });
 
   const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
@@ -483,12 +491,7 @@ export default function RestaurantConfigurePage() {
         foundRestaurant = delivering.find((r: any) => r.id === restaurantId);
       } catch (e) { }
 
-      if (!foundRestaurant) {
-        try {
-          const gloria = JSON.parse(localStorage.getItem('gloriaorder_restaurants') || '[]');
-          foundRestaurant = gloria.find((r: any) => r.id === restaurantId);
-        } catch (e) { }
-      }
+
 
       if (!foundRestaurant) {
         foundRestaurant = mockRestaurants.find((r: any) => r.id === restaurantId) || mockRestaurants[0];
@@ -559,7 +562,15 @@ export default function RestaurantConfigurePage() {
         card_pickup: true,
         cash_delivery: true,
         cash_pickup: true,
+        stripe_enabled: false,
+        stripe_connected: false,
+        stripe_account_label: '',
+        paypal_enabled: false,
+        paypal_connected: false,
+        paypal_email: '',
+        iban_enabled: false,
         onlinePaymentAccount: '',
+        ibanHolder: '',
       };
       if (storedSettings?.paymentMethods) {
         const pm = storedSettings.paymentMethods;
@@ -567,14 +578,30 @@ export default function RestaurantConfigurePage() {
         paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
         paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
         paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
+        paymentConfigData.stripe_enabled = pm.stripe_enabled ?? false;
+        paymentConfigData.stripe_connected = pm.stripe_connected ?? false;
+        paymentConfigData.stripe_account_label = pm.stripe_account_label ?? '';
+        paymentConfigData.paypal_enabled = pm.paypal_enabled ?? pm.paypal ?? false;
+        paymentConfigData.paypal_connected = pm.paypal_connected ?? false;
+        paymentConfigData.paypal_email = pm.paypal_email ?? '';
+        paymentConfigData.iban_enabled = pm.iban_enabled ?? false;
         paymentConfigData.onlinePaymentAccount = pm.onlinePaymentAccount ?? '';
+        paymentConfigData.ibanHolder = pm.ibanHolder ?? '';
       } else if (foundRestaurant?.paymentMethods) {
         const pm = foundRestaurant.paymentMethods;
         paymentConfigData.card_delivery = pm.card_delivery ?? pm.card ?? true;
         paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
         paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
         paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
+        paymentConfigData.stripe_enabled = pm.stripe_enabled ?? false;
+        paymentConfigData.stripe_connected = pm.stripe_connected ?? false;
+        paymentConfigData.stripe_account_label = pm.stripe_account_label ?? '';
+        paymentConfigData.paypal_enabled = pm.paypal_enabled ?? pm.paypal ?? false;
+        paymentConfigData.paypal_connected = pm.paypal_connected ?? false;
+        paymentConfigData.paypal_email = pm.paypal_email ?? '';
+        paymentConfigData.iban_enabled = pm.iban_enabled ?? false;
         paymentConfigData.onlinePaymentAccount = pm.onlinePaymentAccount ?? '';
+        paymentConfigData.ibanHolder = pm.ibanHolder ?? '';
       }
       setPaymentConfig(paymentConfigData);
 
@@ -1051,8 +1078,15 @@ export default function RestaurantConfigurePage() {
           cash_pickup: paymentConfig.cash_pickup,
           cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
           card: paymentConfig.card_delivery || paymentConfig.card_pickup,
-          paypal: false,
+          stripe_enabled: paymentConfig.stripe_enabled,
+          stripe_connected: paymentConfig.stripe_connected,
+          stripe_account_label: paymentConfig.stripe_account_label,
+          paypal_enabled: paymentConfig.paypal_enabled,
+          paypal_connected: paymentConfig.paypal_connected,
+          paypal_email: paymentConfig.paypal_email,
+          iban_enabled: paymentConfig.iban_enabled,
           onlinePaymentAccount: paymentConfig.onlinePaymentAccount,
+          ibanHolder: paymentConfig.ibanHolder,
         },
         orderModes: {
           delivery: zones.some((z) => z.enabled),
@@ -1111,7 +1145,6 @@ export default function RestaurantConfigurePage() {
       };
 
       saveRestaurantInList('iGOdelivering_restaurants');
-      saveRestaurantInList('gloriaorder_restaurants');
 
       // Dispatch change notifications
       window.dispatchEvent(new CustomEvent('iGO_settings_updated'));
