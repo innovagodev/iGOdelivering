@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.15.0](https://github.com/innovagodev/iGOdelivering/compare/v1.14.0...v1.15.0) (2026-06-04)
+
+
+### Features
+
+* **payment:** integrazione flussi pagamenti online stripe e paypal oauth connect e selettore dinamico vetrina client ([439f059](https://github.com/innovagodev/iGOdelivering/commit/439f059ea951731c821f98edba8f9371d527709b))
+
 ## [1.14.0](https://github.com/innovagodev/iGOdelivering/compare/v1.13.0...v1.14.0) (2026-06-03)
 
 
