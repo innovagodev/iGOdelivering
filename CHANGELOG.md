@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.16.0](https://github.com/innovagodev/iGOdelivering/compare/v1.15.0...v1.16.0) (2026-06-09)
+
+
+### Features
+
+* integrazione database Supabase, limitazioni personalizzazione piatti e ottimizzazione UX mobile ([65d0189](https://github.com/innovagodev/iGOdelivering/commit/65d0189d223a6b9da05c2910d3536761d3672b63))
+
 ## [1.15.0](https://github.com/innovagodev/iGOdelivering/compare/v1.14.0...v1.15.0) (2026-06-04)
 
 

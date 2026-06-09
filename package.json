@@ -1,6 +1,6 @@
 {
   "name": "igodelivering",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "private": true,
   "rocketCritical": {
     "dependencies": [
@@ -89,7 +89,7 @@
   },
   "standard-version": {
     "scripts": {
-      "postbump": "npm run update-version && git add src/version.json"
+      "postbump": "node scripts/update-version.js --release && git add src/version.json"
     }
   }
 }
