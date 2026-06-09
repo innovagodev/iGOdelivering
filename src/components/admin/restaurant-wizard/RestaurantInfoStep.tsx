@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import { RestaurantInfo, TableBookingConfig } from '@/types';
-import { RESTAURANT_CATEGORIES } from '@/lib/constants';
 
 interface RestaurantInfoStepProps {
   info: RestaurantInfo;
@@ -44,7 +43,7 @@ export default function RestaurantInfoStep({
   handleLogoFile,
   handleBgImageFile,
 }: RestaurantInfoStepProps) {
-  const [allCategories, setAllCategories] = useState<string[]>([...RESTAURANT_CATEGORIES]);
+  const [allCategories, setAllCategories] = useState<string[]>([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const newCatInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +110,7 @@ export default function RestaurantInfoStep({
                   onChange={(e) => setInfo((p) => ({ ...p, category: e.target.value }))}
                   className={`${inputCls} pl-9 pr-8`}
                 >
+                  <option value="">Seleziona categoria...</option>
                   {allCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -377,71 +377,6 @@ export default function RestaurantInfoStep({
             </div>
           </div>
         </div>
-      </section>
-
-      {/* ─── Prenotazione Tavolo ─────────────────────────── */}
-      <section className="bg-card border border-border rounded-2xl p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Prenotazione Tavolo</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Abilita la gestione prenotazioni per questo ristorante</p>
-          </div>
-          <Toggle
-            checked={tableBooking.enabled}
-            onChange={() => setTableBooking((p) => ({ ...p, enabled: !p.enabled }))}
-            size="sm"
-          />
-        </div>
-        {tableBooking.enabled && (
-          <div className="pt-3 border-t border-border">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className={labelCls}>Max ospiti</label>
-                <input
-                  type="number"
-                  value={tableBooking.maxGuests}
-                  onChange={(e) => setTableBooking((p) => ({ ...p, maxGuests: parseInt(e.target.value) || 1 }))}
-                  min={1}
-                  max={50}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Durata slot (min)</label>
-                <input
-                  type="number"
-                  value={tableBooking.slotDuration}
-                  onChange={(e) => setTableBooking((p) => ({ ...p, slotDuration: parseInt(e.target.value) || 30 }))}
-                  min={15}
-                  step={15}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Anticipo prenotazione (gg)</label>
-                <input
-                  type="number"
-                  value={tableBooking.advanceBookingDays}
-                  onChange={(e) => setTableBooking((p) => ({ ...p, advanceBookingDays: parseInt(e.target.value) || 1 }))}
-                  min={1}
-                  max={365}
-                  className={inputCls}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-              <div>
-                <p className="text-sm font-medium text-foreground">Servizio attivo</p>
-                <p className="text-xs text-muted-foreground">Il ristorante può disattivare quando i tavoli sono pieni</p>
-              </div>
-              <Toggle
-                checked={tableBooking.serviceEnabled}
-                onChange={() => setTableBooking((p) => ({ ...p, serviceEnabled: !p.serviceEnabled }))}
-                size="sm"
-              />
-            </div>
-          </div>
-        )}
       </section>
     </div>
   );

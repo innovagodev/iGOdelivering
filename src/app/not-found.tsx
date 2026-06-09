@@ -51,7 +51,7 @@ export default function NotFound() {
         <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center items-center">
           <button
             onClick={handleGoBack}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-xl hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-md hover:shadow-lg text-sm"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-white font-bold px-6 py-3 rounded-xl hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-md hover:shadow-lg text-sm"
           >
             <ArrowLeft size={16} />
             Torna Indietro

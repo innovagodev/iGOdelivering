@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
-import { STORAGE_KEYS } from '@/lib/storage-keys';
+import { supabase } from '@/lib/supabase';
 import {
-  Users,
   Search,
   Key,
   ShieldAlert,
@@ -28,41 +27,6 @@ interface RestorateurUser {
   lastLogin: string;
 }
 
-const mockUsers: RestorateurUser[] = [
-  {
-    id: 'u-1',
-    name: 'Giuseppe Esposito',
-    email: 'giuseppe@bellanapoli.it',
-    restaurantName: 'Pizzeria Bella Napoli',
-    status: 'active',
-    lastLogin: 'Oggi, 10:15',
-  },
-  {
-    id: 'u-2',
-    name: 'Mario Rossi',
-    email: 'mario@trattoriamario.it',
-    restaurantName: 'Trattoria da Mario',
-    status: 'active',
-    lastLogin: 'Ieri, 18:30',
-  },
-  {
-    id: 'u-3',
-    name: 'Kenji Tanaka',
-    email: 'kenji@sushizen.it',
-    restaurantName: 'Sushi Zen',
-    status: 'pending',
-    lastLogin: 'Mai',
-  },
-  {
-    id: 'u-4',
-    name: 'Lucia Ferrara',
-    email: 'lucia@osteriaporto.it',
-    restaurantName: 'Osteria del Porto',
-    status: 'suspended',
-    lastLogin: '3 giorni fa',
-  },
-];
-
 export default function AdminUtentiPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -70,12 +34,12 @@ export default function AdminUtentiPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>(
     'all'
   );
-  const [users, setUsers] = useState<RestorateurUser[]>(mockUsers);
+  const [users, setUsers] = useState<RestorateurUser[]>([]);
   const [resettingUser, setResettingUser] = useState<RestorateurUser | null>(null);
   const [tempPassword, setTempPassword] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // States for manual account creation (Block B2)
+  // States for manual account creation
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newOwnerName, setNewOwnerName] = useState('');
   const [newRestaurantName, setNewRestaurantName] = useState('');
@@ -103,7 +67,7 @@ export default function AdminUtentiPage() {
     setIsCreateModalOpen(true);
   };
 
-  const handleCreateRistoratore = (e: React.FormEvent) => {
+  const handleCreateRistoratore = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateError('');
     setCreateSuccess(false);
@@ -119,80 +83,31 @@ export default function AdminUtentiPage() {
       return;
     }
 
-    // Check email uniqueness
-    const emailExists = users.some((u) => u.email.toLowerCase() === newEmail.trim().toLowerCase());
-    if (emailExists) {
-      setCreateError('Un utente con questa email esiste già.');
-      return;
-    }
-
-    const newRestId = `r-${Date.now()}`;
-    const newUserId = `u-${Date.now()}`;
-
-    // Create dynamic restaurant object
-    const newRestaurantObj = {
-      id: newRestId,
-      name: newRestaurantName.trim(),
-      email: newEmail.trim(),
-      owner: newOwnerName.trim(),
-      status: 'draft',
-      createdAt: new Date().toISOString().split('T')[0],
-      menuItems: 0,
-      ordersToday: 0,
-      category: 'Da configurare',
-      tempPassword: newTempPassword.trim(),
-    };
-
-    // Pre-initialize clean settings in localStorage for the new restaurant
-    const cleanSettings = {
-      profile: {
-        name: newRestaurantName.trim(),
-        logoUrl: '',
-        category: '',
-        address: '',
-        phone: '',
-        email: newEmail.trim(),
-        tagline: '',
-      },
-      orderModes: {
-        delivery: false,
-        pickup: false,
-        table: false,
-      },
-      deliveryConfig: {
-        fixedFee: 0,
-        minOrder: 0,
-        freeDeliveryThreshold: 0,
-        freeDeliveryActive: false,
-      },
-      paymentMethods: {
-        card_delivery: false,
-        card_pickup: false,
-        cash_delivery: false,
-        cash_pickup: false,
-      },
-    };
-
     try {
-      // 1. Save restaurant settings (clean slate)
-      localStorage.setItem(STORAGE_KEYS.settings(newRestId), JSON.stringify(cleanSettings));
+      const res = await fetch('/api/admin/create-ristoratore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newOwnerName.trim(),
+          email: newEmail.trim(),
+          restaurantName: newRestaurantName.trim(),
+          password: newTempPassword.trim(),
+        }),
+      });
 
-      // 2. Pre-initialize empty menu list in localStorage
-      localStorage.setItem(`iGO_menu_items_${newRestId}`, JSON.stringify([]));
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data.error || 'Errore durante la creazione del ristoratore.');
+        return;
+      }
 
-      // 3. Save restaurant to general list
-      const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
-      const currentList = storedStr ? JSON.parse(storedStr) : [];
-      currentList.push(newRestaurantObj);
-      localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(currentList));
-
-      // 4. Update local users state
+      // Add the new user to state
       const newUser: RestorateurUser = {
-        id: newUserId,
-        name: newOwnerName.trim(),
-        email: newEmail.trim(),
-        restaurantName: newRestaurantName.trim(),
-        status: 'pending',
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        restaurantName: data.user.restaurantName,
+        status: 'active', // matches published status
         lastLogin: 'Mai',
       };
       setUsers((prev) => [newUser, ...prev]);
@@ -202,8 +117,35 @@ export default function AdminUtentiPage() {
         setIsCreateModalOpen(false);
       }, 1500);
     } catch (err) {
-      console.error('Error creating dynamic restaurant:', err);
-      setCreateError('Errore durante la creazione del ristoratore.');
+      console.error(err);
+      setCreateError('Errore di rete durante la creazione del ristoratore.');
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, created_at, restaurants(id, name, status, email)')
+        .eq('role', 'ristoratore');
+
+      if (error) throw error;
+
+      const mappedUsers: RestorateurUser[] = (data || []).map((p: any) => {
+        const r = p.restaurants?.[0] || {};
+        return {
+          id: p.id,
+          name: p.name || 'Gestore',
+          email: r.email || '',
+          restaurantName: r.name || 'Nessun ristorante',
+          status: r.status === 'suspended' ? 'suspended' : r.status === 'published' ? 'active' : 'pending',
+          lastLogin: 'Mai',
+        };
+      });
+
+      setUsers(mappedUsers);
+    } catch (err) {
+      console.error('Error loading users:', err);
     }
   };
 
@@ -214,86 +156,36 @@ export default function AdminUtentiPage() {
       setSidebarCollapsed(JSON.parse(storedSidebar));
     }
 
-    // Load registered restaurants as users
-    try {
-      const storedRest = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
-      if (storedRest) {
-        const restaurants = JSON.parse(storedRest);
-        const mappedUsers: RestorateurUser[] = restaurants.map((r: any) => ({
-          id: r.id || `u-${Math.random()}`,
-          name: r.owner || r.name || 'Gestore',
-          email: r.email || 'info@restaurant.it',
-          restaurantName: r.name,
-          status: r.status === 'suspended' ? 'suspended' : r.status === 'draft' ? 'pending' : 'active',
-          lastLogin: r.lastLogin || 'Mai',
-        }));
-
-        // Merge with mockUsers
-        const merged = [...mappedUsers];
-        mockUsers.forEach((mu) => {
-          if (!merged.some((u) => u.email === mu.email)) {
-            merged.push(mu);
-          }
-        });
-        setUsers(merged);
-      }
-    } catch (e) {
-      console.error('Error loading users from restaurants list:', e);
-    }
+    loadUsers();
   }, []);
 
-  const updateRestaurantInStorage = (userEmail: string, updater: (r: any) => any) => {
-    try {
-      const storedStr = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
-      let list = storedStr ? JSON.parse(storedStr) : [];
-      
-      const hasRestaurant = list.some((r: any) => r.email === userEmail);
-      if (!hasRestaurant) {
-        const matchedMock = mockUsers.find(u => u.email === userEmail);
-        if (matchedMock) {
-          list.push({
-            id: matchedMock.id.replace('u-', 'r-'),
-            name: matchedMock.restaurantName,
-            email: matchedMock.email,
-            owner: matchedMock.name,
-            status: matchedMock.status === 'suspended' ? 'suspended' : matchedMock.status === 'pending' ? 'draft' : 'published',
-            createdAt: '2026-01-15',
-            menuItems: 0,
-            ordersToday: 0,
-            category: 'Pizzeria'
-          });
-        }
-      }
-      
-      list = list.map((r: any) => {
-        if (r.email === userEmail) {
-          return updater(r);
-        }
-        return r;
-      });
-      
-      localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(list));
-    } catch (e) {
-      console.error('Error updating restaurant in storage:', e);
-    }
-  };
-
-  const handlePasswordReset = (user: RestorateurUser) => {
+  const handlePasswordReset = async (user: RestorateurUser) => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
     let pass = '';
     for (let i = 0; i < 10; i++) {
       pass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setTempPassword(pass);
-    setResettingUser(user);
-    setCopied(false);
     
-    // Persist the temp password on the restaurant object
-    updateRestaurantInStorage(user.email, (r) => ({
-      ...r,
-      tempPassword: pass,
-      password: undefined // Clear old password since it's reset
-    }));
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, newPassword: pass }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Errore durante il reset della password');
+        return;
+      }
+
+      setTempPassword(pass);
+      setResettingUser(user);
+      setCopied(false);
+    } catch (err) {
+      console.error(err);
+      alert('Errore di rete durante il reset della password');
+    }
   };
 
   const handleCopyPassword = () => {
@@ -302,20 +194,26 @@ export default function AdminUtentiPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleToggleStatus = (id: string, newStatus: 'active' | 'suspended') => {
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id !== id) return u;
-        return { ...u, status: newStatus };
-      })
-    );
+  const handleToggleStatus = async (id: string, newStatus: 'active' | 'suspended') => {
+    const targetStatus = newStatus === 'active' ? 'published' : 'suspended';
+    
+    try {
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ status: targetStatus })
+        .eq('owner_id', id);
 
-    const targetUser = users.find(u => u.id === id);
-    if (targetUser) {
-      updateRestaurantInStorage(targetUser.email, (r) => ({
-        ...r,
-        status: newStatus === 'suspended' ? 'suspended' : 'published'
-      }));
+      if (error) throw error;
+
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== id) return u;
+          return { ...u, status: newStatus };
+        })
+      );
+    } catch (err) {
+      console.error('Error toggling status:', err);
+      alert("Errore durante l'aggiornamento dello stato del ristorante");
     }
   };
 
@@ -346,9 +244,9 @@ export default function AdminUtentiPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-foreground text-base">Admin</span>
-              <span className="text-muted-foreground text-sm">/ Utenti</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
+              <span className="text-muted-foreground text-sm truncate">/ Utenti</span>
             </div>
           }
         />
@@ -366,7 +264,7 @@ export default function AdminUtentiPage() {
               <button
                 type="button"
                 onClick={handleOpenCreateModal}
-                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm whitespace-nowrap"
               >
                 <Plus size={16} />
                 Aggiungi Ristoratore
@@ -495,7 +393,7 @@ export default function AdminUtentiPage() {
                                 >
                                   <UserX size={15} />
                                 </button>
-                              ) : u.status === 'suspended' ? (
+                              ) : u.status === 'suspended' || u.status === 'pending' ? (
                                 <button
                                   onClick={() => handleToggleStatus(u.id, 'active')}
                                   className="p-2 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors"
@@ -580,7 +478,7 @@ export default function AdminUtentiPage() {
                           >
                             <UserX size={14} />
                           </button>
-                        ) : u.status === 'suspended' ? (
+                        ) : u.status === 'suspended' || u.status === 'pending' ? (
                           <button
                             onClick={() => handleToggleStatus(u.id, 'active')}
                             className="p-1.5 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50"
@@ -746,7 +644,7 @@ export default function AdminUtentiPage() {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-primary hover:bg-[#d43d22] text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
               >
                 Crea Account
               </button>
@@ -797,18 +695,9 @@ export default function AdminUtentiPage() {
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-                  Invia questa password temporanea al ristoratore. Al primo accesso gli verrà
-                  richiesto di modificarla.
+                  Invia questa password temporanea al ristoratore.
                 </p>
               </div>
-            </div>
-            <div className="flex items-center justify-end pt-1">
-              <button
-                onClick={() => setResettingUser(null)}
-                className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors"
-              >
-                Chiudi
-              </button>
             </div>
           </div>
         </div>

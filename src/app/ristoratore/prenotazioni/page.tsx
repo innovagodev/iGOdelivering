@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
 import { generateId } from '@/lib/id-generator';
+import { supabase } from '@/lib/supabase';
 import {
   Calendar,
   Plus,
@@ -130,31 +131,49 @@ export default function PrenotazioniPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const storedBookings = localStorage.getItem(`iGO_bookings_${restaurantId}`);
-        if (storedBookings) {
-          setBookings(JSON.parse(storedBookings));
-        } else {
-          setBookings(defaultBookings);
-          localStorage.setItem(`iGO_bookings_${restaurantId}`, JSON.stringify(defaultBookings));
-        }
-      } catch (e) {
-        console.error('Error loading bookings:', e);
-        setBookings(defaultBookings);
-      }
-    }
-  }, [restaurantId]);
+  const [loading, setLoading] = useState(true);
 
-  const saveBookingsToStorage = (updatedBookings: TableBooking[]) => {
-    setBookings(updatedBookings);
+  const fetchBookings = async () => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    setLoading(true);
     try {
-      localStorage.setItem(`iGO_bookings_${restaurantId}`, JSON.stringify(updatedBookings));
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+
+      if (error) throw error;
+      
+      const mapped: TableBooking[] = (data || []).map((b: any) => ({
+        id: b.id,
+        restaurantId: b.restaurant_id,
+        name: b.name,
+        phone: b.phone,
+        email: b.email || undefined,
+        guests: b.guests,
+        date: b.date,
+        time: b.time ? b.time.slice(0, 5) : '',
+        status: b.status,
+        notes: b.notes || undefined,
+        createdAt: b.created_at,
+        preOrderItems: b.pre_order_items || undefined,
+        preOrderTotal: b.pre_order_total ? parseFloat(b.pre_order_total) : undefined,
+        linkedOrderId: b.linked_order_id || undefined,
+      }));
+
+      setBookings(mapped);
     } catch (e) {
-      console.error('Error saving bookings:', e);
+      console.error('Error fetching bookings from Supabase:', e);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchBookings();
+  }, [restaurantId]);
 
   const handleOpenAddModal = () => {
     setEditingBooking(null);
@@ -187,112 +206,133 @@ export default function PrenotazioniPage() {
     setShowModal(true);
   };
 
-  const handleUpdateStatus = (id: string, newStatus: 'pending' | 'confirmed' | 'cancelled') => {
+  const handleUpdateStatus = async (id: string, newStatus: 'pending' | 'confirmed' | 'cancelled') => {
     const targetBooking = bookings.find((b) => b.id === id);
     if (!targetBooking) return;
 
     let updatedLinkedOrderId = targetBooking.linkedOrderId;
 
-    if (newStatus === 'confirmed' && targetBooking.preOrderItems && targetBooking.preOrderItems.length > 0 && !targetBooking.linkedOrderId) {
-      try {
-        const ordersKey = `iGO_orders_${restaurantId}`;
-        const rawOrders = localStorage.getItem(ordersKey);
-        const ordersArray = rawOrders ? JSON.parse(rawOrders) : [];
-
-        const exists = ordersArray.some((o: any) => o.id === targetBooking.id || o.sourceBookingId === targetBooking.id);
-        if (!exists) {
-          const generatedOrderId = targetBooking.id;
-          const calculatedTotal = targetBooking.preOrderTotal || targetBooking.preOrderItems.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.qty || 1)), 0);
-          const newOrder = {
-            id: generatedOrderId,
-            restaurantId,
-            timestamp: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            type: 'prenotazione_tavolo',
-            items: targetBooking.preOrderItems,
+    try {
+      if (newStatus === 'confirmed' && targetBooking.preOrderItems && targetBooking.preOrderItems.length > 0 && !targetBooking.linkedOrderId) {
+        const calculatedTotal = targetBooking.preOrderTotal || targetBooking.preOrderItems.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.qty || 1)), 0);
+        
+        // 1. Create order in Supabase
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            restaurant_id: restaurantId,
+            order_number: `ORD-${targetBooking.id.slice(0, 8).toUpperCase()}`,
+            type: 'tavolo',
+            status: 'preparing', // "accettato" in cucina
+            customer_name: targetBooking.name,
+            customer_email: targetBooking.email || null,
+            customer_phone: targetBooking.phone,
             subtotal: calculatedTotal,
-            deliveryFee: 0,
-            discount: 0,
             total: calculatedTotal,
-            customerName: targetBooking.name,
-            email: targetBooking.email || 'prenotazione@internal.it',
-            customer: {
-              name: targetBooking.name,
-              email: targetBooking.email || 'prenotazione@internal.it',
-              phone: targetBooking.phone,
-              address: '',
-            },
-            status: 'accepted',
             notes: targetBooking.notes || '',
-            payMethod: 'cash',
-            itemsCount: targetBooking.preOrderItems.reduce((s: number, i: any) => s + (i.qty || 1), 0),
-            sourceBookingId: targetBooking.id,
-          };
-          ordersArray.push(newOrder);
-          localStorage.setItem(ordersKey, JSON.stringify(ordersArray));
-          updatedLinkedOrderId = generatedOrderId;
+          })
+          .select()
+          .single();
 
-          window.dispatchEvent(new Event('iGO_orders_updated'));
+        if (orderError) throw orderError;
+
+        // 2. Create order items
+        if (orderData && targetBooking.preOrderItems) {
+          const itemsPayload = targetBooking.preOrderItems.map((item: any) => ({
+            order_id: orderData.id,
+            menu_item_id: item.id.startsWith('sf-') || item.id.startsWith('bk-') ? null : item.id,
+            name: item.name,
+            price: item.price,
+            qty: item.qty || 1,
+            note: item.note || null,
+            added_ingredients: item.addedIngredients || [],
+            removed_ingredients: item.removedIngredients || [],
+            selected_options: item.selectedOptions || [],
+          }));
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(itemsPayload);
+          if (itemsError) throw itemsError;
         }
-      } catch (e) {
-        console.error('Error bridging booking to orders:', e);
+
+        updatedLinkedOrderId = orderData.id;
+      } else if (newStatus === 'cancelled' && targetBooking.linkedOrderId) {
+        // Cancel linked order in Supabase
+        await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('id', targetBooking.linkedOrderId);
       }
-    } else if (newStatus === 'cancelled' && targetBooking.linkedOrderId) {
-      try {
-        const ordersKey = `iGO_orders_${restaurantId}`;
-        const rawOrders = localStorage.getItem(ordersKey);
-        if (rawOrders) {
-          const ordersArray = JSON.parse(rawOrders);
-          const updatedOrders = ordersArray.map((o: any) => 
-            (o.id === targetBooking.linkedOrderId || o.sourceBookingId === targetBooking.id) ? { ...o, status: 'rejected' } : o
-          );
-          localStorage.setItem(ordersKey, JSON.stringify(updatedOrders));
-          window.dispatchEvent(new Event('iGO_orders_updated'));
-        }
-      } catch (e) {
-        console.error('Error cancelling linked order:', e);
-      }
+
+      // Update booking status in Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus, linked_order_id: updatedLinkedOrderId })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Refetch bookings to update state
+      await fetchBookings();
+    } catch (e) {
+      console.error('Error updating booking status:', e);
+      alert('Errore nel cambiare lo stato della prenotazione.');
     }
-
-    const updated = bookings.map((b) => (b.id === id ? { ...b, status: newStatus, linkedOrderId: updatedLinkedOrderId } : b));
-    saveBookingsToStorage(updated);
   };
 
-  const handleDeleteBooking = (id: string) => {
+  const handleDeleteBooking = async (id: string) => {
     if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
-      const updated = bookings.filter((b) => b.id !== id);
-      saveBookingsToStorage(updated);
+      try {
+        const { error } = await supabase
+          .from('bookings')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        await fetchBookings();
+      } catch (e) {
+        console.error('Error deleting booking:', e);
+        alert('Errore nell\'eliminazione della prenotazione.');
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim() || !date || !time) return;
 
-    const bookingData: TableBooking = {
-      id: editingBooking ? editingBooking.id : generateId('PRE'),
-      restaurantId,
-      name: name.trim(),
-      phone: phone.trim(),
-      email: email.trim() ? email.trim() : undefined,
-      guests: Number(guests) || 2,
-      date,
-      time,
-      status,
-      notes: notes.trim() ? notes.trim() : undefined,
-      createdAt: editingBooking ? editingBooking.createdAt : new Date().toISOString(),
-      preOrderItems: editingBooking ? editingBooking.preOrderItems : undefined,
-    };
+    try {
+      const bookingPayload = {
+        restaurant_id: restaurantId,
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || null,
+        guests: Number(guests) || 2,
+        date: date,
+        time: time.length === 5 ? `${time}:00` : time,
+        status: status,
+        notes: notes.trim() || null,
+      };
 
-    let updated: TableBooking[];
-    if (editingBooking) {
-      updated = bookings.map((b) => (b.id === editingBooking.id ? bookingData : b));
-    } else {
-      updated = [bookingData, ...bookings];
+      if (editingBooking) {
+        const { error } = await supabase
+          .from('bookings')
+          .update(bookingPayload)
+          .eq('id', editingBooking.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('bookings')
+          .insert(bookingPayload);
+        if (error) throw error;
+      }
+
+      setShowModal(false);
+      await fetchBookings();
+    } catch (e) {
+      console.error('Error saving booking:', e);
+      alert('Errore durante il salvataggio della prenotazione.');
     }
-
-    saveBookingsToStorage(updated);
-    setShowModal(false);
   };
 
   const filteredBookings = bookings.filter((b) => {
@@ -359,7 +399,7 @@ export default function PrenotazioniPage() {
               </div>
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Nuova Prenotazione
@@ -830,7 +870,7 @@ export default function PrenotazioniPage() {
             <button
               type="submit"
               disabled={!isEmailValid}
-              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {editingBooking ? 'Salva Modifiche' : 'Aggiungi Prenotazione'}
             </button>

@@ -6,6 +6,7 @@ import Toggle from '@/components/ui/Toggle';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { DeliveryZoneConfig } from '@/types';
 import { MapPin, Plus, Edit2, Trash2, Euro, Info, AlertCircle, Store } from 'lucide-react';
 
@@ -70,35 +71,70 @@ export default function DeliveryZonesPage() {
     }
   }, []);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (!restaurantId || restaurantId === 'r-001') {
+      return;
+    }
+
+    async function loadZones() {
       try {
-        const storedZones = localStorage.getItem(`iGO_zones_${restaurantId}`);
-        if (storedZones) {
-          setZones(JSON.parse(storedZones));
-        } else {
-          setZones(defaultZones);
-          localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(defaultZones));
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('delivery_zones')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .order('radius_km', { ascending: true });
+
+        if (error) throw error;
+
+        if (data) {
+          const mappedZones: DeliveryZoneConfig[] = data.map((z: any) => ({
+            id: z.id,
+            name: z.name,
+            radius: Number(z.radius_km),
+            minOrder: Number(z.min_order),
+            deliveryFee: Number(z.delivery_fee),
+            freeDeliveryThreshold: Number(z.free_delivery_threshold),
+            enabled: z.enabled,
+            caps: z.caps || '',
+          }));
+          setZones(mappedZones);
         }
       } catch (e) {
         console.error('Error loading zones:', e);
-        setZones(defaultZones);
+      } finally {
+        setLoading(false);
       }
     }
+
+    loadZones();
   }, [restaurantId]);
 
-  const saveZonesToStorage = (updatedZones: DeliveryZoneConfig[]) => {
-    setZones(updatedZones);
-    try {
-      localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(updatedZones));
-    } catch (e) {
-      console.error('Error saving zones:', e);
-    }
-  };
+  const handleToggleZone = async (id: string) => {
+    const zone = zones.find((z) => z.id === id);
+    if (!zone) return;
 
-  const handleToggleZone = (id: string) => {
-    const updated = zones.map((z) => (z.id === id ? { ...z, enabled: !z.enabled } : z));
-    saveZonesToStorage(updated);
+    const newStatus = !zone.enabled;
+    setZones((prev) =>
+      prev.map((z) => (z.id === id ? { ...z, enabled: newStatus } : z))
+    );
+
+    try {
+      const { error } = await supabase
+        .from('delivery_zones')
+        .update({ enabled: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (e) {
+      console.error('Error toggling zone:', e);
+      setZones((prev) =>
+        prev.map((z) => (z.id === id ? { ...z, enabled: !newStatus } : z))
+      );
+      alert('Impossibile aggiornare lo stato della zona.');
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -125,37 +161,93 @@ export default function DeliveryZonesPage() {
     setShowModal(true);
   };
 
-  const handleDeleteZone = (id: string) => {
+  const handleDeleteZone = async (id: string) => {
     if (confirm('Sei sicuro di voler eliminare questa zona di consegna?')) {
-      const updated = zones.filter((z) => z.id !== id);
-      saveZonesToStorage(updated);
+      const previousZones = [...zones];
+      setZones((prev) => prev.filter((z) => z.id !== id));
+
+      try {
+        const { error } = await supabase
+          .from('delivery_zones')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+      } catch (e) {
+        console.error('Error deleting zone:', e);
+        setZones(previousZones);
+        alert('Impossibile eliminare la zona di consegna.');
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const zoneData: DeliveryZoneConfig = {
-      id: editingZone ? editingZone.id : `zone-${Date.now()}`,
+    const zoneData = {
+      restaurant_id: restaurantId,
       name: name.trim(),
-      radius: parseFloat(radius) || 0,
-      minOrder: parseFloat(minOrder) || 0,
-      deliveryFee: parseFloat(deliveryFee) || 0,
-      freeDeliveryThreshold: parseFloat(freeDeliveryThreshold) || 0,
+      radius_km: parseFloat(radius) || 0,
+      min_order: parseFloat(minOrder) || 0,
+      delivery_fee: parseFloat(deliveryFee) || 0,
+      free_delivery_threshold: parseFloat(freeDeliveryThreshold) || 0,
       enabled: isEnabled,
       caps: caps.trim(),
     };
 
-    let updated: DeliveryZoneConfig[];
-    if (editingZone) {
-      updated = zones.map((z) => (z.id === editingZone.id ? zoneData : z));
-    } else {
-      updated = [...zones, zoneData];
-    }
+    try {
+      if (editingZone) {
+        const { data, error } = await supabase
+          .from('delivery_zones')
+          .update(zoneData)
+          .eq('id', editingZone.id)
+          .select()
+          .single();
 
-    saveZonesToStorage(updated);
-    setShowModal(false);
+        if (error) throw error;
+
+        if (data) {
+          const updatedZone: DeliveryZoneConfig = {
+            id: data.id,
+            name: data.name,
+            radius: Number(data.radius_km),
+            minOrder: Number(data.min_order),
+            deliveryFee: Number(data.delivery_fee),
+            freeDeliveryThreshold: Number(data.free_delivery_threshold),
+            enabled: data.enabled,
+            caps: data.caps || '',
+          };
+          setZones((prev) => prev.map((z) => (z.id === editingZone.id ? updatedZone : z)));
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('delivery_zones')
+          .insert([zoneData])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const newZone: DeliveryZoneConfig = {
+            id: data.id,
+            name: data.name,
+            radius: Number(data.radius_km),
+            minOrder: Number(data.min_order),
+            deliveryFee: Number(data.delivery_fee),
+            freeDeliveryThreshold: Number(data.free_delivery_threshold),
+            enabled: data.enabled,
+            caps: data.caps || '',
+          };
+          setZones((prev) => [...prev, newZone]);
+        }
+      }
+      setShowModal(false);
+    } catch (e) {
+      console.error('Error saving zone:', e);
+      alert('Impossibile salvare la zona di consegna.');
+    }
   };
 
   return (
@@ -198,7 +290,7 @@ export default function DeliveryZonesPage() {
               </div>
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Aggiungi Zona
@@ -223,7 +315,11 @@ export default function DeliveryZonesPage() {
 
             {/* Zones list & Cards */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              {zones.length === 0 ? (
+              {loading ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  Caricamento zone in corso...
+                </div>
+              ) : zones.length === 0 ? (
                 <div className="py-12 text-center">
                   <AlertCircle size={32} className="text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm font-semibold text-foreground">Nessuna zona configurata</p>
@@ -538,7 +634,7 @@ export default function DeliveryZonesPage() {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              className="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
             >
               {editingZone ? 'Salva Modifiche' : 'Crea Zona'}
             </button>

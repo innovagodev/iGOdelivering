@@ -6,6 +6,9 @@ import Topbar from '@/components/layout/Topbar';
 import ServiceHoursTab from '@/components/ristoratore/menu-management/ServiceHoursTab';
 import { useAuth } from '@/context/AuthContext';
 import { Zap, Store } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { ScheduledOrdersConfig } from '@/types';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
@@ -83,6 +86,18 @@ export default function RistoratoreOrariPage() {
     message: '',
   });
 
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({
+    enabled: true,
+    pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
+    delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
+    onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
+    hideAsap: false,
+    pickupExpanded: true,
+    deliveryExpanded: true,
+    onPremiseExpanded: true,
+    altroExpanded: true,
+  });
+
   const showFeedback = (msg: string) => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 2500);
@@ -96,43 +111,87 @@ export default function RistoratoreOrariPage() {
     }
   }, []);
 
-  // Hydrate state from localStorage on mount/restaurantId change
+  // Hydrate state from Supabase on mount/restaurantId change
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const mergeWithDefaultDays = (existing: any): Record<string, DayServiceHours> => {
+      const defaults = buildDefaultDays();
+      if (!existing || typeof existing !== 'object') return defaults;
+      
+      const merged: Record<string, DayServiceHours> = {};
+      DAYS.forEach((d) => {
+        const defaultDay = defaults[d];
+        const existingDay = existing[d] || {};
+        
+        merged[d] = {
+          enabled: existingDay.enabled !== undefined ? existingDay.enabled : defaultDay.enabled,
+          suspended: existingDay.suspended !== undefined ? existingDay.suspended : defaultDay.suspended,
+          lunch: {
+            from: existingDay.lunch?.from || defaultDay.lunch.from,
+            to: existingDay.lunch?.to || defaultDay.lunch.to,
+          },
+          dinner: {
+            from: existingDay.dinner?.from || defaultDay.dinner.from,
+            to: existingDay.dinner?.to || defaultDay.dinner.to,
+          },
+          lunchEnabled: existingDay.lunchEnabled !== undefined ? existingDay.lunchEnabled : defaultDay.lunchEnabled,
+          dinnerEnabled: existingDay.dinnerEnabled !== undefined ? existingDay.dinnerEnabled : defaultDay.dinnerEnabled,
+        };
+      });
+      return merged;
+    };
+
+    async function loadHours() {
+      if (!restaurantId || restaurantId === 'r-001') return;
       try {
-        const storedStr = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
-        if (storedStr) {
-          const parsed = JSON.parse(storedStr);
-          if (parsed.serviceHours) {
-            setServiceHours({
-              general: parsed.serviceHours.general || buildDefaultDays(),
-              pickup: parsed.serviceHours.pickup || buildDefaultDays(),
-              delivery: parsed.serviceHours.delivery || buildDefaultDays(),
-              reservation: parsed.serviceHours.reservation || buildDefaultDays(),
-            });
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('hours_config, scheduled_orders')
+          .eq('id', restaurantId)
+          .single();
+
+        if (error) {
+          console.warn('Error loading service hours from Supabase:', error.message || error);
+          return;
+        }
+        
+        if (data) {
+          if (data.hours_config && typeof data.hours_config === 'object') {
+            const parsed = data.hours_config as any;
+            if (parsed.serviceHours) {
+              setServiceHours({
+                general: mergeWithDefaultDays(parsed.serviceHours.general),
+                pickup: mergeWithDefaultDays(parsed.serviceHours.pickup),
+                delivery: mergeWithDefaultDays(parsed.serviceHours.delivery),
+                reservation: mergeWithDefaultDays(parsed.serviceHours.reservation),
+              });
+            }
+            if (parsed.useGeneral) {
+              setUseGeneral(parsed.useGeneral);
+            } else {
+              const hasGen = !!parsed.serviceHours?.general;
+              setUseGeneral({
+                pickup: hasGen,
+                delivery: hasGen,
+                reservation: hasGen,
+              });
+            }
+            if (parsed.serviceSuspended) {
+              setServiceSuspended(parsed.serviceSuspended);
+            }
+            if (parsed.temporaryClosure) {
+              setTemporaryClosure(parsed.temporaryClosure);
+            }
           }
-          if (parsed.useGeneral) {
-            setUseGeneral(parsed.useGeneral);
-          } else {
-            // Legacy default: if raw general doesn't exist, we default useCustom to true, meaning useGeneral to false
-            const hasGen = !!parsed.serviceHours?.general;
-            setUseGeneral({
-              pickup: hasGen,
-              delivery: hasGen,
-              reservation: hasGen,
-            });
-          }
-          if (parsed.serviceSuspended) {
-            setServiceSuspended(parsed.serviceSuspended);
-          }
-          if (parsed.temporaryClosure) {
-            setTemporaryClosure(parsed.temporaryClosure);
+          if (data.scheduled_orders) {
+            setScheduledOrders(data.scheduled_orders as any);
           }
         }
-      } catch (e) {
-        console.error('Error loading service hours:', e);
+      } catch (e: any) {
+        console.warn('Error loading service hours from Supabase:', e.message || e);
       }
     }
+
+    loadHours();
   }, [restaurantId]);
 
   const toggleServiceSuspension = (s: 'pickup' | 'delivery' | 'reservation') => {
@@ -207,27 +266,81 @@ export default function RistoratoreOrariPage() {
     }));
   };
 
-  const handleSaveHours = () => {
+  const handleSaveHours = async () => {
     const dataToSave = {
       serviceHours,
       useGeneral,
       serviceSuspended,
       temporaryClosure,
     };
+
+    // Dispatch custom update events for realtime UI sync
     try {
-      localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(dataToSave));
-      
-      // Dispatch custom update events
       window.dispatchEvent(new CustomEvent('iGO_service_hours_updated', { detail: dataToSave }));
       window.dispatchEvent(new CustomEvent(`iGO_service_hours_${restaurantId}_updated`, { detail: dataToSave }));
-
-      setSaved(true);
-      showFeedback('Orari salvati con successo');
-      setTimeout(() => setSaved(false), 2500);
-    } catch (e) {
-      console.error('Error saving service hours:', e);
-      showFeedback('Errore durante il salvataggio');
+    } catch (evtErr) {
+      // ignore
     }
+
+    // Sync to Supabase
+    if (restaurantId && restaurantId !== 'r-001') {
+      try {
+
+        // Update hours_config and scheduled_orders in restaurants table
+        const { error: configError } = await supabase
+          .from('restaurants')
+          .update({
+            hours_config: dataToSave,
+            scheduled_orders: scheduledOrders
+          })
+          .eq('id', restaurantId);
+
+        if (configError) {
+          console.warn('Failed to update Supabase hours_config:', configError.message || configError);
+        }
+
+        // Synchronize restaurant_hours table
+        const dayMapping: Record<string, number> = {
+          'Lunedì': 0,
+          'Martedì': 1,
+          'Mercoledì': 2,
+          'Giovedì': 3,
+          'Venerdì': 4,
+          'Sabato': 5,
+          'Domenica': 6
+        };
+
+        const hoursToUpsert = DAYS.map((dayName) => {
+          const dayIdx = dayMapping[dayName];
+          const dayData = serviceHours.general[dayName] || { enabled: true, lunch: { from: '11:30', to: '14:30' }, dinner: { from: '19:00', to: '22:30' } };
+          return {
+            restaurant_id: restaurantId,
+            day_of_week: dayIdx,
+            is_open: !!dayData.enabled,
+            lunch_from: dayData.lunch?.from ? `${dayData.lunch.from}:00` : null,
+            lunch_to: dayData.lunch?.to ? `${dayData.lunch.to}:00` : null,
+            lunch_enabled: dayData.lunchEnabled !== false,
+            dinner_from: dayData.dinner?.from ? `${dayData.dinner.from}:00` : null,
+            dinner_to: dayData.dinner?.to ? `${dayData.dinner.to}:00` : null,
+            dinner_enabled: dayData.dinnerEnabled !== false,
+          };
+        });
+
+        const { error: hoursError } = await supabase
+          .from('restaurant_hours')
+          .upsert(hoursToUpsert, { onConflict: 'restaurant_id,day_of_week' });
+
+        if (hoursError) {
+          console.warn('Failed to update Supabase restaurant_hours table:', hoursError.message || hoursError);
+        }
+      } catch (dbErr: any) {
+        console.warn('Database connection error during hours sync:', dbErr.message || dbErr);
+      }
+    }
+
+    setSaved(true);
+    showFeedback('Orari salvati con successo');
+    setTimeout(() => setSaved(false), 2500);
   };
 
   return (
@@ -280,6 +393,8 @@ export default function RistoratoreOrariPage() {
               toggleUseGeneral={toggleUseGeneral}
               temporaryClosure={temporaryClosure}
               setTemporaryClosure={setTemporaryClosure}
+              scheduledOrders={scheduledOrders}
+              setScheduledOrders={setScheduledOrders}
             />
           </div>
         </main>

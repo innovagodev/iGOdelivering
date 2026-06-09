@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
+import { supabase } from '@/lib/supabase';
 import {
   Plus,
   Search,
@@ -19,6 +20,10 @@ import {
   X,
   AlertTriangle,
   ExternalLink,
+  Mail,
+  Copy,
+  Zap,
+  AlertCircle,
 } from 'lucide-react';
 
 const slugify = (text: string) => {
@@ -38,6 +43,7 @@ interface Restaurant {
   city: string;
   status: 'published' | 'draft' | 'suspended';
   owner: string;
+  owner_id?: string | null;
   email: string;
   phone: string;
   createdAt: string;
@@ -45,65 +51,6 @@ interface Restaurant {
   ordersToday: number;
   category: string;
 }
-
-const mockRestaurants: Restaurant[] = [
-  {
-    id: 'r-001',
-    name: 'Pizzeria Bella Napoli',
-    address: 'Via Toledo 45',
-    city: 'Napoli',
-    status: 'published',
-    owner: 'Giuseppe Esposito',
-    email: 'giuseppe@bellanapoli.it',
-    phone: '+39 081 123 4567',
-    createdAt: '2026-01-15',
-    menuItems: 32,
-    ordersToday: 18,
-    category: 'Pizzeria',
-  },
-  {
-    id: 'r-002',
-    name: 'Trattoria da Mario',
-    address: 'Corso Umberto I 12',
-    city: 'Roma',
-    status: 'published',
-    owner: 'Mario Rossi',
-    email: 'mario@trattoriamario.it',
-    phone: '+39 06 987 6543',
-    createdAt: '2026-02-20',
-    menuItems: 24,
-    ordersToday: 9,
-    category: 'Trattoria',
-  },
-  {
-    id: 'r-003',
-    name: 'Sushi Zen',
-    address: 'Via Montenapoleone 8',
-    city: 'Milano',
-    status: 'draft',
-    owner: 'Kenji Tanaka',
-    email: 'kenji@sushizen.it',
-    phone: '+39 02 555 7890',
-    createdAt: '2026-04-10',
-    menuItems: 0,
-    ordersToday: 0,
-    category: 'Giapponese',
-  },
-  {
-    id: 'r-004',
-    name: 'Osteria del Porto',
-    address: 'Lungomare Caracciolo 22',
-    city: 'Napoli',
-    status: 'suspended',
-    owner: 'Lucia Ferrara',
-    email: 'lucia@osteriaporto.it',
-    phone: '+39 081 456 7890',
-    createdAt: '2025-11-05',
-    menuItems: 18,
-    ordersToday: 0,
-    category: 'Osteria',
-  },
-];
 
 const statusConfig = {
   published: { label: 'Pubblicato', variant: 'success' as const, icon: <CheckCircle size={12} /> },
@@ -118,8 +65,50 @@ export default function AdminRestaurantsPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'suspended'>(
     'all'
   );
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(mockRestaurants);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setFeedback({ message, type });
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const loadRestaurants = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('*, profiles(name, email)');
+
+      if (error) throw error;
+
+      if (data) {
+        const mapped = data.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          address: r.address || '',
+          city: r.city || '',
+          status: r.status,
+          owner: r.profiles?.name || 'Nessuno',
+          owner_id: r.owner_id,
+          email: r.profiles?.email || r.email || '',
+          phone: r.phone || '',
+          createdAt: r.created_at ? r.created_at.slice(0, 10) : '',
+          menuItems: 0,
+          ordersToday: 0,
+          category: r.category || 'Generico',
+        }));
+        setRestaurants(mapped);
+      }
+    } catch (e) {
+      console.error('Error loading restaurants:', e);
+      showFeedback('Errore nel caricamento dei ristoranti.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Restore sidebar state
@@ -127,53 +116,95 @@ export default function AdminRestaurantsPage() {
     if (stored !== null) {
       setSidebarCollapsed(JSON.parse(stored));
     }
-
-    try {
-      const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]') as Array<
-        Record<string, unknown>
-      >;
-      if (saved.length > 0) {
-        const normalized = saved.map((r) => ({
-          ...r,
-          menuItems: Array.isArray(r.menuItems)
-            ? (r.menuItems as unknown[]).length
-            : typeof r.menuItems === 'number'
-              ? r.menuItems
-              : 0,
-        })) as Restaurant[];
-        setRestaurants((prev) => {
-          const existingIds = new Set(prev.map((r) => r.id));
-          const newOnes = normalized.filter((r) => !existingIds.has(r.id));
-          return [...prev, ...newOnes];
-        });
-      }
-    } catch {}
+    loadRestaurants();
   }, []);
 
-  const handleToggleSuspend = (id: string) => {
-    const updated = restaurants.map((r) => {
-      if (r.id !== id) return r;
-      const newStatus: 'published' | 'suspended' = r.status === 'suspended' ? 'published' : 'suspended';
-      return { ...r, status: newStatus };
-    });
-    setRestaurants(updated);
+  const handleToggleSuspend = async (id: string) => {
+    const restaurant = restaurants.find((r) => r.id === id);
+    if (!restaurant) return;
+
+    const newStatus = restaurant.status === 'suspended' ? 'published' : 'suspended';
+    setRestaurants((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
+    );
+
     try {
-      localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(updated));
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      showFeedback('Stato del ristorante aggiornato con successo!');
     } catch (e) {
-      console.error(e);
+      console.error('Error updating status:', e);
+      setRestaurants((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: restaurant.status } : r))
+      );
+      showFeedback('Impossibile aggiornare lo stato del ristorante.', 'error');
     }
   };
 
-  const handleDeleteConfirm = () => {
-    if (!deleteTarget) return;
-    const updated = restaurants.filter((r) => r.id !== deleteTarget.id);
-    setRestaurants(updated);
+  const handlePublishDraft = async (id: string) => {
+    const restaurant = restaurants.find((r) => r.id === id);
+    if (!restaurant) return;
+
+    setRestaurants((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, status: 'published' } : r))
+    );
+
     try {
-      localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(updated));
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ status: 'published' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Trigger activation email
+      const response = await fetch('/api/admin/send-activation-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ restaurantId: id }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error('Failed to send activation email:', errData.error);
+        showFeedback('Ristorante pubblicato, ma non è stato possibile inviare l\'email.', 'error');
+      } else {
+        showFeedback('Ristorante pubblicato! Email di attivazione inviata.');
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Error publishing restaurant:', e);
+      setRestaurants((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: 'draft' } : r))
+      );
+      showFeedback('Impossibile pubblicare il ristorante.', 'error');
     }
-    setDeleteTarget(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const previous = [...restaurants];
+    setRestaurants((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+
+    try {
+      const { error } = await supabase
+        .from('restaurants')
+        .delete()
+        .eq('id', deleteTarget.id);
+
+      if (error) throw error;
+      setDeleteTarget(null);
+      showFeedback('Ristorante eliminato con successo!');
+    } catch (e) {
+      console.error('Error deleting restaurant:', e);
+      setRestaurants(previous);
+      showFeedback('Impossibile eliminare il ristorante.', 'error');
+    }
   };
 
   const filtered = restaurants.filter((r) => {
@@ -204,14 +235,24 @@ export default function AdminRestaurantsPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-foreground text-base">Admin</span>
-              <span className="text-muted-foreground text-sm">/ Ristoranti</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
+              <span className="text-muted-foreground text-sm truncate">/ Ristoranti</span>
             </div>
           }
         />
 
-        <main className="flex-1 min-h-0 overflow-y-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto relative">
+          {feedback && (
+            <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
+              feedback.type === 'error'
+                ? 'bg-red-600 text-white'
+                : 'bg-foreground text-background'
+            }`}>
+              {feedback.type === 'error' ? <AlertCircle size={14} /> : <Zap size={14} />}
+              {feedback.message}
+            </div>
+          )}
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Page header */}
             <div className="flex items-center justify-between">
@@ -223,7 +264,7 @@ export default function AdminRestaurantsPage() {
               </div>
               <Link
                 href="/admin/restaurants/new"
-                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm"
               >
                 <Plus size={16} />
                 Aggiungi Ristorante
@@ -339,14 +380,20 @@ export default function AdminRestaurantsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filtered.length === 0 && (
+                    {loading ? (
+                      <tr>
+                        <td colSpan={7} className="py-16 text-center text-sm text-muted-foreground">
+                          Caricamento ristoranti in corso...
+                        </td>
+                      </tr>
+                    ) : filtered.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-16 text-center text-sm text-muted-foreground">
                           Nessun ristorante trovato
                         </td>
                       </tr>
-                    )}
-                    {filtered.map((r) => {
+                    ) : (
+                      filtered.map((r) => {
                       const sc = statusConfig[r.status];
                       const isSuspended = r.status === 'suspended';
                       return (
@@ -363,8 +410,21 @@ export default function AdminRestaurantsPage() {
                             </div>
                           </td>
                           <td className="px-5 py-4 hidden md:table-cell">
-                            <p className="text-sm text-foreground font-medium">{r.owner}</p>
-                            <p className="text-xs text-muted-foreground">{r.email}</p>
+                            <div className="flex flex-col">
+                              {r.owner_id ? (
+                                <>
+                                  <p className="text-sm text-foreground font-medium">{r.owner}</p>
+                                  <p className="text-xs text-muted-foreground">{r.email}</p>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="inline-flex items-center text-xs font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-2 py-0.5 rounded w-max">
+                                    Attivazione pendente
+                                  </span>
+                                  <p className="text-xs text-muted-foreground mt-0.5">{r.email}</p>
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-5 py-4 hidden lg:table-cell">
                             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -421,24 +481,47 @@ export default function AdminRestaurantsPage() {
                               >
                                 <Users size={15} />
                               </Link>
-                              <button
-                                onClick={() => handleToggleSuspend(r.id)}
-                                className={`p-2 rounded-lg transition-colors ${
-                                  isSuspended
-                                    ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
-                                    : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
-                                }`}
-                                title={isSuspended ? 'Riattiva ristorante' : 'Sospendi ristorante'}
-                              >
-                                {isSuspended ? (
+                              {!r.owner_id && (
+                                <button
+                                  onClick={() => {
+                                    const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
+                                    navigator.clipboard.writeText(link);
+                                    showFeedback('Link di attivazione copiato negli appunti!');
+                                  }}
+                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                                  title="Copia link attivazione"
+                                >
+                                  <Copy size={15} />
+                                </button>
+                              )}
+                              {r.status === 'draft' ? (
+                                <button
+                                  onClick={() => handlePublishDraft(r.id)}
+                                  className="p-2 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors cursor-pointer"
+                                  title="Pubblica ristorante"
+                                >
                                   <PlayCircle size={15} />
-                                ) : (
-                                  <PauseOctagon size={15} />
-                                )}
-                              </button>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleSuspend(r.id)}
+                                  className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                                    isSuspended
+                                      ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
+                                      : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
+                                  }`}
+                                  title={isSuspended ? 'Riattiva ristorante' : 'Sospendi ristorante'}
+                                >
+                                  {isSuspended ? (
+                                    <PlayCircle size={15} />
+                                  ) : (
+                                    <PauseOctagon size={15} />
+                                  )}
+                                </button>
+                              )}
                               <button
                                 onClick={() => setDeleteTarget(r)}
-                                className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"
+                                className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
                                 title="Elimina ristorante"
                               >
                                 <Trash2 size={15} />
@@ -447,23 +530,27 @@ export default function AdminRestaurantsPage() {
                           </td>
                         </tr>
                       );
-                    })}
+                    }))}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile View */}
               <div className="md:hidden divide-y divide-border">
-                {filtered.length === 0 && (
+                {loading ? (
+                  <div className="py-16 text-center text-sm text-muted-foreground">
+                    Caricamento ristoranti in corso...
+                  </div>
+                ) : filtered.length === 0 ? (
                   <div className="py-16 text-center text-sm text-muted-foreground">
                     Nessun ristorante trovato
                   </div>
-                )}
-                {filtered.map((r) => {
-                  const sc = statusConfig[r.status];
-                  const isSuspended = r.status === 'suspended';
-                  return (
-                    <div key={r.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
+                ) : (
+                  filtered.map((r) => {
+                    const sc = statusConfig[r.status];
+                    const isSuspended = r.status === 'suspended';
+                    return (
+                      <div key={r.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
@@ -491,8 +578,19 @@ export default function AdminRestaurantsPage() {
                       <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
                         <div>
                           <p className="text-muted-foreground mb-0.5">Proprietario</p>
-                          <p className="font-medium text-foreground">{r.owner}</p>
-                          <p className="text-muted-foreground text-[10px]">{r.email}</p>
+                          {r.owner_id ? (
+                            <>
+                              <p className="font-medium text-foreground">{r.owner}</p>
+                              <p className="text-muted-foreground text-[10px]">{r.email}</p>
+                            </>
+                          ) : (
+                            <>
+                              <span className="inline-flex items-center text-[10px] font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-1.5 py-0.5 rounded">
+                                Attivazione pendente
+                              </span>
+                              <p className="text-muted-foreground text-[10px] mt-0.5">{r.email}</p>
+                            </>
+                          )}
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-0.5">Località</p>
@@ -532,21 +630,45 @@ export default function AdminRestaurantsPage() {
                         >
                           <Users size={14} />
                         </Link>
-                        <button
-                          onClick={() => handleToggleSuspend(r.id)}
-                          className={`p-1.5 rounded-lg transition-colors border border-border/50 ${
-                            isSuspended
-                              ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
-                              : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
-                          }`}
-                          title={isSuspended ? 'Riattiva' : 'Sospendi'}
-                        >
-                          {isSuspended ? (
+                        {!r.owner_id && (
+                          <button
+                            onClick={() => {
+                              const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
+                              navigator.clipboard.writeText(link);
+                              showFeedback('Link di attivazione copiato negli appunti!');
+                            }}
+                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted hover:bg-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors cursor-pointer border border-border/50"
+                            title="Copia link attivazione"
+                          >
+                            <Copy size={13} />
+                            Link Attivazione
+                          </button>
+                        )}
+                        {r.status === 'draft' ? (
+                          <button
+                            onClick={() => handlePublishDraft(r.id)}
+                            className="p-1.5 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50 cursor-pointer"
+                            title="Pubblica"
+                          >
                             <PlayCircle size={14} />
-                          ) : (
-                            <PauseOctagon size={14} />
-                          )}
-                        </button>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleToggleSuspend(r.id)}
+                            className={`p-1.5 rounded-lg transition-colors border border-border/50 ${
+                              isSuspended
+                                ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
+                                : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
+                            }`}
+                            title={isSuspended ? 'Riattiva' : 'Sospendi'}
+                          >
+                            {isSuspended ? (
+                              <PlayCircle size={14} />
+                            ) : (
+                              <PauseOctagon size={14} />
+                            )}
+                          </button>
+                        )}
                         <button
                           onClick={() => setDeleteTarget(r)}
                           className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
@@ -557,7 +679,7 @@ export default function AdminRestaurantsPage() {
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
             </div>
           </div>

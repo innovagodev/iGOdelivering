@@ -24,62 +24,7 @@ interface AuditLog {
   severity: 'low' | 'medium' | 'high';
 }
 
-const mockLogs: AuditLog[] = [
-  {
-    id: 'log-1',
-    timestamp: '2026-05-21 11:32:15',
-    user: 'admin@igodelivering.it',
-    event: 'Autenticazione Amministratore',
-    ipAddress: '93.42.180.12',
-    status: 'success',
-    severity: 'low',
-  },
-  {
-    id: 'log-2',
-    timestamp: '2026-05-21 10:45:00',
-    user: 'giuseppe@bellanapoli.it',
-    event: 'Reset Password Ristoratore',
-    ipAddress: '151.24.89.202',
-    status: 'success',
-    severity: 'medium',
-  },
-  {
-    id: 'log-3',
-    timestamp: '2026-05-21 09:12:44',
-    user: 'admin@igodelivering.it',
-    event: 'Sospensione Ristorante "Osteria del Porto"',
-    ipAddress: '93.42.180.12',
-    status: 'success',
-    severity: 'medium',
-  },
-  {
-    id: 'log-4',
-    timestamp: '2026-05-21 08:30:11',
-    user: 'sconosciuto',
-    event: 'Tentativo di accesso fallito (admin)',
-    ipAddress: '198.51.100.45',
-    status: 'failure',
-    severity: 'high',
-  },
-  {
-    id: 'log-5',
-    timestamp: '2026-05-20 22:15:30',
-    user: 'mario@trattoriamario.it',
-    event: "Modifica Orario d'apertura",
-    ipAddress: '87.12.115.4',
-    status: 'success',
-    severity: 'low',
-  },
-  {
-    id: 'log-6',
-    timestamp: '2026-05-20 18:44:22',
-    user: 'system',
-    event: 'Backup automatico Database',
-    ipAddress: '127.0.0.1',
-    status: 'success',
-    severity: 'low',
-  },
-];
+const mockLogs: AuditLog[] = [];
 
 export default function AdminSicurezzaPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -129,7 +74,7 @@ export default function AdminSicurezzaPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-sicurezza"
-        onSectionChange={() => {}}
+        onSectionChange={() => { }}
         role="admin"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -141,9 +86,9 @@ export default function AdminSicurezzaPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-foreground text-base">Admin</span>
-              <span className="text-muted-foreground text-sm">/ Registro Attività</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
+              <span className="text-muted-foreground text-sm truncate">/ Registro Attività</span>
             </div>
           }
         />
@@ -179,7 +124,7 @@ export default function AdminSicurezzaPage() {
                 </button>
                 <button
                   onClick={handleExport}
-                  className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm"
+                  className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm"
                 >
                   <Download size={14} />
                   Esporta Log
@@ -196,7 +141,7 @@ export default function AdminSicurezzaPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Cerca per evento, utente, IP..."
+                  placeholder="Cerca per evento, utente..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
@@ -212,11 +157,10 @@ export default function AdminSicurezzaPage() {
                   <button
                     key={`filter-${s}`}
                     onClick={() => setSeverityFilter(s)}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                      severityFilter === s
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${severityFilter === s
                         ? 'bg-primary text-white'
                         : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
+                      }`}
                   >
                     {s === 'all'
                       ? 'Tutte'
@@ -288,13 +232,12 @@ export default function AdminSicurezzaPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
-                                log.severity === 'high'
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${log.severity === 'high'
                                   ? 'bg-red-500/10 text-red-500 border-red-500/20'
                                   : log.severity === 'medium'
                                     ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                     : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                              }`}
+                                }`}
                             >
                               {log.severity === 'high'
                                 ? 'Alta'
@@ -305,17 +248,16 @@ export default function AdminSicurezzaPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                                log.status === 'success'
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${log.status === 'success'
                                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                   : 'bg-red-500/10 text-red-500 border-red-500/20'
-                              }`}
+                                }`}
                             >
                               {log.status === 'success' ? (
                                 <>
                                   <CheckCircle size={12} />
                                   Ok
-                                  </>
+                                </>
                               ) : (
                                 <>
                                   <XCircle size={12} />
@@ -349,11 +291,10 @@ export default function AdminSicurezzaPage() {
                           <h4 className="font-semibold text-sm text-foreground leading-snug">{log.event}</h4>
                         </div>
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            log.status === 'success'
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${log.status === 'success'
                               ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                               : 'bg-red-500/10 text-red-500 border-red-500/20'
-                          }`}
+                            }`}
                         >
                           {log.status === 'success' ? 'Ok' : 'Fallito'}
                         </span>
@@ -373,13 +314,12 @@ export default function AdminSicurezzaPage() {
                       <div className="flex items-center justify-between pt-1">
                         <span className="text-xs text-muted-foreground">Severità</span>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
-                            log.severity === 'high'
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${log.severity === 'high'
                               ? 'bg-red-500/10 text-red-500 border-red-500/20'
                               : log.severity === 'medium'
                                 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                 : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                          }`}
+                            }`}
                         >
                           {log.severity === 'high'
                             ? 'Alta'

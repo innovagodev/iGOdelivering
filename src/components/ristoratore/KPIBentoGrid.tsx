@@ -79,44 +79,18 @@ function KPICard({ label, value, sub, trend, icon, variant, hero }: KPICardProps
   );
 }
 
-export default function KPIBentoGrid() {
-  const { user } = useAuth();
-  const restaurantId = user?.restaurantId || 'r-001';
+export default function KPIBentoGrid({ orders = [], loading = false }: { orders?: any[]; loading?: boolean }) {
+  const pendingCount = React.useMemo(() => {
+    return orders.filter(
+      (o: any) => o.status === 'new' || o.status === 'pending'
+    ).length;
+  }, [orders]);
 
-  const [pendingCount, setPendingCount] = useState(3);
-  const [totalOrders, setTotalOrders] = useState(47);
-  const [revenue, setRevenue] = useState(1284);
+  const totalOrders = orders.length;
 
-  useEffect(() => {
-    const handleUpdate = () => {
-      try {
-        const storedStr = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
-        if (storedStr) {
-          const parsed = JSON.parse(storedStr);
-          if (Array.isArray(parsed)) {
-            const pending = parsed.filter(
-              (o: any) => o.status === 'new' || o.status === 'pending'
-            ).length;
-            const totRevenue = parsed.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
-
-            setPendingCount(pending);
-            setTotalOrders(parsed.length);
-            setRevenue(Math.round(totRevenue));
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    handleUpdate();
-    window.addEventListener('iGO_orders_updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
-    return () => {
-      window.removeEventListener('iGO_orders_updated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
-    };
-  }, [restaurantId]);
+  const revenue = React.useMemo(() => {
+    return orders.reduce((acc: number, curr: any) => acc + Number(curr.total || 0), 0);
+  }, [orders]);
 
   const kpis: KPICardProps[] = [
     {
@@ -155,15 +129,6 @@ export default function KPIBentoGrid() {
       trend: 3.7,
       icon: <TrendingUp size={20} />,
       variant: 'default',
-    },
-    {
-      id: 'kpi-consegna',
-      label: 'Tasso Consegna',
-      value: '96,8%',
-      sub: 'ultimi 30 giorni',
-      trend: 1.2,
-      icon: <Truck size={20} />,
-      variant: 'success',
     },
   ];
 

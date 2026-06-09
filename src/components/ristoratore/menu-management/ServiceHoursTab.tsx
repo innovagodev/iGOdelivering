@@ -2,6 +2,8 @@
 import React from 'react';
 import { Settings, Save, AlertTriangle, Check, PauseCircle, PlayCircle, Clock, Calendar } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
+import ScheduledOrdersStep from '@/components/admin/restaurant-wizard/ScheduledOrdersStep';
+import { TIME_UNITS, TIME_WINDOWS } from '@/lib/constants';
 
 interface DayServiceHours {
   enabled: boolean;
@@ -53,6 +55,8 @@ interface ServiceHoursTabProps {
     to: string;
     message: string;
   }>>;
+  scheduledOrders?: any;
+  setScheduledOrders?: any;
 }
 
 export default function ServiceHoursTab({
@@ -69,6 +73,8 @@ export default function ServiceHoursTab({
   toggleUseGeneral,
   temporaryClosure,
   setTemporaryClosure,
+  scheduledOrders,
+  setScheduledOrders,
 }: ServiceHoursTabProps) {
 
   const renderTemporaryClosureSection = () => {
@@ -512,7 +518,7 @@ export default function ServiceHoursTab({
         </div>
         <button
           onClick={handleSaveHours}
-          className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all w-full sm:w-auto ${saved ? 'bg-[var(--success)] text-white shadow-green-200' : 'bg-primary text-white shadow-primary/20 hover:bg-[#d43d22]'}`}
+          className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all w-full sm:w-auto ${saved ? 'bg-[var(--success)] text-white shadow-green-200' : 'bg-primary text-white shadow-primary/20 hover:bg-primary-hover'}`}
         >
           {saved ? <Check size={18} /> : <Save size={18} />}
           {saved ? 'Salvato' : 'Salva Orari'}
@@ -525,6 +531,17 @@ export default function ServiceHoursTab({
         {renderServiceSection('pickup', 'Asporto / Ritiro', <Clock size={20} />)}
         {renderServiceSection('delivery', 'Consegna a Domicilio', <Settings size={20} />)}
         {renderServiceSection('reservation', 'Prenotazione Tavoli', <Settings size={20} />)}
+        
+        {scheduledOrders && setScheduledOrders && (
+          <div className="bg-card rounded-xl border border-border shadow-card p-6">
+            <ScheduledOrdersStep
+              scheduledOrders={scheduledOrders}
+              setScheduledOrders={setScheduledOrders}
+              timeUnits={TIME_UNITS}
+              timeWindows={TIME_WINDOWS}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

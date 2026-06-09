@@ -3,49 +3,47 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
-import { Save, Check, AlertCircle } from 'lucide-react';
-
-interface GlobalSettings {
-  slogan: string;
-  supportEmail: string;
-  supportPhone: string;
-  allowRegistrations: boolean;
-  maintenanceMode: boolean;
-  
-  // Fatturazione & Abbonamento
-  trialPeriodDays: number;
-  defaultCurrency: string;
-
-  // Servizi & Integrazioni (API)
-  mapProvider: string;
-  mapApiKey: string;
-}
-
-const defaultSettings: GlobalSettings = {
-  slogan: 'I tuoi piatti preferiti, consegnati caldi a casa tua.',
-  supportEmail: 'supporto@igodelivering.it',
-  supportPhone: '+39 02 8888 9999',
-  allowRegistrations: true,
-  maintenanceMode: false,
-  
-  trialPeriodDays: 14,
-  defaultCurrency: 'EUR',
-
-  mapProvider: 'google',
-  mapApiKey: '',
-};
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import {
+  Save,
+  Check,
+  AlertTriangle,
+  Settings2,
+  User,
+  Lock,
+  Mail,
+  Shield,
+} from 'lucide-react';
 
 export default function AdminImpostazioniPage() {
+  const { user } = useAuth();
+  
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [settings, setSettings] = useState<GlobalSettings>(defaultSettings);
-  const [showSavedToast, setShowSavedToast] = useState(false);
-  const [emailTouched, setEmailTouched] = useState(false);
 
-  const isEmailValid = React.useMemo(() => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(settings.supportEmail);
-  }, [settings.supportEmail]);
+  // Loading states
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  // Maintenance state
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceUpdating, setMaintenanceUpdating] = useState(false);
+  const [maintenanceSuccess, setMaintenanceSuccess] = useState(false);
+  const [maintenanceError, setMaintenanceError] = useState('');
+
+  // Profile state
+  const [adminName, setAdminName] = useState('');
+  const [profileUpdating, setProfileUpdating] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileError, setProfileError] = useState('');
+
+  // Password state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     // Restore sidebar state
@@ -53,38 +51,144 @@ export default function AdminImpostazioniPage() {
     if (storedSidebar !== null) {
       setSidebarCollapsed(JSON.parse(storedSidebar));
     }
-
-    // Load global settings
-    const storedSettings = localStorage.getItem('iGO_global_settings');
-    if (storedSettings) {
-      try {
-        const parsed = JSON.parse(storedSettings);
-        setSettings({ ...defaultSettings, ...parsed });
-      } catch (e) {
-        console.error('Error parsing global settings', e);
-      }
-    }
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isEmailValid) {
-      setEmailTouched(true);
-      return;
+  useEffect(() => {
+    async function loadData() {
+      if (!user) return;
+
+      try {
+        setProfileLoading(true);
+        const { data: profileData, error: profileErr } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+
+        if (profileErr) throw profileErr;
+        if (profileData) {
+          setAdminName(profileData.name || '');
+        }
+      } catch (e) {
+        console.error('Error fetching admin profile:', e);
+      } finally {
+        setProfileLoading(false);
+      }
+
+      try {
+        setSettingsLoading(true);
+        const { data: settingsData, error: settingsErr } = await supabase
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'maintenance_mode')
+          .maybeSingle();
+
+        if (settingsErr) throw settingsErr;
+        if (settingsData && settingsData.value) {
+          setMaintenanceMode(!!settingsData.value.active);
+        }
+      } catch (e) {
+        console.error('Error fetching platform settings:', e);
+      } finally {
+        setSettingsLoading(false);
+      }
     }
-    localStorage.setItem('iGO_global_settings', JSON.stringify(settings));
-    setShowSavedToast(true);
-    setTimeout(() => {
-      setShowSavedToast(false);
-    }, 3000);
+
+    loadData();
+  }, [user]);
+
+  // Maintenance Save Handler
+  const handleSaveMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMaintenanceUpdating(true);
+    setMaintenanceSuccess(false);
+    setMaintenanceError('');
+
+    try {
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({
+          key: 'maintenance_mode',
+          value: { active: maintenanceMode },
+        });
+
+      if (error) throw error;
+      setMaintenanceSuccess(true);
+      setTimeout(() => setMaintenanceSuccess(false), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setMaintenanceError(err.message || 'Errore durante il salvataggio dello stato.');
+    } finally {
+      setMaintenanceUpdating(false);
+    }
   };
 
-  const handleChange = (field: keyof GlobalSettings, value: any) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  // Profile Save Handler
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    if (!adminName.trim()) {
+      setProfileError('Il nome non può essere vuoto.');
+      return;
+    }
+
+    setProfileUpdating(true);
+    setProfileSuccess(false);
+    setProfileError('');
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: adminName.trim() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setProfileError(err.message || "Errore durante l'aggiornamento del profilo.");
+    } finally {
+      setProfileUpdating(false);
+    }
   };
+
+  // Password Save Handler
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess(false);
+
+    if (newPassword.length < 6) {
+      setPasswordError('La password deve contenere almeno 6 caratteri.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Le password non coincidono.');
+      return;
+    }
+
+    setPasswordUpdating(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+      setPasswordSuccess(true);
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setPasswordError(err.message || "Errore durante l'aggiornamento della password.");
+    } finally {
+      setPasswordUpdating(false);
+    }
+  };
+
+  const pageLoading = profileLoading && settingsLoading;
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -104,9 +208,9 @@ export default function AdminImpostazioniPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-foreground text-base">Admin</span>
-              <span className="text-muted-foreground text-sm">/ Impostazioni</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
+              <span className="text-muted-foreground text-sm truncate">/ Impostazioni</span>
             </div>
           }
         />
@@ -114,236 +218,215 @@ export default function AdminImpostazioniPage() {
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
             {/* Header */}
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Impostazioni Globali</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Configura i parametri di funzionamento della piattaforma e del portale admin.
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
+                <Settings2 size={20} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Impostazioni Piattaforma</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Gestisci lo stato globale della piattaforma e la sicurezza del tuo account amministratore.
+                </p>
+              </div>
             </div>
 
-            {/* Toast feedback */}
-            {showSavedToast && (
-              <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 text-foreground px-4 py-3 rounded-xl flex items-center gap-2 animate-in fade-in duration-200">
-                <Check size={18} className="text-[var(--success)]" />
-                <span className="text-sm font-semibold">Impostazioni salvate con successo!</span>
+            {pageLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-muted-foreground">Caricamento impostazioni...</p>
               </div>
-            )}
-
-            <form onSubmit={handleSave} className="space-y-6">
-              {/* Box 1: Platform identity */}
-              <div className="bg-card rounded-2xl border border-border p-6 space-y-4 shadow-card">
-                <h3 className="text-base font-bold text-foreground">Identità della Piattaforma</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-300">
-                      Slogan Piattaforma
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.slogan}
-                      onChange={(e) => handleChange('slogan', e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                      placeholder="Slogan visibile in homepage"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Box 2: Fatturazione & Abbonamento */}
-              <div className="bg-card rounded-2xl border border-border p-6 space-y-4 shadow-card">
-                <h3 className="text-base font-bold text-foreground">Fatturazione & Abbonamento</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-300">
-                      Periodo di Prova (giorni)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={settings.trialPeriodDays}
-                      onChange={(e) =>
-                        handleChange('trialPeriodDays', parseInt(e.target.value, 10) || 0)
-                      }
-                      className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-300">
-                      Valuta Predefinita
-                    </label>
-                    <select
-                      value={settings.defaultCurrency}
-                      onChange={(e) => handleChange('defaultCurrency', e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground"
-                    >
-                      <option value="EUR">EUR (€)</option>
-                      <option value="USD">USD ($)</option>
-                      <option value="GBP">GBP (£)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Box 3: Servizi & Integrazioni (API) */}
-              <div className="bg-card rounded-2xl border border-border p-6 space-y-6 shadow-card">
-                <h3 className="text-base font-bold text-foreground">Servizi & Integrazioni (API)</h3>
-
-                {/* Map Provider Integration */}
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-bold text-foreground">Provider Mappe & Geocodifica</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Seleziona il provider per il calcolo delle distanze e la visualizzazione delle mappe.
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Provider Mappe
-                      </label>
-                      <select
-                        value={settings.mapProvider}
-                        onChange={(e) => handleChange('mapProvider', e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground"
-                      >
-                        <option value="google">Google Maps</option>
-                        <option value="mapbox">Mapbox</option>
-                        <option value="openstreetmap">OpenStreetMap</option>
-                      </select>
+            ) : (
+              <div className="space-y-8">
+                {/* 1. System Maintenance Card */}
+                <form onSubmit={handleSaveMaintenance} className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <Shield className="text-primary" size={18} />
+                      <h3 className="text-base font-bold text-foreground">Stato della Piattaforma</h3>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Access Token / API Key
-                      </label>
-                      <input
-                        type="text"
-                        value={settings.mapApiKey || ''}
-                        onChange={(e) => handleChange('mapApiKey', e.target.value)}
-                        placeholder="Inserisci la chiave API"
-                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Box 3: Support contacts */}
-              <div className="bg-card rounded-2xl border border-border p-6 space-y-4 shadow-card">
-                <h3 className="text-base font-bold text-foreground">Supporto & Assistenza</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-300">Email di Supporto</label>
-                    <input
-                      type="email"
-                      value={settings.supportEmail}
-                      onChange={(e) => handleChange('supportEmail', e.target.value)}
-                      onBlur={() => setEmailTouched(true)}
-                      className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                    />
-                    {emailTouched && settings.supportEmail && !isEmailValid && (
-                      <p className="text-xs text-red-500 font-semibold mt-1">
-                        Inserisci un indirizzo email valido.
-                      </p>
+                    {maintenanceSuccess && (
+                      <span className="text-xs font-semibold text-[var(--success)] flex items-center gap-1 animate-fade-in">
+                        <Check size={14} /> Salvato
+                      </span>
                     )}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-300">
-                      Telefono Assistenza
-                    </label>
-                    <input
-                      type="text"
-                      value={settings.supportPhone}
-                      onChange={(e) => handleChange('supportPhone', e.target.value.replace(/[^\d+]/g, ''))}
-                      className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              {/* Box 4: System Toggles */}
-              <div className="bg-card rounded-2xl border border-border p-6 space-y-4 shadow-card">
-                <h3 className="text-base font-bold text-foreground">Stato del Sistema</h3>
-                <div className="space-y-4">
-                  {/* Toggle 1: Allow Registrations */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4 py-2">
                     <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Registrazione Nuovi Ristoranti
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Consenti ai nuovi ristoratori di auto-registrarsi sulla piattaforma.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleChange('allowRegistrations', !settings.allowRegistrations)
-                      }
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${settings.allowRegistrations ? 'bg-primary' : 'bg-muted'}`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings.allowRegistrations ? 'translate-x-5' : 'translate-x-0'}`}
-                      />
-                    </button>
-                  </div>
-
-                  <div className="border-t border-border my-2" />
-
-                  {/* Toggle 2: Maintenance mode */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Modalità Manutenzione
-                        {settings.maintenanceMode && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wide">
+                        {maintenanceMode && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wide">
                             Attiva
                           </span>
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Mette offline l&apos;intera applicazione per gli utenti finali eccetto gli
-                        admin.
+                        Mette offline la piattaforma per gli utenti finali. Gli admin mantengono l&apos;accesso per gestione.
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleChange('maintenanceMode', !settings.maintenanceMode)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${settings.maintenanceMode ? 'bg-amber-500' : 'bg-muted'}`}
+                      onClick={() => setMaintenanceMode(!maintenanceMode)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500/40 ${
+                        maintenanceMode ? 'bg-amber-500' : 'bg-muted'
+                      }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings.maintenanceMode ? 'translate-x-5' : 'translate-x-0'}`}
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          maintenanceMode ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                       />
                     </button>
                   </div>
-                </div>
-              </div>
 
-              {/* Maintenance warning */}
-              {settings.maintenanceMode && (
-                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 px-4 py-3 rounded-xl flex items-start gap-2.5">
-                  <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                  <div className="text-xs">
-                    <p className="font-semibold">La modalità manutenzione è abilitata!</p>
-                    <p className="mt-0.5 text-amber-500/80 leading-relaxed">
-                      I clienti visualizzeranno una schermata di avviso e non potranno effettuare
-                      ordini o prenotazioni finché questa opzione non verrà disattivata.
-                    </p>
+                  {maintenanceMode && (
+                    <div className="bg-amber-500/10 border border-amber-500/25 text-amber-500 px-4 py-3 rounded-xl flex items-start gap-2.5">
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                      <div className="text-xs leading-relaxed">
+                        <p className="font-bold">Attenzione: la piattaforma è offline per gli utenti</p>
+                        <p className="mt-0.5 text-amber-500/80">
+                          I clienti e i ristoratori visualizzeranno una schermata di cortesia &quot;Lavori in corso&quot;.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {maintenanceError && (
+                    <p className="text-xs text-red-500 font-semibold">{maintenanceError}</p>
+                  )}
+
+                  <div className="flex items-center justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={maintenanceUpdating}
+                      className="flex items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-primary-hover transition-all duration-150 active:scale-95 disabled:opacity-50"
+                    >
+                      <Save size={14} />
+                      {maintenanceUpdating ? 'Salvataggio...' : 'Salva Stato'}
+                    </button>
                   </div>
-                </div>
-              )}
+                </form>
 
-              {/* Save Button */}
-              <div className="flex items-center justify-end pt-4 border-t border-border">
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-all duration-150 active:scale-95"
-                >
-                  <Save size={16} />
-                  Salva Impostazioni
-                </button>
+                {/* 2. Admin Profile Details Card */}
+                <form onSubmit={handleUpdateProfile} className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <User className="text-primary" size={18} />
+                      <h3 className="text-base font-bold text-foreground">Profilo Amministratore</h3>
+                    </div>
+                    {profileSuccess && (
+                      <span className="text-xs font-semibold text-[var(--success)] flex items-center gap-1 animate-fade-in">
+                        <Check size={14} /> Salvato
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Read-only Email Field */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                        <Mail size={12} className="text-zinc-500" />
+                        Email Account (non modificabile)
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        value={user?.email || ''}
+                        className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-xl text-sm text-muted-foreground cursor-not-allowed select-none"
+                      />
+                    </div>
+
+                    {/* Editable Name Field */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-300">
+                        Nome dell&apos;Amministratore
+                      </label>
+                      <input
+                        type="text"
+                        value={adminName}
+                        onChange={(e) => setAdminName(e.target.value)}
+                        placeholder="Es. Mario Rossi"
+                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {profileError && (
+                    <p className="text-xs text-red-500 font-semibold">{profileError}</p>
+                  )}
+
+                  <div className="flex items-center justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={profileUpdating}
+                      className="flex items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-primary-hover transition-all duration-150 active:scale-95 disabled:opacity-50"
+                    >
+                      <Save size={14} />
+                      {profileUpdating ? 'Aggiornamento...' : 'Aggiorna Profilo'}
+                    </button>
+                  </div>
+                </form>
+
+                {/* 3. Admin Password Security Card */}
+                <form onSubmit={handleUpdatePassword} className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <Lock className="text-primary" size={18} />
+                      <h3 className="text-base font-bold text-foreground">Sicurezza Account</h3>
+                    </div>
+                    {passwordSuccess && (
+                      <span className="text-xs font-semibold text-[var(--success)] flex items-center gap-1 animate-fade-in">
+                        <Check size={14} /> Password Aggiornata
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-300">
+                        Nuova Password
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Almeno 6 caratteri"
+                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-300">
+                        Conferma Nuova Password
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Ripeti la password"
+                        className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {passwordError && (
+                    <p className="text-xs text-red-500 font-semibold">{passwordError}</p>
+                  )}
+
+                  <div className="flex items-center justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={passwordUpdating}
+                      className="flex items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-primary-hover transition-all duration-150 active:scale-95 disabled:opacity-50"
+                    >
+                      <Save size={14} />
+                      {passwordUpdating ? 'Aggiornamento...' : 'Aggiorna Password'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
           </div>
         </main>
       </div>

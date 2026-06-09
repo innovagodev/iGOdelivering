@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Layers,
   Tag,
+  ExternalLink,
 } from 'lucide-react';
 
 import { RestaurantInfo, DeliveryZone, DayHours, MenuItemWizardDraft, PromoCode } from '@/types';
@@ -21,6 +22,10 @@ interface ReviewStepProps {
   menuCategories: string[];
   promos?: PromoCode[];
   handlePublish: () => void;
+  handleSaveDraft: () => void;
+  isSavedDraft: boolean;
+  previewUrl: string;
+  restaurantStatus: 'draft' | 'published';
 }
 
 interface SummaryCardProps {
@@ -61,6 +66,10 @@ export default function ReviewStep({
   menuCategories,
   promos,
   handlePublish,
+  handleSaveDraft,
+  isSavedDraft,
+  previewUrl,
+  restaurantStatus,
 }: ReviewStepProps) {
   const activeZones = zones.filter((z) => z.enabled);
   const openDays = Object.values(hours).filter((h) => h.open).length;
@@ -173,27 +182,56 @@ export default function ReviewStep({
         </div>
       )}
 
-      {/* Publish CTA */}
-      <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-2xl p-6 space-y-4">
-        <div className="flex items-start gap-4">
-          <div className="w-11 h-11 rounded-full bg-[var(--success)] text-white flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 size={22} />
-          </div>
+      {/* Draft and Publish Actions */}
+      <div className="bg-muted/30 border border-border rounded-2xl p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
           <div>
-            <p className="text-base font-bold text-foreground">Tutto pronto!</p>
-            <p className="text-sm text-muted-foreground mt-0.5 max-w-sm">
-              Pubblicando il ristorante, verranno generate le credenziali per il proprietario e la
-              vetrina sarà accessibile ai clienti.
+            <h4 className="text-sm font-bold text-foreground">Stato di Salvataggio</h4>
+            <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+              Salva come bozza per generare il link e vedere l'anteprima, oppure pubblica per andare online.
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                isSavedDraft
+                  ? 'bg-neutral-100 dark:bg-neutral-900 text-muted-foreground border border-border'
+                  : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${isSavedDraft ? 'bg-muted-foreground' : 'bg-orange-500 animate-pulse'}`} />
+              {isSavedDraft ? `Bozza Salvata` : 'Non Salvato'}
+            </span>
+
+            {isSavedDraft && (
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary hover:bg-muted border border-border text-foreground rounded-full text-xs font-semibold transition-colors"
+              >
+                <ExternalLink size={12} />
+                Visualizza Anteprima
+              </a>
+            )}
+          </div>
         </div>
-        <button
-          onClick={handlePublish}
-          className="w-full bg-primary text-white py-3.5 rounded-xl font-bold hover:bg-primary/90 active:scale-[.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-        >
-          Pubblica Ristorante
-          <ArrowRight size={17} />
-        </button>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleSaveDraft}
+            className="flex-1 bg-secondary text-foreground hover:bg-muted border border-border py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+          >
+            Salva Bozza
+          </button>
+          <button
+            onClick={handlePublish}
+            className="flex-1 bg-primary text-white py-3.5 rounded-xl font-bold hover:bg-primary/90 active:scale-[.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+          >
+            Pubblica Ristorante
+            <ArrowRight size={17} />
+          </button>
+        </div>
       </div>
     </div>
   );

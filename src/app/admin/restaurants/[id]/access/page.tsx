@@ -164,18 +164,20 @@ export default function RestaurantAccessPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href="/admin/restaurants"
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
+                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium flex-shrink-0"
               >
-                <ArrowLeft size={16} />
-                Ristoranti
+                <ArrowLeft size={15} />
+                <span className="hidden md:inline">Ristoranti</span>
               </Link>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-sm font-semibold text-foreground">Pizzeria Bella Napoli</span>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-sm text-muted-foreground">Accessi</span>
+              <span className="text-muted-foreground flex-shrink-0">/</span>
+              <span className="text-sm font-semibold text-foreground truncate max-w-[80px] sm:max-w-[200px] md:max-w-none">
+                Pizzeria Bella Napoli
+              </span>
+              <span className="text-muted-foreground flex-shrink-0 hidden sm:inline">/</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline flex-shrink-0">Accessi</span>
             </div>
           }
         />
@@ -191,7 +193,7 @@ export default function RestaurantAccessPage() {
               </div>
               <button
                 onClick={() => setShowAddUser(true)}
-                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all active:scale-95"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all active:scale-95"
               >
                 <Plus size={16} />
                 Aggiungi Utente
@@ -300,7 +302,7 @@ export default function RestaurantAccessPage() {
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     onClick={addUser}
-                    className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all"
+                    className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all"
                   >
                     <Key size={14} />
                     Crea accesso e genera password

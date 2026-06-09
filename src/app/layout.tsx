@@ -4,6 +4,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google';
 import '../styles/globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import LenisProvider from '@/components/layout/LenisProvider';
+import MaintenanceWrapper from '@/components/layout/MaintenanceWrapper';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="it" className={plusJakartaSans.variable} suppressHydrationWarning>
       <body className={plusJakartaSans.className} suppressHydrationWarning>
         <AuthProvider>
-          <LenisProvider>{children}</LenisProvider>
+          <MaintenanceWrapper>
+            <LenisProvider>{children}</LenisProvider>
+          </MaintenanceWrapper>
         </AuthProvider>
       </body>
     </html>

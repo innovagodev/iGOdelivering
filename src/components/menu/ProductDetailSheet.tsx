@@ -1,5 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Check, ChevronDown } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Minus,
+  Check,
+  ChevronDown,
+  Leaf,
+  Flame,
+  Wheat,
+  Sparkles,
+  Star,
+  Milk,
+  Heart,
+  Fish,
+  Apple,
+  Coffee,
+  Wine,
+  Pizza
+} from 'lucide-react';
 import AppImage from '@/components/ui/AppImage';
 
 export interface OptionChoice {
@@ -32,6 +50,8 @@ export interface MenuItemType {
   dishTags?: string[];
   ingredients?: string[];
   optionGroups?: OptionGroup[];
+  customizationEnabled?: boolean;
+  notesEnabled?: boolean;
 }
 
 export interface CartItem extends MenuItemType {
@@ -40,6 +60,7 @@ export interface CartItem extends MenuItemType {
   cartId?: string;
   addedIngredients?: { name: string; price: number }[];
   removedIngredients?: string[];
+  selectedOptions?: any[];
 }
 
 interface ProductDetailSheetProps {
@@ -56,20 +77,102 @@ interface ProductDetailSheetProps {
   disabled?: boolean;
 }
 
+const getCleanTagLabel = (tag: string) => {
+  if (tag.includes(':')) {
+    return tag.split(':').slice(1).join(':').trim();
+  }
+  // Strip emojis
+  return tag.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+};
+
 const getTagStyle = (tag: string) => {
-  if (tag.includes('🌱') || tag.toLowerCase().includes('vegan') || tag.toLowerCase().includes('vegetar')) {
-    return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/40';
+  let iconName = '';
+  if (tag.includes(':')) {
+    iconName = tag.split(':')[0].trim().toLowerCase();
+  } else {
+    const t = tag.toLowerCase();
+    if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+      iconName = 'leaf';
+    } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+      iconName = 'flame';
+    } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
+      iconName = 'wheat';
+    } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+      iconName = 'sparkles';
+    } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+      iconName = 'star';
+    } else if (t.includes('lattosio') || tag.includes('🥛')) {
+      iconName = 'milk';
+    }
   }
-  if (tag.includes('🌶️') || tag.includes('🔥') || tag.toLowerCase().includes('piccant')) {
-    return 'bg-rose-500/10 text-rose-700 border-rose-500/20 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/40';
+
+  if (iconName === 'leaf') {
+    return 'text-emerald-600 dark:text-emerald-400';
   }
-  if (tag.includes('🆕') || tag.toLowerCase().includes('nuov')) {
-    return 'bg-blue-500/10 text-blue-700 border-blue-500/20 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800/40';
+  if (iconName === 'flame') {
+    return 'text-rose-600 dark:text-rose-400';
   }
-  if (tag.includes('⭐') || tag.includes('👑') || tag.toLowerCase().includes('special') || tag.toLowerCase().includes('consigliat')) {
-    return 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/40';
+  if (iconName === 'wheat') {
+    return 'text-amber-600 dark:text-amber-400';
   }
-  return 'bg-slate-500/10 text-slate-700 border-slate-500/20 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/40';
+  if (iconName === 'sparkles') {
+    return 'text-blue-600 dark:text-blue-400';
+  }
+  if (iconName === 'star') {
+    return 'text-amber-600 dark:text-amber-400';
+  }
+  return 'text-slate-500 dark:text-slate-450';
+};
+
+const getTagIcon = (tag: string) => {
+  let iconName: string | null = null;
+  if (tag.includes(':')) {
+    iconName = tag.split(':')[0].trim().toLowerCase();
+  } else {
+    const t = tag.toLowerCase();
+    if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+      iconName = 'leaf';
+    } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+      iconName = 'flame';
+    } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
+      iconName = 'wheat';
+    } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+      iconName = 'sparkles';
+    } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+      iconName = 'star';
+    } else if (t.includes('lattosio') || tag.includes('🥛')) {
+      iconName = 'milk';
+    }
+  }
+
+  switch (iconName) {
+    case 'leaf':
+      return <Leaf size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'flame':
+      return <Flame size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'wheat':
+      return <Wheat size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'sparkles':
+      return <Sparkles size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'star':
+      return <Star size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'milk':
+      return <Milk size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'heart':
+      return <Heart size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'fish':
+      return <Fish size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'apple':
+      return <Apple size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'coffee':
+      return <Coffee size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'wine':
+      return <Wine size={12} className="shrink-0" strokeWidth={2.5} />;
+    case 'pizza':
+      return <Pizza size={12} className="shrink-0" strokeWidth={2.5} />;
+    default:
+      return null;
+  }
 };
 
 export default function ProductDetailSheet({
@@ -158,12 +261,6 @@ export default function ProductDetailSheet({
     });
   };
 
-  const handleQuickTag = (tag: string) => {
-    setNote((prev) => {
-      if (prev.includes(tag)) return prev;
-      return prev ? `${prev}, ${tag}` : tag;
-    });
-  };
 
   const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0);
   const totalPrice = unitPrice * qty;
@@ -174,6 +271,7 @@ export default function ProductDetailSheet({
 
   // Validation
   const getValidationError = () => {
+    if (item.customizationEnabled === false) return null;
     if (!item.optionGroups) return null;
     for (const group of item.optionGroups) {
       const min = group.minSelections ?? 0;
@@ -238,15 +336,20 @@ export default function ProductDetailSheet({
               </p>
             )}
             {item.dishTags && item.dishTags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1 mt-0.5 animate-in fade-in duration-200">
-                {item.dishTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className={`inline-flex items-center text-[10px] font-extrabold border rounded px-2 py-0.5 shadow-sm ${getTagStyle(tag)}`}
-                  >
-                    {tag}
-                  </span>
-                ))}
+              <div className="flex flex-wrap gap-2 mb-1 mt-0.5 animate-in fade-in duration-200">
+                {item.dishTags.map((tag) => {
+                  const icon = getTagIcon(tag);
+                  const label = getCleanTagLabel(tag);
+                  return (
+                    <span
+                      key={tag}
+                      className={`inline-flex items-center gap-1 text-[10px] font-bold ${getTagStyle(tag)}`}
+                    >
+                      {icon}
+                      <span>{label}</span>
+                    </span>
+                  );
+                })}
               </div>
             )}
             <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
@@ -270,7 +373,7 @@ export default function ProductDetailSheet({
           </div>
 
           {/* Removes / Exclusions (Ingredients driven) */}
-          {item.ingredients && item.ingredients.length > 0 && (
+          {item.customizationEnabled !== false && item.ingredients && item.ingredients.length > 0 && (
             <div className="space-y-3">
               <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
                 Rimuovi Ingredienti (Opzionale)
@@ -312,7 +415,7 @@ export default function ProductDetailSheet({
           )}
 
           {/* Dynamic Option Groups */}
-          {item.optionGroups && item.optionGroups.length > 0 && (() => {
+          {item.customizationEnabled !== false && item.optionGroups && item.optionGroups.length > 0 && (() => {
             const mandatoryGroups = item.optionGroups.filter((g) => (g.minSelections ?? 0) > 0);
             const optionalGroups = item.optionGroups
               .filter((g) => (g.minSelections ?? 0) === 0)
@@ -552,30 +655,19 @@ export default function ProductDetailSheet({
           })()}
 
           {/* Notes Input */}
-          <div className="space-y-2.5">
-            <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
-              Note per la cucina
-            </h5>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Es. Ben cotto, salsa a parte, allergia alle arachidi..."
-              className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-20 resize-none leading-relaxed"
-            />
-            {/* Quick tags */}
-            <div className="flex flex-wrap gap-1.5">
-              {['Molto piccante', 'Senza sale', 'Ben cotto', 'Salsa a parte'].map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleQuickTag(tag)}
-                  className="text-[9px] bg-muted hover:bg-border text-muted-foreground hover:text-foreground font-semibold px-2 py-1 rounded-lg transition-colors border border-border/40"
-                >
-                  +{tag}
-                </button>
-              ))}
+          {item.notesEnabled !== false && (
+            <div className="space-y-2.5">
+              <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                Note per la cucina
+              </h5>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Es. Ben cotto, salsa a parte, allergia alle arachidi..."
+                className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-20 resize-none leading-relaxed"
+              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer actions */}
@@ -598,7 +690,7 @@ export default function ProductDetailSheet({
               </span>
               <button
                 onClick={() => setQty((q) => q + 1)}
-                className="w-8 h-8 rounded-lg bg-primary text-white hover:bg-[#d43d22] flex items-center justify-center transition-colors shadow-sm active:scale-90"
+                className="w-8 h-8 rounded-lg bg-primary text-white hover:bg-primary-hover flex items-center justify-center transition-colors shadow-sm active:scale-90"
               >
                 <Plus size={14} strokeWidth={2.5} />
               </button>
@@ -608,7 +700,7 @@ export default function ProductDetailSheet({
               id="add-to-cart-confirm-btn"
               onClick={handleConfirm}
               disabled={isConfirmDisabled}
-              className="flex-1 py-3 bg-primary hover:bg-[#d43d22] text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-primary hover:bg-primary-hover text-white text-xs font-extrabold rounded-xl transition-all duration-150 active:scale-[0.98] shadow-md shadow-primary/10 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>
                 {disabled

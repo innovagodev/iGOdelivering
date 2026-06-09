@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
+import { useOrders } from '@/hooks/useOrders';
+import { supabase } from '@/lib/supabase';
 
 type OrderStatus = 'pending' | 'accepted' | 'completed';
 
@@ -162,7 +164,7 @@ export default function LiveOrderKanban() {
   const { user } = useAuth();
   const restaurantId = user?.restaurantId || 'r-001';
 
-  const [orders, setOrders] = useState<any[]>([]);
+  const { orders, updateOrderStatus, loading } = useOrders(restaurantId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'delivery' | 'takeaway' | 'table'>('all');
@@ -299,101 +301,33 @@ export default function LiveOrderKanban() {
   }, [orders, soundEnabled]);
 
   const mapFlatOrder = (o: any): LiveOrder => {
-    const mins = Math.max(0, Math.floor((Date.now() - new Date(o.timestamp || o.createdAt).getTime()) / 60000));
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(o.created_at || o.timestamp || o.createdAt).getTime()) / 60000));
     
     // Map array of items
-    const items = Array.isArray(o.items) ? o.items.map((i: any) => ({
-      name: i.name,
-      qty: i.qty || 1,
-    })) : [];
+    const items = Array.isArray(o.order_items)
+      ? o.order_items.map((i: any) => ({
+          name: i.name,
+          qty: i.qty || 1,
+        }))
+      : (Array.isArray(o.items)
+          ? o.items.map((i: any) => ({
+              name: i.name,
+              qty: i.qty || 1,
+            }))
+          : []);
 
     return {
       id: o.id || 'ord-unknown',
-      customer: o.customerName || (o.customer && o.customer.name) || o.email || 'Cliente',
+      customer: o.customer_name || o.customerName || (o.customer && o.customer.name) || o.email || 'Cliente',
       items,
-      total: o.total || 0,
+      total: parseFloat(o.total) || 0,
       type: o.type === 'domicilio' ? 'delivery' : o.type === 'asporto' ? 'takeaway' : 'table',
       minutesAgo: mins,
-      timestamp: o.timestamp || o.createdAt || new Date().toISOString(),
-      address: o.customer && o.customer.address ? o.customer.address : o.address,
-      tableNumber: o.tableNumber,
+      timestamp: o.created_at || o.timestamp || o.createdAt || new Date().toISOString(),
+      address: o.customer_address || (o.customer && o.customer.address) || o.address || '',
+      tableNumber: o.table_number || o.tableNumber,
       isBookingPreOrder: o.type === 'prenotazione_tavolo' || (o.id && o.id.startsWith('PRE-')),
     };
-  };
-
-  useEffect(() => {
-    const loadAndMapOrders = () => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setOrders(parsed);
-          } else {
-            // Grouped object format migration if present
-            const flatList: any[] = [];
-            const grouped = parsed as any;
-            if (grouped.pending) {
-              grouped.pending.forEach((o: any) => flatList.push({ ...o, status: 'new' }));
-            }
-            if (grouped.accepted) {
-              grouped.accepted.forEach((o: any) => flatList.push({ ...o, status: 'accepted' }));
-            }
-            if (grouped.completed) {
-              grouped.completed.forEach((o: any) => flatList.push({ ...o, status: 'completed' }));
-            }
-            setOrders(flatList);
-            localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(flatList));
-          }
-        } else {
-          // Initialize mock orders as a flat list
-          const flatList: any[] = [];
-          Object.entries(initialOrders).forEach(([colKey, items]) => {
-            items.forEach((item) => {
-              flatList.push({
-                id: item.id,
-                customerName: item.customer,
-                items: item.items,
-                total: item.total,
-                type: item.type === 'delivery' ? 'domicilio' : item.type === 'takeaway' ? 'asporto' : 'tavolo',
-                timestamp: new Date(Date.now() - item.minutesAgo * 60000).toISOString(),
-                customer: {
-                  name: item.customer,
-                  email: 'mock@example.com',
-                  phone: '123',
-                  address: item.address || '',
-                },
-                tableNumber: item.tableNumber,
-                status: colKey === 'pending' ? 'new' : colKey === 'accepted' ? 'accepted' : 'completed',
-              });
-            });
-          });
-          setOrders(flatList);
-          localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(flatList));
-          window.dispatchEvent(new Event('iGO_orders_updated'));
-        }
-      } catch (e) {
-        console.error('Error reading/migrating orders:', e);
-      }
-    };
-
-    loadAndMapOrders();
-
-    // Listen for order updates (checkout or other panels)
-    window.addEventListener('iGO_orders_updated', loadAndMapOrders);
-    return () => {
-      window.removeEventListener('iGO_orders_updated', loadAndMapOrders);
-    };
-  }, [restaurantId]);
-
-  const updateOrdersInStorage = (updatedList: any[]) => {
-    setOrders(updatedList);
-    try {
-      localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(updatedList));
-      window.dispatchEvent(new Event('iGO_orders_updated'));
-    } catch (e) {
-      console.error('Error writing orders:', e);
-    }
   };
 
   const showToast = (message: string, type: 'success' | 'danger') => {
@@ -402,29 +336,37 @@ export default function LiveOrderKanban() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   };
 
-  const acceptOrder = (orderId: string) => {
+  const acceptOrder = async (orderId: string) => {
     const found = orders.find((o) => o.id === orderId);
     if (!found) return;
-    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: 'accepted' } : o));
-    updateOrdersInStorage(updated);
-    showToast(`Ordine ${orderId} di ${found.customerName || 'Cliente'} accettato`, 'success');
+    try {
+      await updateOrderStatus(orderId, 'preparing');
+      showToast(`Ordine ${orderId} di ${found.customer_name || found.customerName || 'Cliente'} accettato`, 'success');
+    } catch (e) {
+      showToast(`Errore durante l'accettazione dell'ordine`, 'danger');
+    }
   };
 
-  const completeOrder = (orderId: string) => {
+  const completeOrder = async (orderId: string) => {
     const found = orders.find((o) => o.id === orderId);
     if (!found) return;
-    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: 'completed' } : o));
-    updateOrdersInStorage(updated);
-    showToast(`Ordine ${orderId} completato`, 'success');
+    try {
+      await updateOrderStatus(orderId, 'delivered');
+      showToast(`Ordine ${orderId} completato`, 'success');
+    } catch (e) {
+      showToast(`Errore durante il completamento dell'ordine`, 'danger');
+    }
   };
 
-  const rejectOrder = (status: OrderStatus, orderId: string) => {
+  const rejectOrder = async (status: OrderStatus, orderId: string) => {
     const found = orders.find((o) => o.id === orderId);
     if (!found) return;
-    // Mark as rejected so the storefront can detect the status change
-    const updated = orders.map((o) => (o.id === orderId ? { ...o, status: 'rejected' } : o));
-    updateOrdersInStorage(updated);
-    showToast(`Ordine ${orderId} rifiutato`, 'danger');
+    try {
+      await updateOrderStatus(orderId, 'cancelled');
+      showToast(`Ordine ${orderId} rifiutato`, 'danger');
+    } catch (e) {
+      showToast(`Errore durante il rifiuto dell'ordine`, 'danger');
+    }
   };
 
   const filteredOrders = (colKey: OrderStatus) => {
@@ -432,7 +374,7 @@ export default function LiveOrderKanban() {
       .filter((o) => {
         const orderStatus = o.status;
         if (colKey === 'pending') return orderStatus === 'new' || orderStatus === 'pending';
-        if (colKey === 'accepted') return orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'delivering';
+        if (colKey === 'accepted') return orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'ready' || orderStatus === 'delivering';
         if (colKey === 'completed') return orderStatus === 'completed' || orderStatus === 'delivered';
         return false;
       })

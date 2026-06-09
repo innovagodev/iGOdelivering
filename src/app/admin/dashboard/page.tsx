@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
+import { supabase } from '@/lib/supabase';
 import {
   Store,
   ShoppingBag,
@@ -30,57 +31,19 @@ import {
 } from 'recharts';
 
 // Mock data for the charts
-const orderTrendData = [
-  { name: 'Lun', ordini: 65, ricavi: 1200 },
-  { name: 'Mar', ordini: 78, ricavi: 1450 },
-  { name: 'Mer', ordini: 82, ricavi: 1600 },
-  { name: 'Gio', ordini: 74, ricavi: 1380 },
-  { name: 'Ven', ordini: 95, ricavi: 1980 },
-  { name: 'Sab', ordini: 120, ricavi: 2500 },
-  { name: 'Dom', ordini: 110, ricavi: 2200 },
-];
-
-const topRestaurants = [
-  { name: 'Pizzeria Bella Napoli', ordini: 184, ricavi: 3680 },
-  { name: 'Trattoria da Mario', ordini: 112, ricavi: 2240 },
-  { name: 'Osteria del Porto', ordini: 95, ricavi: 1900 },
-  { name: 'Sushi Zen', ordini: 87, ricavi: 2610 },
-];
-
-const recentActivities = [
-  {
-    id: 1,
-    type: 'new_restaurant',
-    text: 'Nuovo ristorante "Sushi Zen" registrato con successo.',
-    time: '10 minuti fa',
-    meta: 'Milano',
-  },
-  {
-    id: 2,
-    type: 'order',
-    text: 'Pizzeria Bella Napoli ha registrato 18 ordini nelle ultime 3 ore.',
-    time: '45 minuti fa',
-    meta: 'Napoli',
-  },
-  {
-    id: 3,
-    type: 'status_change',
-    text: "Osteria del Porto è stata sospesa dall'amministratore.",
-    time: '2 ore fa',
-    meta: 'Napoli',
-  },
-  {
-    id: 4,
-    type: 'new_restaurant',
-    text: 'Nuovo ristorante "Trattoria da Mario" registrato con successo.',
-    time: '1 giorno fa',
-    meta: 'Roma',
-  },
-];
-
 export default function AdminDashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [stats, setStats] = useState({
+    activeRestaurants: 0,
+    todayOrders: 0,
+    todayRevenue: 0,
+    newRestaurants: 0,
+    topRestaurants: [] as { name: string; ordini: number; ricavi: number }[],
+    orderTrendData: [] as { name: string; ordini: number; ricavi: number }[],
+    recentActivities: [] as { id: number; type: string; text: string; time: string; meta: string }[],
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Restore sidebar state
@@ -89,6 +52,162 @@ export default function AdminDashboardPage() {
       setSidebarCollapsed(JSON.parse(stored));
     }
   }, []);
+
+  useEffect(() => {
+    async function loadAdminDashboardData() {
+      try {
+        setLoading(true);
+
+        const { data: dbRestaurants, error: restError } = await supabase
+          .from('restaurants')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (restError) throw restError;
+
+        const { data: dbOrders, error: orderError } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (orderError) throw orderError;
+
+        const restaurantsList = dbRestaurants || [];
+        const ordersList = dbOrders || [];
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const activeCount = restaurantsList.filter((r) => r.status === 'published').length;
+
+        const todayOrdersList = ordersList.filter((o) => new Date(o.created_at) >= startOfToday);
+        const todayOrdersCount = todayOrdersList.length;
+
+        const todayRevenueVal = todayOrdersList
+          .filter((o) => o.status !== 'cancelled')
+          .reduce((acc, o) => acc + Number(o.total || 0), 0);
+
+        const newRestaurantsCount = restaurantsList.filter((r) => new Date(r.created_at) >= startOfMonth).length;
+
+        const revenueMap: Record<string, { name: string; ordini: number; ricavi: number }> = {};
+        restaurantsList.forEach((r) => {
+          revenueMap[r.id] = { name: r.name, ordini: 0, ricavi: 0 };
+        });
+
+        ordersList.forEach((o) => {
+          if (o.status === 'cancelled') return;
+          if (revenueMap[o.restaurant_id]) {
+            revenueMap[o.restaurant_id].ordini += 1;
+            revenueMap[o.restaurant_id].ricavi += Number(o.total || 0);
+          }
+        });
+
+        const sortedTop = Object.values(revenueMap)
+          .filter((v) => v.ordini > 0)
+          .sort((a, b) => b.ricavi - a.ricavi)
+          .slice(0, 4);
+
+        const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const daysTrend: { dateStr: string; label: string; ordini: number; ricavi: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          daysTrend.push({
+            dateStr: d.toDateString(),
+            label: dayNames[d.getDay()],
+            ordini: 0,
+            ricavi: 0,
+          });
+        }
+
+        ordersList.forEach((o) => {
+          if (o.status === 'cancelled') return;
+          const orderDate = new Date(o.created_at).toDateString();
+          const dayObj = daysTrend.find((d) => d.dateStr === orderDate);
+          if (dayObj) {
+            dayObj.ricavi += Number(o.total || 0);
+            dayObj.ordini += 1;
+          }
+        });
+
+        const mappedTrend = daysTrend.map((d) => ({
+          name: d.label,
+          ordini: d.ordini,
+          ricavi: Math.round(d.ricavi),
+        }));
+
+        const activities: any[] = [];
+        restaurantsList.slice(0, 4).forEach((r, idx) => {
+          const createdDate = new Date(r.created_at);
+          activities.push({
+            id: idx + 1,
+            type: 'new_restaurant',
+            text: `Nuovo ristorante "${r.name}" registrato con successo.`,
+            time: getRelativeTime(createdDate),
+            meta: r.city || 'Italia',
+            date: createdDate,
+          });
+        });
+
+        ordersList.slice(0, 4).forEach((o, idx) => {
+          const createdDate = new Date(o.created_at);
+          const rest = restaurantsList.find((r) => r.id === o.restaurant_id);
+          activities.push({
+            id: idx + 100,
+            type: 'order',
+            text: `Nuovo ordine registrato per "${rest?.name || 'Ristorante'}" di € ${Number(o.total).toFixed(2)}.`,
+            time: getRelativeTime(createdDate),
+            meta: o.type === 'domicilio' ? 'Domicilio' : (o.type === 'asporto' ? 'Asporto' : 'Tavolo'),
+            date: createdDate,
+          });
+        });
+
+        const sortedActivities = activities
+          .sort((a, b) => b.date.getTime() - a.date.getTime())
+          .slice(0, 4)
+          .map((act, index) => ({
+            id: index + 1,
+            type: act.type,
+            text: act.text,
+            time: act.time,
+            meta: act.meta,
+          }));
+
+        setStats({
+          activeRestaurants: activeCount,
+          todayOrders: todayOrdersCount,
+          todayRevenue: todayRevenueVal,
+          newRestaurants: newRestaurantsCount,
+          topRestaurants: sortedTop,
+          orderTrendData: mappedTrend,
+          recentActivities: sortedActivities,
+        });
+
+      } catch (e) {
+        console.error('Error loading admin dashboard stats:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadAdminDashboardData();
+  }, []);
+
+  function getRelativeTime(date: Date) {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + ' anni fa';
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + ' mesi fa';
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + ' giorni fa';
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + ' ore fa';
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + ' min fa';
+    return 'Pochi sec fa';
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -127,7 +246,7 @@ export default function AdminDashboardPage() {
               </div>
               <Link
                 href="/admin/restaurants/new"
-                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm"
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm"
               >
                 <Plus size={16} />
                 Aggiungi Ristorante
@@ -140,10 +259,10 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Ristoranti Attivi</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">24</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{loading ? '...' : stats.activeRestaurants}</p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
-                    +12% questo mese
+                    Aggiornato live
                   </span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-primary">
@@ -155,10 +274,10 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Ordini di Oggi</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">87</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{loading ? '...' : stats.todayOrders}</p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
-                    +8% rispetto a ieri
+                    Ricevuti oggi
                   </span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
@@ -170,10 +289,10 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Ricavi di Oggi</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">€ 1.845,50</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">€ {loading ? '...' : stats.todayRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
-                    +15% rispetto a ieri
+                    Stima fatturato
                   </span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-[var(--success-bg)] flex items-center justify-center text-[var(--success)]">
@@ -185,7 +304,7 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Nuovi Ristoranti</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">5</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">{loading ? '...' : stats.newRestaurants}</p>
                   <span className="text-xs text-muted-foreground font-medium mt-1 block">
                     Questo mese
                   </span>
@@ -213,7 +332,7 @@ export default function AdminDashboardPage() {
                 <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={orderTrendData}
+                      data={stats.orderTrendData}
                       margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                     >
                       <defs>
@@ -267,34 +386,40 @@ export default function AdminDashboardPage() {
                 <div>
                   <h2 className="text-base font-bold text-foreground">Top Ristoranti</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Per fatturato questa settimana
+                    Per fatturato totale
                   </p>
                 </div>
                 <div className="space-y-4">
-                  {topRestaurants.map((restaurant, idx) => (
-                    <div key={restaurant.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center font-bold text-xs text-foreground">
-                          {idx + 1}
+                  {loading ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">Caricamento...</p>
+                  ) : stats.topRestaurants.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">Nessun dato di vendita disponibile</p>
+                  ) : (
+                    stats.topRestaurants.map((restaurant, idx) => (
+                      <div key={restaurant.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center font-bold text-xs text-foreground">
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {restaurant.ordini} ordini
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {restaurant.ordini} ordini
-                          </p>
-                        </div>
+                        <p className="text-sm font-bold text-foreground">€ {restaurant.ricavi.toFixed(2)}</p>
                       </div>
-                      <p className="text-sm font-bold text-foreground">€ {restaurant.ricavi}</p>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Bottom Row: Recent Activities and Quick Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Bottom Row: Recent Activities */}
+            <div className="grid grid-cols-1 gap-6">
               {/* Recent Activity Feed */}
-              <div className="bg-card rounded-xl border border-border p-5 shadow-card lg:col-span-2 space-y-4">
+              <div className="bg-card rounded-xl border border-border p-5 shadow-card space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Activity size={16} className="text-primary" />
@@ -302,40 +427,28 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="divide-y divide-border">
-                  {recentActivities.map((act) => (
-                    <div
-                      key={act.id}
-                      className="py-3.5 first:pt-0 last:pb-0 flex items-start justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <p className="text-sm text-foreground leading-relaxed">{act.text}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{act.time}</span>
-                          <span>•</span>
-                          <span>{act.meta}</span>
+                  {loading ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">Caricamento...</p>
+                  ) : stats.recentActivities.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">Nessuna attività registrata</p>
+                  ) : (
+                    stats.recentActivities.map((act) => (
+                      <div
+                        key={act.id}
+                        className="py-3.5 first:pt-0 last:pb-0 flex items-start justify-between gap-4"
+                      >
+                        <div className="space-y-1">
+                          <p className="text-sm text-foreground leading-relaxed">{act.text}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{act.time}</span>
+                            <span>•</span>
+                            <span>{act.meta}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-              </div>
-
-              {/* Platform Info / Quick Settings Redirect */}
-              <div className="bg-card rounded-xl border border-border p-5 shadow-card flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <h2 className="text-base font-bold text-foreground">Gestione Piattaforma</h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Puoi gestire e configurare i parametri globali della piattaforma come
-                    commissioni, slogan promozionali e contatti di supporto.
-                  </p>
-                </div>
-                <Link
-                  href="/admin/impostazioni"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-secondary text-foreground hover:bg-muted text-sm font-semibold rounded-xl transition-colors"
-                >
-                  Impostazioni Globali
-                  <ArrowRight size={15} />
-                </Link>
               </div>
             </div>
           </div>

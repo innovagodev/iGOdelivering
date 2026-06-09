@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { PauseCircle, Plus, PlayCircle, Zap, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 import MenuEditorTab from '@/components/ristoratore/menu-management/MenuEditorTab';
 import { MenuItem, MenuItemDraft } from '@/types';
@@ -113,61 +114,119 @@ export default function RistoratoreMenuPage() {
   const restaurantId = user?.restaurantId || 'r-001';
   const slug = slugify(user?.restaurantName || 'Pizzeria Bella Napoli');
 
-  const [items, setItems] = useState<MenuItem[]>(initialMenuItems);
+  const [items, setItems] = useState<MenuItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('igodelivering_auth');
-    let rId = 'r-001';
-    let rName = 'Pizzeria Bella Napoli';
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        rId = parsedUser.restaurantId || 'r-001';
-        rName = parsedUser.restaurantName || 'Pizzeria Bella Napoli';
-      } catch {}
+  const fetchMenuData = async () => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    try {
+      // 1. Fetch categories
+      const { data: dbCats, error: catError } = await supabase
+        .from('menu_categories')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('sort_order', { ascending: true });
+
+      if (catError) throw catError;
+      
+      const categoryNames = dbCats && dbCats.length > 0 
+        ? dbCats.map((c) => c.name) 
+        : DEFAULT_CATEGORIES;
+      setCategories(categoryNames);
+
+      // 2. Fetch items
+      const { data: dbItems, error: itemError } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('sort_order', { ascending: true });
+
+      if (itemError) throw itemError;
+
+      const mappedItems: MenuItem[] = (dbItems || []).map((i: any) => ({
+        id: i.id,
+        name: i.name,
+        category: i.category_name,
+        price: parseFloat(i.price),
+        originalPrice: i.original_price ? parseFloat(i.original_price) : undefined,
+        description: i.description || '',
+        available: !!i.available,
+        image: i.image_url || '',
+        imageAlt: i.image_alt || i.name,
+        allergens: i.allergens || [],
+        dishTags: i.dish_tags || [],
+        ingredients: i.ingredients || [],
+        orders: i.orders_count || 0,
+        visibility: i.visibility || 'always',
+        visibilitySchedule: i.visibility_from && i.visibility_to ? { from: i.visibility_from.slice(0, 5), to: i.visibility_to.slice(0, 5) } : undefined,
+        optionGroups: i.option_groups || [],
+        customizationEnabled: i.customization_enabled !== undefined ? !!i.customization_enabled : true,
+        notesEnabled: i.notes_enabled !== undefined ? !!i.notes_enabled : true,
+      }));
+
+      setItems(mappedItems);
+    } catch (e) {
+      console.error('Error loading menu data from Supabase:', e);
+    } finally {
+      setIsLoaded(true);
     }
-    const slg = slugify(rName);
-    const stored =
-      sessionStorage.getItem(`iGO_menu_items_${slg}`) ||
-      sessionStorage.getItem(`iGO_menu_items_${rId}`) ||
-      localStorage.getItem(`iGO_menu_items_${slg}`) ||
-      localStorage.getItem(`iGO_menu_items_${rId}`);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setItems(parsed);
-        }
-      } catch {}
-    } else {
-      if (!isMockRestaurant(rId) && !isMockRestaurant(slg)) {
-        setItems([]);
-      }
-    }
-    setIsLoaded(true);
-  }, []);
+  };
 
   useEffect(() => {
-    if (!isLoaded) return;
-    sessionStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(items));
-    sessionStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(items));
-    localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(items));
-    localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(items));
-  }, [items, restaurantId, slug, isLoaded]);
+    fetchMenuData();
+  }, [restaurantId]);
 
   const showFeedback = (msg: string) => {
     setBulkActionFeedback(msg);
     setTimeout(() => setBulkActionFeedback(null), 2500);
   };
 
-  const toggleAvailability = (id: string) =>
-    setItems((prev) => prev.map((m) => (m.id === id ? { ...m, available: !m.available } : m)));
-  const removeMenuItem = (id: string) => {
-    setItems((prev) => prev.filter((m) => m.id !== id));
-    showFeedback('Piatto rimosso');
+  const toggleAvailability = async (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ available: !item.available })
+        .eq('id', id);
+      if (error) throw error;
+      setItems((prev) => prev.map((m) => (m.id === id ? { ...m, available: !m.available } : m)));
+    } catch (e) {
+      console.error('Error toggling availability:', e);
+    }
   };
-  const addCategory = (cat: string) => setCategories((p) => (p.includes(cat) ? p : [...p, cat]));
+
+  const removeMenuItem = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      setItems((prev) => prev.filter((m) => m.id !== id));
+      showFeedback('Piatto rimosso');
+    } catch (e) {
+      console.error('Error removing menu item:', e);
+    }
+  };
+
+  const addCategory = async (cat: string) => {
+    if (categories.includes(cat)) return;
+    try {
+      const { error } = await supabase
+        .from('menu_categories')
+        .insert({
+          restaurant_id: restaurantId,
+          name: cat,
+          sort_order: categories.length
+        });
+      if (error) throw error;
+      setCategories((p) => [...p, cat]);
+    } catch (e) {
+      console.error('Error adding category:', e);
+    }
+  };
+
   const toggleCategoryVisibility = (cat: string) =>
     setHiddenCategories((prev) => {
       const n = new Set(prev);
@@ -176,63 +235,97 @@ export default function RistoratoreMenuPage() {
       return n;
     });
 
-  const addMenuItem = (draft: MenuItemDraft) => {
+  const addMenuItem = async (draft: MenuItemDraft) => {
     const isPromoActive = !!draft.originalPrice && parseFloat(draft.originalPrice) > 0;
     const listPrice = parseFloat(draft.price) || 0;
     const promoPrice = isPromoActive ? parseFloat(draft.originalPrice!) : undefined;
 
-    const newItem: MenuItem = {
-      id: `mi-${Date.now()}`,
-      name: draft.name,
-      category: draft.category,
-      price: isPromoActive ? promoPrice! : listPrice,
-      originalPrice: isPromoActive ? listPrice : undefined,
-      description: draft.description,
-      available: draft.available,
-      image: draft.imageUrl,
-      imageAlt: draft.name,
-      allergens: draft.allergens,
-      dishTags: draft.dishTags || [],
-      ingredients: draft.ingredients || [],
-      orders: 0,
-      visibility: draft.visibility,
-      visibilitySchedule: draft.visibilitySchedule,
-      optionGroups: draft.optionGroups,
-    };
-    setItems((p) => [...p, newItem]);
-    setShowAddItem(false);
-    showFeedback(`"${draft.name}" aggiunto`);
+    try {
+      const { data: catData } = await supabase
+        .from('menu_categories')
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+        .eq('name', draft.category)
+        .maybeSingle();
+
+      const { error } = await supabase
+        .from('menu_items')
+        .insert({
+          restaurant_id: restaurantId,
+          category_id: catData?.id || null,
+          category_name: draft.category,
+          name: draft.name,
+          description: draft.description,
+          price: isPromoActive ? promoPrice! : listPrice,
+          original_price: isPromoActive ? listPrice : null,
+          image_url: draft.imageUrl || null,
+          image_alt: draft.name,
+          allergens: draft.allergens,
+          dish_tags: draft.dishTags || [],
+          ingredients: draft.ingredients || [],
+          available: draft.available,
+          visibility: draft.visibility,
+          visibility_from: draft.visibilitySchedule?.from || null,
+          visibility_to: draft.visibilitySchedule?.to || null,
+          option_groups: draft.optionGroups || [],
+          customization_enabled: draft.customizationEnabled ?? true,
+          notes_enabled: draft.notesEnabled ?? true,
+        });
+
+      if (error) throw error;
+      setShowAddItem(false);
+      showFeedback(`"${draft.name}" aggiunto`);
+      await fetchMenuData();
+    } catch (e) {
+      console.error('Error adding menu item:', e);
+      alert('Errore nell\'aggiungere il piatto.');
+    }
   };
 
-  const saveEditItem = (draft: MenuItemDraft) => {
+  const saveEditItem = async (draft: MenuItemDraft) => {
     const isPromoActive = !!draft.originalPrice && parseFloat(draft.originalPrice) > 0;
     const listPrice = parseFloat(draft.price) || 0;
     const promoPrice = isPromoActive ? parseFloat(draft.originalPrice!) : undefined;
 
-    setItems((p) =>
-      p.map((m) =>
-        m.id === draft.id
-          ? {
-              ...m,
-              name: draft.name,
-              category: draft.category,
-              price: isPromoActive ? promoPrice! : listPrice,
-              originalPrice: isPromoActive ? listPrice : undefined,
-              description: draft.description,
-              available: draft.available,
-              image: draft.imageUrl || m.image,
-              allergens: draft.allergens,
-              dishTags: draft.dishTags || [],
-              ingredients: draft.ingredients || [],
-              visibility: draft.visibility,
-              visibilitySchedule: draft.visibilitySchedule,
-              optionGroups: draft.optionGroups,
-            }
-          : m
-      )
-    );
-    setEditingItemId(null);
-    showFeedback(`"${draft.name}" aggiornato`);
+    try {
+      const { data: catData } = await supabase
+        .from('menu_categories')
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+        .eq('name', draft.category)
+        .maybeSingle();
+
+      const { error } = await supabase
+        .from('menu_items')
+        .update({
+          category_id: catData?.id || null,
+          category_name: draft.category,
+          name: draft.name,
+          description: draft.description,
+          price: isPromoActive ? promoPrice! : listPrice,
+          original_price: isPromoActive ? listPrice : null,
+          image_url: draft.imageUrl || null,
+          allergens: draft.allergens,
+          dish_tags: draft.dishTags || [],
+          ingredients: draft.ingredients || [],
+          available: draft.available,
+          visibility: draft.visibility,
+          visibility_from: draft.visibilitySchedule?.from || null,
+          visibility_to: draft.visibilitySchedule?.to || null,
+          option_groups: draft.optionGroups || [],
+          customization_enabled: draft.customizationEnabled ?? true,
+          notes_enabled: draft.notesEnabled ?? true,
+        })
+        .eq('id', draft.id);
+
+      if (error) throw error;
+      setEditingItemId(null);
+      showFeedback(`"${draft.name}" aggiornato`);
+      await fetchMenuData();
+    } catch (e) {
+      console.error('Error editing menu item:', e);
+      alert('Errore nel salvare il piatto.');
+    }
   };
 
   const itemToDraft = (i: MenuItem): MenuItemDraft => {
@@ -252,6 +345,8 @@ export default function RistoratoreMenuPage() {
       visibility: i.visibility,
       visibilitySchedule: i.visibilitySchedule || { from: '', to: '' },
       optionGroups: i.optionGroups || [],
+      customizationEnabled: i.customizationEnabled ?? true,
+      notesEnabled: i.notesEnabled ?? true,
     };
   };
 
@@ -270,6 +365,8 @@ export default function RistoratoreMenuPage() {
     visibility: 'always',
     visibilitySchedule: { from: '', to: '' },
     optionGroups: [],
+    customizationEnabled: true,
+    notesEnabled: true,
   });
 
   const filtered = items.filter((i) => {
@@ -325,7 +422,7 @@ export default function RistoratoreMenuPage() {
               </div>
               <button
                 onClick={() => setShowAddItem(true)}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover w-full sm:w-auto"
               >
                 <Plus size={14} />
                 Aggiungi Piatto
@@ -364,13 +461,31 @@ export default function RistoratoreMenuPage() {
               filteredItems={filtered}
               toggleAvailability={toggleAvailability}
               removeMenuItem={removeMenuItem}
-              pauseAllDishes={() => {
-                setItems((p) => p.map((i) => ({ ...i, available: false })));
-                showFeedback('Tutti i piatti sospesi');
+              pauseAllDishes={async () => {
+                try {
+                  const { error } = await supabase
+                    .from('menu_items')
+                    .update({ available: false })
+                    .eq('restaurant_id', restaurantId);
+                  if (error) throw error;
+                  setItems((p) => p.map((i) => ({ ...i, available: false })));
+                  showFeedback('Tutti i piatti sospesi');
+                } catch (e) {
+                  console.error('Error pausing all dishes:', e);
+                }
               }}
-              resumeAllDishes={() => {
-                setItems((p) => p.map((i) => ({ ...i, available: true })));
-                showFeedback('Tutti i piatti riattivati');
+              resumeAllDishes={async () => {
+                try {
+                  const { error } = await supabase
+                    .from('menu_items')
+                    .update({ available: true })
+                    .eq('restaurant_id', restaurantId);
+                  if (error) throw error;
+                  setItems((p) => p.map((i) => ({ ...i, available: true })));
+                  showFeedback('Tutti i piatti riattivati');
+                } catch (e) {
+                  console.error('Error resuming all dishes:', e);
+                }
               }}
               showAddItem={showAddItem}
               setShowAddItem={setShowAddItem}

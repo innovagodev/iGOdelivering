@@ -260,47 +260,6 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
             </div>
           </div>
         </div>
-
-        {/* IBAN */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-400"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>
-              </div>
-              <div>
-                <span className="text-sm font-bold text-foreground">Accredito IBAN</span>
-                <p className="text-[11px] text-muted-foreground">Mostra le coordinate bancarie ai clienti</p>
-              </div>
-            </div>
-            <Toggle checked={paymentConfig.iban_enabled} onChange={() => toggle('iban_enabled')} size="sm" />
-          </div>
-          {paymentConfig.iban_enabled && (
-            <div className="px-4 pb-4 space-y-3 border-t border-border/60 pt-3 animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="space-y-1">
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Codice IBAN</label>
-                <input
-                  type="text"
-                  value={paymentConfig.onlinePaymentAccount}
-                  onChange={(e) => handleText('onlinePaymentAccount', e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, ''))}
-                  placeholder="IT60 X 00000 00000 000000000000"
-                  maxLength={34}
-                  className="w-full px-3.5 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring font-mono tracking-widest"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Intestatario Conto</label>
-                <input
-                  type="text"
-                  value={paymentConfig.ibanHolder}
-                  onChange={(e) => handleText('ibanHolder', e.target.value)}
-                  placeholder="Nome Cognome / Ragione Sociale"
-                  className="w-full px-3.5 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ══ STRIPE MODAL ══════════════════════════════════════ */}
@@ -353,7 +312,7 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-all active:scale-95 shadow-sm"
               >
-                Connetti a Stripe →
+                Connetti a Stripe
               </button>
             </div>
           </div>

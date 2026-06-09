@@ -1,8 +1,98 @@
 'use client';
 import React from 'react';
-import { Plus, Trash2, Edit2, Upload, X, Euro, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  Upload,
+  X,
+  Euro,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  Leaf,
+  Flame,
+  Wheat,
+  Sparkles,
+  Star,
+  Milk,
+  Heart,
+  Fish,
+  Apple,
+  Coffee,
+  Wine,
+  Pizza
+} from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import { DISH_TAGS_LIST } from '@/lib/constants';
+
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  leaf: Leaf,
+  flame: Flame,
+  wheat: Wheat,
+  sparkles: Sparkles,
+  star: Star,
+  milk: Milk,
+  heart: Heart,
+  fish: Fish,
+  apple: Apple,
+  coffee: Coffee,
+  wine: Wine,
+  pizza: Pizza
+};
+
+const ICON_LABELS: Record<string, string> = {
+  leaf: 'Vegano / Vegetariano',
+  flame: 'Piccante',
+  wheat: 'Senza Glutine',
+  sparkles: 'Nuovo / Novità',
+  star: 'Consigliato / Specialità',
+  milk: 'Senza Lattosio',
+  heart: 'Salutare / Bio',
+  fish: 'Pesce',
+  apple: 'Fresco / Frutta',
+  coffee: 'Colazione',
+  wine: 'Alcolico / Vino',
+  pizza: 'Pizza / Forno'
+};
+
+const getIconComponent = (name: string, size = 14, className = "") => {
+  const Icon = ICON_MAP[name.toLowerCase()];
+  if (!Icon) return null;
+  return <Icon size={size} className={className} />;
+};
+
+const parseTag = (tag: string) => {
+  if (tag.includes(':')) {
+    const parts = tag.split(':');
+    const iconName = parts[0].trim().toLowerCase();
+    const label = parts.slice(1).join(':').trim();
+    return { iconName, label };
+  }
+  
+  // Legacy parsing fallback
+  const t = tag.toLowerCase();
+  let iconName = 'leaf';
+  let label = tag;
+  
+  label = label.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+
+  if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+    iconName = 'leaf';
+  } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+    iconName = 'flame';
+  } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
+    iconName = 'wheat';
+  } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+    iconName = 'sparkles';
+  } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+    iconName = 'star';
+  } else if (t.includes('lattosio') || tag.includes('🥛')) {
+    iconName = 'milk';
+  }
+  
+  return { iconName, label };
+};
 
 import {
   MenuItemWizardDraft,
@@ -142,8 +232,7 @@ export default function MenuStep({
   // Emoji Picker States
   const [allergenEmoji, setAllergenEmoji] = React.useState('➕');
   const [showAllergenEmojiPicker, setShowAllergenEmojiPicker] = React.useState(false);
-  const [tagEmoji, setTagEmoji] = React.useState('➕');
-  const [showTagEmojiPicker, setShowTagEmojiPicker] = React.useState(false);
+  const [selectedTagIcon, setSelectedTagIcon] = React.useState('leaf');
 
   const EMOJI_LIST = [
     '🌱', '🥗', '🌶️', '🔥', '🆕', '⭐', '👑',
@@ -297,7 +386,7 @@ export default function MenuStep({
               {cat}
               <button
                 onClick={() => setMenuCategories((p) => p.filter((c) => c !== cat))}
-                className="text-muted-foreground hover:text-[var(--danger)] transition-colors opacity-0 group-hover:opacity-100"
+                className="text-muted-foreground hover:text-[var(--danger)] transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
               >
                 <X size={10} />
               </button>
@@ -582,8 +671,43 @@ export default function MenuStep({
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-foreground">Piatti</p>
           <button
-            onClick={() => setShowAddItem(true)}
-            className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-[#d43d22] transition-colors"
+            type="button"
+            onClick={() => {
+              if (menuCategories.length === 0) {
+                alert('Aggiungi prima almeno una categoria menu.');
+                return;
+              }
+              setNewItem({
+                id: '',
+                name: '',
+                category: menuCategories[0] || 'Pizza',
+                price: '',
+                originalPrice: '',
+                description: '',
+                available: true,
+                imageUrl: '',
+                imageFile: null,
+                allergens: [],
+                dishTags: [],
+                ingredients: [],
+                optionGroups: [],
+                singleSupplements: [],
+                visibility: {
+                  mode: 'always',
+                  timeFrom: '10:00',
+                  timeTo: '15:00',
+                  days: [...days],
+                  dateFrom: '',
+                  dateFromTime: '10:00',
+                  dateTo: '',
+                  dateToTime: '15:00',
+                },
+                customizationEnabled: true,
+                notesEnabled: true,
+              });
+              setShowAddItem(true);
+            }}
+            className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-hover transition-colors cursor-pointer"
           >
             <Plus size={14} />
             Aggiungi Piatto
@@ -611,12 +735,27 @@ export default function MenuStep({
                   <p className="text-xs font-bold text-primary uppercase tracking-wider">
                     {item.category}
                   </p>
-                  <button
-                    onClick={() => removeMenuItem(item.id)}
-                    className="p-1 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[var(--danger)] transition-all"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-70 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:hover:!opacity-100 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewItem({ ...item });
+                        setShowAddItem(true);
+                      }}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      title="Modifica piatto"
+                    >
+                      <Edit2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeMenuItem(item.id)}
+                      className="p-1 text-muted-foreground hover:text-[var(--danger)] transition-colors cursor-pointer"
+                      title="Elimina piatto"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
                 {item.ingredients && item.ingredients.length > 0 && (
@@ -647,6 +786,18 @@ export default function MenuStep({
         {/* Add Piatto Form */}
         {showAddItem && (
           <div className="bg-muted/40 border-2 border-dashed border-border rounded-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">
+                {newItem.id ? 'Modifica Piatto' : 'Aggiungi Nuovo Piatto'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddItem(false)}
+                className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded-full transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
@@ -832,7 +983,7 @@ export default function MenuStep({
                           setNewIngredientInput('');
                         }
                       }}
-                      className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
                       <Plus size={10} />
                       Aggiungi
@@ -998,7 +1149,7 @@ export default function MenuStep({
                           setNewWizardSuppPrice('');
                         }
                       }}
-                      className="px-2.5 py-1.5 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                      className="px-2.5 py-1.5 bg-primary text-white hover:bg-primary-hover rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
                       <Plus size={10} />
                       Aggiungi
@@ -1107,7 +1258,6 @@ export default function MenuStep({
                         type="button"
                         onClick={() => {
                           setShowAllergenEmojiPicker(!showAllergenEmojiPicker);
-                          setShowTagEmojiPicker(false);
                         }}
                         className="px-2.5 py-2 bg-input border border-border rounded-lg hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[38px] h-[34px]"
                         title="Seleziona Emoji"
@@ -1172,7 +1322,7 @@ export default function MenuStep({
                           setAllergenEmoji('➕');
                         }
                       }}
-                      className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
                       <Plus size={10} />
                       Aggiungi
@@ -1200,40 +1350,55 @@ export default function MenuStep({
                       <button
                         type="button"
                         onClick={() => {
-                          setNewItem((p) => ({ ...p, dishTags: [...availableDishTags] }));
+                          const standardOnly = [
+                            'leaf:Vegano',
+                            'leaf:Vegetariano',
+                            'flame:Piccante',
+                            'wheat:Senza Glutine',
+                            'sparkles:Novità',
+                            'star:Consigliato'
+                          ];
+                          setNewItem((p) => ({
+                            ...p,
+                            dishTags: Array.from(new Set([...(p.dishTags || []), ...standardOnly]))
+                          }));
                         }}
                         className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
                       >
-                        Tutti
+                        Standard
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1">
+                  <div className="flex flex-wrap gap-2.5 p-3.5 bg-muted/20 border border-border rounded-xl mb-3.5 max-h-40 overflow-y-auto">
                     {availableDishTags.length === 0 && (
                       <p className="text-xs text-muted-foreground italic">Nessuna etichetta inserita</p>
                     )}
                     {availableDishTags.map((t) => {
                       const isActive = (newItem.dishTags || []).includes(t);
+                      const { iconName, label } = parseTag(t);
+                      const IconComp = getIconComponent(iconName);
+                      
                       return (
                         <div
                           key={t}
                           onClick={() => toggleDishTag(t)}
-                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${isActive
-                              ? 'bg-primary/10 border-primary text-primary'
-                              : 'bg-card border-border text-muted-foreground hover:bg-muted'
+                          className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-8 ${isActive
+                            ? 'bg-primary/10 border-primary/40 text-primary shadow-sm shadow-primary/5'
+                            : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
                             }`}
                         >
-                          {t}
+                          {IconComp}
+                          <span>{label}</span>
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteDishTag(t);
                             }}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95"
-                            style={{ fontSize: '7px', lineHeight: '1' }}
-                            title={`Elimina ${t}`}
+                            className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer"
+                            style={{ fontSize: '8px', lineHeight: '1' }}
+                            title={`Elimina ${label}`}
                           >
                             ✕
                           </button>
@@ -1242,83 +1407,113 @@ export default function MenuStep({
                     })}
                   </div>
 
-                  <div className="flex gap-2 relative">
-                    <div className="relative">
+                  {/* Visual custom tag creator */}
+                  <div className="p-3.5 border border-border/70 bg-muted/10 rounded-2xl space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                        1. Scegli Icona
+                      </label>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.keys(ICON_MAP).map((name) => {
+                          const Icon = ICON_MAP[name];
+                          const isSelected = selectedTagIcon === name;
+                          return (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => setSelectedTagIcon(name)}
+                              title={ICON_LABELS[name]}
+                              className={`p-1.5 rounded-lg border transition-all flex items-center justify-center cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary border-primary text-white shadow-sm'
+                                  : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                              }`}
+                            >
+                              <Icon size={14} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <div className="space-y-1.5">
+                        <label htmlFor="custom-tag-name-wizard" className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                          2. Inserisci Testo Etichetta
+                        </label>
+                        <input
+                          id="custom-tag-name-wizard"
+                          type="text"
+                          value={customTag}
+                          onChange={(e) => setCustomTag(e.target.value)}
+                          placeholder="Es. Biologico, Senza Lattosio"
+                          className="w-full px-3.5 py-2 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const txt = customTag.trim();
+                              if (txt) {
+                                const finalVal = `${selectedTagIcon}:${txt}`;
+                                handleAddDishTag(finalVal);
+                                setCustomTag('');
+                              }
+                            }
+                          }}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
-                          setShowTagEmojiPicker(!showTagEmojiPicker);
-                          setShowAllergenEmojiPicker(false);
-                        }}
-                        className="px-2.5 py-2 bg-input border border-border rounded-lg hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[38px] h-[34px]"
-                        title="Seleziona Emoji"
-                      >
-                        {tagEmoji}
-                      </button>
-                      {showTagEmojiPicker && (
-                        <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-lg shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-40 overflow-y-auto">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTagEmoji('➕');
-                              setShowTagEmojiPicker(false);
-                            }}
-                            className="p-1 hover:bg-muted rounded text-[10px] text-muted-foreground"
-                          >
-                            Nessuna
-                          </button>
-                          {EMOJI_LIST.map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => {
-                                setTagEmoji(emoji);
-                                setShowTagEmojiPicker(false);
-                              }}
-                              className="p-1 hover:bg-muted rounded text-base cursor-pointer"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      value={customTag}
-                      onChange={(e) => setCustomTag(e.target.value)}
-                      placeholder="Aggiungi etichetta (es. Vegano)"
-                      className="flex-1 px-3 py-2 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring min-w-0"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
                           const txt = customTag.trim();
                           if (txt) {
-                            const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
+                            const finalVal = `${selectedTagIcon}:${txt}`;
                             handleAddDishTag(finalVal);
                             setCustomTag('');
-                            setTagEmoji('➕');
                           }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const txt = customTag.trim();
-                        if (txt) {
-                          const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
-                          handleAddDishTag(finalVal);
-                          setCustomTag('');
-                          setTagEmoji('➕');
-                        }
-                      }}
-                      className="px-2.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
-                    >
-                      <Plus size={10} />
-                      Aggiungi
-                    </button>
+                        }}
+                        className="w-full py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors h-[34px]"
+                      >
+                        <Plus size={12} />
+                        Crea Etichetta
+                      </button>
+                    </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Regole di Personalizzazione */}
+            <div className="border-t border-border/85 pt-4 mt-2 text-left">
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                Regole di Personalizzazione Piatto
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted/20 border border-border rounded-xl">
+                {/* customizationEnabled Toggle */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <span className="text-xs font-bold text-foreground block">Consenti modifiche al piatto</span>
+                    <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                      Se disattivato, il cliente non potrà aggiungere supplementi o rimuovere ingredienti. Il piatto verrà aggiunto direttamente al carrello.
+                    </span>
+                  </div>
+                  <Toggle
+                    checked={newItem.customizationEnabled ?? true}
+                    onChange={(val) => setNewItem((p) => ({ ...p, customizationEnabled: val }))}
+                  />
+                </div>
+
+                {/* notesEnabled Toggle */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <span className="text-xs font-bold text-foreground block">Consenti note per la cucina</span>
+                    <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                      Se disattivato, il campo note cucina non verrà mostrato nel dettaglio di questo piatto.
+                    </span>
+                  </div>
+                  <Toggle
+                    checked={newItem.notesEnabled ?? true}
+                    onChange={(val) => setNewItem((p) => ({ ...p, notesEnabled: val }))}
+                  />
                 </div>
               </div>
             </div>
@@ -1333,9 +1528,9 @@ export default function MenuStep({
                   addMenuItem();
                   setShowErrors(false);
                 }}
-                className="flex-1 bg-primary text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] hover:scale-[1.02] active:scale-95 transition-all"
+                className="flex-1 bg-primary text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
               >
-                Salva Piatto
+                {newItem.id ? 'Salva Modifiche' : 'Salva Piatto'}
               </button>
               <button
                 onClick={() => setShowAddItem(false)}

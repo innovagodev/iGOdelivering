@@ -33,6 +33,8 @@ export interface MenuItem {
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];
+  customizationEnabled?: boolean;
+  notesEnabled?: boolean;
 }
 
 export interface MenuItemDraft {
@@ -50,6 +52,8 @@ export interface MenuItemDraft {
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];
+  customizationEnabled?: boolean;
+  notesEnabled?: boolean;
 }
 
 export interface DayHours {

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 
-type OrderHistStatus = 'Consegnato' | 'Annullato' | 'In Consegna' | 'In Preparazione';
+type OrderHistStatus = 'Consegnato' | 'Annullato' | 'In Consegna' | 'In Preparazione' | 'Pronto' | 'In Attesa' | 'Nuovo';
 
 interface HistOrder {
   id: string;
@@ -11,188 +11,65 @@ interface HistOrder {
   customer: string;
   items: string;
   total: number;
-  type: 'Consegna' | 'Asporto';
-  payment: 'Carta' | 'Contanti' | 'Online';
+  type: string;
+  payment: string;
   status: OrderHistStatus;
   date: string;
   time: string;
   zone: string;
 }
 
-const histOrders: HistOrder[] = [
-  {
-    id: 'ho-001',
-    num: '#4821',
-    customer: 'Marco Ferretti',
-    items: 'Pizza Margherita ×2, Coca-Cola ×2',
-    total: 26.5,
-    type: 'Consegna',
-    payment: 'Carta',
-    status: 'Consegnato',
-    date: '03/05/2026',
-    time: '20:14',
-    zone: 'Centro',
-  },
-  {
-    id: 'ho-002',
-    num: '#4820',
-    customer: 'Sara Conti',
-    items: 'Spaghetti Carbonara, Tiramisù',
-    total: 19.8,
-    type: 'Asporto',
-    payment: 'Online',
-    status: 'Consegnato',
-    date: '03/05/2026',
-    time: '19:58',
-    zone: '—',
-  },
-  {
-    id: 'ho-003',
-    num: '#4819',
-    customer: 'Giulia Marino',
-    items: 'Pizza Diavola, Birra artigianale',
-    total: 21.0,
-    type: 'Consegna',
-    payment: 'Carta',
-    status: 'Consegnato',
-    date: '03/05/2026',
-    time: '19:31',
-    zone: 'Navigli',
-  },
-  {
-    id: 'ho-004',
-    num: '#4818',
-    customer: 'Davide Ricci',
-    items: 'Antipasto misto ×2',
-    total: 18.5,
-    type: 'Asporto',
-    payment: 'Contanti',
-    status: 'Annullato',
-    date: '03/05/2026',
-    time: '19:10',
-    zone: '—',
-  },
-  {
-    id: 'ho-005',
-    num: '#4817',
-    customer: 'Elena Galli',
-    items: 'Lasagne al forno ×2, Vino rosso',
-    total: 42.0,
-    type: 'Consegna',
-    payment: 'Online',
-    status: 'Consegnato',
-    date: '03/05/2026',
-    time: '18:55',
-    zone: 'Brera',
-  },
-  {
-    id: 'ho-006',
-    num: '#4816',
-    customer: 'Roberto Esposito',
-    items: 'Risotto ai funghi',
-    total: 16.0,
-    type: 'Asporto',
-    payment: 'Contanti',
-    status: 'Consegnato',
-    date: '03/05/2026',
-    time: '18:30',
-    zone: '—',
-  },
-  {
-    id: 'ho-007',
-    num: '#4815',
-    customer: 'Valentina Russo',
-    items: 'Pizza Q. stagioni ×2, Fritto misto',
-    total: 38.5,
-    type: 'Consegna',
-    payment: 'Carta',
-    status: 'Consegnato',
-    date: '03/05/2026',
-    time: '18:12',
-    zone: 'Isola',
-  },
-  {
-    id: 'ho-008',
-    num: '#4814',
-    customer: 'Antonio De Luca',
-    items: "Penne all'arrabbiata, Dolce",
-    total: 22.0,
-    type: 'Consegna',
-    payment: 'Online',
-    status: 'In Consegna',
-    date: '03/05/2026',
-    time: '17:48',
-    zone: 'Loreto',
-  },
-  {
-    id: 'ho-009',
-    num: '#4813',
-    customer: 'Francesca Lombardi',
-    items: 'Branzino al forno ×2',
-    total: 44.0,
-    type: 'Consegna',
-    payment: 'Carta',
-    status: 'In Consegna',
-    date: '03/05/2026',
-    time: '17:22',
-    zone: 'Porta Venezia',
-  },
-  {
-    id: 'ho-010',
-    num: '#4812',
-    customer: 'Matteo Ferrari',
-    items: 'Tagliere salumi, Bruschette ×3',
-    total: 29.0,
-    type: 'Asporto',
-    payment: 'Contanti',
-    status: 'Consegnato',
-    date: '02/05/2026',
-    time: '21:05',
-    zone: '—',
-  },
-  {
-    id: 'ho-011',
-    num: '#4811',
-    customer: 'Chiara Moretti',
-    items: 'Gnocchi al pomodoro ×2',
-    total: 24.0,
-    type: 'Consegna',
-    payment: 'Online',
-    status: 'Annullato',
-    date: '02/05/2026',
-    time: '20:40',
-    zone: 'Garibaldi',
-  },
-  {
-    id: 'ho-012',
-    num: '#4810',
-    customer: 'Lorenzo Fontana',
-    items: 'Costolette di agnello, Contorno',
-    total: 37.5,
-    type: 'Consegna',
-    payment: 'Carta',
-    status: 'Consegnato',
-    date: '02/05/2026',
-    time: '20:15',
-    zone: 'Ticinese',
-  },
-];
-
-const statusBadgeVariant: Record<OrderHistStatus, 'success' | 'danger' | 'info' | 'warning'> = {
+const statusBadgeVariant: Record<OrderHistStatus, 'success' | 'danger' | 'info' | 'warning' | 'primary' | 'neutral'> = {
   Consegnato: 'success',
   Annullato: 'danger',
   'In Consegna': 'info',
   'In Preparazione': 'warning',
+  Pronto: 'success',
+  'In Attesa': 'warning',
+  Nuovo: 'primary',
 };
 
-export default function OrderHistoryTable({ limit }: { limit?: number }) {
+export default function OrderHistoryTable({ orders = [], loading = false, limit }: { orders?: any[]; loading?: boolean; limit?: number }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<keyof HistOrder>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const perPage = limit || 8;
 
-  const filtered = histOrders.filter(
+  const mappedOrders: HistOrder[] = React.useMemo(() => {
+    return orders.map((o: any) => {
+      const orderItems = o.order_items || [];
+      const itemsStr = orderItems.map((i: any) => `${i.name} ×${i.qty}`).join(', ');
+      
+      let mappedStatus: OrderHistStatus = 'Nuovo';
+      if (o.status === 'delivered') mappedStatus = 'Consegnato';
+      else if (o.status === 'cancelled') mappedStatus = 'Annullato';
+      else if (o.status === 'delivering') mappedStatus = 'In Consegna';
+      else if (o.status === 'preparing') mappedStatus = 'In Preparazione';
+      else if (o.status === 'ready') mappedStatus = 'Pronto';
+      else if (o.status === 'pending') mappedStatus = 'In Attesa';
+
+      const createdDate = new Date(o.created_at);
+      const formattedDate = createdDate.toLocaleDateString('it-IT');
+      const formattedTime = createdDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+      return {
+        id: o.id,
+        num: o.order_number || o.id.slice(0, 8),
+        customer: o.customer_name || 'Cliente',
+        items: itemsStr || 'Nessun articolo',
+        total: Number(o.total || 0),
+        type: o.type === 'domicilio' ? 'Consegna' : (o.type === 'asporto' ? 'Asporto' : 'Tavolo'),
+        payment: 'Contanti', // Default fallback
+        status: mappedStatus,
+        date: formattedDate,
+        time: formattedTime,
+        zone: o.type === 'domicilio' && o.customer_address ? o.customer_address : '—',
+      };
+    });
+  }, [orders]);
+
+  const filtered = mappedOrders.filter(
     (o) =>
       o.customer.toLowerCase().includes(search.toLowerCase()) ||
       o.num.includes(search) ||

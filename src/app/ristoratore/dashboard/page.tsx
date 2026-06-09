@@ -8,7 +8,7 @@ import KPIBentoGrid from '@/components/ristoratore/KPIBentoGrid';
 import OrderHistoryTable from '@/components/ristoratore/OrderHistoryTable';
 import { Search, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { STORAGE_KEYS } from '@/lib/storage-keys';
+import { useOrders } from '@/hooks/useOrders';
 
 const RevenueChart = dynamic(() => import('@/components/ristoratore/RevenueChart'), { ssr: false });
 
@@ -18,7 +18,8 @@ export default function RestaurantDashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('nav-panoramica');
-  const [orders, setOrders] = useState<any[]>([]);
+  
+  const { orders, loading } = useOrders(restaurantId);
 
   useEffect(() => {
     // Restore sidebar state
@@ -27,28 +28,6 @@ export default function RestaurantDashboardPage() {
       setSidebarCollapsed(JSON.parse(stored));
     }
   }, []);
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      try {
-        const storedStr = localStorage.getItem(STORAGE_KEYS.orders(restaurantId));
-        if (storedStr) {
-          const parsed = JSON.parse(storedStr);
-          if (Array.isArray(parsed)) {
-            setOrders(parsed);
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    handleUpdate();
-    window.addEventListener('iGO_orders_updated', handleUpdate);
-    return () => {
-      window.removeEventListener('iGO_orders_updated', handleUpdate);
-    };
-  }, [restaurantId]);
 
   const stats = React.useMemo(() => {
     let deliveryCount = 0;
@@ -61,11 +40,12 @@ export default function RestaurantDashboardPage() {
       else if (o.type === 'asporto') pickupCount++;
       else if (o.type === 'tavolo') tableCount++;
 
-      if (Array.isArray(o.items)) {
-        o.items.forEach((item: any) => {
+      const items = o.order_items || o.items || [];
+      if (Array.isArray(items)) {
+        items.forEach((item: any) => {
           if (item.name) {
             const qty = item.qty || 1;
-            const price = item.price || 0;
+            const price = Number(item.price) || 0;
             if (!productsMap[item.name]) {
               productsMap[item.name] = { qty: 0, revenue: 0 };
             }
@@ -88,16 +68,11 @@ export default function RestaurantDashboardPage() {
 
     return {
       distribution: [
-        { label: 'Consegna a domicilio', pct: orders.length ? deliveryPct : 68, color: 'bg-primary' },
-        { label: 'Asporto', pct: orders.length ? pickupPct : 24, color: 'bg-accent' },
-        { label: 'Tavolo', pct: orders.length ? tablePct : 8, color: 'bg-muted-foreground' },
+        { label: 'Consegna a domicilio', pct: orders.length ? deliveryPct : 0, color: 'bg-primary' },
+        { label: 'Asporto', pct: orders.length ? pickupPct : 0, color: 'bg-accent' },
+        { label: 'Tavolo', pct: orders.length ? tablePct : 0, color: 'bg-muted-foreground' },
       ],
-      topProducts: topProducts.length ? topProducts : [
-        { name: 'Pizza Margherita', qty: 24, revenue: 228 },
-        { name: 'Tiramisù', qty: 18, revenue: 117 },
-        { name: 'Spaghetti Carbonara', qty: 15, revenue: 202 },
-        { name: 'Pizza Diavola', qty: 14, revenue: 154 },
-      ],
+      topProducts: topProducts,
     };
   }, [orders]);
 
@@ -144,14 +119,13 @@ export default function RestaurantDashboardPage() {
                 </p>
               </div>
             </div>
-
-            {/* KPIs */}
-            <KPIBentoGrid />
-
+            {/* KPIs */}
+            <KPIBentoGrid orders={orders} loading={loading} />
+ 
             {/* Revenue Chart + quick stats */}
             <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
-                <RevenueChart />
+                <RevenueChart orders={orders} />
               </div>
               <div className="flex flex-col gap-4">
                 <div className="bg-card rounded-xl border border-border shadow-card p-5 flex-1">
@@ -178,27 +152,31 @@ export default function RestaurantDashboardPage() {
                 <div className="bg-card rounded-xl border border-border shadow-card p-5">
                   <h4 className="text-sm font-semibold text-foreground mb-3">Top Prodotti Oggi</h4>
                   <ul className="space-y-2">
-                    {stats.topProducts.map((p, i) => (
-                      <li key={`top-${p?.name}`} className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="text-xs text-foreground flex-1 truncate">{p?.name}</span>
-                        <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                          {p?.qty}×
-                        </span>
-                        <span className="text-xs font-bold tabular-nums text-foreground">
-                          €{p?.revenue}
-                        </span>
-                      </li>
-                    ))}
+                    {stats.topProducts.length === 0 ? (
+                      <li className="text-xs text-muted-foreground text-center py-4">Nessun prodotto venduto</li>
+                    ) : (
+                      stats.topProducts.map((p, i) => (
+                        <li key={`top-${p?.name}`} className="flex items-center gap-3">
+                          <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="text-xs text-foreground flex-1 truncate">{p?.name}</span>
+                          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                            {p?.qty}×
+                          </span>
+                          <span className="text-xs font-bold tabular-nums text-foreground">
+                            €{p?.revenue}
+                          </span>
+                        </li>
+                      ))
+                    )}
                   </ul>
                 </div>
               </div>
             </div>
-
+ 
             {/* Order History */}
-            <OrderHistoryTable limit={5} />
+            <OrderHistoryTable orders={orders} loading={loading} limit={5} />
           </div>
         </main>
       </div>

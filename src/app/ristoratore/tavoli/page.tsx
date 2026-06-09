@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import {
   QrCode,
   Plus,
@@ -14,6 +15,8 @@ import {
   CheckCircle,
   HelpCircle,
   Store,
+  Link as LinkIcon,
+  Copy,
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
@@ -24,6 +27,8 @@ interface TableItem {
 
 export default function RistoratoreTavoliPage() {
   const { user } = useAuth();
+  const restaurantId = user?.restaurantId;
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -34,14 +39,276 @@ export default function RistoratoreTavoliPage() {
   const [savedCount, setSavedCount] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [restaurantLogo, setRestaurantLogo] = useState<string>('');
+  const [restaurantSlug, setRestaurantSlug] = useState('pizzeria-bella-napoli');
 
-  // Generate restaurant slug
-  const restaurantSlug = user?.restaurantName
-    ? user.restaurantName
-        .toLowerCase()
-        .replace(/ /g, '-')
-        .replace(/[^\w-]+/g, '')
-    : 'pizzeria-bella-napoli';
+  const [copiedVetrina, setCopiedVetrina] = useState(false);
+  const [copiedGenerico, setCopiedGenerico] = useState(false);
+
+  const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
+  const showcaseUrl = `${origin}/menu/${restaurantSlug}`;
+  const genericTableUrl = `${origin}/menu/${restaurantSlug}?tavolo=generico`;
+
+  const handleCopyVetrina = () => {
+    navigator.clipboard.writeText(showcaseUrl);
+    setCopiedVetrina(true);
+    setTimeout(() => setCopiedVetrina(false), 2000);
+  };
+
+  const handleCopyGenerico = () => {
+    navigator.clipboard.writeText(genericTableUrl);
+    setCopiedGenerico(true);
+    setTimeout(() => setCopiedGenerico(false), 2000);
+  };
+
+  const handleDownloadVetrina = () => {
+    const canvas = document.getElementById('vetrina-qr-canvas') as HTMLCanvasElement;
+    if (canvas) {
+      try {
+        const url = canvas.toDataURL("image/png");
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qr-vetrina-${restaurantSlug}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        console.error("Canvas export failed", e);
+      }
+    }
+  };
+
+  const handleDownloadGenerico = () => {
+    const canvas = document.getElementById('generico-qr-canvas') as HTMLCanvasElement;
+    if (canvas) {
+      try {
+        const url = canvas.toDataURL("image/png");
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qr-tavolo-generico-${restaurantSlug}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        console.error("Canvas export failed", e);
+      }
+    }
+  };
+
+  const handlePrintVetrina = () => {
+    const canvas = document.getElementById('vetrina-qr-canvas') as HTMLCanvasElement;
+    let qrDataUrl = '';
+    if (canvas) {
+      try { qrDataUrl = canvas.toDataURL("image/png"); } catch(e) {}
+    }
+    if (!qrDataUrl) {
+      qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(showcaseUrl)}&ecc=H`;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const restName = user?.restaurantName || 'Il mio Ristorante';
+    const logoHtml = `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+        <div style="font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;">${restName}</div>
+      </div>
+    `;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Stampa QR Code - Vetrina ${restName}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background-color: #fff;
+            }
+            .card {
+              border: 1px solid #cbd5e1;
+              border-radius: 12px;
+              padding: 24px;
+              text-align: center;
+              width: 280px;
+              height: 280px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: space-between;
+              box-sizing: border-box;
+            }
+            .qr-wrapper {
+              position: relative;
+              display: inline-block;
+              width: 170px;
+              height: 170px;
+              margin: 0 auto;
+            }
+            .qr-image {
+              width: 170px;
+              height: 170px;
+              display: block;
+            }
+            .title-badge {
+              background-color: #f97316;
+              color: white;
+              font-size: 14px;
+              font-weight: 800;
+              padding: 4px 14px;
+              border-radius: 9999px;
+              letter-spacing: 0.05em;
+              display: inline-block;
+            }
+            .footer-text {
+              font-size: 10px;
+              color: #64748b;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            @media print {
+              body { height: auto; }
+              @page { size: portrait; margin: 0; }
+              .card { border: 1px solid #cbd5e1 !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            ${logoHtml}
+            <div class="qr-wrapper">
+              <img class="qr-image" src="${qrDataUrl}" alt="QR Code" />
+            </div>
+            <div>
+              <div class="title-badge">MENU DIGITALE</div>
+              <div class="footer-text" style="margin-top: 6px;">Inquadra e Ordina</div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 800);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePrintGenerico = () => {
+    const canvas = document.getElementById('generico-qr-canvas') as HTMLCanvasElement;
+    let qrDataUrl = '';
+    if (canvas) {
+      try { qrDataUrl = canvas.toDataURL("image/png"); } catch(e) {}
+    }
+    if (!qrDataUrl) {
+      qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(genericTableUrl)}&ecc=H`;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const restName = user?.restaurantName || 'Il mio Ristorante';
+    const logoHtml = `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+        <div style="font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;">${restName}</div>
+      </div>
+    `;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Stampa QR Code - Tavolo Generico ${restName}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background-color: #fff;
+            }
+            .card {
+              border: 1px solid #cbd5e1;
+              border-radius: 12px;
+              padding: 24px;
+              text-align: center;
+              width: 280px;
+              height: 280px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: space-between;
+              box-sizing: border-box;
+            }
+            .qr-wrapper {
+              position: relative;
+              display: inline-block;
+              width: 170px;
+              height: 170px;
+              margin: 0 auto;
+            }
+            .qr-image {
+              width: 170px;
+              height: 170px;
+              display: block;
+            }
+            .table-badge {
+              background-color: #f97316;
+              color: white;
+              font-size: 15px;
+              font-weight: 800;
+              padding: 4px 14px;
+              border-radius: 9999px;
+              letter-spacing: 0.05em;
+              display: inline-block;
+            }
+            .footer-text {
+              font-size: 10px;
+              color: #64748b;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            @media print {
+              body { height: auto; }
+              @page { size: portrait; margin: 0; }
+              .card { border: 1px solid #cbd5e1 !important; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            ${logoHtml}
+            <div class="qr-wrapper">
+              <img class="qr-image" src="${qrDataUrl}" alt="QR Code" />
+            </div>
+            <div>
+              <div class="table-badge">TAVOLO</div>
+              <div class="footer-text" style="margin-top: 6px;">Inquadra e Ordina</div>
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 800);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   useEffect(() => {
     setIsHydrated(true);
@@ -51,31 +318,51 @@ export default function RistoratoreTavoliPage() {
     if (storedSidebar !== null) {
       setSidebarCollapsed(JSON.parse(storedSidebar));
     }
+  }, []);
 
-    // Restore table count state
-    const storedTables = localStorage.getItem(`iGO_tables_${restaurantSlug}`);
-    if (storedTables) {
-      const count = parseInt(storedTables, 10);
-      if (!isNaN(count)) {
-        setTableCount(count);
-        setTempTableCount(count);
-        setSavedCount(count);
-      }
+  useEffect(() => {
+    if (user?.restaurantName) {
+      setRestaurantSlug(
+        user.restaurantName
+          .toLowerCase()
+          .replace(/ /g, '-')
+          .replace(/[^\w-]+/g, '')
+      );
     }
+  }, [user?.restaurantName]);
 
-    // Restore logo from settings
-    const storedSettings = localStorage.getItem(`iGO_settings_${restaurantSlug}`);
-    if (storedSettings) {
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+
+    async function loadTableCount() {
       try {
-        const parsed = JSON.parse(storedSettings);
-        if (parsed.logoUrl) {
-          setRestaurantLogo(parsed.logoUrl);
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('tables_count, logo_url, slug')
+          .eq('id', restaurantId)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const count = data.tables_count || 0;
+          setTableCount(count);
+          setTempTableCount(count);
+          setSavedCount(count);
+          if (data.logo_url) {
+            setRestaurantLogo(data.logo_url);
+          }
+          if (data.slug) {
+            setRestaurantSlug(data.slug);
+          }
         }
       } catch (e) {
-        console.error(e);
+        console.error('Error loading table count:', e);
       }
     }
-  }, [restaurantSlug]);
+
+    loadTableCount();
+  }, [restaurantId]);
 
   const [localLogoUrl, setLocalLogoUrl] = useState<string>('');
 
@@ -107,12 +394,25 @@ export default function RistoratoreTavoliPage() {
     }
   }, [restaurantLogo]);
 
-  const handleSaveCount = () => {
-    setTableCount(tempTableCount);
-    setSavedCount(tempTableCount);
-    localStorage.setItem(`iGO_tables_${restaurantSlug}`, tempTableCount.toString());
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2000);
+  const handleSaveCount = async () => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+
+    try {
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ tables_count: tempTableCount })
+        .eq('id', restaurantId);
+
+      if (error) throw error;
+
+      setTableCount(tempTableCount);
+      setSavedCount(tempTableCount);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (e) {
+      console.error('Error saving table count:', e);
+      alert('Impossibile salvare il numero di tavoli.');
+    }
   };
 
   const getTableUrl = (num: number) => {
@@ -440,7 +740,7 @@ export default function RistoratoreTavoliPage() {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={handlePrintAll}
-                  className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm w-full sm:w-auto"
                 >
                   <Printer size={14} />
                   Stampa Tutti i QR
@@ -467,6 +767,141 @@ export default function RistoratoreTavoliPage() {
                 <p className="text-2xl font-bold text-primary mt-1 tabular-nums">
                   0
                 </p>
+              </div>
+            </div>
+
+            {/* Vetrina & Generic Table QR Code Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Card 1: Link & QR Code Vetrina */}
+              <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-4">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2 pb-3 border-b border-border">
+                  <LinkIcon size={16} className="text-primary" />
+                  Link & QR Code Vetrina
+                </h3>
+
+                <p className="text-xs text-muted-foreground">
+                  Condividi il link della tua vetrina digitale o scarica il QR Code da stampare per asporto e consegne.
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      Link Vetrina Pubblica
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={showcaseUrl}
+                        className="flex-1 px-3 py-2 text-xs bg-muted border border-border rounded-xl focus:outline-none font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyVetrina}
+                        className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedVetrina ? <CheckCircle size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        {copiedVetrina ? 'Copiato' : 'Copia'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-xl border border-border/60 relative min-h-[148px]">
+                    <QRCodeCanvas
+                      id="vetrina-qr-canvas"
+                      value={showcaseUrl}
+                      size={512}
+                      level="H"
+                      includeMargin={true}
+                      style={{ width: "120px", height: "120px" }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadVetrina}
+                      className="flex items-center justify-center gap-1 py-2 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border cursor-pointer"
+                    >
+                      <Download size={12} className="text-muted-foreground" />
+                      Scarica QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrintVetrina}
+                      className="flex items-center justify-center gap-1 py-2 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border cursor-pointer"
+                    >
+                      <Printer size={12} className="text-muted-foreground" />
+                      Stampa QR
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Link & QR Code Tavolo Generico */}
+              <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-4">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2 pb-3 border-b border-border">
+                  <LinkIcon size={16} className="text-primary" />
+                  Link & QR Code Tavolo Generico
+                </h3>
+
+                <p className="text-xs text-muted-foreground">
+                  Usa questo link per far ordinare i clienti da un tavolo qualsiasi. Dovranno inserire manualmente il numero del tavolo.
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                      Link Tavolo Generico
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={genericTableUrl}
+                        className="flex-1 px-3 py-2 text-xs bg-muted border border-border rounded-xl focus:outline-none font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCopyGenerico}
+                        className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedGenerico ? <CheckCircle size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        {copiedGenerico ? 'Copiato' : 'Copia'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center p-4 bg-muted rounded-xl border border-border/60 relative min-h-[148px]">
+                    <QRCodeCanvas
+                      id="generico-qr-canvas"
+                      value={genericTableUrl}
+                      size={512}
+                      level="H"
+                      includeMargin={true}
+                      style={{ width: "120px", height: "120px" }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadGenerico}
+                      className="flex items-center justify-center gap-1 py-2 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border cursor-pointer"
+                    >
+                      <Download size={12} className="text-muted-foreground" />
+                      Scarica QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrintGenerico}
+                      className="flex items-center justify-center gap-1 py-2 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border cursor-pointer"
+                    >
+                      <Printer size={12} className="text-muted-foreground" />
+                      Stampa QR
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 

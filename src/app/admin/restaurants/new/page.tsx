@@ -4,8 +4,9 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
-import { ArrowLeft, ChevronRight, Check, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Check, ChevronLeft as ChevronLeftIcon, Zap, AlertCircle } from 'lucide-react';
 import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
+import { supabase } from '@/lib/supabase';
 
 // Wizard step components — dynamically imported so each step is a separate chunk
 const RestaurantInfoStep = dynamic(
@@ -51,8 +52,6 @@ import {
   ScheduledOrdersConfig,
   WizardOptionGroup,
   WizardOptionChoice,
-  MenuItem,
-  OptionGroup,
 } from '@/types';
 import {
   DAYS,
@@ -96,9 +95,19 @@ export default function NewRestaurantPage() {
   const [published, setPublished] = useState(false);
 
   // --- STATE ---
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [savedRestaurantId, setSavedRestaurantId] = useState<string | null>(null);
+  const [isSavedDraft, setIsSavedDraft] = useState(false);
+  const [restaurantStatus, setRestaurantStatus] = useState<'draft' | 'published'>('draft');
+
+  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setFeedback({ message, type });
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
   const [info, setInfo] = useState<RestaurantInfo>({
     name: '',
-    category: 'Pizzeria',
+    category: '',
     description: '',
     phone: '',
     email: '',
@@ -135,6 +144,19 @@ export default function NewRestaurantPage() {
     useCustom: false,
     hours: defaultDayHours(),
   });
+
+  const [serviceSuspended, setServiceSuspended] = useState({
+    pickup: false,
+    delivery: false,
+    reservation: false,
+  });
+
+  const [temporaryClosure, setTemporaryClosure] = useState({
+    enabled: false,
+    from: '',
+    to: '',
+    message: '',
+  });
   const [tableBooking, setTableBooking] = useState<TableBookingConfig>({
     enabled: false,
     maxGuests: 8,
@@ -168,7 +190,7 @@ export default function NewRestaurantPage() {
     onlinePaymentAccount: '',
     ibanHolder: '',
   });
-  const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
+  const [menuCategories, setMenuCategories] = useState<string[]>([]);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [optionGroups, setOptionGroups] = useState<WizardOptionGroup[]>([]);
@@ -206,6 +228,8 @@ export default function NewRestaurantPage() {
       dateTo: '',
       dateToTime: '15:00',
     },
+    customizationEnabled: true,
+    notesEnabled: true,
   });
   const [showAddItem, setShowAddItem] = useState(false);
   const [showVisibilityPanel, setShowVisibilityPanel] = useState(false);
@@ -374,8 +398,28 @@ export default function NewRestaurantPage() {
       .replace(/\-\-+/g, '-');
   };
 
-  const handlePublish = () => {
-    const restaurantId = `r-${Date.now()}`;
+  const sendPublicationEmail = async (restaurantId: string) => {
+    try {
+      const response = await fetch('/api/admin/send-activation-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ restaurantId }),
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error('Failed to send activation email:', errData.error);
+      } else {
+        console.log('Activation email sent successfully.');
+      }
+    } catch (err) {
+      console.error('Error triggering activation email:', err);
+    }
+  };
+
+  const saveRestaurant = async (status: 'draft' | 'published') => {
+    let dbRestaurantId = savedRestaurantId;
     const slug = slugify(info.name);
     const convertHoursToStorage = (hoursRecord: Record<string, DayHours>) => {
       const result: Record<string, any> = {};
@@ -407,14 +451,10 @@ export default function NewRestaurantPage() {
         delivery: !deliveryHours.useCustom,
         reservation: !bookingHours.useCustom,
       },
-      serviceSuspended: {
-        pickup: false,
-        delivery: false,
-        reservation: false,
-      },
+      serviceSuspended,
+      temporaryClosure,
     };
 
-    localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
     const settingsObj = {
       profile: {
         name: info.name,
@@ -460,114 +500,198 @@ export default function NewRestaurantPage() {
       scheduledOrders,
     };
 
-    const newRestaurant = {
-      id: restaurantId,
+    const restaurantPayload = {
       name: info.name,
-      address: info.address,
-      city: info.city,
-      status: 'active' as const,
-      owner: info.name + ' Owner',
+      slug: slug,
       email: info.email,
       phone: info.phone,
-      createdAt: new Date().toISOString().split('T')[0],
-      menuItems: menuItems.length,
-      ordersToday: 0,
-      category: info.category,
-      hours: hours,
-      serviceHours: serviceHoursObj,
-      zones: zones,
-      paymentMethods: settingsObj.paymentMethods,
-      tableBooking,
-      scheduledOrders,
+      address: info.address,
+      city: info.city,
+      province: info.province,
+      cap: info.cap,
+      vat_number: info.vatNumber || null,
+      category: info.category || null,
+      description: info.description || null,
+      logo_url: info.logoUrl || null,
+      background_url: info.backgroundImageUrl || null,
+      status: status,
+      delivery_enabled: zones.some((z) => z.enabled),
+      pickup_enabled: true,
+      table_enabled: tableBooking.enabled,
+      delivery_fee: zones[0]?.deliveryFee || 0,
+      min_order: zones[0]?.minOrder || 0,
+      free_delivery_threshold: zones[0]?.freeDeliveryThreshold || 0,
+      free_delivery_active: (zones[0]?.freeDeliveryThreshold || 0) > 0,
+      card_delivery: !!paymentConfig.card_delivery,
+      card_pickup: !!paymentConfig.card_pickup,
+      cash_delivery: !!paymentConfig.cash_delivery,
+      cash_pickup: !!paymentConfig.cash_pickup,
+      paypal_enabled: !!paymentConfig.paypal_enabled,
+      paypal_connected: !!paymentConfig.paypal_connected,
+      paypal_email: paymentConfig.paypal_email || null,
+      stripe_enabled: !!paymentConfig.stripe_enabled,
+      stripe_connected: !!paymentConfig.stripe_connected,
+      stripe_account_label: paymentConfig.stripe_account_label || null,
+      iban_enabled: !!paymentConfig.iban_enabled,
+      online_payment_account: paymentConfig.onlinePaymentAccount || null,
+      iban_holder: paymentConfig.ibanHolder || null,
+      scheduled_orders: scheduledOrders,
+      hours_config: serviceHoursDataToSave,
     };
 
     try {
-      const domainMenuItems: MenuItem[] = menuItems.map((item) => {
-        let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
-        let visibilitySchedule: { from: string; to: string } | undefined = undefined;
-
-        if (item.visibility.mode === 'hidden') {
-          visibility = 'hidden';
-        } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
-          visibility = 'scheduled';
-          visibilitySchedule = {
-            from: item.visibility.timeFrom,
-            to: item.visibility.timeTo,
-          };
+      if (dbRestaurantId) {
+        const { error } = await supabase
+          .from('restaurants')
+          .update(restaurantPayload)
+          .eq('id', dbRestaurantId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('restaurants')
+          .insert(restaurantPayload)
+          .select('id')
+          .single();
+        if (error) throw error;
+        if (data) {
+          dbRestaurantId = data.id;
+          setSavedRestaurantId(data.id);
         }
-
-        const mappedOptionGroups: OptionGroup[] = item.optionGroups.map((groupId) => {
-          const matchedGroup = optionGroups.find((g) => g.id === groupId);
-          if (!matchedGroup) return null;
-          return {
-            id: matchedGroup.id,
-            name: matchedGroup.name,
-            minSelections: matchedGroup.minSelections !== undefined ? matchedGroup.minSelections : 0,
-            maxSelections: matchedGroup.maxSelections !== undefined ? matchedGroup.maxSelections : null,
-            choices: matchedGroup.choices.map((c) => ({
-              id: c.id,
-              name: c.name,
-              price: c.price.toString(),
-            })),
-          };
-        }).filter((g): g is OptionGroup => g !== null);
-
-        if (item.singleSupplements && item.singleSupplements.length > 0) {
-          mappedOptionGroups.push({
-            id: 'supplementi-singoli',
-            name: 'Supplementi Singoli',
-            minSelections: 0,
-            maxSelections: null,
-            choices: item.singleSupplements.map((c) => ({
-              id: c.id,
-              name: c.name,
-              price: c.price.toString(),
-            })),
-          });
-        }
-
-        const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
-        const listPrice = parseFloat(item.price) || 0;
-        const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
-
-        return {
-          id: item.id || `mi-${Date.now()}-${Math.random()}`,
-          name: item.name,
-          category: item.category,
-          price: isPromoActive ? promoPrice! : listPrice,
-          originalPrice: isPromoActive ? listPrice : undefined,
-          description: item.description,
-          available: item.available,
-          image: item.imageUrl,
-          imageAlt: item.name,
-          allergens: item.allergens,
-          dishTags: item.dishTags || [],
-          ingredients: item.ingredients || [],
-          orders: 0,
-          visibility,
-          visibilitySchedule,
-          optionGroups: mappedOptionGroups,
-        };
-      });
-
-      localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
-      localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
-
-      localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
-      localStorage.setItem(`iGO_service_hours_${slug}`, JSON.stringify(serviceHoursDataToSave));
-      localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(zones));
-
-      const saved = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
-      saved.push(newRestaurant);
-      localStorage.setItem('iGOdelivering_restaurants', JSON.stringify(saved));
-
-      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settingsObj));
-      localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settingsObj));
-    } catch (e) {
-      console.error('Error saving restaurant or settings', e);
+      }
+    } catch (e: any) {
+      console.error('Error saving restaurant to Supabase:', e);
+      showFeedback('Errore durante il salvataggio su database: ' + (e.message || JSON.stringify(e)), 'error');
+      return;
     }
 
-    setPublished(true);
+
+    // ── Sync to Supabase: delivery_zones, menu_categories, menu_items ──
+    if (dbRestaurantId) {
+      try {
+        // 1. Delivery Zones — upsert (delete existing then re-insert for simplicity on re-save)
+        await supabase.from('delivery_zones').delete().eq('restaurant_id', dbRestaurantId);
+        if (zones.length > 0) {
+          const zonesPayload = zones.map((z) => ({
+            restaurant_id: dbRestaurantId,
+            name: z.name,
+            radius_km: z.radius,
+            min_order: z.minOrder,
+            delivery_fee: z.deliveryFee,
+            free_delivery_threshold: z.freeDeliveryThreshold,
+            enabled: z.enabled,
+          }));
+          const { error: zonesErr } = await supabase.from('delivery_zones').insert(zonesPayload);
+          if (zonesErr) {
+            console.error('Error saving zones to Supabase:', zonesErr);
+            throw new Error('Errore nel salvataggio delle zone di consegna: ' + zonesErr.message);
+          }
+        }
+
+        // 2. Menu Categories — upsert
+        if (menuCategories.length > 0) {
+          await supabase.from('menu_categories').delete().eq('restaurant_id', dbRestaurantId);
+          const catsPayload = menuCategories.map((cat, idx) => ({
+            restaurant_id: dbRestaurantId,
+            name: cat,
+            sort_order: idx,
+          }));
+          const { data: savedCats, error: catsErr } = await supabase
+            .from('menu_categories')
+            .insert(catsPayload)
+            .select('id, name');
+          if (catsErr) {
+            console.error('Error saving categories to Supabase:', catsErr);
+            throw new Error('Errore nel salvataggio delle categorie menu: ' + catsErr.message);
+          }
+
+          // 3. Menu Items
+          if (menuItems.length > 0 && savedCats) {
+            await supabase.from('menu_items').delete().eq('restaurant_id', dbRestaurantId);
+            const catMap = Object.fromEntries(savedCats.map((c: any) => [c.name, c.id]));
+
+            const itemsPayload = menuItems.map((item) => {
+              const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
+              const listPrice = parseFloat(item.price) || 0;
+              const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
+
+              let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
+              if (item.visibility.mode === 'hidden') {
+                visibility = 'hidden';
+              } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
+                visibility = 'scheduled';
+              }
+
+              const mappedOptionGroups = item.optionGroups.map((groupId: string) => {
+                const matchedGroup = optionGroups.find((g) => g.id === groupId);
+                if (!matchedGroup) return null;
+                return {
+                  id: matchedGroup.id,
+                  name: matchedGroup.name,
+                  minSelections: matchedGroup.minSelections ?? 0,
+                  maxSelections: matchedGroup.maxSelections ?? null,
+                  choices: matchedGroup.choices.map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
+                };
+              }).filter(Boolean);
+
+              if (item.singleSupplements && item.singleSupplements.length > 0) {
+                mappedOptionGroups.push({
+                  id: 'supplementi-singoli',
+                  name: 'Supplementi Singoli',
+                  minSelections: 0,
+                  maxSelections: null,
+                  choices: (item.singleSupplements as any[]).map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
+                });
+              }
+
+              return {
+                restaurant_id: dbRestaurantId,
+                category_id: catMap[item.category] || null,
+                category_name: item.category,
+                name: item.name,
+                description: item.description || null,
+                price: isPromoActive ? promoPrice! : listPrice,
+                original_price: isPromoActive ? listPrice : null,
+                image_url: item.imageUrl || null,
+                image_alt: item.name,
+                allergens: item.allergens,
+                dish_tags: item.dishTags || [],
+                ingredients: item.ingredients || [],
+                available: item.available,
+                visibility,
+                visibility_from: item.visibility.timeFrom || null,
+                visibility_to: item.visibility.timeTo || null,
+                option_groups: mappedOptionGroups,
+                customization_enabled: item.customizationEnabled ?? true,
+                notes_enabled: item.notesEnabled ?? true,
+                sort_order: 0,
+              };
+            });
+
+            const { error: itemsErr } = await supabase.from('menu_items').insert(itemsPayload);
+            if (itemsErr) {
+              console.error('Error saving menu items to Supabase:', itemsErr);
+              throw new Error('Errore nel salvataggio dei piatti menu: ' + itemsErr.message);
+            }
+          }
+        }
+      } catch (e: any) {
+        console.error('Error syncing menu/zones to Supabase:', e);
+        showFeedback(e.message || 'Errore durante la sincronizzazione del menu/zone.', 'error');
+        return;
+      }
+    }
+
+    setRestaurantStatus(status);
+    setIsSavedDraft(true);
+
+    if (status === 'published') {
+      if (dbRestaurantId) {
+        await sendPublicationEmail(dbRestaurantId);
+      }
+      setPublished(true);
+    } else {
+      showFeedback('Bozza salvata con successo!');
+    }
   };
 
   if (published) {
@@ -582,7 +706,7 @@ export default function NewRestaurantPage() {
           isMobileOpen={isMobileOpen}
           onCloseMobile={() => setIsMobileOpen(false)}
         />
-        <PublishedSuccess restaurantName={info.name} email={info.email} />
+        <PublishedSuccess restaurantName={info.name} email={info.email} restaurantId={savedRestaurantId || ''} />
       </div>
     );
   }
@@ -605,21 +729,33 @@ export default function NewRestaurantPage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href="/admin/restaurants"
-                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors flex-shrink-0"
               >
                 <ArrowLeft size={15} />
-                <span className="hidden sm:inline">Ristoranti</span>
+                <span className="hidden md:inline">Ristoranti</span>
               </Link>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-sm font-semibold text-foreground">Nuovo Ristorante</span>
+              <span className="text-muted-foreground flex-shrink-0">/</span>
+              <span className="text-sm font-semibold text-foreground truncate max-w-[120px] sm:max-w-none">
+                Nuovo Ristorante
+              </span>
             </div>
           }
         />
 
-        <main className="flex-1 overflow-y-auto overscroll-contain">
+        <main className="flex-1 overflow-y-auto overscroll-contain relative">
+          {feedback && (
+            <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
+              feedback.type === 'error'
+                ? 'bg-red-600 text-white'
+                : 'bg-foreground text-background'
+            }`}>
+              {feedback.type === 'error' ? <AlertCircle size={14} /> : <Zap size={14} />}
+              {feedback.message}
+            </div>
+          )}
           {/* Wizard Progress Header */}
           <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
             {/* Mobile: compact progress view */}
@@ -731,6 +867,10 @@ export default function NewRestaurantPage() {
                 toggleServiceDay={toggleServiceDay}
                 toggleServiceSlot={toggleServiceSlot}
                 updateServiceHour={updateServiceHour}
+                serviceSuspended={serviceSuspended}
+                setServiceSuspended={setServiceSuspended}
+                temporaryClosure={temporaryClosure}
+                setTemporaryClosure={setTemporaryClosure}
               />
             )}
             {currentStep === 'scheduled' && (
@@ -836,7 +976,11 @@ export default function NewRestaurantPage() {
                 hours={hours}
                 menuItems={menuItems}
                 menuCategories={menuCategories}
-                handlePublish={handlePublish}
+                handlePublish={() => saveRestaurant('published')}
+                handleSaveDraft={() => saveRestaurant('draft')}
+                isSavedDraft={isSavedDraft}
+                previewUrl={`/menu/${slugify(info.name)}`}
+                restaurantStatus={restaurantStatus}
               />
             )}
 

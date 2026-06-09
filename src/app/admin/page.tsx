@@ -2,17 +2,14 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
-import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import {
   Eye,
   EyeOff,
   Mail,
   Lock,
   ArrowRight,
-  CheckCircle,
-  Copy,
   AlertTriangle,
-  ShieldCheck,
 } from 'lucide-react';
 
 interface LoginForm {
@@ -20,32 +17,7 @@ interface LoginForm {
   password: string;
 }
 
-const adminCredentials = {
-  email: 'admin@igodelivering.it',
-  password: 'Admin2026!',
-};
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value).catch(() => { });
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-      title="Copia"
-    >
-      {copied ? <CheckCircle size={13} className="text-[var(--success)]" /> : <Copy size={13} />}
-    </button>
-  );
-}
-
 export default function AdminLoginPage() {
-  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -53,33 +25,53 @@ export default function AdminLoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginForm>({
     defaultValues: { email: '', password: '' },
   });
 
-  const handleLogin = handleSubmit((data) => {
+  const handleLogin = handleSubmit(async (data) => {
     setLoginLoading(true);
     setLoginError('');
 
-    // Simulazione autenticazione amministratore
-    setTimeout(() => {
-      setLoginLoading(false);
-      if (data.email === adminCredentials.email && data.password === adminCredentials.password) {
-        login(data.email, 'admin');
-        window.location.href = '/admin/restaurants';
-      } else {
-        setLoginError('Credenziali di amministrazione non valide.');
-      }
-    }, 1200);
-  });
+    try {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-  const useDemoAdmin = () => {
-    setValue('email', adminCredentials.email);
-    setValue('password', adminCredentials.password);
-    setLoginError('');
-  };
+      if (error) {
+        setLoginError(error.message === 'Invalid login credentials' ? 'Credenziali non valide.' : error.message);
+        setLoginLoading(false);
+        return;
+      }
+
+      const user = authData.user;
+      if (user) {
+        // Fetch profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile || profile.role !== 'admin') {
+          await supabase.auth.signOut();
+          setLoginError('Non sei autorizzato ad accedere all\'area amministrazione.');
+          setLoginLoading(false);
+          return;
+        }
+
+        // Set role cookie for middleware
+        document.cookie = `igodelivering_role=admin; path=/; max-age=86400; SameSite=Lax`;
+        window.location.href = '/admin/dashboard';
+      }
+    } catch (err: any) {
+      console.error(err);
+      setLoginError("Si è verificato un errore durante l'accesso.");
+      setLoginLoading(false);
+    }
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 relative overflow-hidden select-none">
@@ -92,12 +84,9 @@ export default function AdminLoginPage() {
         {/* Header Block */}
         <div className="flex flex-col items-center text-center mb-8">
           <div className="flex items-center justify-center p-2">
-            <AppLogo size={200} />
+            <AppLogo size={100} />
           </div>
           <h1 className="text-xl font-bold text-zinc-100">Accesso Amministratore</h1>
-          <p className="text-zinc-400 text-xs mt-1.5 max-w-xs">
-            Inserisci le credenziali di root per la gestione globale del sistema iGOdelivering.
-          </p>
         </div>
 
         {/* Form Block */}
@@ -119,7 +108,7 @@ export default function AdminLoginPage() {
                     message: 'Formato email non valido',
                   },
                 })}
-                className={`w-full pl-10 pr-4 py-3 text-base bg-zinc-950 border rounded-xl text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-colors duration-150 ${errors.email ? 'border-red-500/50' : 'border-zinc-800'
+                className={`w-full pl-10 pr-4 py-3 text-base bg-zinc-950 border rounded-xl text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors duration-150 ${errors.email ? 'border-red-500/50' : 'border-zinc-800'
                   }`}
               />
             </div>
@@ -141,7 +130,7 @@ export default function AdminLoginPage() {
                 {...register('password', {
                   required: 'Password obbligatoria',
                 })}
-                className={`w-full pl-10 pr-10 py-3 text-base bg-zinc-950 border rounded-xl text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-colors duration-150 ${errors.password ? 'border-red-500/50' : 'border-zinc-800'
+                className={`w-full pl-10 pr-10 py-3 text-base bg-zinc-950 border rounded-xl text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors duration-150 ${errors.password ? 'border-red-500/50' : 'border-zinc-800'
                   }`}
               />
               <button
@@ -167,7 +156,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loginLoading}
-            className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl disabled:opacity-50 hover:shadow-lg hover:shadow-orange-600/10 transition-all duration-150 active:scale-95 flex items-center justify-center gap-2 text-sm mt-2"
+            className="w-full py-3.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-xl disabled:opacity-50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-150 active:scale-95 flex items-center justify-center gap-2 text-sm mt-2 cursor-pointer"
           >
             {loginLoading ? (
               <>
@@ -177,33 +166,10 @@ export default function AdminLoginPage() {
             ) : (
               <>
                 Accedi all&apos;Area Riservata
-                <ArrowRight size={16} />
               </>
             )}
           </button>
         </form>
-
-        {/* Root Credential Helper */}
-        <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
-          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-            Credenziale di Test Root
-          </p>
-          <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-3.5 flex items-center justify-between">
-            <div className="text-left">
-              <p className="text-[10px] font-mono text-zinc-300">{adminCredentials.email}</p>
-              <p className="text-[10px] font-mono text-zinc-500">{adminCredentials.password}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <CopyButton value={adminCredentials.email} />
-              <button
-                onClick={useDemoAdmin}
-                className="text-[10px] font-extrabold text-orange-500 hover:underline px-2 py-1 rounded bg-zinc-800/40 border border-zinc-800 hover:bg-zinc-800 transition-colors"
-              >
-                Usa
-              </button>
-            </div>
-          </div>
-        </div>
 
       </div>
     </div>

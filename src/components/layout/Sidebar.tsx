@@ -7,20 +7,21 @@ import { STORAGE_KEYS } from '@/lib/storage-keys';
 import versionData from '@/version.json';
 import {
   LayoutDashboard,
-  ShoppingBag,
-  UtensilsCrossed,
-  Tag,
-  MapPin,
+  Receipt,
+  BookOpen,
+  Percent,
+  Map,
   Settings,
   ChevronLeft,
   ChevronRight,
-  Store,
+  Building2,
   Users,
   Activity,
   Calendar,
   X,
   Clock,
   QrCode,
+  CreditCard,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,31 +36,31 @@ const adminNavItems: NavItem[] = [
   {
     id: 'nav-dashboard',
     label: 'Dashboard',
-    icon: <LayoutDashboard size={18} />,
+    icon: <LayoutDashboard size={18} strokeWidth={1.75} />,
     href: '/admin/dashboard',
   },
   {
     id: 'nav-ristoranti',
     label: 'Ristoranti',
-    icon: <Store size={18} />,
+    icon: <Building2 size={18} strokeWidth={1.75} />,
     href: '/admin/restaurants',
   },
   {
     id: 'nav-utenti',
     label: 'Utenti',
-    icon: <Users size={18} />,
+    icon: <Users size={18} strokeWidth={1.75} />,
     href: '/admin/utenti',
   },
   {
     id: 'nav-impostazioni',
     label: 'Impostazioni',
-    icon: <Settings size={18} />,
+    icon: <Settings size={18} strokeWidth={1.75} />,
     href: '/admin/impostazioni',
   },
   {
     id: 'nav-sicurezza',
     label: 'Registro Attività',
-    icon: <Activity size={18} />,
+    icon: <Activity size={18} strokeWidth={1.75} />,
     href: '/admin/sicurezza',
   },
 ];
@@ -68,57 +69,56 @@ const ristoratoreNavItems: NavItem[] = [
   {
     id: 'nav-panoramica',
     label: 'Dashboard',
-    icon: <LayoutDashboard size={18} />,
+    icon: <LayoutDashboard size={18} strokeWidth={1.75} />,
     href: '/ristoratore/dashboard',
   },
   {
     id: 'nav-ordini',
     label: 'Ordini Live',
-    icon: <ShoppingBag size={18} />,
+    icon: <Receipt size={18} strokeWidth={1.75} />,
     href: '/ristoratore/ordini',
-    badge: 3,
   },
   {
     id: 'nav-prenotazioni',
     label: 'Prenotazioni',
-    icon: <Calendar size={18} />,
+    icon: <Calendar size={18} strokeWidth={1.75} />,
     href: '/ristoratore/prenotazioni',
   },
   {
     id: 'nav-orari',
     label: 'Orari',
-    icon: <Clock size={18} />,
+    icon: <Clock size={18} strokeWidth={1.75} />,
     href: '/ristoratore/orari',
   },
   {
     id: 'nav-menu',
     label: 'Menu',
-    icon: <UtensilsCrossed size={18} />,
+    icon: <BookOpen size={18} strokeWidth={1.75} />,
     href: '/ristoratore/menu',
   },
   {
     id: 'nav-promozioni',
     label: 'Promozioni',
-    icon: <Tag size={18} />,
+    icon: <Percent size={18} strokeWidth={1.75} />,
     href: '/ristoratore/promozioni',
   },
   {
     id: 'nav-zone',
     label: 'Zone Consegna',
-    icon: <MapPin size={18} />,
+    icon: <Map size={18} strokeWidth={1.75} />,
     href: '/ristoratore/zone',
   },
   {
     id: 'nav-tavoli',
     label: 'QR Code Tavoli',
-    icon: <QrCode size={18} />,
+    icon: <QrCode size={18} strokeWidth={1.75} />,
     href: '/ristoratore/tavoli',
   },
   {
-    id: 'nav-impostazioni',
-    label: 'Impostazioni',
-    icon: <Settings size={18} />,
-    href: '/ristoratore/impostazioni',
+    id: 'nav-pagamenti',
+    label: 'Pagamenti',
+    icon: <CreditCard size={18} strokeWidth={1.75} />,
+    href: '/ristoratore/pagamenti',
   },
 ];
 
@@ -142,7 +142,7 @@ export default function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const { user } = useAuth();
-  const [pendingOrdersCount, setPendingOrdersCount] = useState(3);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   useEffect(() => {
     const updateCount = () => {
@@ -190,19 +190,7 @@ export default function Sidebar({
   };
 
   const getGradientColor = (name?: string) => {
-    if (!name) return 'from-orange-500 to-red-500';
-    const colors = [
-      'from-orange-500 to-red-500',
-      'from-purple-500 to-indigo-500',
-      'from-teal-500 to-emerald-500',
-      'from-blue-500 to-indigo-500',
-      'from-pink-500 to-rose-500',
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
+    return 'from-slate-800 to-slate-900 border border-slate-700/50';
   };
 
   const rawItems = role === 'admin' ? adminNavItems : ristoratoreNavItems;
@@ -220,7 +208,7 @@ export default function Sidebar({
         <div className="flex items-center justify-center overflow-hidden">
           {role === 'admin' ? (
             <div className="transition-all duration-300 flex items-center justify-center">
-              <AppLogo size={collapsed ? 28 : 110} />
+              <AppLogo size={collapsed ? 28 : 50} />
             </div>
           ) : (
             <div className="transition-all duration-300 flex items-center justify-center">
@@ -228,17 +216,15 @@ export default function Sidebar({
                 <img
                   src={user.restaurantLogo}
                   alt={user.restaurantName || 'Logo'}
-                  className={`object-contain transition-all duration-300 ${
-                    collapsed ? 'w-7 h-7' : 'h-10 max-w-[140px]'
-                  }`}
+                  className={`object-contain transition-all duration-300 ${collapsed ? 'w-7 h-7' : 'h-10 max-w-[140px]'
+                    }`}
                 />
               ) : (
                 <div
                   className={`bg-gradient-to-br ${getGradientColor(
                     user?.restaurantName
-                  )} text-white flex items-center justify-center font-extrabold shadow-xs transition-all duration-300 ${
-                    collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
-                  }`}
+                  )} text-white flex items-center justify-center font-extrabold shadow-xs transition-all duration-300 ${collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
+                    }`}
                 >
                   {getInitials(user?.restaurantName)}
                 </div>
@@ -272,13 +258,11 @@ export default function Sidebar({
                 if (onCloseMobile) onCloseMobile();
               }}
               title={collapsed ? item.label : undefined}
-              className={`w-full flex items-center rounded-xl text-sm font-medium transition-all duration-150 group relative ${
-                collapsed ? 'lg:justify-center lg:px-0 py-2.5' : 'gap-3 px-3 py-2.5'
-              } ${
-                isActive
+              className={`w-full flex items-center rounded-xl text-sm font-medium transition-all duration-150 group relative ${collapsed ? 'lg:justify-center lg:px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                } ${isActive
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-              }`}
+                }`}
             >
               <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
                 {item.icon}

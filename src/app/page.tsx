@@ -37,7 +37,7 @@ export default function LandingPage() {
           <div>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center bg-primary text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-[#d43d22] transition-all hover:shadow-lg active:scale-95 duration-150"
+              className="inline-flex items-center justify-center bg-primary text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-primary-hover transition-all hover:shadow-lg active:scale-95 duration-150"
             >
               Accedi
             </Link>
@@ -75,7 +75,7 @@ export default function LandingPage() {
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
               <a
                 href="#contact"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-white font-bold px-8 py-4 rounded-xl hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-md hover:shadow-xl hover:shadow-primary/10 text-base"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-white font-bold px-8 py-4 rounded-xl hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-md hover:shadow-xl hover:shadow-primary/10 text-base"
               >
                 Richiedi Informazioni <ArrowRight size={18} />
               </a>
@@ -317,7 +317,7 @@ export default function LandingPage() {
               <div>
                 <Link
                   href="/menu/pizzeria-bella-napoli"
-                  className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white font-bold px-8 py-4 rounded-xl hover:bg-[#d43d22] transition-all hover:shadow-lg active:scale-95 duration-150 text-base"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white font-bold px-8 py-4 rounded-xl hover:bg-primary-hover transition-all hover:shadow-lg active:scale-95 duration-150 text-base"
                 >
                   Esplora la Demo Cliente 🍕
                 </Link>

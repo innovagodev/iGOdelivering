@@ -10,16 +10,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-const revenueData = [
-  { giorno: 'Lun', ricavi: 892, ordini: 31 },
-  { giorno: 'Mar', ricavi: 1140, ordini: 42 },
-  { giorno: 'Mer', ricavi: 780, ordini: 28 },
-  { giorno: 'Gio', ricavi: 1320, ordini: 49 },
-  { giorno: 'Ven', ricavi: 1680, ordini: 63 },
-  { giorno: 'Sab', ricavi: 2240, ordini: 84 },
-  { giorno: 'Dom', ricavi: 1284, ordini: 47 },
-];
-
 function CustomTooltip({
   active,
   payload,
@@ -47,7 +37,41 @@ function CustomTooltip({
   );
 }
 
-export default function RevenueChart() {
+export default function RevenueChart({ orders = [] }: { orders?: any[] }) {
+  const chartData = React.useMemo(() => {
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+    const days: { dateStr: string; label: string; ricavi: number; ordini: number }[] = [];
+    
+    // Initialize last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push({
+        dateStr: d.toDateString(),
+        label: dayNames[d.getDay()],
+        ricavi: 0,
+        ordini: 0
+      });
+    }
+
+    // Populate with real orders
+    orders.forEach((o) => {
+      if (!o.created_at || o.status === 'cancelled') return;
+      const orderDate = new Date(o.created_at).toDateString();
+      const dayObj = days.find((d) => d.dateStr === orderDate);
+      if (dayObj) {
+        dayObj.ricavi += Number(o.total || 0);
+        dayObj.ordini += 1;
+      }
+    });
+
+    return days.map(d => ({
+      giorno: d.label,
+      ricavi: Math.round(d.ricavi),
+      ordini: d.ordini
+    }));
+  }, [orders]);
+
   return (
     <div className="bg-card rounded-xl border border-border shadow-card p-5">
       <div className="flex items-center justify-between mb-5">
@@ -60,7 +84,7 @@ export default function RevenueChart() {
         </span>
       </div>
       <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="giorno"

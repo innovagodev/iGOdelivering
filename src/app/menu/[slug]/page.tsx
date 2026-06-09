@@ -36,6 +36,17 @@ import {
   UtensilsCrossed,
   ChevronRight,
   Users,
+  Leaf,
+  Flame,
+  Wheat,
+  Sparkles,
+  Milk,
+  Heart,
+  Fish,
+  Apple,
+  Coffee,
+  Wine,
+  Pizza
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -52,6 +63,7 @@ import Footer from '@/components/layout/Footer';
 import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { generateId } from '@/lib/id-generator';
+import { supabase } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────
 interface MenuItemType {
@@ -71,6 +83,8 @@ interface MenuItemType {
   dishTags?: string[];
   ingredients?: string[];
   optionGroups?: any[];
+  customizationEnabled?: boolean;
+  notesEnabled?: boolean;
 }
 
 interface CartItem extends MenuItemType {
@@ -79,6 +93,7 @@ interface CartItem extends MenuItemType {
   cartId?: string;
   addedIngredients?: { name: string; price: number }[];
   removedIngredients?: string[];
+  selectedOptions?: any[];
 }
 
 interface RestaurantType {
@@ -102,308 +117,8 @@ interface RestaurantType {
   scheduledOrders?: ScheduledOrdersConfig;
 }
 
-// ─── Dynamic Restaurant Resolver ──────────────────────────────
-const getRestaurantBySlug = (slug: string): RestaurantType => {
-  const normalizedSlug = (slug || '').toLowerCase();
-
-  if (normalizedSlug === 'pizzeria-bella-napoli') {
-    return {
-      name: 'Pizzeria Bella Napoli',
-      tagline: 'Autentica pizza napoletana dal 1987',
-      address: 'Via Roma 24, Milano',
-      rating: 4.8,
-      reviews: 312,
-      deliveryTime: '25–40 min',
-      minOrder: 0,
-      deliveryFee: 2.5,
-      phone: '+39 02 1234567',
-      image: 'https://images.unsplash.com/photo-1579751626657-72bc17010498',
-      imageAlt: 'Pizza margherita appena sfornata da forno a legna in una pizzeria napoletana',
-      logoUrl: '/assets/images/logo_pizzeria.png',
-      paymentMethods: { cash: true, card: true, paypal: true },
-      openingHours: [
-        { start: '11:30', end: '14:30' },
-        { start: '19:00', end: '22:30' },
-      ],
-      deliveryHours: [
-        { start: '11:30', end: '14:30' },
-        { start: '19:00', end: '22:30' },
-      ],
-    };
-  } else if (normalizedSlug === 'sushi-zen') {
-    return {
-      name: 'Sushi Zen',
-      tagline: 'Tradizione e purezza giapponese',
-      address: 'Corso Magenta 12, Milano',
-      rating: 4.9,
-      reviews: 184,
-      deliveryTime: '30–50 min',
-      minOrder: 0,
-      deliveryFee: 3.5,
-      phone: '+39 02 7654321',
-      image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c',
-      imageAlt: 'Splendido set di sushi e sashimi assortito servito su ardesia scura',
-      logoUrl: '/assets/images/logo_sushi.png',
-      paymentMethods: { cash: true, card: true, paypal: false },
-    };
-  } else if (normalizedSlug === 'burger-house') {
-    return {
-      name: 'Burger House',
-      tagline: 'Smash burger gourmet e birre artigianali',
-      address: 'Via Torino 45, Milano',
-      rating: 4.7,
-      reviews: 245,
-      deliveryTime: '20–35 min',
-      minOrder: 0,
-      deliveryFee: 2.0,
-      phone: '+39 02 9876543',
-      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd',
-      imageAlt: 'Un hamburger gourmet gigante con formaggio fuso, bacon e cipolla caramellata',
-      logoUrl: '/assets/images/logo_burger.png',
-      paymentMethods: { cash: true, card: true, paypal: true },
-    };
-  }
-
-  // Fallback: format any custom slug nicely
-  const formattedName = slug
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-
-  return {
-    name: formattedName || 'Ristorante Partner',
-    tagline: 'Benvenuto nel nostro ordinatore digitale',
-    address: 'Via Garibaldi 10, Milano',
-    rating: 4.6,
-    reviews: 42,
-    deliveryTime: '30–45 min',
-    minOrder: 0,
-    deliveryFee: 2.9,
-    phone: '+39 02 0000000',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-    imageAlt: 'Sala interna di un ristorante moderno ed accogliente',
-    logoUrl: '',
-    paymentMethods: { cash: true, card: true, paypal: true },
-  };
-};
-
-// ─── Mock Data ────────────────────────────────────────────────
-const categories = ['Promozioni', 'Antipasti', 'Primi', 'Pizza', 'Secondi', 'Dolci', 'Bevande'];
-
-const menuItems: MenuItemType[] = [
-  {
-    id: 'sf-001',
-    name: 'Antipasto Misto',
-    category: 'Antipasti',
-    price: 12.0,
-    originalPrice: 15.0,
-    description:
-      'Salumi selezionati DOP, formaggi stagionati, olive taggiasche, bruschette al pomodoro',
-    image: 'https://images.unsplash.com/photo-1616316326562-f081d9616d6b',
-    imageAlt: 'Tagliere di antipasto misto con salumi, formaggi, olive e bruschette',
-    popular: true,
-    veg: false,
-    spicy: false,
-    allergens: ['Glutine', 'Latte'],
-  },
-  {
-    id: 'sf-002',
-    name: 'Bruschette al Pomodoro',
-    category: 'Antipasti',
-    price: 7.5,
-    description: 'Pane casereccio tostato, pomodori datterini, basilico, aglio, olio EVO',
-    image: 'https://images.unsplash.com/photo-1572650699880-d5be8606c4fe',
-    imageAlt: 'Bruschette tostate con pomodori freschi, basilico e olio di oliva',
-    veg: true,
-    spicy: false,
-    allergens: ['Glutine'],
-  },
-  {
-    id: 'sf-003',
-    name: 'Carpaccio di Manzo',
-    category: 'Antipasti',
-    price: 14.0,
-    description: 'Manzo marinato, scaglie di grana, rucola, capperi, limone',
-    image: 'https://images.unsplash.com/photo-1544025162-d76694265947',
-    imageAlt: 'Carpaccio di manzo con scaglie di parmigiano e rucola su piatto bianco',
-    veg: false,
-    spicy: false,
-    allergens: ['Latte'],
-  },
-  {
-    id: 'sf-004',
-    name: 'Spaghetti alla Carbonara',
-    category: 'Primi',
-    price: 13.5,
-    originalPrice: 16.0,
-    description:
-      'Spaghetti trafilati al bronzo, guanciale di Amatrice, uova fresche, pecorino romano, pepe nero',
-    image: 'https://images.unsplash.com/photo-1612874742237-6526221588e3',
-    imageAlt: 'Spaghetti alla carbonara cremosi con guanciale croccante e pecorino',
-    popular: true,
-    veg: false,
-    spicy: false,
-    allergens: ['Glutine', 'Uova', 'Latte'],
-    dishTags: ['👑 Consigliato'],
-  },
-  {
-    id: 'sf-005',
-    name: "Penne all'Arrabbiata",
-    category: 'Primi',
-    price: 11.0,
-    description: 'Penne rigate, pomodoro San Marzano, aglio, peperoncino calabrese, basilico',
-    image: 'https://images.unsplash.com/photo-1563379971899-660589a01cc3',
-    imageAlt: 'Penne all arrabbiata con salsa di pomodoro piccante e basilico fresco',
-    veg: true,
-    spicy: true,
-    allergens: ['Glutine'],
-    dishTags: ['🌶️ Piccante'],
-  },
-  {
-    id: 'sf-006',
-    name: 'Lasagne al Forno',
-    category: 'Primi',
-    price: 14.5,
-    description:
-      'Sfoglie fresche, ragù di manzo e maiale, besciamella, parmigiano reggiano 24 mesi',
-    image: 'https://images.unsplash.com/photo-1574894709920-11b28e7367e3',
-    imageAlt: 'Lasagne al forno con ragù di carne, besciamella e parmigiano gratinato',
-    veg: false,
-    spicy: false,
-    allergens: ['Glutine', 'Uova', 'Latte'],
-  },
-  {
-    id: 'sf-007',
-    name: 'Pizza Margherita',
-    category: 'Pizza',
-    price: 9.5,
-    originalPrice: 12.0,
-    description: 'Pomodoro San Marzano DOP, mozzarella fior di latte, basilico fresco, olio EVO',
-    image: 'https://images.unsplash.com/photo-1703784022146-b72677752ce5',
-    imageAlt: 'Pizza Margherita napoletana con mozzarella fior di latte e basilico fresco',
-    popular: true,
-    veg: true,
-    spicy: false,
-    allergens: ['Glutine', 'Latte'],
-    dishTags: ['🌱 Vegano', '⭐ Specialità'],
-  },
-  {
-    id: 'sf-008',
-    name: 'Pizza Diavola',
-    category: 'Pizza',
-    price: 11.0,
-    originalPrice: 14.0,
-    description: 'Pomodoro, mozzarella, salame piccante calabrese, peperoncino fresco',
-    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
-    imageAlt: 'Pizza Diavola con salame piccante e peperoncino su base pomodoro',
-    popular: true,
-    veg: false,
-    spicy: true,
-    allergens: ['Glutine', 'Latte'],
-    dishTags: ['🌶️ Piccante', '🆕 Nuovo'],
-  },
-  {
-    id: 'sf-009',
-    name: 'Pizza Quattro Stagioni',
-    category: 'Pizza',
-    price: 13.0,
-    description: 'Carciofi, funghi, prosciutto cotto, olive, mozzarella, pomodoro',
-    image: 'https://images.unsplash.com/photo-1593560708920-61dd98c46a4e',
-    imageAlt: 'Pizza Quattro Stagioni con ingredienti di qualità',
-    veg: false,
-    spicy: false,
-    allergens: ['Glutine', 'Latte'],
-  },
-  {
-    id: 'sf-010',
-    name: 'Pizza Prosciutto e Funghi',
-    category: 'Pizza',
-    price: 12.0,
-    description: 'Prosciutto cotto, champignon freschi, mozzarella, pomodoro, origano',
-    image: 'https://images.unsplash.com/photo-1650455458884-4c7957a28fe4',
-    imageAlt: 'Pizza con prosciutto cotto, funghi champignon e mozzarella filante',
-    veg: false,
-    spicy: false,
-    allergens: ['Glutine', 'Latte'],
-  },
-  {
-    id: 'sf-011',
-    name: 'Tagliata di Manzo',
-    category: 'Secondi',
-    price: 22.0,
-    description:
-      'Controfiletto irlandese alla griglia, rucola, scaglie di grana, pomodorini con-fit',
-    image: 'https://images.unsplash.com/photo-1544025162-d76694265947',
-    imageAlt: 'Tagliata di manzo grigliata con rucola e scaglie di grana su tagliere',
-    popular: true,
-    veg: false,
-    spicy: false,
-    allergens: ['Latte'],
-  },
-  {
-    id: 'sf-012',
-    name: 'Branzino al Forno',
-    category: 'Secondi',
-    price: 24.0,
-    description: 'Branzino intero al forno con erbe aromatiche, patate, olive, capperi',
-    image: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2',
-    imageAlt: 'Branzino al forno intero servito con erbe aromatiche e patate',
-    veg: false,
-    spicy: false,
-    allergens: [],
-  },
-  {
-    id: 'sf-013',
-    name: 'Tiramisù Classico',
-    category: 'Dolci',
-    price: 6.5,
-    description:
-      'Ricetta tradizionale: savoiardi, mascarpone, caffè espresso, cacao amaro in polvere',
-    image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9',
-    imageAlt: 'Tiramisù classico in coppetta con strati di mascarpone e cacao in polvere',
-    popular: true,
-    veg: true,
-    spicy: false,
-    allergens: ['Uova', 'Latte', 'Glutine'],
-    dishTags: ['👑 Consigliato'],
-  },
-  {
-    id: 'sf-014',
-    name: 'Panna Cotta',
-    category: 'Dolci',
-    price: 5.5,
-    description: 'Panna cotta alla vaniglia con coulis di frutti di bosco freschi',
-    image: 'https://images.unsplash.com/photo-1687418343128-20249de29a88',
-    imageAlt: 'Panna cotta bianca con salsa di frutti di bosco rossi su piatto bianco',
-    veg: true,
-    spicy: false,
-    allergens: ['Latte'],
-  },
-  {
-    id: 'sf-015',
-    name: 'Acqua Naturale 75cl',
-    category: 'Bevande',
-    price: 2.5,
-    description: 'Acqua minerale naturale in bottiglia di vetro',
-    image: 'https://images.unsplash.com/photo-1608885898957-a599fb18cd3d',
-    imageAlt: 'Bottiglia di acqua minerale naturale da 75cl su sfondo bianco',
-    veg: true,
-    spicy: false,
-    allergens: [],
-  },
-  {
-    id: 'sf-016',
-    name: 'Birra Artigianale 33cl',
-    category: 'Bevande',
-    price: 4.5,
-    description: 'Birra artigianale ambrata locale, produzione artigianale lombarda',
-    image: 'https://images.unsplash.com/photo-1692827556801-09d8ff82274a',
-    imageAlt: 'Bicchiere di birra artigianale ambrata con schiuma bianca in vetro trasparente',
-    veg: true,
-    spicy: false,
-    allergens: ['Glutine'],
-  },
-];
+// Mock data removed in favor of Supabase.
+const menuItems: MenuItemType[] = [];
 
 const orderSteps = [
   { id: 'step-ricevuto', label: 'Ordine Ricevuto', icon: <CheckCircle size={18} />, done: true },
@@ -518,7 +233,7 @@ function CartSidebar({
         <div className="px-5 py-3 border-b border-border/40 bg-primary/5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2 text-primary font-bold">
             <MapPin size={16} />
-            <span>Tavolo {tableNumber}</span>
+            <span>Tavolo {tableNumber || 'Da specificare'}</span>
           </div>
           <div className="flex items-center gap-2">
             <label className="text-xs font-semibold text-muted-foreground">Ospiti:</label>
@@ -687,7 +402,7 @@ function CartSidebar({
             <button
               onClick={onCheckout}
               disabled={!meetsMin || (isCurrentlyClosed && !isPreOrderAllowed)}
-              className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
+              className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
               {isCurrentlyClosed && !isPreOrderAllowed ? 'Locale Chiuso' : isCurrentlyClosed ? 'Ordina per dopo' : deliveryType === 'tavolo' ? 'Procedi' : 'Procedi'}
             </button>
@@ -698,20 +413,102 @@ function CartSidebar({
   );
 }
 
+const getCleanTagLabel = (tag: string) => {
+  if (tag.includes(':')) {
+    return tag.split(':').slice(1).join(':').trim();
+  }
+  // Strip emojis
+  return tag.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+};
+
 const getTagStyle = (tag: string) => {
-  if (tag.includes('🌱') || tag.toLowerCase().includes('vegan') || tag.toLowerCase().includes('vegetar')) {
-    return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/40';
+  let iconName = '';
+  if (tag.includes(':')) {
+    iconName = tag.split(':')[0].trim().toLowerCase();
+  } else {
+    const t = tag.toLowerCase();
+    if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+      iconName = 'leaf';
+    } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+      iconName = 'flame';
+    } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
+      iconName = 'wheat';
+    } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+      iconName = 'sparkles';
+    } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+      iconName = 'star';
+    } else if (t.includes('lattosio') || tag.includes('🥛')) {
+      iconName = 'milk';
+    }
   }
-  if (tag.includes('🌶️') || tag.includes('🔥') || tag.toLowerCase().includes('piccant')) {
-    return 'bg-rose-500/10 text-rose-700 border-rose-500/20 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/40';
+
+  if (iconName === 'leaf') {
+    return 'text-emerald-600 dark:text-emerald-400';
   }
-  if (tag.includes('🆕') || tag.toLowerCase().includes('nuov')) {
-    return 'bg-blue-500/10 text-blue-700 border-blue-500/20 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800/40';
+  if (iconName === 'flame') {
+    return 'text-rose-600 dark:text-rose-400';
   }
-  if (tag.includes('⭐') || tag.includes('👑') || tag.toLowerCase().includes('special') || tag.toLowerCase().includes('consigliat')) {
-    return 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/40';
+  if (iconName === 'wheat') {
+    return 'text-amber-600 dark:text-amber-400';
   }
-  return 'bg-slate-500/10 text-slate-700 border-slate-500/20 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/40';
+  if (iconName === 'sparkles') {
+    return 'text-blue-600 dark:text-blue-400';
+  }
+  if (iconName === 'star') {
+    return 'text-amber-600 dark:text-amber-400';
+  }
+  return 'text-slate-500 dark:text-slate-450';
+};
+
+const getTagIcon = (tag: string) => {
+  let iconName: string | null = null;
+  if (tag.includes(':')) {
+    iconName = tag.split(':')[0].trim().toLowerCase();
+  } else {
+    const t = tag.toLowerCase();
+    if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+      iconName = 'leaf';
+    } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+      iconName = 'flame';
+    } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
+      iconName = 'wheat';
+    } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+      iconName = 'sparkles';
+    } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+      iconName = 'star';
+    } else if (t.includes('lattosio') || tag.includes('🥛')) {
+      iconName = 'milk';
+    }
+  }
+
+  switch (iconName) {
+    case 'leaf':
+      return <Leaf size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'flame':
+      return <Flame size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'wheat':
+      return <Wheat size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'sparkles':
+      return <Sparkles size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'star':
+      return <Star size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'milk':
+      return <Milk size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'heart':
+      return <Heart size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'fish':
+      return <Fish size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'apple':
+      return <Apple size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'coffee':
+      return <Coffee size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'wine':
+      return <Wine size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'pizza':
+      return <Pizza size={14} className="text-current shrink-0" strokeWidth={2} />;
+    default:
+      return null;
+  }
 };
 
 function MenuItemCard({
@@ -741,6 +538,139 @@ function MenuItemCard({
   const defaultQty = defaultCartItem ? defaultCartItem.qty : 0;
   const totalQty = cart.filter((c) => c.id === item.id).reduce((sum, c) => sum + c.qty, 0);
 
+  if (!compact) {
+    return (
+      <div
+        onClick={() => onCustomize(item)}
+        className="w-full flex items-start sm:items-center justify-between py-5 border-b border-border/60 hover:bg-muted/10 transition-all duration-150 cursor-pointer group relative px-1"
+      >
+        {/* Left Column: Image */}
+        {item.image && (
+          <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border border-border/40 bg-muted mr-4">
+            <AppImage
+              src={item.image}
+              alt={item.imageAlt || item.name}
+              fill
+              sizes="(max-width: 768px) 96px, 96px"
+              className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            />
+            {totalQty > 0 && (
+              <div className="absolute top-1.5 left-1.5 bg-primary text-white text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
+                {totalQty}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Center Column: Details */}
+        <div className="flex-1 min-w-0 pr-4">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <h4 className="font-bold text-foreground text-sm sm:text-base group-hover:text-primary transition-colors leading-snug flex items-center gap-1.5">
+              {totalQty > 0 && !item.image && (
+                <span className="bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs shrink-0 animate-pop">
+                  {totalQty}
+                </span>
+              )}
+              {item.name}
+            </h4>
+            <div className="flex items-center gap-0.5">
+              {item.dishTags &&
+                item.dishTags.map((tag) => {
+                  const icon = getTagIcon(tag);
+                  if (!icon) return null;
+                  const label = getCleanTagLabel(tag);
+                  return (
+                    <span
+                      key={`${item.id}-${tag}`}
+                      title={label}
+                      className="text-slate-400 select-none flex items-center"
+                      role="img"
+                      aria-label={label}
+                    >
+                      {icon}
+                    </span>
+                  );
+                })}
+            </div>
+          </div>
+
+          {item.description ? (
+            <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-2 leading-relaxed">
+              {item.description}
+            </p>
+          ) : item.ingredients && item.ingredients.length > 0 ? (
+            <p className="text-xs text-muted-foreground/75 mt-1 line-clamp-2 leading-relaxed">
+              {item.ingredients.join(', ')}
+            </p>
+          ) : null}
+
+          {item.allergens && item.allergens.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {item.allergens.map((a) => (
+                <span
+                  key={`${item.id}-${a}`}
+                  className="text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-md px-1.5 py-0.5 font-medium border border-transparent"
+                >
+                  {a}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Prices and Action Button */}
+        <div className="shrink-0 flex flex-col items-end justify-between min-h-[72px] sm:min-h-[84px] min-w-[80px]">
+          <div className="text-right">
+            <span className="font-black text-foreground text-sm sm:text-base block">
+              € {item.price.toFixed(2)}
+            </span>
+            {item.originalPrice && (
+              <span className="text-xs text-muted-foreground/50 line-through decoration-red-500/50 block mt-0.5">
+                € {item.originalPrice.toFixed(2)}
+              </span>
+            )}
+          </div>
+
+          {defaultQty > 0 ? (
+            <div
+              className="flex items-center gap-1 bg-secondary rounded-xl p-0.5 border border-border/60 mt-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() =>
+                  defaultCartItem && onRemove(defaultCartItem.cartId || defaultCartItem.id)
+                }
+                className="w-6.5 h-6.5 rounded-lg bg-card hover:bg-border flex items-center justify-center transition-colors shadow-xs active:scale-90"
+              >
+                <Minus size={10} className="text-foreground" />
+              </button>
+              <span className="w-4 text-center font-bold tabular-nums text-foreground text-xs">
+                {defaultQty}
+              </span>
+              <button
+                onClick={() => onAdd(item)}
+                className="w-6.5 h-6.5 rounded-lg bg-primary text-white hover:bg-primary-hover flex items-center justify-center transition-colors shadow-xs active:scale-90"
+              >
+                <Plus size={10} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd(item);
+              }}
+              className="w-8 h-8 bg-primary hover:bg-primary-hover text-white rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all mt-2 cursor-pointer"
+              title="Aggiungi al carrello"
+            >
+              <Plus size={14} strokeWidth={3} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={() => onCustomize(item)}
@@ -760,7 +690,6 @@ function MenuItemCard({
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
-
         </div>
         <div className={`${compact ? 'p-3 pb-1' : 'p-4'} flex-1`}>
           <h4
@@ -774,15 +703,20 @@ function MenuItemCard({
             </p>
           )}
           {item.dishTags && item.dishTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2 mt-0.5 animate-in fade-in duration-200">
-              {item.dishTags.map((tag) => (
-                <span
-                  key={`${item.id}-${tag}`}
-                  className={`inline-flex items-center text-[9px] font-extrabold border rounded px-1.5 py-0.5 shadow-xs ${getTagStyle(tag)}`}
-                >
-                  {tag}
-                </span>
-              ))}
+            <div className="flex flex-wrap gap-2 mb-2 mt-0.5 animate-in fade-in duration-200">
+              {item.dishTags.map((tag) => {
+                const icon = getTagIcon(tag);
+                const label = getCleanTagLabel(tag);
+                return (
+                  <span
+                    key={`${item.id}-${tag}`}
+                    className={`inline-flex items-center gap-1 text-[9px] font-bold ${getTagStyle(tag)}`}
+                  >
+                    {icon && <span className="shrink-0 scale-90">{icon}</span>}
+                    <span>{label}</span>
+                  </span>
+                );
+              })}
             </div>
           )}
           <p
@@ -842,7 +776,7 @@ function MenuItemCard({
             </span>
             <button
               onClick={() => onAdd(item)}
-              className={`${compact ? 'w-5 h-5 rounded-md' : 'w-7 h-7 rounded-lg'} bg-primary text-white hover:bg-[#d43d22] flex items-center justify-center transition-colors shadow-sm active:scale-90`}
+              className={`${compact ? 'w-5 h-5 rounded-md' : 'w-7 h-7 rounded-lg'} bg-primary text-white hover:bg-primary-hover flex items-center justify-center transition-colors shadow-sm active:scale-90`}
             >
               <Plus size={compact ? 10 : 12} />
             </button>
@@ -853,7 +787,7 @@ function MenuItemCard({
               e.stopPropagation();
               onAdd(item);
             }}
-            className={`flex items-center bg-primary text-white hover:bg-[#d43d22] transition-all duration-150 active:scale-95 shadow-sm shadow-primary/10 ${compact ? 'w-7 h-7 justify-center rounded-lg p-0' : 'gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold'}`}
+            className={`flex items-center bg-primary text-white hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm shadow-primary/10 ${compact ? 'w-7 h-7 justify-center rounded-lg p-0' : 'gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold'}`}
           >
             <Plus size={compact ? 12 : 14} />
             {!compact && <span>Aggiungi</span>}
@@ -885,6 +819,8 @@ function CheckoutModal({
   actualDeliveryFee,
   slug,
   tableNumber,
+  setTableNumber,
+  isTableEditable,
   paymentMethods,
   currentTimeStr,
   openingHours,
@@ -923,6 +859,8 @@ function CheckoutModal({
   actualDeliveryFee: number;
   slug: string;
   tableNumber?: string | null;
+  setTableNumber?: (v: string) => void;
+  isTableEditable?: boolean;
   paymentMethods?: any;
   currentTimeStr: string;
   openingHours?: { start: string; end: string }[];
@@ -1111,7 +1049,7 @@ function CheckoutModal({
               {order.payMethod === 'online'
                 ? 'PayPal (Online)'
                 : order.payMethod === 'card'
-                  ? 'Stripe (Online)'
+                  ? 'Carta di Credito (Online)'
                   : order.payMethod === 'pos'
                     ? 'POS (Alla Consegna/Ritiro)'
                     : 'Contanti'}
@@ -1256,7 +1194,7 @@ function CheckoutModal({
 
   // 1. Get current scheduled orders configuration
   const scheduledOrdersConfig = restaurantSettings?.scheduledOrders;
-  const isScheduledEnabled = !!scheduledOrdersConfig?.enabled;
+  const isScheduledEnabled = true;
 
   const currentConfig = React.useMemo(() => {
     if (!isScheduledEnabled || !scheduledOrdersConfig) return null;
@@ -1352,7 +1290,7 @@ function CheckoutModal({
     return slots;
   }, [deliveryType, openingHours, deliveryHours, currentTimeStr, selectedDate, dateOptions, minNoticeMinutes, timeInterval]);
 
-  const showAsapOption = !isCurrentlyClosed && !scheduledOrdersConfig?.hideAsap && (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
+  const showAsapOption = !isCurrentlyClosed && (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
 
   useEffect(() => {
     if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
@@ -1410,7 +1348,7 @@ function CheckoutModal({
     }
   }, [open]);
 
-  const handleOrder = () => {
+  const handleOrder = async () => {
     if (payMethod === 'card' && !isCardFormValid) {
       setCardError('I dati della carta non sono validi o sono incompleti.');
       return;
@@ -1418,61 +1356,59 @@ function CheckoutModal({
     setCardError(null);
     setLoading(true);
 
+    const rId = restaurantSettings.id;
+    if (!rId) {
+      alert("Errore: Ristorante non identificato");
+      setLoading(false);
+      return;
+    }
+
     if (bookingContext) {
       try {
-        const rId = getRestaurantId(slug);
-        const bookingsKey = STORAGE_KEYS.bookings(rId);
-        const existingStr = localStorage.getItem(bookingsKey);
-        let bookingsArray: any[] = [];
-        if (existingStr) {
-          try { bookingsArray = JSON.parse(existingStr); } catch (e) { console.error(e); }
-        }
-
-        const newBooking = {
-          id: generateId('PRE'),
-          restaurantId: rId,
+        const bookingPayload = {
+          restaurant_id: rId,
           name: bookingContext.name.trim(),
           phone: bookingContext.phone.trim(),
-          email: '',
+          email: email.trim().toLowerCase() || null,
           guests: bookingContext.guests,
           date: bookingContext.date,
-          time: bookingContext.time,
+          time: `${bookingContext.time}:00`,
           status: 'pending',
           notes: bookingContext.note.trim(),
-          preOrderItems: cart,
-          preOrderTotal: total,
+          pre_order_items: cart,
+          pre_order_total: total,
+        };
+
+        const { data: bookingData, error: bookingError } = await supabase
+          .from('bookings')
+          .insert(bookingPayload)
+          .select()
+          .single();
+
+        if (bookingError || !bookingData) {
+          throw bookingError || new Error("Errore durante l'inserimento della prenotazione");
+        }
+
+        const trackedBooking = {
+          ...bookingData,
+          type: 'prenotazione_tavolo',
+          timestamp: bookingData.created_at,
           payMethod: payMethod,
           total: total,
-          createdAt: new Date().toISOString(),
         };
 
-        bookingsArray.push(newBooking);
-        localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
-
-        // Sync with lastCreatedOrder so we can monitor status changes and show iOS notifications
-        const trackedOrder = {
-          ...newBooking,
-          type: 'prenotazione_tavolo',
-          customerName: bookingContext.name,
-          total: total,
-        };
-        setLastCreatedOrder(trackedOrder);
-        sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
-
+        setLastCreatedOrder(trackedBooking);
+        sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedBooking));
         clearCart();
-        setBookingContext(null); // Clear booking context!
-        window.dispatchEvent(new Event('iGO_bookings_updated'));
-      } catch (err) {
-        console.error('Error saving booking pre-order:', err);
-      }
+        setBookingContext(null);
 
-      setTimeout(
-        () => {
-          setLoading(false);
-          setStep('success');
-        },
-        (payMethod === 'online' || payMethod === 'card') ? 2200 : 1500
-      );
+        setLoading(false);
+        setStep('success');
+      } catch (err: any) {
+        console.error('Error saving booking:', err);
+        alert(`Errore di rete: ${err.message || "Impossibile completare la prenotazione"}`);
+        setLoading(false);
+      }
       return;
     }
 
@@ -1493,13 +1429,7 @@ function CheckoutModal({
       }
     }
 
-    // Write order details to localStorage under iGO_orders_${restaurantId}
     try {
-      const rId = getRestaurantId(slug);
-      const ordersKey = STORAGE_KEYS.orders(rId);
-      const rawOrders = localStorage.getItem(ordersKey);
-      const orders = rawOrders ? JSON.parse(rawOrders) : [];
-
       const discount = appliedPromoDetail
         ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
           ? itemsTotal * (appliedPromoDetail.value / 100)
@@ -1508,102 +1438,95 @@ function CheckoutModal({
             : Math.min(appliedPromoDetail.value, itemsTotal))
         : 0;
 
-      const orderId =
+      const orderNumber =
         deliveryType === 'domicilio'
           ? generateId('ORD')
           : deliveryType === 'asporto'
             ? generateId('ASP')
             : generateId('TAV', tableNumber || undefined);
 
-      const newOrder = {
-        id: orderId,
-        restaurantId: rId,
-        timestamp: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
+      const orderPayload = {
+        restaurant_id: rId,
+        order_number: orderNumber,
         type: deliveryType,
-        items: cart,
-        subtotal: itemsTotal,
-        deliveryFee: currentDeliveryFee,
-        discount,
-        total: finalTotal,
-        customerName: deliveryType === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
-        email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
-        customer: {
-          name: name,
-          email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
-          phone: phone,
-          address: deliveryType === 'domicilio' ? `${address} (CAP: ${cap})` : '',
-        },
-        tableNumber: deliveryType === 'tavolo' ? tableNumber : undefined,
-        guests: deliveryType === 'tavolo' ? guests : undefined,
         status: 'new',
-        promoApplied: appliedPromoDetail ? appliedPromoDetail.code : undefined,
+        customer_name: deliveryType === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
+        customer_email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
+        customer_phone: deliveryType === 'tavolo' ? null : phone,
+        customer_address: deliveryType === 'domicilio' ? `${address} (CAP: ${cap})` : null,
+        table_number: deliveryType === 'tavolo' ? tableNumber : null,
+        guests: deliveryType === 'tavolo' ? guests : null,
+        subtotal: itemsTotal,
+        delivery_fee: currentDeliveryFee,
+        discount: discount,
+        total: finalTotal,
+        promo_code: appliedPromoDetail ? appliedPromoDetail.code : null,
+        promo_applied: !!appliedPromoDetail,
+        scheduled_at: deliveryType !== 'tavolo' && selectedDate && deliveryTime && deliveryTime !== 'asap'
+          ? new Date(`${selectedDate}T${deliveryTime}:00`).toISOString()
+          : null,
         notes: notes || '',
-        payMethod: payMethod,
-        itemsCount: cart.reduce((s: number, i: any) => s + i.qty, 0),
-        deliveryTime: deliveryType !== 'tavolo' ? deliveryTime : undefined,
-        deliveryDate: deliveryType !== 'tavolo' ? selectedDate : undefined,
       };
-      orders.push(newOrder);
-      localStorage.setItem(ordersKey, JSON.stringify(orders));
 
-      // Save order to guest order history if not table order
-      if (deliveryType !== 'tavolo') {
-        const custOrdersKey = STORAGE_KEYS.customerOrders(rId, email.trim().toLowerCase());
-        const rawCustOrders = localStorage.getItem(custOrdersKey);
-        const custOrders = rawCustOrders ? JSON.parse(rawCustOrders) : [];
-        custOrders.unshift(newOrder); // Prepend new order
-        if (custOrders.length > 10) {
-          custOrders.pop(); // Keep only 10 most recent orders
-        }
-        localStorage.setItem(custOrdersKey, JSON.stringify(custOrders));
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select()
+        .single();
+
+      if (orderError || !orderData) {
+        throw orderError || new Error("Errore durante la creazione dell'ordine");
       }
 
-      // Increment usedCount for the applied promo code
+      const orderItemsPayload = cart.map((item) => ({
+        order_id: orderData.id,
+        menu_item_id: item.id.startsWith('sf-') || item.id.startsWith('bk-') ? null : item.id,
+        name: item.name,
+        price: item.price,
+        qty: item.qty,
+        note: item.note || null,
+        added_ingredients: item.addedIngredients || [],
+        removed_ingredients: item.removedIngredients || [],
+        selected_options: item.selectedOptions || [],
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsPayload);
+
+      if (itemsError) throw itemsError;
+
       if (appliedPromoDetail) {
-        try {
-          const promosKey = STORAGE_KEYS.promos(rId);
-          const rawPromos = localStorage.getItem(promosKey);
-          if (rawPromos) {
-            const promoList = JSON.parse(rawPromos);
-            const updatedPromos = promoList.map((p: any) => {
-              if (p.code === appliedPromoDetail.code) {
-                return { ...p, usedCount: (p.usedCount || 0) + 1 };
-              }
-              return p;
-            });
-            localStorage.setItem(promosKey, JSON.stringify(updatedPromos));
-          }
-        } catch (e) {
-          console.error('Error updating promo usedCount:', e);
-        }
+        await supabase
+          .from('promos')
+          .update({ used_count: (appliedPromoDetail.usedCount || 0) + 1 })
+          .eq('id', appliedPromoDetail.id);
       }
 
-      setLastCreatedOrder(newOrder);
-      try {
-        sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(newOrder));
-      } catch (err) {
-        console.error('Error saving order to sessionStorage:', err);
-      }
+      const trackedOrder = {
+        ...orderData,
+        items: cart,
+        timestamp: orderData.created_at,
+        payMethod: payMethod,
+      };
+
+      setLastCreatedOrder(trackedOrder);
+      sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
       clearCart();
-      window.dispatchEvent(new Event('iGO_orders_updated'));
-    } catch (err) {
-      console.error('Error saving order to history:', err);
-    }
 
-    setTimeout(
-      () => {
-        setLoading(false);
-        setStep('success');
-      },
-      (payMethod === 'online' || payMethod === 'card') ? 2200 : 1500
-    );
+      setLoading(false);
+      setStep('success');
+    } catch (err: any) {
+      console.error('Error saving order:', err);
+      alert(`Errore di rete: ${err.message || "Impossibile completare l'ordine"}`);
+      setLoading(false);
+    }
   };
 
   const detailsValid = bookingContext
     ? !!bookingContext.name && !!bookingContext.phone
     : (deliveryType === 'tavolo'
-      ? !!name && !!phone
+      ? !!name && !!tableNumber
       : !!name &&
       !!phone &&
       !!email &&
@@ -1717,8 +1640,11 @@ function CheckoutModal({
                     <input
                       type="text"
                       value={tableNumber || ''}
-                      readOnly
-                      className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted border border-border/80 rounded-lg focus:outline-none focus:ring-0 font-bold text-foreground cursor-not-allowed"
+                      onChange={isTableEditable ? (e) => setTableNumber?.(e.target.value) : undefined}
+                      readOnly={!isTableEditable}
+                      placeholder="Es. 5"
+                      className={`w-full pl-9 pr-3 py-2.5 text-sm border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground ${!isTableEditable ? 'bg-muted cursor-not-allowed' : 'bg-input'
+                        }`}
                     />
                   </div>
                 </div>
@@ -1748,42 +1674,22 @@ function CheckoutModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Nome e Cognome *
-                  </label>
-                  <div className="relative">
-                    <User
-                      size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Mario Rossi"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Numero di telefono *
-                  </label>
-                  <div className="relative">
-                    <Phone
-                      size={14}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
-                      placeholder="+39 3331234567"
-                      className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
-                    />
-                  </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                  Nome e Cognome *
+                </label>
+                <div className="relative">
+                  <User
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Mario Rossi"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
+                  />
                 </div>
               </div>
 
@@ -2091,7 +1997,7 @@ function CheckoutModal({
           <button
             onClick={() => setStep('payment')}
             disabled={!detailsValid || loading}
-            className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-[#d43d22] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
+            className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
           >
             Invia Ordine
           </button>
@@ -2104,8 +2010,8 @@ function CheckoutModal({
             const payOptions = [
               {
                 id: 'card',
-                title: bookingContext ? 'Paga con Carta' : (deliveryType === 'tavolo' ? 'Paga al Tavolo con Carta' : 'Carta di Credito (Stripe)'),
-                desc: 'Paga online con carta tramite Stripe',
+                title: bookingContext ? 'Paga con Carta' : (deliveryType === 'tavolo' ? 'Paga al Tavolo con Carta' : 'Carta di Credito'),
+                desc: 'Paga online con carta di credito',
                 icon: (
                   <CreditCard
                     size={18}
@@ -2412,7 +2318,7 @@ function CheckoutModal({
               <button
                 onClick={handleOrder}
                 disabled={loading || (payMethod === 'card' && !isCardFormValid)}
-                className="flex-[2_2_0%] py-3 bg-primary text-white font-extrabold rounded-lg hover:bg-[#d43d22] transition-all active:scale-95 text-xs sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+                className="flex-[2_2_0%] py-3 bg-primary text-white font-extrabold rounded-lg hover:bg-primary-hover transition-all active:scale-95 text-xs sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
               >
                 {loading ? (
                   <>
@@ -2464,7 +2370,7 @@ function CheckoutModal({
             onClick={() => {
               onClose();
             }}
-            className="w-full mt-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 text-xs shadow-md shadow-primary/20"
+            className="w-full mt-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 text-xs shadow-md shadow-primary/20"
           >
             Torna al menu
           </button>
@@ -2716,13 +2622,6 @@ function CustomizationView({
     setRemoved((prev) => (prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]));
   };
 
-  const handleQuickTag = (tag: string) => {
-    const cleaned = tag.replace('🏷️ ', '');
-    setNote((prev) => {
-      if (prev.includes(cleaned)) return prev;
-      return prev ? `${prev}, ${cleaned}` : cleaned;
-    });
-  };
 
   // Categorize extras dynamically based on keywords or categories:
   const categories = [
@@ -2843,15 +2742,20 @@ function CustomizationView({
               </p>
             )}
             {item.dishTags && item.dishTags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-1.5 mt-0.5 animate-in fade-in duration-200">
-                {item.dishTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className={`inline-flex items-center text-[8px] font-extrabold border rounded px-1.5 py-0.5 shadow-sm ${getTagStyle(tag)}`}
-                  >
-                    {tag}
-                  </span>
-                ))}
+              <div className="flex flex-wrap gap-2 mb-1.5 mt-0.5 animate-in fade-in duration-200">
+                {item.dishTags.map((tag) => {
+                  const icon = getTagIcon(tag);
+                  const label = getCleanTagLabel(tag);
+                  return (
+                    <span
+                      key={tag}
+                      className={`inline-flex items-center gap-1 text-[9px] font-bold ${getTagStyle(tag)}`}
+                    >
+                      {icon && <span className="shrink-0 scale-90">{icon}</span>}
+                      <span>{label}</span>
+                    </span>
+                  );
+                })}
               </div>
             )}
             <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
@@ -3014,25 +2918,7 @@ function CustomizationView({
             placeholder="Es. ben cotta, senza pepe, allergie..."
             className="w-full p-2.5 text-base bg-muted/60 border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors h-14 resize-none placeholder:text-muted-foreground/75"
           />
-          {/* Quick tags */}
-          <div className="flex flex-wrap gap-1 mt-1">
-            {[
-              '🏷️ Salse a parte',
-              '🏷️ Ben cotto',
-              '🏷️ Ben caldo',
-              '🏷️ Poco sale',
-              '🏷️ No posate',
-            ].map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => handleQuickTag(tag)}
-                className="text-[9px] bg-muted hover:bg-border border border-border/50 text-muted-foreground hover:text-foreground rounded-full px-2 py-0.5 font-bold transition-all active:scale-95"
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
+
         </div>
       </div>
 
@@ -3061,7 +2947,7 @@ function CustomizationView({
           <button
             type="button"
             onClick={handleConfirm}
-            className="flex-1 py-2 bg-primary text-white font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10 text-xs"
+            className="flex-1 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10 text-xs"
           >
             {cartItem ? 'Salva Modifiche' : 'Aggiungi'} — € {totalPrice.toFixed(2)}
           </button>
@@ -3081,6 +2967,12 @@ export default function CustomerStorefront() {
   const [promoError, setPromoError] = useState<string | null>(null);
   const [appliedPromoDetail, setAppliedPromoDetail] = useState<any>(null);
   const [serviceHoursConfig, setServiceHoursConfig] = useState<any>(null);
+
+  useEffect(() => {
+    if (restaurantSettings?.hours_config) {
+      setServiceHoursConfig(restaurantSettings.hours_config);
+    }
+  }, [restaurantSettings]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && slug) {
@@ -3121,42 +3013,46 @@ export default function CustomerStorefront() {
     }
   }, [slug]);
 
-  const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>(() => {
-    if (typeof window !== 'undefined' && slug) {
-      const restaurantId = getRestaurantId(slug);
-      if (!isMockRestaurant(slug) && !isMockRestaurant(restaurantId)) {
-        return [];
-      }
-    }
-    return menuItems;
-  });
+  const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>([]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && slug) {
-      const restaurantId = getRestaurantId(slug);
-      const stored =
-        sessionStorage.getItem(STORAGE_KEYS.menuItems(slug)) ||
-        sessionStorage.getItem(STORAGE_KEYS.menuItems(restaurantId)) ||
-        localStorage.getItem(STORAGE_KEYS.menuItems(slug)) ||
-        localStorage.getItem(STORAGE_KEYS.menuItems(restaurantId));
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setMenuItemsList(parsed);
-            return;
-          }
-        } catch (e) {
-          console.error('Error parsing stored menu items:', e);
-        }
+    const loadMenuItems = async () => {
+      if (!restaurantSettings?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('restaurant_id', restaurantSettings.id)
+          .eq('available', true)
+          .order('sort_order', { ascending: true });
+
+        if (error) throw error;
+
+        const mappedItems: MenuItemType[] = (data || []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category_name,
+          price: parseFloat(item.price),
+          originalPrice: item.original_price ? parseFloat(item.original_price) : undefined,
+          description: item.description || '',
+          image: item.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
+          imageAlt: item.image_alt || item.name,
+          allergens: item.allergens || [],
+          dishTags: item.dish_tags || [],
+          ingredients: item.ingredients || [],
+          optionGroups: item.option_groups || [],
+          customizationEnabled: item.customization_enabled !== undefined ? !!item.customization_enabled : true,
+          notesEnabled: item.notes_enabled !== undefined ? !!item.notes_enabled : true,
+        }));
+
+        setMenuItemsList(mappedItems);
+      } catch (err) {
+        console.error('Error loading menu items:', err);
       }
-      if (!isMockRestaurant(slug) && !isMockRestaurant(restaurantId)) {
-        setMenuItemsList([]);
-      } else {
-        setMenuItemsList(menuItems);
-      }
-    }
-  }, [slug]);
+    };
+
+    loadMenuItems();
+  }, [restaurantSettings?.id]);
 
   // Dynamic categories list based on loaded menu items
   const categories = [
@@ -3188,10 +3084,7 @@ export default function CustomerStorefront() {
     message: string;
     orderId: string;
   } | null>(null);
-  const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | 'paused' | null>(null);
-  const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
-  const [simulatedDay, setSimulatedDay] = useState<string | null>(null);
-  const [simulatedDate, setSimulatedDate] = useState<string | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<'closed' | 'no_delivery' | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [preOrderAcknowledged, setPreOrderAcknowledged] = useState(false);
 
@@ -3199,148 +3092,89 @@ export default function CustomerStorefront() {
     setIsMounted(true);
   }, []);
 
-  // Listen to order updates in localStorage
+  // Listen to order updates via Supabase Realtime
   useEffect(() => {
     if (typeof window === 'undefined' || !lastCreatedOrder) return;
-    const rId = getRestaurantId(slug);
-    const ordersKey = STORAGE_KEYS.orders(rId);
-    const bookingsKey = STORAGE_KEYS.bookings(rId);
+    const orderId = lastCreatedOrder.id;
 
-    const checkOrderStatusUpdate = () => {
-      try {
-        if (lastCreatedOrder.type === 'prenotazione_tavolo' || lastCreatedOrder.id.startsWith('booking-')) {
-          const rawBookings = localStorage.getItem(bookingsKey);
-          if (!rawBookings) return;
-          const bookings = JSON.parse(rawBookings);
-          const currentBooking = bookings.find((b: any) => b.id === lastCreatedOrder.id);
+    let tableName = '';
+    let channelName = '';
 
-          if (currentBooking) {
-            if (currentBooking.status !== lastCreatedOrder.status) {
-              const oldStatus = lastCreatedOrder.status;
-              const newStatus = currentBooking.status;
+    const isBooking = lastCreatedOrder.type === 'prenotazione_tavolo' || orderId.startsWith('booking-') || (lastCreatedOrder.guests !== undefined && lastCreatedOrder.customer_email !== undefined);
 
-              // Only transition if oldStatus is pending and newStatus is confirmed/cancelled
-              if (oldStatus === 'pending' && (newStatus === 'confirmed' || newStatus === 'cancelled')) {
-                const restName = restaurantSettings?.name || 'iGOdelivering';
-                const customerName = lastCreatedOrder.name || 'Cliente';
-                const dateFormatted = new Date(lastCreatedOrder.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-                const timeStr = lastCreatedOrder.time;
+    if (isBooking) {
+      tableName = 'bookings';
+      channelName = `booking-status-${orderId}`;
+    } else {
+      tableName = 'orders';
+      channelName = `order-status-${orderId}`;
+    }
 
-                let variant: 'success' | 'warning' | 'danger' = 'success';
-                let title = '';
-                let message = '';
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: tableName,
+          filter: `id=eq.${orderId}`,
+        },
+        (payload) => {
+          const updatedRecord = payload.new;
+          if (updatedRecord.status !== lastCreatedOrder.status) {
+            const oldStatus = lastCreatedOrder.status;
+            const newStatus = updatedRecord.status;
+            const restName = restaurantSettings?.name || 'iGOdelivering';
+            const customerName = lastCreatedOrder.customer_name || lastCreatedOrder.name || 'Cliente';
 
-                if (newStatus === 'cancelled') {
-                  variant = 'danger';
-                  title = `Prenotazione Rifiutata ❌`;
-                  message = `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${dateFormatted} alle ${timeStr} non è stata accettata dal ristorante. Contattaci per trovare un'alternativa.`;
-                } else if (newStatus === 'confirmed') {
-                  variant = 'success';
-                  title = `Tavolo Confermato! 📅`;
-                  message = `Ottime notizie ${customerName}! La tua prenotazione per il tavolo il ${dateFormatted} alle ${timeStr} è stata confermata da ${restName}. ${lastCreatedOrder.preOrderItems && lastCreatedOrder.preOrderItems.length > 0 ? 'Anche i piatti pre-ordinati sono confermati ed in preparazione.' : 'Ti aspettiamo al locale!'}`;
-                }
+            let variant: 'success' | 'warning' | 'danger' = 'success';
+            let title = '';
+            let message = '';
 
-                setIncomingNotification({ variant, title, message, orderId: lastCreatedOrder.id });
-                setLastCreatedOrder(currentBooking);
-                sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(currentBooking));
+            if (tableName === 'bookings') {
+              if (newStatus === 'cancelled') {
+                variant = 'danger';
+                title = `Prenotazione Rifiutata ❌`;
+                message = `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${lastCreatedOrder.date} non è stata accettata dal ristorante.`;
+              } else if (newStatus === 'confirmed') {
+                variant = 'success';
+                title = `Tavolo Confermato! 📅`;
+                message = `Ottime notizie ${customerName}! La tua prenotazione per il tavolo è stata confermata da ${restName}.`;
+              }
+            } else {
+              const tableNum = lastCreatedOrder.table_number;
+              const isTable = lastCreatedOrder.type === 'tavolo';
+
+              if (newStatus === 'rejected' || newStatus === 'cancelled') {
+                variant = 'danger';
+                title = isTable ? `Ordine Tavolo ${tableNum} rifiutato` : `Ordine rifiutato`;
+                message = isTable
+                  ? `Il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante.`
+                  : `Spiacenti ${customerName}, il tuo ordine è stato rifiutato dal ristorante.`;
+              } else if (newStatus === 'accepted' || newStatus === 'preparing') {
+                variant = 'success';
+                title = isTable ? `Tavolo ${tableNum} — In preparazione` : `Ordine confermato`;
+                message = `Il tuo ordine è in preparazione!`;
+              } else if (newStatus === 'ready') {
+                variant = 'warning';
+                title = isTable ? `Tavolo ${tableNum} — Pronto` : `Ordine pronto`;
+                message = isTable
+                  ? `I tuoi piatti sono pronti e stanno arrivando al tavolo!`
+                  : `Il tuo ordine è pronto per il ritiro/consegna.`;
               }
             }
-          }
-        } else {
-          const rawOrders = localStorage.getItem(ordersKey);
-          if (!rawOrders) return;
-          const orders = JSON.parse(rawOrders);
-          const currentOrder = orders.find((o: any) => o.id === lastCreatedOrder.id);
 
-          if (currentOrder) {
-            // If status transitioned
-            if (currentOrder.status !== lastCreatedOrder.status) {
-              const oldStatus = lastCreatedOrder.status;
-              const newStatus = currentOrder.status;
-
-              // Trigger notification only for valid transitions
-              const validTransitions = [
-                ['new', 'accepted'],
-                ['new', 'rejected'],
-                ['accepted', 'completed'],
-                ['new', 'completed'],
-              ];
-              const isValidTransition = validTransitions.some(
-                ([from, to]) => oldStatus === from && newStatus === to
-              );
-
-              if (isValidTransition) {
-                const restName = restaurantSettings?.name || 'iGOdelivering';
-                const customerName = lastCreatedOrder.customer?.name || lastCreatedOrder.customerName || 'Cliente';
-                const tableNum = lastCreatedOrder.tableNumber;
-                const isTable = lastCreatedOrder.type === 'tavolo';
-
-                let variant: 'success' | 'warning' | 'danger' = 'success';
-                let title = '';
-                let message = '';
-
-                if (newStatus === 'rejected') {
-                  variant = 'danger';
-                  title = isTable
-                    ? `Ordine Tavolo ${tableNum} non accettato`
-                    : `Il tuo ordine non è stato accettato`;
-                  message = isTable
-                    ? `Spiacenti, il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante. Chiedi al personale di sala.`
-                    : `Spiacenti, ${customerName}, il tuo ordine (${lastCreatedOrder.id}) non è stato accettato da ${restName}. Contatta il ristorante per maggiori informazioni.`;
-                } else if (newStatus === 'accepted') {
-                  variant = 'success';
-                  title = isTable
-                    ? `Tavolo ${tableNum} — Ordine accettato`
-                    : `Ordine confermato`;
-                  message = isTable
-                    ? `Il tuo ordine è stato accettato ed è ora in preparazione!`
-                    : `${customerName}, il tuo ordine (${lastCreatedOrder.id}) è stato accettato da ${restName} ed è in preparazione.`;
-                } else if (newStatus === 'completed') {
-                  variant = 'warning';
-                  title = isTable
-                    ? `Tavolo ${tableNum} — Ordine pronto`
-                    : `Ordine pronto`;
-                  message = isTable
-                    ? `Il tuo ordine è pronto e sta arrivando al tavolo. Buon appetito!`
-                    : `${customerName}, il tuo ordine è pronto! ${lastCreatedOrder.type === 'domicilio'
-                      ? 'Il corriere è in arrivo.'
-                      : 'Puoi ritirarlo al locale.'
-                    }`;
-                }
-
-                setIncomingNotification({ variant, title, message, orderId: lastCreatedOrder.id });
-
-                // Update tracked state so next transition is detected correctly
-                setLastCreatedOrder(currentOrder);
-                sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(currentOrder));
-              }
-            }
+            setIncomingNotification({ variant, title, message, orderId });
+            setLastCreatedOrder((prev: any) => ({ ...prev, status: newStatus }));
+            sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify({ ...lastCreatedOrder, status: newStatus }));
           }
         }
-      } catch (e) {
-        console.error('Error checking order status:', e);
-      }
-    };
-
-    // Run initially in case it changed while offline or in transition
-    checkOrderStatusUpdate();
-
-    // Listen to standard storage events (across tabs)
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === ordersKey || e.key === bookingsKey) {
-        checkOrderStatusUpdate();
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-
-    // Listen to custom local events (same tab)
-    window.addEventListener('iGO_orders_updated', checkOrderStatusUpdate);
-    window.addEventListener('iGO_bookings_updated', checkOrderStatusUpdate);
+      )
+      .subscribe();
 
     return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('iGO_orders_updated', checkOrderStatusUpdate);
-      window.removeEventListener('iGO_bookings_updated', checkOrderStatusUpdate);
+      supabase.removeChannel(channel);
     };
   }, [lastCreatedOrder, slug, restaurantSettings]);
 
@@ -3348,6 +3182,46 @@ export default function CustomerStorefront() {
   const [myOrdersEmail, setMyOrdersEmail] = useState('');
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<any | null>(null);
+
+  const loadHistoryOrders = async (custEmail: string) => {
+    if (!custEmail || !restaurantSettings.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('restaurant_id', restaurantSettings.id)
+        .eq('customer_email', custEmail.trim().toLowerCase())
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      const mapped = (data || []).map((o: any) => ({
+        id: o.order_number,
+        db_id: o.id,
+        timestamp: o.created_at,
+        type: o.type,
+        status: o.status,
+        subtotal: parseFloat(o.subtotal),
+        deliveryFee: parseFloat(o.delivery_fee),
+        discount: parseFloat(o.discount),
+        total: parseFloat(o.total),
+        payMethod: 'cash',
+        itemsCount: (o.order_items || []).reduce((s: number, item: any) => s + item.qty, 0),
+        items: (o.order_items || []).map((oi: any) => ({
+          name: oi.name,
+          price: parseFloat(oi.price),
+          qty: oi.qty,
+          addedIngredients: oi.added_ingredients || [],
+          removedIngredients: oi.removed_ingredients || [],
+        })),
+      }));
+
+      setHistoryOrders(mapped);
+    } catch (err) {
+      console.error('Error loading history orders:', err);
+    }
+  };
   const [historyEmailInput, setHistoryEmailInput] = useState('');
   const [historyEmailError, setHistoryEmailError] = useState<string | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -3521,7 +3395,7 @@ export default function CustomerStorefront() {
               {order.payMethod === 'online'
                 ? 'PayPal (Online)'
                 : order.payMethod === 'card'
-                  ? 'Stripe (Online)'
+                  ? 'Carta di Credito (Online)'
                   : order.payMethod === 'pos'
                     ? 'POS (Alla Consegna/Ritiro)'
                     : 'Contanti'}
@@ -3618,7 +3492,7 @@ export default function CustomerStorefront() {
       const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
       targetDayName = DAYS_MAP[d.getDay()];
     } else {
-      targetDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+      targetDayName = DAYS_MAP[new Date().getDay()];
     }
 
     // 2. Cerca le fasce orarie specifiche di prenotazione (reservation) o general
@@ -3684,7 +3558,7 @@ export default function CustomerStorefront() {
     });
 
     return Array.from(new Set(slots)).sort();
-  }, [restaurantSettings.openingHours, serviceHoursConfig, bookingDate, simulatedDay]);
+  }, [restaurantSettings.openingHours, serviceHoursConfig, bookingDate]);
 
   // Sincronizza orario di prenotazione con gli slot orari validi
   useEffect(() => {
@@ -3797,6 +3671,7 @@ export default function CustomerStorefront() {
   const searchParams = useSearchParams();
   const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto' | 'tavolo'>('domicilio');
   const [tableNumber, setTableNumber] = useState<string | null>(null);
+  const isTableEditable = !searchParams?.get('tavolo') || searchParams?.get('tavolo')?.toLowerCase() === 'generico' || searchParams?.get('tavolo')?.toLowerCase() === 'generic';
   const [guests, setGuests] = useState<number>(2);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -3816,7 +3691,11 @@ export default function CustomerStorefront() {
     const tavoloParam = searchParams?.get('tavolo');
     if (tavoloParam) {
       setDeliveryType('tavolo');
-      setTableNumber(tavoloParam);
+      if (tavoloParam.toLowerCase() === 'generico' || tavoloParam.toLowerCase() === 'generic') {
+        setTableNumber('');
+      } else {
+        setTableNumber(tavoloParam);
+      }
     }
   }, [searchParams]);
 
@@ -3851,7 +3730,6 @@ export default function CustomerStorefront() {
   }, [slug]);
 
   const getCurrentTimeStr = () => {
-    if (simulatedTime && simulatedTime !== 'paused') return simulatedTime;
     const now = new Date();
     return (
       now.getHours().toString().padStart(2, '0') +
@@ -3861,17 +3739,14 @@ export default function CustomerStorefront() {
   };
 
   const getCurrentDateStr = React.useCallback(() => {
-    if (simulatedDate) return simulatedDate;
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
-  }, [simulatedDate]);
+  }, []);
 
   const checkServiceOpen = React.useCallback((serviceType: 'pickup' | 'delivery' | 'reservation') => {
-    if (simulatedTime === 'paused') return false;
-
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
@@ -3896,7 +3771,7 @@ export default function CustomerStorefront() {
         return false;
       }
       const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-      const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+      const todayDayName = DAYS_MAP[new Date().getDay()];
 
       const useGeneral = config.useGeneral?.[serviceType] !== false && !!config.serviceHours?.general;
       const targetHoursKey = useGeneral ? 'general' : serviceType;
@@ -3929,13 +3804,9 @@ export default function CustomerStorefront() {
         restaurantSettings.openingHours.length === 0 ||
         restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
     }
-  }, [simulatedTime, simulatedDay, simulatedDate, serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]);
+  }, [serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]);
 
   const getClosedReason = () => {
-    if (simulatedTime === 'paused') {
-      return 'Il ristorante ha temporaneamente sospeso la ricezione degli ordini. Puoi consultare il menu ma non ordinare.';
-    }
-
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
@@ -3957,7 +3828,7 @@ export default function CustomerStorefront() {
 
     const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-    const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+    const todayDayName = DAYS_MAP[new Date().getDay()];
 
     if (config) {
       if (config.serviceSuspended?.[activeType] === true) {
@@ -4001,11 +3872,6 @@ export default function CustomerStorefront() {
       return; // Skip closed/delivery popups for table ordering
     }
 
-    if (simulatedTime === 'paused') {
-      setAvailabilityError('paused');
-      return;
-    }
-
     const isPickupOpen = checkServiceOpen('pickup');
     const isDeliveryOpen = checkServiceOpen('delivery');
 
@@ -4024,7 +3890,7 @@ export default function CustomerStorefront() {
     }
 
     setAvailabilityError(null);
-  }, [simulatedTime, simulatedDay, simulatedDate, deliveryType, checkServiceOpen, searchParams, preOrderAcknowledged]);
+  }, [deliveryType, checkServiceOpen, searchParams, preOrderAcknowledged]);
 
   // Initialize Lenis Smooth Scroll
   useEffect(() => {
@@ -4302,6 +4168,39 @@ export default function CustomerStorefront() {
       );
       return;
     }
+    // Direct add to cart if customizations are disabled
+    if (item.customizationEnabled === false) {
+      setCart((prev) => {
+        const existing = prev.find(
+          (c) =>
+            c.id === item.id &&
+            (!c.addedIngredients || c.addedIngredients.length === 0) &&
+            (!c.removedIngredients || c.removedIngredients.length === 0) &&
+            !c.note
+        );
+        if (existing) {
+          return prev.map((c) =>
+            c.id === item.id &&
+            (!c.addedIngredients || c.addedIngredients.length === 0) &&
+            (!c.removedIngredients || c.removedIngredients.length === 0) &&
+            !c.note
+              ? { ...c, qty: c.qty + 1 }
+              : c
+          );
+        }
+        const newCartItem: CartItem = {
+          ...item,
+          cartId: `${item.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          qty: 1,
+          addedIngredients: [],
+          removedIngredients: [],
+          note: '',
+        };
+        return [...prev, newCartItem];
+      });
+      setCartOpen(true);
+      return;
+    }
     // Always open customizer for new items
     setCustomizingItem(item);
   };
@@ -4339,18 +4238,32 @@ export default function CustomerStorefront() {
     return false;
   }, [serviceHoursConfig, slug, getCurrentDateStr]);
 
+  const closureMessage = React.useMemo(() => {
+    let config = serviceHoursConfig;
+    if (!config && typeof window !== 'undefined') {
+      const rId = getRestaurantId(slug);
+      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      if (stored) {
+        try { config = JSON.parse(stored); } catch (e) { }
+      }
+    }
+    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+      const currentDate = getCurrentDateStr();
+      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+        return config.temporaryClosure.message || `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`;
+      }
+    }
+    return null;
+  }, [serviceHoursConfig, slug, getCurrentDateStr]);
+
   const isPreOrderAllowed = React.useMemo(() => {
-    if (simulatedTime === 'paused') return false;
     if (isTemporaryClosure) return false;
     return true;
-  }, [simulatedTime, isTemporaryClosure]);
+  }, [isTemporaryClosure]);
 
   const getRestaurantStatus = () => {
     if (!isMounted) {
       return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
-    }
-    if (simulatedTime === 'paused') {
-      return { label: 'TEMPORANEAMENTE CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
 
     if (isTemporaryClosure) {
@@ -4396,7 +4309,7 @@ export default function CustomerStorefront() {
     }
 
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-    const todayDayName = simulatedDay || DAYS_MAP[new Date().getDay()];
+    const todayDayName = DAYS_MAP[new Date().getDay()];
 
     const activeType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
 
@@ -4439,7 +4352,7 @@ export default function CustomerStorefront() {
     }
 
     return 'Chiuso';
-  }, [isMounted, simulatedDay, simulatedDate, serviceHoursConfig, slug, deliveryType, restaurantSettings, getCurrentDateStr]);
+  }, [isMounted, serviceHoursConfig, slug, deliveryType, restaurantSettings, getCurrentDateStr]);
 
   // Dynamic promo banner text
   const activePromo = promos.find(p => p.active);
@@ -4464,18 +4377,13 @@ export default function CustomerStorefront() {
       }
     }
   } else {
-    bannerText = 'Usa il codice WELCOME10 per il 10% di sconto sul tuo primo ordine!';
+    bannerText = '';
   }
 
   const handleCheckoutClick = () => {
     if (deliveryType === 'tavolo') {
       setCartOpen(false);
       setCheckoutOpen(true);
-      return;
-    }
-
-    if (simulatedTime === 'paused') {
-      setAvailabilityError('paused');
       return;
     }
 
@@ -4524,8 +4432,8 @@ export default function CustomerStorefront() {
 
   const total = subtotal - discount + actualDeliveryFee;
 
-  const applyPromo = () => {
-    const res = validatePromo(promoCode, subtotal, email, deliveryType, actualDeliveryFee);
+  const applyPromo = async () => {
+    const res = await validatePromo(promoCode, subtotal, email, deliveryType, actualDeliveryFee);
     if (res.isValid) {
       setPromoApplied(true);
       setPromoError(null);
@@ -4540,12 +4448,15 @@ export default function CustomerStorefront() {
   // Dynamic promo validation when subtotal changes
   useEffect(() => {
     if (promoApplied && appliedPromoDetail) {
-      const res = validatePromo(appliedPromoDetail.code, subtotal, email, deliveryType, actualDeliveryFee);
-      if (!res.isValid) {
-        setPromoApplied(false);
-        setPromoError(res.error || "L'ordine non soddisfa più i requisiti della promo");
-        setAppliedPromoDetail(null);
-      }
+      const checkPromo = async () => {
+        const res = await validatePromo(appliedPromoDetail.code, subtotal, email, deliveryType, actualDeliveryFee);
+        if (!res.isValid) {
+          setPromoApplied(false);
+          setPromoError(res.error || "L'ordine non soddisfa più i requisiti della promo");
+          setAppliedPromoDetail(null);
+        }
+      };
+      checkPromo();
     }
   }, [subtotal, promoApplied, appliedPromoDetail, validatePromo, email, deliveryType, actualDeliveryFee]);
 
@@ -4581,13 +4492,15 @@ export default function CustomerStorefront() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <div className={`min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : ''}`}>
+    <div className={`flex flex-col min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : 'pb-16 md:pb-0'}`}>
       {/* Closed Banner */}
       {isCurrentlyClosed && (
         <div className={`fixed top-0 left-0 right-0 z-50 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}>
           <Clock size={12} className="animate-pulse flex-shrink-0" />
           <span className="truncate max-w-full">
-            {isPreOrderAllowed ? 'Siamo chiusi ora, ma puoi ordinare per dopo!' : 'Locale Chiuso - Solo consultazione menu'}
+            {isTemporaryClosure
+              ? (closureMessage || 'Locale Chiuso per Ferie')
+              : (isPreOrderAllowed ? 'Siamo chiusi ora, ma puoi ordinare per dopo!' : 'Locale Chiuso - Solo consultazione menu')}
           </span>
         </div>
       )}
@@ -4672,18 +4585,7 @@ export default function CustomerStorefront() {
                 onClick={() => {
                   setShowMyOrdersModal(true);
                   if (myOrdersEmail) {
-                    try {
-                      const rId = getRestaurantId(slug);
-                      const custOrdersKey = STORAGE_KEYS.customerOrders(rId, myOrdersEmail);
-                      const raw = localStorage.getItem(custOrdersKey);
-                      if (raw) {
-                        setHistoryOrders(JSON.parse(raw));
-                      } else {
-                        setHistoryOrders([]);
-                      }
-                    } catch (e) {
-                      console.error(e);
-                    }
+                    loadHistoryOrders(myOrdersEmail);
                   } else {
                     setHistoryOrders([]);
                   }
@@ -4718,7 +4620,7 @@ export default function CustomerStorefront() {
               onClick={() => setCartOpen((o) => !o)}
               className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
                 ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                : 'bg-primary text-white hover:bg-[#d43d22]'
+                : 'bg-primary text-white hover:bg-primary-hover'
                 }`}
             >
               <ShoppingCart size={14} />
@@ -4825,7 +4727,7 @@ export default function CustomerStorefront() {
       {/* Promo banner */}
       {deliveryType !== 'tavolo' && bannerText && (
         <div className="bg-secondary border-b border-orange-200">
-          <div className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-2.5 flex items-center gap-3">
+          <div className="max-w-screen-2xl mx-auto px-6 lg:px-10 py-2.5 flex items-center gap-3">
             <Tag size={14} className="text-primary flex-shrink-0" />
             <p className="text-sm text-primary font-semibold">
               {activePromo ? (
@@ -4857,7 +4759,7 @@ export default function CustomerStorefront() {
 
       {/* Sticky category nav */}
       <div className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : (isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]')}`}>
-        <div className="max-w-screen-2xl mx-auto px-4 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-6 lg:px-10">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-3">
             {categories.map((cat) => {
               const isActive = activeCategory === cat;
@@ -4879,7 +4781,7 @@ export default function CustomerStorefront() {
       </div>
 
       {/* Main layout */}
-      <div id="menu-section" className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-8">
+      <div id="menu-section" className="flex-1 w-full max-w-screen-2xl mx-auto px-6 lg:px-10 py-8">
         {/* Menu content */}
         <main className="space-y-12">
           {searchQuery ? (
@@ -4887,7 +4789,7 @@ export default function CustomerStorefront() {
               <h2 className="text-lg font-bold text-foreground mb-4">
                 {filteredItems.length} risultati per &quot;{searchQuery}&quot;
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
                 {filteredItems.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -4948,7 +4850,7 @@ export default function CustomerStorefront() {
                   {displayedItems.length} {displayedItems.length === 1 ? 'prodotto' : 'prodotti'}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
                 {displayedItems.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -5084,6 +4986,8 @@ export default function CustomerStorefront() {
         actualDeliveryFee={actualDeliveryFee}
         slug={slug}
         tableNumber={tableNumber}
+        setTableNumber={setTableNumber}
+        isTableEditable={isTableEditable}
         paymentMethods={restaurantSettings.paymentMethods}
         currentTimeStr={getCurrentTimeStr()}
         openingHours={restaurantSettings.openingHours}
@@ -5120,15 +5024,11 @@ export default function CustomerStorefront() {
           <div
             className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed'
               ? (isPreOrderAllowed ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500')
-              : availabilityError === 'paused'
-                ? 'bg-zinc-500/10 text-zinc-500'
-                : 'bg-amber-500/10 text-amber-500'
+              : 'bg-amber-500/10 text-amber-500'
               }`}
           >
             {availabilityError === 'closed' ? (
               <Clock size={22} />
-            ) : availabilityError === 'paused' ? (
-              <PauseCircle size={22} />
             ) : (
               <Bike size={22} />
             )}
@@ -5137,9 +5037,7 @@ export default function CustomerStorefront() {
             <h3 className="text-base font-bold text-foreground tracking-tight">
               {availabilityError === 'closed'
                 ? 'Locale Chiuso'
-                : availabilityError === 'paused'
-                  ? 'Ristorante in Pausa'
-                  : 'Consegna Non Disponibile'}
+                : 'Consegna Non Disponibile'}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
               {availabilityError === 'closed' && isPreOrderAllowed
@@ -5155,7 +5053,7 @@ export default function CustomerStorefront() {
                     setPreOrderAcknowledged(true);
                     setAvailabilityError(null);
                   }}
-                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
+                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10"
                 >
                   Ordina per dopo
                 </button>
@@ -5176,7 +5074,7 @@ export default function CustomerStorefront() {
                     setDeliveryType('asporto');
                     setAvailabilityError(null);
                   }}
-                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
+                  className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10"
                 >
                   Ordina da Asporto
                 </button>
@@ -5195,7 +5093,7 @@ export default function CustomerStorefront() {
                   }
                   setAvailabilityError(null);
                 }}
-                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-all active:scale-95 shadow-md shadow-primary/10"
+                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10"
               >
                 Consulta il Menu
               </button>
@@ -5466,111 +5364,7 @@ export default function CustomerStorefront() {
       {/* Footer */}
       <Footer />
 
-      {/* Floating Test controller for Simulation */}
-      {isMounted && (
-        <div className="fixed bottom-24 right-6 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 p-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] w-64 transition-all duration-300">
-          <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
-            <Settings
-              size={12}
-              className="text-primary animate-spin"
-              style={{ animationDuration: '4s' }}
-            />{' '}
-            Test Orari & Disponibilità
-          </h4>
-          <div className="grid grid-cols-1 gap-2 text-[11px]">
-            <div className="flex flex-col gap-1">
-              <span className="text-[9px] font-bold text-zinc-400">Data Simulata (YYYY-MM-DD):</span>
-              <input
-                type="date"
-                value={simulatedDate || ''}
-                onChange={(e) => {
-                  setAvailabilityError(null);
-                  setSimulatedDate(e.target.value || null);
-                  if (e.target.value) {
-                    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-                    const parts = e.target.value.split('-');
-                    const localDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                    const dayName = DAYS_MAP[localDate.getDay()];
-                    setSimulatedDay(dayName);
-                  }
-                }}
-                className="bg-zinc-100 dark:bg-zinc-800 text-[10px] rounded p-1 text-foreground border border-border focus:outline-none w-full"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-[9px] font-bold text-zinc-400">Giorno Simulato:</span>
-              <select
-                value={simulatedDay || ''}
-                onChange={(e) => {
-                  setAvailabilityError(null);
-                  setSimulatedDay(e.target.value || null);
-                }}
-                className="bg-zinc-100 dark:bg-zinc-800 text-[10px] rounded p-1 text-foreground border border-border focus:outline-none w-full"
-              >
-                <option value="">Giorno Reale ({['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][new Date().getDay()]})</option>
-                <option value="Lunedì">Lunedì</option>
-                <option value="Martedì">Martedì</option>
-                <option value="Mercoledì">Mercoledì</option>
-                <option value="Giovedì">Giovedì</option>
-                <option value="Venerdì">Venerdì</option>
-                <option value="Sabato">Sabato</option>
-                <option value="Domenica">Domenica</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-[9px] font-bold text-zinc-400">Ora Simulata (HH:MM):</span>
-              <div className="flex gap-1">
-                <input
-                  type="time"
-                  value={simulatedTime && simulatedTime !== 'paused' ? simulatedTime : ''}
-                  disabled={simulatedTime === 'paused'}
-                  onChange={(e) => {
-                    setAvailabilityError(null);
-                    setSimulatedTime(e.target.value || null);
-                  }}
-                  className="bg-zinc-100 dark:bg-zinc-800 text-[10px] rounded p-1 text-foreground border border-border focus:outline-none flex-1"
-                />
-                <button
-                  onClick={() => {
-                    setAvailabilityError(null);
-                    setSimulatedTime(null);
-                    setSimulatedDay(null);
-                    setSimulatedDate(null);
-                  }}
-                  className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 px-2 rounded text-[9px] font-bold"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-
-            <div className="border-t border-border/40 my-1 pt-1 flex flex-col gap-1">
-              <button
-                onClick={() => {
-                  setAvailabilityError(null);
-                  if (simulatedTime === 'paused') {
-                    setSimulatedTime(null);
-                  } else {
-                    setSimulatedTime('paused');
-                  }
-                }}
-                className={`flex items-center justify-between px-3 py-1.5 rounded-lg font-semibold transition-all ${simulatedTime === 'paused'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
-                  }`}
-              >
-                <span>Forza Locale Chiuso (Pausa)</span>
-                <span className="w-2 h-2 rounded-full bg-red-500" />
-              </button>
-            </div>
-          </div>
-          <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2 text-center leading-normal">
-            Usa i selettori per cambiare il giorno e l&apos;ora simulati per validare le regole di apertura del locale.
-          </p>
-        </div>
-      )}
+      {/* Floating Test controller for Simulation removed */}
 
       {/* My Orders Modal */}
       <Modal
@@ -5608,18 +5402,7 @@ export default function CustomerStorefront() {
               setHistoryEmailError(null);
               const cleanedEmail = historyEmailInput.trim().toLowerCase();
               setMyOrdersEmail(cleanedEmail);
-              try {
-                const rId = getRestaurantId(slug);
-                const custOrdersKey = STORAGE_KEYS.customerOrders(rId, cleanedEmail);
-                const raw = localStorage.getItem(custOrdersKey);
-                if (raw) {
-                  setHistoryOrders(JSON.parse(raw));
-                } else {
-                  setHistoryOrders([]);
-                }
-              } catch (err) {
-                console.error(err);
-              }
+              loadHistoryOrders(cleanedEmail);
             }}
             className="space-y-4 py-4 text-center"
           >
@@ -5651,7 +5434,7 @@ export default function CustomerStorefront() {
               )}
               <button
                 type="submit"
-                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-colors"
+                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
               >
                 Cerca Ordini
               </button>
@@ -5683,17 +5466,8 @@ export default function CustomerStorefront() {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {historyOrders.map((order: any) => {
-                  // Fetch live status if changed in localstorage
-                  let liveStatus = order.status;
-                  try {
-                    const rId = getRestaurantId(slug);
-                    const rawAll = localStorage.getItem(STORAGE_KEYS.orders(rId));
-                    if (rawAll) {
-                      const allOrders = JSON.parse(rawAll);
-                      const found = allOrders.find((o: any) => o.id === order.id);
-                      if (found) liveStatus = found.status;
-                    }
-                  } catch (e) { }
+                  // Status comes directly from Supabase via loadHistoryOrders
+                  const liveStatus = order.status;
 
                   const getStatusBadge = (st: string) => {
                     switch (st) {

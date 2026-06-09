@@ -9,9 +9,89 @@ import {
   Upload,
   Clock,
   Trash2,
+  Leaf,
+  Flame,
+  Wheat,
+  Sparkles,
+  Star,
+  Milk,
+  Heart,
+  Fish,
+  Apple,
+  Coffee,
+  Wine,
+  Pizza,
 } from 'lucide-react';
 
 import { DISH_TAGS_LIST } from '@/lib/constants';
+
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  leaf: Leaf,
+  flame: Flame,
+  wheat: Wheat,
+  sparkles: Sparkles,
+  star: Star,
+  milk: Milk,
+  heart: Heart,
+  fish: Fish,
+  apple: Apple,
+  coffee: Coffee,
+  wine: Wine,
+  pizza: Pizza
+};
+
+const ICON_LABELS: Record<string, string> = {
+  leaf: 'Vegano / Vegetariano',
+  flame: 'Piccante',
+  wheat: 'Senza Glutine',
+  sparkles: 'Nuovo / Novità',
+  star: 'Consigliato / Specialità',
+  milk: 'Senza Lattosio',
+  heart: 'Salutare / Bio',
+  fish: 'Pesce',
+  apple: 'Fresco / Frutta',
+  coffee: 'Colazione',
+  wine: 'Alcolico / Vino',
+  pizza: 'Pizza / Forno'
+};
+
+const getIconComponent = (name: string, size = 14, className = "") => {
+  const Icon = ICON_MAP[name.toLowerCase()];
+  if (!Icon) return null;
+  return <Icon size={size} className={className} />;
+};
+
+const parseTag = (tag: string) => {
+  if (tag.includes(':')) {
+    const parts = tag.split(':');
+    const iconName = parts[0].trim().toLowerCase();
+    const label = parts.slice(1).join(':').trim();
+    return { iconName, label };
+  }
+  
+  // Legacy parsing fallback
+  const t = tag.toLowerCase();
+  let iconName = 'leaf';
+  let label = tag;
+  
+  label = label.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+
+  if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+    iconName = 'leaf';
+  } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+    iconName = 'flame';
+  } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
+    iconName = 'wheat';
+  } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+    iconName = 'sparkles';
+  } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+    iconName = 'star';
+  } else if (t.includes('lattosio') || tag.includes('🥛')) {
+    iconName = 'milk';
+  }
+  
+  return { iconName, label };
+};
 
 // Modelli predefiniti rimossi per creazione da zero
 
@@ -46,6 +126,8 @@ interface MenuItemDraft {
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];
+  customizationEnabled?: boolean;
+  notesEnabled?: boolean;
 }
 
 interface ItemFormProps {
@@ -90,6 +172,8 @@ export default function ItemForm({
     visibility: 'always',
     dishTags: item.dishTags ? [...item.dishTags] : [],
     ingredients: item.ingredients ? [...item.ingredients] : [],
+    customizationEnabled: item.customizationEnabled ?? true,
+    notesEnabled: item.notesEnabled ?? true,
   });
   const [isPromo, setIsPromo] = useState(!!item.originalPrice);
   const [newCategoryInput, setNewCategoryInput] = useState('');
@@ -105,6 +189,7 @@ export default function ItemForm({
   const [availableAllergens, setAvailableAllergens] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [availableDishTags, setAvailableDishTags] = useState<string[]>([]);
+  const [selectedTagIcon, setSelectedTagIcon] = useState('leaf');
   const [newIngredientInput, setNewIngredientInput] = useState('');
   const [showErrors, setShowErrors] = useState(false);
   const [sessionGroups, setSessionGroups] = useState<OptionGroup[]>([]);
@@ -113,8 +198,6 @@ export default function ItemForm({
   // Emoji Picker States
   const [allergenEmoji, setAllergenEmoji] = useState('➕');
   const [showAllergenEmojiPicker, setShowAllergenEmojiPicker] = useState(false);
-  const [tagEmoji, setTagEmoji] = useState('➕');
-  const [showTagEmojiPicker, setShowTagEmojiPicker] = useState(false);
 
   const EMOJI_LIST = [
     '🌱', '🥗', '🌶️', '🔥', '🆕', '⭐', '👑',
@@ -145,6 +228,8 @@ export default function ItemForm({
       visibility: 'always',
       dishTags: item.dishTags ? [...item.dishTags] : [],
       ingredients: item.ingredients ? [...item.ingredients] : [],
+      customizationEnabled: item.customizationEnabled ?? true,
+      notesEnabled: item.notesEnabled ?? true,
     });
     setIsPromo(!!item.originalPrice);
 
@@ -700,7 +785,7 @@ export default function ItemForm({
                   setNewIngredientInput('');
                 }
               }}
-              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+              className="px-3.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
             >
               <Plus size={14} />
               Aggiungi
@@ -774,7 +859,6 @@ export default function ItemForm({
                 type="button"
                 onClick={() => {
                   setShowAllergenEmojiPicker(!showAllergenEmojiPicker);
-                  setShowTagEmojiPicker(false);
                 }}
                 className="px-3.5 py-2.5 bg-input border border-border rounded-xl hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[46px]"
                 title="Seleziona Icona/Emoji"
@@ -839,7 +923,7 @@ export default function ItemForm({
                   setAllergenEmoji('➕');
                 }
               }}
-              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+              className="px-3.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
             >
               <Plus size={14} />
               Aggiungi
@@ -847,7 +931,7 @@ export default function ItemForm({
           </div>
         </div>
 
-        {/* Dish Tags Input (Pills + Inline custom tag input with Emoji) */}
+        {/* Dish Tags Input (Pills + Inline custom tag input with Visual Icon Picker) */}
         <div className="sm:col-span-2">
           <div className="flex items-center justify-between mb-2">
             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -864,40 +948,56 @@ export default function ItemForm({
               <span className="text-[10px] text-muted-foreground">|</span>
               <button
                 type="button"
-                onClick={() => setDraft((p) => ({ ...p, dishTags: [...availableDishTags] }))}
+                onClick={() => {
+                  const standardOnly = [
+                    'leaf:Vegano',
+                    'leaf:Vegetariano',
+                    'flame:Piccante',
+                    'wheat:Senza Glutine',
+                    'sparkles:Novità',
+                    'star:Consigliato'
+                  ];
+                  setDraft((p) => ({
+                    ...p,
+                    dishTags: Array.from(new Set([...(p.dishTags || []), ...standardOnly]))
+                  }));
+                }}
                 className="text-[10px] font-bold text-primary hover:underline uppercase cursor-pointer"
               >
-                Seleziona Tutti
+                Seleziona Standard
               </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2.5 p-3 bg-muted/20 border border-border rounded-xl">
+          <div className="flex flex-wrap gap-2.5 p-3.5 bg-muted/20 border border-border rounded-xl">
             {availableDishTags.length === 0 && (
               <p className="text-xs text-muted-foreground italic">Nessuna etichetta inserita</p>
             )}
             {availableDishTags.map((t) => {
               const isActive = (draft.dishTags || []).includes(t);
+              const { iconName, label } = parseTag(t);
+              const IconComp = getIconComponent(iconName);
+              
               return (
                 <div
                   key={t}
                   onClick={() => toggleDishTag(t)}
-                  className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-7 ${isActive
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-8 ${isActive
                     ? 'bg-primary/10 border-primary/40 text-primary shadow-sm shadow-primary/5'
                     : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
                     }`}
                 >
-                  {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5 animate-pulse" />}
-                  {t}
+                  {IconComp}
+                  <span>{label}</span>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteDishTag(t);
                     }}
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95"
+                    className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer"
                     style={{ fontSize: '8px', lineHeight: '1' }}
-                    title={`Elimina ${t}`}
+                    title={`Elimina ${label}`}
                   >
                     ✕
                   </button>
@@ -906,83 +1006,136 @@ export default function ItemForm({
             })}
           </div>
 
-          {/* Inline input with Emoji Selector to add a custom tag */}
-          <div className="mt-3 flex gap-2 relative">
-            <div className="relative">
+          {/* Inline input with visual icon picker to add a custom tag */}
+          <div className="mt-3.5 p-4 border border-border/70 bg-muted/10 rounded-2xl space-y-3.5">
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                1. Scegli Icona
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.keys(ICON_MAP).map((name) => {
+                  const Icon = ICON_MAP[name];
+                  const isSelected = selectedTagIcon === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => setSelectedTagIcon(name)}
+                      title={ICON_LABELS[name]}
+                      className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer ${
+                        isSelected
+                          ? 'bg-primary border-primary text-white shadow-sm'
+                          : 'bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      <Icon size={16} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 space-y-1.5">
+                <label htmlFor="custom-tag-name" className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                  2. Inserisci Testo Etichetta
+                </label>
+                <input
+                  id="custom-tag-name"
+                  type="text"
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  placeholder="Es. Biologico, Senza Lattosio, Km 0"
+                  className="w-full px-3.5 py-2.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const txt = customTag.trim();
+                      if (txt) {
+                        const finalVal = `${selectedTagIcon}:${txt}`;
+                        handleAddDishTag(finalVal);
+                        setCustomTag('');
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <div className="sm:self-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const txt = customTag.trim();
+                    if (txt) {
+                      const finalVal = `${selectedTagIcon}:${txt}`;
+                      handleAddDishTag(finalVal);
+                      setCustomTag('');
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors h-[38px]"
+                >
+                  <Plus size={14} />
+                  Crea Etichetta
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Regole di Personalizzazione */}
+        <div className="sm:col-span-2 border-t border-border/60 pt-4 mt-2">
+          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+            Regole di Personalizzazione
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted/20 border border-border rounded-xl">
+            {/* customizationEnabled Switch */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <span className="text-xs font-bold text-foreground block">Consenti modifiche al piatto</span>
+                <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                  Se disattivato, il cliente non potrà aggiungere supplementi o rimuovere ingredienti standard. Il piatto verrà aggiunto direttamente al carrello.
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  setShowTagEmojiPicker(!showTagEmojiPicker);
-                  setShowAllergenEmojiPicker(false);
-                }}
-                className="px-3.5 py-2.5 bg-input border border-border rounded-xl hover:bg-muted text-base cursor-pointer flex items-center justify-center min-w-[46px]"
-                title="Seleziona Icona/Emoji"
+                onClick={() => setDraft((p) => ({ ...p, customizationEnabled: !(p.customizationEnabled ?? true) }))}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  (draft.customizationEnabled ?? true) ? 'bg-primary' : 'bg-border'
+                }`}
+                role="switch"
+                aria-checked={draft.customizationEnabled ?? true}
               >
-                {tagEmoji}
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    (draft.customizationEnabled ?? true) ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
               </button>
-              {showTagEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-xl shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-48 overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTagEmoji('➕');
-                      setShowTagEmojiPicker(false);
-                    }}
-                    className="p-1 hover:bg-muted rounded text-xs text-muted-foreground"
-                  >
-                    Nessuna
-                  </button>
-                  {EMOJI_LIST.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => {
-                        setTagEmoji(emoji);
-                        setShowTagEmojiPicker(false);
-                      }}
-                      className="p-1 hover:bg-muted rounded text-lg cursor-pointer"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
-            <input
-              type="text"
-              value={customTag}
-              onChange={(e) => setCustomTag(e.target.value)}
-              placeholder="Aggiungi etichetta (es. Vegano)"
-              className="flex-1 px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const txt = customTag.trim();
-                  if (txt) {
-                    const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
-                    handleAddDishTag(finalVal);
-                    setCustomTag('');
-                    setTagEmoji('➕');
-                  }
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const txt = customTag.trim();
-                if (txt) {
-                  const finalVal = tagEmoji !== '➕' ? `${tagEmoji} ${txt}` : txt;
-                  handleAddDishTag(finalVal);
-                  setCustomTag('');
-                  setTagEmoji('➕');
-                }
-              }}
-              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
-            >
-              <Plus size={14} />
-              Aggiungi
-            </button>
+
+            {/* notesEnabled Switch */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <span className="text-xs font-bold text-foreground block">Consenti note per la cucina</span>
+                <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                  Se disattivato, il campo di testo per le note cucina non verrà mostrato nel dettaglio di questo piatto.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDraft((p) => ({ ...p, notesEnabled: !(p.notesEnabled ?? true) }))}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  (draft.notesEnabled ?? true) ? 'bg-primary' : 'bg-border'
+                }`}
+                role="switch"
+                aria-checked={draft.notesEnabled ?? true}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    (draft.notesEnabled ?? true) ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1105,7 +1258,7 @@ export default function ItemForm({
                   setNewSuppPrice('');
                 }
               }}
-              className="px-3.5 py-2 bg-primary text-white hover:bg-[#d43d22] rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+              className="px-3.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
             >
               <Plus size={14} />
               Aggiungi
@@ -1206,7 +1359,7 @@ export default function ItemForm({
             };
             onSave(finalDraft);
           }}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#d43d22] transition-all cursor-pointer shadow-md shadow-primary/10"
+          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all cursor-pointer shadow-md shadow-primary/10"
         >
           <Check size={16} />
           {saveLabel}
@@ -1267,7 +1420,7 @@ export default function ItemForm({
                 <button
                   type="button"
                   onClick={handleAddCategory}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-[#d43d22] cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-hover cursor-pointer"
                 >
                   Aggiungi
                 </button>
@@ -1321,7 +1474,7 @@ export default function ItemForm({
                     <button
                       type="button"
                       onClick={handleAddGroup}
-                      className="px-3.5 py-1.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors cursor-pointer"
                     >
                       Crea
                     </button>
@@ -1587,7 +1740,7 @@ export default function ItemForm({
                           <button
                             type="button"
                             onClick={() => handleAddChoice(gid)}
-                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-[#d43d22] transition-colors cursor-pointer flex-shrink-0"
+                            className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors cursor-pointer flex-shrink-0"
                           >
                             Aggiungi
                           </button>
@@ -1691,7 +1844,7 @@ export default function ItemForm({
                   setSessionGroups(modalOptionGroups);
                   setIsSupplementsModalOpen(false);
                 }}
-                className="w-[120px] px-4.5 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-[#d43d22] cursor-pointer"
+                className="w-[120px] px-4.5 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary-hover cursor-pointer"
               >
                 Salva
               </button>

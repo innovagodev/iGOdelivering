@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
+import { supabase } from '@/lib/supabase';
 import {
   ArrowLeft,
   ChevronRight,
@@ -288,6 +289,7 @@ export default function RestaurantConfigurePage() {
 
   // --- STATE ---
   const [restaurantStatus, setRestaurantStatus] = useState<string>('draft');
+  const [initialStatus, setInitialStatus] = useState<string>('draft');
   const [info, setInfo] = useState<RestaurantInfo>({
     name: '',
     category: 'Pizzeria',
@@ -328,6 +330,19 @@ export default function RestaurantConfigurePage() {
   const [bookingHours, setBookingHours] = useState<ServiceHours>({
     useCustom: false,
     hours: defaultDayHours(),
+  });
+
+  const [serviceSuspended, setServiceSuspended] = useState({
+    pickup: false,
+    delivery: false,
+    reservation: false,
+  });
+
+  const [temporaryClosure, setTemporaryClosure] = useState({
+    enabled: false,
+    from: '',
+    to: '',
+    message: '',
   });
 
   const [tableBooking, setTableBooking] = useState<TableBookingConfig>({
@@ -484,255 +499,150 @@ export default function RestaurantConfigurePage() {
   useEffect(() => {
     if (!restaurantId) return;
 
-    try {
-      let foundRestaurant: any = null;
+    const loadRestaurantData = async () => {
       try {
-        const delivering = JSON.parse(localStorage.getItem('iGOdelivering_restaurants') || '[]');
-        foundRestaurant = delivering.find((r: any) => r.id === restaurantId);
-      } catch (e) { }
+        // 1. Fetch restaurant row
+        const { data: restaurant, error: rErr } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('id', restaurantId)
+          .maybeSingle();
 
-
-
-      if (!foundRestaurant) {
-        foundRestaurant = mockRestaurants.find((r: any) => r.id === restaurantId) || mockRestaurants[0];
-      }
-
-      const slugify = (text: string) => {
-        return text
-          .toString()
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w\-]+/g, '')
-          .replace(/\-\-+/g, '-');
-      };
-      const slug = foundRestaurant ? slugify(foundRestaurant.name) : 'pizzeria-bella-napoli';
-
-      const infoData: RestaurantInfo = {
-        name: foundRestaurant?.name || '',
-        category: foundRestaurant?.category || 'Pizzeria',
-        description: foundRestaurant?.description || '',
-        phone: foundRestaurant?.phone || '',
-        email: foundRestaurant?.email || '',
-        website: foundRestaurant?.website || '',
-        address: foundRestaurant?.address || '',
-        city: foundRestaurant?.city || '',
-        province: foundRestaurant?.province || '',
-        cap: foundRestaurant?.cap || '',
-        vatNumber: foundRestaurant?.vatNumber || '',
-        logoUrl: foundRestaurant?.logoUrl || foundRestaurant?.logo || '',
-        backgroundImageUrl: foundRestaurant?.backgroundImageUrl || '',
-      };
-
-      setRestaurantStatus(foundRestaurant?.status || 'draft');
-
-      let storedSettings: any = null;
-      try {
-        const rawId = localStorage.getItem(`iGO_settings_${restaurantId}`);
-        const rawSlug = localStorage.getItem(`iGO_settings_${slug}`);
-        const raw = rawId || rawSlug;
-        if (raw) {
-          storedSettings = JSON.parse(raw);
+        if (rErr) throw rErr;
+        if (!restaurant) {
+          console.error('Restaurant not found in Supabase:', restaurantId);
+          setIsHydrated(true);
+          return;
         }
-      } catch (e) { }
 
-      if (storedSettings) {
-        const isDashboardFormat = storedSettings.profile && storedSettings.deliveryConfig;
-        const profile = isDashboardFormat ? storedSettings.profile : storedSettings;
+        const loadedStatus = restaurant.status || 'draft';
+        setRestaurantStatus(loadedStatus);
+        setInitialStatus(loadedStatus);
 
-        if (profile.name) infoData.name = profile.name;
-        if (profile.logoUrl) infoData.logoUrl = profile.logoUrl;
-        if (profile.backgroundImageUrl) infoData.backgroundImageUrl = profile.backgroundImageUrl;
-        if (profile.description) infoData.description = profile.description;
-        if (profile.phone) infoData.phone = profile.phone;
-        if (profile.email) infoData.email = profile.email;
-        if (profile.website) infoData.website = profile.website;
-        if (profile.address) infoData.address = profile.address;
-        if (profile.city) infoData.city = profile.city;
-        if (profile.province) infoData.province = profile.province;
-        if (profile.cap) infoData.cap = profile.cap;
-        if (profile.vatNumber) infoData.vatNumber = profile.vatNumber;
-      }
+        // Map info
+        const infoData: RestaurantInfo = {
+          name: restaurant.name || '',
+          category: restaurant.category || 'Pizzeria',
+          description: restaurant.description || '',
+          phone: restaurant.phone || '',
+          email: restaurant.email || '',
+          website: restaurant.website || '',
+          address: restaurant.address || '',
+          city: restaurant.city || '',
+          province: restaurant.province || '',
+          cap: restaurant.cap || '',
+          vatNumber: restaurant.vat_number || '',
+          logoUrl: restaurant.logo_url || '',
+          backgroundImageUrl: restaurant.background_url || '',
+        };
+        setInfo(infoData);
 
-      setInfo(infoData);
+        // Restore Payment config
+        const paymentConfigData: PaymentConfig = {
+          card_delivery: restaurant.card_delivery ?? true,
+          card_pickup: restaurant.card_pickup ?? true,
+          cash_delivery: restaurant.cash_delivery ?? true,
+          cash_pickup: restaurant.cash_pickup ?? true,
+          stripe_enabled: restaurant.stripe_enabled ?? false,
+          stripe_connected: restaurant.stripe_connected ?? false,
+          stripe_account_label: restaurant.stripe_account_label || '',
+          paypal_enabled: restaurant.paypal_enabled ?? false,
+          paypal_connected: restaurant.paypal_connected ?? false,
+          paypal_email: restaurant.paypal_email || '',
+          iban_enabled: restaurant.iban_enabled ?? false,
+          onlinePaymentAccount: restaurant.online_payment_account || '',
+          ibanHolder: restaurant.iban_holder || '',
+        };
+        setPaymentConfig(paymentConfigData);
 
-      // Restore Payment config
-      const paymentConfigData: PaymentConfig = {
-        card_delivery: true,
-        card_pickup: true,
-        cash_delivery: true,
-        cash_pickup: true,
-        stripe_enabled: false,
-        stripe_connected: false,
-        stripe_account_label: '',
-        paypal_enabled: false,
-        paypal_connected: false,
-        paypal_email: '',
-        iban_enabled: false,
-        onlinePaymentAccount: '',
-        ibanHolder: '',
-      };
-      if (storedSettings?.paymentMethods) {
-        const pm = storedSettings.paymentMethods;
-        paymentConfigData.card_delivery = pm.card_delivery ?? pm.card ?? true;
-        paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
-        paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
-        paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
-        paymentConfigData.stripe_enabled = pm.stripe_enabled ?? false;
-        paymentConfigData.stripe_connected = pm.stripe_connected ?? false;
-        paymentConfigData.stripe_account_label = pm.stripe_account_label ?? '';
-        paymentConfigData.paypal_enabled = pm.paypal_enabled ?? pm.paypal ?? false;
-        paymentConfigData.paypal_connected = pm.paypal_connected ?? false;
-        paymentConfigData.paypal_email = pm.paypal_email ?? '';
-        paymentConfigData.iban_enabled = pm.iban_enabled ?? false;
-        paymentConfigData.onlinePaymentAccount = pm.onlinePaymentAccount ?? '';
-        paymentConfigData.ibanHolder = pm.ibanHolder ?? '';
-      } else if (foundRestaurant?.paymentMethods) {
-        const pm = foundRestaurant.paymentMethods;
-        paymentConfigData.card_delivery = pm.card_delivery ?? pm.card ?? true;
-        paymentConfigData.card_pickup = pm.card_pickup ?? pm.card ?? true;
-        paymentConfigData.cash_delivery = pm.cash_delivery ?? pm.cash ?? true;
-        paymentConfigData.cash_pickup = pm.cash_pickup ?? pm.cash ?? true;
-        paymentConfigData.stripe_enabled = pm.stripe_enabled ?? false;
-        paymentConfigData.stripe_connected = pm.stripe_connected ?? false;
-        paymentConfigData.stripe_account_label = pm.stripe_account_label ?? '';
-        paymentConfigData.paypal_enabled = pm.paypal_enabled ?? pm.paypal ?? false;
-        paymentConfigData.paypal_connected = pm.paypal_connected ?? false;
-        paymentConfigData.paypal_email = pm.paypal_email ?? '';
-        paymentConfigData.iban_enabled = pm.iban_enabled ?? false;
-        paymentConfigData.onlinePaymentAccount = pm.onlinePaymentAccount ?? '';
-        paymentConfigData.ibanHolder = pm.ibanHolder ?? '';
-      }
-      setPaymentConfig(paymentConfigData);
+        // Restore Table count
+        setTableCount(restaurant.tables_count || 0);
+        setTempTableCount(restaurant.tables_count || 0);
 
-      // Restore Table count
-      try {
-        const storedTables = localStorage.getItem(`iGO_tables_${slug}`);
-        if (storedTables) {
-          const count = parseInt(storedTables, 10);
-          if (!isNaN(count)) {
-            setTableCount(count);
-            setTempTableCount(count);
+        // Restore Table booking
+        const tableBookingData: TableBookingConfig = {
+          enabled: !!restaurant.table_enabled,
+          maxGuests: 8,
+          slotDuration: 90,
+          advanceBookingDays: 30,
+          serviceEnabled: true,
+        };
+        
+        // Try reading extra tableBooking settings from localStorage or defaults
+        try {
+          const rawSlug = infoData.name
+            ? infoData.name
+              .toLowerCase()
+              .replace(/ /g, '-')
+              .replace(/[^\w-]+/g, '')
+            : 'pizzeria-bella-napoli';
+          const storedSettingsStr = localStorage.getItem(`iGO_settings_${restaurantId}`) || localStorage.getItem(`iGO_settings_${rawSlug}`);
+          if (storedSettingsStr) {
+            const stored = JSON.parse(storedSettingsStr);
+            const tb = stored.tableBooking;
+            if (tb) {
+              tableBookingData.maxGuests = tb.maxGuests ?? 8;
+              tableBookingData.slotDuration = tb.slotDuration ?? 90;
+              tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
+              tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
+            }
           }
-        }
-      } catch (e) { }
+        } catch (e) {}
+        setTableBooking(tableBookingData);
 
-      // Restore Table booking
-      const tableBookingData: TableBookingConfig = {
-        enabled: false,
-        maxGuests: 8,
-        slotDuration: 90,
-        advanceBookingDays: 30,
-        serviceEnabled: true,
-      };
-      if (storedSettings?.tableBooking) {
-        const tb = storedSettings.tableBooking;
-        tableBookingData.enabled = tb.enabled ?? false;
-        tableBookingData.maxGuests = tb.maxGuests ?? 8;
-        tableBookingData.slotDuration = tb.slotDuration ?? 90;
-        tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
-        tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
-      } else if (foundRestaurant?.tableBooking) {
-        const tb = foundRestaurant.tableBooking;
-        tableBookingData.enabled = tb.enabled ?? false;
-        tableBookingData.maxGuests = tb.maxGuests ?? 8;
-        tableBookingData.slotDuration = tb.slotDuration ?? 90;
-        tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
-        tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
-      }
-      setTableBooking(tableBookingData);
-
-      // Restore Scheduled orders config
-      const scheduledOrdersData: ScheduledOrdersConfig = {
-        enabled: true,
-        pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
-        delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
-        onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
-        hideAsap: false,
-        pickupExpanded: true,
-        deliveryExpanded: true,
-        onPremiseExpanded: true,
-        altroExpanded: true,
-      };
-      if (storedSettings?.scheduledOrders) {
-        const so = storedSettings.scheduledOrders;
-        scheduledOrdersData.enabled = so.enabled ?? true;
-        if (so.pickup) scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
-        if (so.delivery) scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
-        if (so.onPremise) scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
-        scheduledOrdersData.hideAsap = so.hideAsap ?? false;
-      } else if (foundRestaurant?.scheduledOrders) {
-        const so = foundRestaurant.scheduledOrders;
-        scheduledOrdersData.enabled = so.enabled ?? true;
-        if (so.pickup) scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
-        if (so.delivery) scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
-        if (so.onPremise) scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
-        scheduledOrdersData.hideAsap = so.hideAsap ?? false;
-      }
-      setScheduledOrders(scheduledOrdersData);
-
-      // Restore Zones
-      let zonesData: DeliveryZone[] = [
-        {
-          id: 'z-1',
-          name: 'Zona Centro',
-          radius: 3,
-          minOrder: 0,
-          deliveryFee: 2.5,
-          freeDeliveryThreshold: 35,
+        // Restore Scheduled orders config
+        const scheduledOrdersData: ScheduledOrdersConfig = {
           enabled: true,
-        },
-      ];
-      try {
-        const storedZones = localStorage.getItem(`iGO_zones_${restaurantId}`);
-        if (storedZones) {
-          zonesData = JSON.parse(storedZones);
-        } else if (foundRestaurant?.zones) {
-          zonesData = foundRestaurant.zones;
+          pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
+          delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
+          onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
+          hideAsap: false,
+          pickupExpanded: true,
+          deliveryExpanded: true,
+          onPremiseExpanded: true,
+          altroExpanded: true,
+        };
+        if (restaurant.scheduled_orders) {
+          const so = restaurant.scheduled_orders as any;
+          scheduledOrdersData.enabled = so.enabled ?? true;
+          if (so.pickup) scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
+          if (so.delivery) scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
+          if (so.onPremise) scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
+          scheduledOrdersData.hideAsap = so.hideAsap ?? false;
         }
-      } catch (e) { }
-      setZones(zonesData);
+        setScheduledOrders(scheduledOrdersData);
 
-      // Restore hours
-      let hoursData: Record<string, DayHours> = defaultDayHours();
-      if (foundRestaurant?.hours) {
-        const loaded = foundRestaurant.hours;
-        DAYS.forEach((d) => {
-          if (loaded[d]) {
-            hoursData[d] = {
-              ...loaded[d],
-              lunchEnabled: loaded[d].lunchEnabled !== false,
-              dinnerEnabled: loaded[d].dinnerEnabled !== false,
+        // Restore hours
+        let hoursData: Record<string, DayHours> = defaultDayHours();
+        let pickupHoursData = { useCustom: false, hours: defaultDayHours() };
+        let deliveryHoursData = { useCustom: false, hours: defaultDayHours() };
+        let bookingHoursData = { useCustom: false, hours: defaultDayHours() };
+        let serviceSuspendedData = { pickup: false, delivery: false, reservation: false };
+        let temporaryClosureData = { enabled: false, from: '', to: '', message: '' };
+
+        if (restaurant.hours_config) {
+          const parsed = restaurant.hours_config as any;
+          const rawServiceHours = parsed.serviceHours;
+          const rawUseGeneral = parsed.useGeneral;
+          const rawServiceSuspended = parsed.serviceSuspended;
+          const rawTemporaryClosure = parsed.temporaryClosure;
+
+          if (rawServiceSuspended) {
+            serviceSuspendedData = {
+              pickup: !!rawServiceSuspended.pickup,
+              delivery: !!rawServiceSuspended.delivery,
+              reservation: !!rawServiceSuspended.reservation,
             };
           }
-        });
-      }
+          if (rawTemporaryClosure) {
+            temporaryClosureData = {
+              enabled: !!rawTemporaryClosure.enabled,
+              from: rawTemporaryClosure.from || '',
+              to: rawTemporaryClosure.to || '',
+              message: rawTemporaryClosure.message || '',
+            };
+          }
 
-      // Restore service-specific hours
-      const defaultServiceHoursObj = (): ServiceHours => ({
-        useCustom: false,
-        hours: defaultDayHours(),
-      });
-
-      let pickupHoursData: ServiceHours = defaultServiceHoursObj();
-      let deliveryHoursData: ServiceHours = defaultServiceHoursObj();
-      let bookingHoursData: ServiceHours = defaultServiceHoursObj();
-
-      try {
-        const storedHoursStr = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
-        let rawServiceHours: any = null;
-        let rawUseGeneral: any = null;
-
-        if (storedHoursStr) {
-          const parsed = JSON.parse(storedHoursStr);
-          rawServiceHours = parsed.serviceHours;
-          rawUseGeneral = parsed.useGeneral;
-        } else if (foundRestaurant?.serviceHours) {
-          rawServiceHours = foundRestaurant.serviceHours;
-          rawUseGeneral = foundRestaurant.useGeneral;
-        }
-
-        if (rawServiceHours) {
           const convertToWizardFormat = (daysRecord: any): Record<string, DayHours> => {
             const h = defaultDayHours();
             DAYS.forEach((d) => {
@@ -750,78 +660,112 @@ export default function RestaurantConfigurePage() {
             return h;
           };
 
-          if (rawServiceHours.general) {
+          if (rawServiceHours?.general) {
             hoursData = convertToWizardFormat(rawServiceHours.general);
           }
 
-          const hasGeneral = !!rawServiceHours.general;
+          const hasGeneral = !!rawServiceHours?.general;
           const useGen = rawUseGeneral || {
             pickup: hasGeneral,
             delivery: hasGeneral,
             reservation: hasGeneral,
           };
 
-          if (rawServiceHours.pickup) {
+          if (rawServiceHours?.pickup) {
             pickupHoursData = {
               useCustom: !useGen.pickup,
               hours: convertToWizardFormat(rawServiceHours.pickup),
             };
           }
-          if (rawServiceHours.delivery) {
+          if (rawServiceHours?.delivery) {
             deliveryHoursData = {
               useCustom: !useGen.delivery,
               hours: convertToWizardFormat(rawServiceHours.delivery),
             };
           }
-          if (rawServiceHours.reservation) {
+          if (rawServiceHours?.reservation) {
             bookingHoursData = {
               useCustom: !useGen.reservation,
               hours: convertToWizardFormat(rawServiceHours.reservation),
             };
           }
         }
-      } catch (e) { }
+        setHours(hoursData);
+        setPickupHours(pickupHoursData);
+        setDeliveryHours(deliveryHoursData);
+        setBookingHours(bookingHoursData);
+        setServiceSuspended(serviceSuspendedData);
+        setTemporaryClosure(temporaryClosureData);
 
-      setHours(hoursData);
-      setPickupHours(pickupHoursData);
-      setDeliveryHours(deliveryHoursData);
-      setBookingHours(bookingHoursData);
+        // Restore Zones
+        const { data: dbZones, error: zonesErr } = await supabase
+          .from('delivery_zones')
+          .select('*')
+          .eq('restaurant_id', restaurantId);
 
-      // Restore Menu and options
-      let menuItemsData: MenuItemDraft[] = [];
-      let categoriesData: string[] = [...DEFAULT_CATEGORIES];
+        if (zonesErr) throw zonesErr;
 
-      try {
-        const storedMenu = localStorage.getItem(`iGO_menu_items_${slug}`) || localStorage.getItem(`iGO_menu_items_${restaurantId}`);
-        if (storedMenu) {
-          menuItemsData = JSON.parse(storedMenu);
-        } else if (foundRestaurant?.menuItems && Array.isArray(foundRestaurant.menuItems)) {
-          menuItemsData = foundRestaurant.menuItems;
+        let zonesData: DeliveryZone[] = [
+          {
+            id: 'z-1',
+            name: 'Zona Centro',
+            radius: 3,
+            minOrder: 0,
+            deliveryFee: 2.5,
+            freeDeliveryThreshold: 35,
+            enabled: true,
+          },
+        ];
+        if (dbZones && dbZones.length > 0) {
+          zonesData = dbZones.map((z: any) => ({
+            id: z.id,
+            name: z.name,
+            radius: Number(z.radius_km) || 0,
+            minOrder: Number(z.min_order) || 0,
+            deliveryFee: Number(z.delivery_fee) || 0,
+            freeDeliveryThreshold: Number(z.free_delivery_threshold) || 0,
+            enabled: !!z.enabled,
+          }));
         }
+        setZones(zonesData);
 
-        if (foundRestaurant?.menuCategories && Array.isArray(foundRestaurant.menuCategories)) {
-          categoriesData = foundRestaurant.menuCategories;
-        } else if (menuItemsData.length > 0) {
-          const uniqueCats = Array.from(new Set(menuItemsData.map((item) => item.category)));
-          if (uniqueCats.length > 0) {
-            categoriesData = uniqueCats;
-          }
-        }
-      } catch (e) { }
+        // Restore Menu Categories
+        const { data: dbCats, error: catsErr } = await supabase
+          .from('menu_categories')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .order('sort_order', { ascending: true });
 
-      setMenuCategories(categoriesData);
+        if (catsErr) throw catsErr;
 
-      const groupMap = new Map<string, WizardOptionGroup>();
-      menuItemsData.forEach((item) => {
-        if (item.optionGroups && Array.isArray(item.optionGroups)) {
-          item.optionGroups.forEach((group) => {
+        const categoriesData = dbCats && dbCats.length > 0
+          ? dbCats.map((c: any) => c.name)
+          : [...DEFAULT_CATEGORIES];
+        setMenuCategories(categoriesData);
+
+        // Restore Menu Items
+        const { data: dbItems, error: itemsErr } = await supabase
+          .from('menu_items')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .order('sort_order', { ascending: true });
+
+        if (itemsErr) throw itemsErr;
+
+        const menuItemsData = dbItems || [];
+
+        // Build optionGroups and menuItems
+        const groupMap = new Map<string, WizardOptionGroup>();
+        menuItemsData.forEach((item: any) => {
+          const ogs = item.option_groups || [];
+          ogs.forEach((group: any) => {
             if (!groupMap.has(group.id)) {
               groupMap.set(group.id, {
                 id: group.id,
                 name: group.name,
                 minSelections: group.minSelections ?? 0,
                 maxSelections: group.maxSelections !== undefined ? group.maxSelections : null,
-                choices: group.choices ? group.choices.map((c) => ({
+                choices: group.choices ? group.choices.map((c: any) => ({
                   id: c.id,
                   name: c.name,
                   price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
@@ -834,90 +778,109 @@ export default function RestaurantConfigurePage() {
               existingGroup.appliedTo.push(item.id);
             }
           });
-        }
-      });
+        });
 
-      const mappedWizardGroups = Array.from(groupMap.values());
-      setOptionGroups(mappedWizardGroups);
+        const mappedWizardGroups = Array.from(groupMap.values());
+        setOptionGroups(mappedWizardGroups);
 
-      const mappedWizardItems: MenuItemWizardDraft[] = menuItemsData.map((item) => {
-        const mode: 'always' | 'hidden' | 'time_range' | 'date_range' =
-          item.visibility === 'scheduled' ? 'time_range' : item.visibility;
-        const timeFrom = item.visibilitySchedule?.from || '10:00';
-        const timeTo = item.visibilitySchedule?.to || '15:00';
+        const mappedWizardItems: MenuItemWizardDraft[] = menuItemsData.map((item: any) => {
+          const mode: 'always' | 'hidden' | 'time_range' | 'date_range' =
+            item.visibility === 'scheduled' ? 'time_range' : (item.visibility || 'always');
+          const timeFrom = item.visibility_from || '10:00';
+          const timeTo = item.visibility_to || '15:00';
 
-        const visibility = {
-          mode,
-          timeFrom,
-          timeTo,
-          days: [...DAYS],
-          dateFrom: '',
-          dateFromTime: '10:00',
-          dateTo: '',
-          dateToTime: '15:00',
-        };
+          const visibility = {
+            mode,
+            timeFrom,
+            timeTo,
+            days: [...DAYS],
+            dateFrom: '',
+            dateFromTime: '10:00',
+            dateTo: '',
+            dateToTime: '15:00',
+          };
 
-        const singleSuppGroup = item.optionGroups?.find((g) => g.name === 'Supplementi' || g.name === 'Supplementi Singoli' || g.id === 'supplementi-singoli');
-        const singleSupplements = singleSuppGroup
-          ? singleSuppGroup.choices.map((c) => ({
-            id: c.id,
-            name: c.name,
-            price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price
-          }))
-          : [];
-        const itemOptionGroupIds = item.optionGroups
-          ? item.optionGroups
-            .filter((g) => g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && g.id !== 'supplementi-singoli')
-            .map((g) => g.id)
-          : [];
+          const optionGroupsList = item.option_groups || [];
+          const singleSuppGroup = optionGroupsList.find((g: any) => g.name === 'Supplementi' || g.name === 'Supplementi Singoli' || g.id === 'supplementi-singoli');
+          const singleSupplements = singleSuppGroup
+            ? singleSuppGroup.choices.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price
+              }))
+            : [];
+          const itemOptionGroupIds = optionGroupsList
+            .filter((g: any) => g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && g.id !== 'supplementi-singoli')
+            .map((g: any) => g.id);
 
-        const hasPromo = item.originalPrice !== undefined && item.originalPrice !== null && Number(item.originalPrice) > 0;
-        const draftPrice = hasPromo ? item.originalPrice!.toString() : item.price.toString();
-        const draftOriginalPrice = hasPromo ? item.price.toString() : '';
+          const hasPromo = item.original_price !== undefined && item.original_price !== null && Number(item.original_price) > 0;
+          const draftPrice = hasPromo ? item.original_price.toString() : item.price.toString();
+          const draftOriginalPrice = hasPromo ? item.price.toString() : '';
 
-        return {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          price: draftPrice,
-          originalPrice: draftOriginalPrice,
-          description: item.description || '',
-          available: item.available,
-          imageUrl: (item as any).image || item.imageUrl || '',
-          allergens: item.allergens || [],
-          dishTags: item.dishTags || [],
-          ingredients: item.ingredients || [],
-          imageFile: null,
-          optionGroups: itemOptionGroupIds,
-          singleSupplements,
-          visibility,
-        };
-      });
+          return {
+            id: item.id,
+            name: item.name,
+            category: item.category_name || 'Pizza',
+            price: draftPrice,
+            originalPrice: draftOriginalPrice,
+            description: item.description || '',
+            available: !!item.available,
+            imageUrl: item.image_url || '',
+            allergens: item.allergens || [],
+            dishTags: item.dish_tags || [],
+            ingredients: item.ingredients || [],
+            imageFile: null,
+            optionGroups: itemOptionGroupIds,
+            singleSupplements,
+            visibility,
+            customizationEnabled: item.customization_enabled !== undefined ? !!item.customization_enabled : true,
+            notesEnabled: item.notes_enabled !== undefined ? !!item.notes_enabled : true,
+          };
+        });
 
-      setMenuItems(mappedWizardItems);
+        setMenuItems(mappedWizardItems);
 
-      // Restore promos
-      try {
-        const storedPromos = localStorage.getItem(`iGO_promos_${restaurantId}`);
-        if (storedPromos) {
-          const parsed = JSON.parse(storedPromos).map((p: any) => ({
-            ...p,
+        // Restore Promos
+        const { data: dbPromos, error: promosErr } = await supabase
+          .from('promos')
+          .select('*')
+          .eq('restaurant_id', restaurantId);
+
+        if (promosErr) throw promosErr;
+
+        if (dbPromos) {
+          const mappedPromos: PromoCode[] = dbPromos.map((p: any) => ({
+            id: p.id,
+            code: p.code,
             type: p.type === 'fixed' ? 'fixed_amount' : p.type,
+            value: parseFloat(p.value) || 0,
+            minOrderSubtotal: p.min_order_subtotal ? parseFloat(p.min_order_subtotal) : undefined,
+            active: !!p.active,
+            startDate: p.start_date || undefined,
+            endDate: p.end_date || undefined,
+            description: p.description || undefined,
+            maxUses: p.max_uses !== null && p.max_uses !== undefined ? parseInt(p.max_uses) : undefined,
+            usedCount: p.used_count || 0,
+            customBannerText: p.custom_banner_text || undefined,
+            applicableDeliveryModes: p.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
           }));
-          setPromos(parsed);
+          setPromos(mappedPromos);
         } else {
           setPromos([]);
         }
-      } catch (e) { }
 
-      setIsHydrated(true);
-    } catch (err) {
-      console.error('Error hydrating configuration page:', err);
-    }
+        setIsHydrated(true);
+      } catch (err) {
+        console.error('Error hydrating configuration page from Supabase:', err);
+        setIsHydrated(true);
+      }
+    };
+
+    loadRestaurantData();
   }, [restaurantId]);
 
   // --- SAVE LOGIC ---
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
       const slugify = (text: string) => {
         return text
@@ -996,6 +959,8 @@ export default function RestaurantConfigurePage() {
           visibility,
           visibilitySchedule,
           optionGroups: mappedOptionGroups,
+          customizationEnabled: item.customizationEnabled !== undefined ? !!item.customizationEnabled : true,
+          notesEnabled: item.notesEnabled !== undefined ? !!item.notesEnabled : true,
         };
       });
 
@@ -1037,21 +1002,217 @@ export default function RestaurantConfigurePage() {
           delivery: !deliveryHours.useCustom,
           reservation: !bookingHours.useCustom,
         },
-        serviceSuspended: {
-          pickup: false,
-          delivery: false,
-          reservation: false,
-          ...((existingHoursData as any).serviceSuspended || {})
-        },
+        serviceSuspended: serviceSuspended,
+        temporaryClosure: temporaryClosure,
       };
 
-      // Save service hours
+      // --- SUPABASE SYNC ---
+
+      // 1. Sync restaurant row
+      const restaurantPayload = {
+        name: info.name,
+        slug: slug,
+        email: info.email,
+        phone: info.phone,
+        address: info.address,
+        city: info.city,
+        province: info.province,
+        cap: info.cap,
+        vat_number: info.vatNumber || null,
+        category: info.category || null,
+        description: info.description || null,
+        logo_url: info.logoUrl || null,
+        background_url: info.backgroundImageUrl || null,
+        status: restaurantStatus,
+        delivery_enabled: zones.some((z) => z.enabled),
+        pickup_enabled: true,
+        table_enabled: tableBooking.enabled,
+        delivery_fee: zones[0]?.deliveryFee || 0,
+        min_order: zones[0]?.minOrder || 0,
+        free_delivery_threshold: zones[0]?.freeDeliveryThreshold || 0,
+        free_delivery_active: (zones[0]?.freeDeliveryThreshold || 0) > 0,
+        card_delivery: !!paymentConfig.card_delivery,
+        card_pickup: !!paymentConfig.card_pickup,
+        cash_delivery: !!paymentConfig.cash_delivery,
+        cash_pickup: !!paymentConfig.cash_pickup,
+        paypal_enabled: !!paymentConfig.paypal_enabled,
+        paypal_connected: !!paymentConfig.paypal_connected,
+        paypal_email: paymentConfig.paypal_email || null,
+        stripe_enabled: !!paymentConfig.stripe_enabled,
+        stripe_connected: !!paymentConfig.stripe_connected,
+        stripe_account_label: paymentConfig.stripe_account_label || null,
+        iban_enabled: !!paymentConfig.iban_enabled,
+        online_payment_account: paymentConfig.onlinePaymentAccount || null,
+        iban_holder: paymentConfig.ibanHolder || null,
+        scheduled_orders: scheduledOrders,
+        hours_config: serviceHoursDataToSave,
+        tables_count: tableCount,
+      };
+
+      const { error: rUpdateErr } = await supabase
+        .from('restaurants')
+        .update(restaurantPayload)
+        .eq('id', restaurantId);
+
+      if (rUpdateErr) {
+        console.error('Error updating restaurant details in Supabase:', rUpdateErr);
+        throw new Error('Errore durante l\'aggiornamento del ristorante su DB: ' + rUpdateErr.message);
+      }
+
+      // 2. Sync delivery zones
+      await supabase.from('delivery_zones').delete().eq('restaurant_id', restaurantId);
+      if (zones.length > 0) {
+        const zonesPayload = zones.map((z) => ({
+          restaurant_id: restaurantId,
+          name: z.name,
+          radius_km: z.radius,
+          min_order: z.minOrder,
+          delivery_fee: z.deliveryFee,
+          free_delivery_threshold: z.freeDeliveryThreshold,
+          enabled: z.enabled,
+        }));
+        const { error: zonesErr } = await supabase.from('delivery_zones').insert(zonesPayload);
+        if (zonesErr) {
+          console.error('Error saving zones to Supabase:', zonesErr);
+          throw new Error('Errore nel salvataggio delle zone di consegna: ' + zonesErr.message);
+        }
+      }
+
+      // 3. Sync menu categories & menu items
+      if (menuCategories.length > 0) {
+        await supabase.from('menu_categories').delete().eq('restaurant_id', restaurantId);
+        const catsPayload = menuCategories.map((cat, idx) => ({
+          restaurant_id: restaurantId,
+          name: cat,
+          sort_order: idx,
+        }));
+        const { data: savedCats, error: catsErr } = await supabase
+          .from('menu_categories')
+          .insert(catsPayload)
+          .select('id, name');
+
+        if (catsErr) {
+          console.error('Error saving categories to Supabase:', catsErr);
+          throw new Error('Errore nel salvataggio delle categorie menu: ' + catsErr.message);
+        }
+
+        // 4. Sync menu items
+        await supabase.from('menu_items').delete().eq('restaurant_id', restaurantId);
+        if (menuItems.length > 0 && savedCats) {
+          const catMap = Object.fromEntries(savedCats.map((c: any) => [c.name, c.id]));
+
+          const itemsPayload = menuItems.map((item) => {
+            const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
+            const listPrice = parseFloat(item.price) || 0;
+            const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
+
+            let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
+            if (item.visibility.mode === 'hidden') {
+              visibility = 'hidden';
+            } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
+              visibility = 'scheduled';
+            }
+
+            const mappedOptionGroups = item.optionGroups.map((groupId: string) => {
+              const matchedGroup = optionGroups.find((g) => g.id === groupId);
+              if (!matchedGroup) return null;
+              return {
+                id: matchedGroup.id,
+                name: matchedGroup.name,
+                minSelections: matchedGroup.minSelections ?? 0,
+                maxSelections: matchedGroup.maxSelections ?? null,
+                choices: matchedGroup.choices.map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
+              };
+            }).filter(Boolean);
+
+            if (item.singleSupplements && item.singleSupplements.length > 0) {
+              mappedOptionGroups.push({
+                id: 'supplementi-singoli',
+                name: 'Supplementi Singoli',
+                minSelections: 0,
+                maxSelections: null,
+                choices: (item.singleSupplements as any[]).map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
+              });
+            }
+
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id);
+
+            const payloadItem: any = {
+              restaurant_id: restaurantId,
+              category_id: catMap[item.category] || null,
+              category_name: item.category,
+              name: item.name,
+              description: item.description || null,
+              price: isPromoActive ? promoPrice! : listPrice,
+              original_price: isPromoActive ? listPrice : null,
+              image_url: item.imageUrl || null,
+              image_alt: item.name,
+              allergens: item.allergens,
+              dish_tags: item.dishTags || [],
+              ingredients: item.ingredients || [],
+              available: item.available,
+              visibility,
+              visibility_from: item.visibility.timeFrom || null,
+              visibility_to: item.visibility.timeTo || null,
+              option_groups: mappedOptionGroups,
+              customization_enabled: item.customizationEnabled ?? true,
+              notes_enabled: item.notesEnabled ?? true,
+              sort_order: 0,
+            };
+
+            if (isUuid) {
+              payloadItem.id = item.id;
+            }
+
+            return payloadItem;
+          });
+
+          const { error: itemsErr } = await supabase.from('menu_items').insert(itemsPayload);
+          if (itemsErr) {
+            console.error('Error saving menu items to Supabase:', itemsErr);
+            throw new Error('Errore nel salvataggio dei piatti menu: ' + itemsErr.message);
+          }
+        }
+      }
+
+      // 5. Sync promos
+      await supabase.from('promos').delete().eq('restaurant_id', restaurantId);
+      if (promos.length > 0) {
+        const promosPayload = promos.map((p) => {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id);
+          const payloadItem: any = {
+            restaurant_id: restaurantId,
+            code: p.code,
+            type: p.type === 'fixed_amount' ? 'fixed' : p.type,
+            value: p.value,
+            min_order_subtotal: p.minOrderSubtotal || null,
+            active: p.active,
+            start_date: p.startDate || null,
+            end_date: p.endDate || null,
+            description: p.description || null,
+            max_uses: p.maxUses || null,
+            used_count: p.usedCount || 0,
+            applicable_delivery_modes: p.applicableDeliveryModes || ['domicilio', 'asporto', 'tavolo'],
+          };
+
+          if (isUuid) {
+            payloadItem.id = p.id;
+          }
+
+          return payloadItem;
+        });
+
+        const { error: promosErr } = await supabase.from('promos').insert(promosPayload);
+        if (promosErr) {
+          console.error('Error saving promos to Supabase:', promosErr);
+          throw new Error('Errore nel salvataggio dei codici promozionali: ' + promosErr.message);
+        }
+      }
+
+      // --- LOCAL STORAGE BACKUPS (For compatibility) ---
       localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
-
-      // Save zones
       localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(zones));
-
-      // Save settings
+      
       const settingsObj = {
         profile: {
           name: info.name,
@@ -1076,7 +1237,7 @@ export default function RestaurantConfigurePage() {
           card_pickup: paymentConfig.card_pickup,
           cash_delivery: paymentConfig.cash_delivery,
           cash_pickup: paymentConfig.cash_pickup,
-          cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
+          cash: paymentConfig.card_delivery || paymentConfig.cash_delivery,
           card: paymentConfig.card_delivery || paymentConfig.card_pickup,
           stripe_enabled: paymentConfig.stripe_enabled,
           stripe_connected: paymentConfig.stripe_connected,
@@ -1098,18 +1259,11 @@ export default function RestaurantConfigurePage() {
       };
       localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settingsObj));
       localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settingsObj));
-
-      // Save tables count
       localStorage.setItem(`iGO_tables_${slug}`, tableCount.toString());
-
-      // Save menu items
       localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
       localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
-
-      // Save promos
       localStorage.setItem(`iGO_promos_${restaurantId}`, JSON.stringify(promos));
 
-      // Save in restaurant lists
       const saveRestaurantInList = (key: string) => {
         try {
           const list = JSON.parse(localStorage.getItem(key) || '[]');
@@ -1129,6 +1283,13 @@ export default function RestaurantConfigurePage() {
             category: info.category,
             hours: hours,
             serviceHours: serviceHoursObj,
+            useGeneral: {
+              pickup: !pickupHours.useCustom,
+              delivery: !deliveryHours.useCustom,
+              reservation: !bookingHours.useCustom,
+            },
+            serviceSuspended: serviceSuspended,
+            temporaryClosure: temporaryClosure,
             zones: zones,
             paymentMethods: settingsObj.paymentMethods,
             tableBooking,
@@ -1143,8 +1304,32 @@ export default function RestaurantConfigurePage() {
           localStorage.setItem(key, JSON.stringify(list));
         } catch (e) { }
       };
-
       saveRestaurantInList('iGOdelivering_restaurants');
+
+      // 2. Trigger activation email if status transitioned from not-published to published
+      if (restaurantStatus === 'published' && initialStatus !== 'published') {
+        try {
+          const emailResponse = await fetch('/api/admin/send-activation-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ restaurantId }),
+          });
+
+          if (!emailResponse.ok) {
+            const errData = await emailResponse.json();
+            console.error('Failed to send activation email:', errData.error);
+          } else {
+            console.log('Activation email sent successfully.');
+            setInitialStatus('published');
+          }
+        } catch (mailErr) {
+          console.error('Error triggering activation email:', mailErr);
+        }
+      } else if (restaurantStatus !== initialStatus) {
+        setInitialStatus(restaurantStatus);
+      }
 
       // Dispatch change notifications
       window.dispatchEvent(new CustomEvent('iGO_settings_updated'));
@@ -1153,8 +1338,9 @@ export default function RestaurantConfigurePage() {
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error saving restaurant configuration:', e);
+      alert(e.message || 'Errore durante il salvataggio della configurazione.');
     }
   };
 
@@ -1234,7 +1420,16 @@ export default function RestaurantConfigurePage() {
   };
   const addMenuItem = () => {
     if (!newItem.name || !newItem.price) return;
-    setMenuItems((p) => [...p, { ...newItem, id: `mi-${Date.now()}` }]);
+    
+    setMenuItems((p) => {
+      const exists = p.some((item) => item.id === newItem.id);
+      if (exists) {
+        return p.map((item) => (item.id === newItem.id ? { ...newItem } : item));
+      } else {
+        return [...p, { ...newItem, id: newItem.id || `mi-${Date.now()}` }];
+      }
+    });
+
     setShowAddItem(false);
     setNewItem({
       id: '',
@@ -1261,6 +1456,8 @@ export default function RestaurantConfigurePage() {
         dateTo: '',
         dateToTime: '15:00',
       },
+      customizationEnabled: true,
+      notesEnabled: true,
     });
   };
   const toggleAllergen = (a: string) =>
@@ -1328,38 +1525,44 @@ export default function RestaurantConfigurePage() {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
           onMobileMenuOpen={() => setIsMobileOpen(true)}
           leftContent={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href="/admin/restaurants"
-                className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors flex-shrink-0"
               >
                 <ArrowLeft size={15} />
-                <span className="hidden sm:inline">Ristoranti</span>
+                <span className="hidden md:inline">Ristoranti</span>
               </Link>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-sm font-semibold text-foreground">{info.name || 'Configura'}</span>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-sm text-muted-foreground">Configura</span>
+              <span className="text-muted-foreground flex-shrink-0">/</span>
+              <span className="text-sm font-semibold text-foreground truncate max-w-[80px] sm:max-w-[200px] md:max-w-none">
+                {info.name || 'Configura'}
+              </span>
+              <span className="text-muted-foreground flex-shrink-0 hidden sm:inline">/</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline flex-shrink-0">Configura</span>
             </div>
           }
           rightExtra={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Link
                 href={`/admin/restaurants/${restaurantId}/access`}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border"
+                className="flex items-center gap-2 p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border flex-shrink-0"
+                title="Gestione Accessi"
               >
                 <Users size={15} />
-                Accessi
+                <span className="hidden sm:inline">Accessi</span>
               </Link>
               <button
                 onClick={handleSave}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg ${saved
+                className={`flex items-center gap-2 p-2 sm:px-4 sm:py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg flex-shrink-0 ${saved
                   ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30 shadow-none'
-                  : 'bg-primary text-white hover:bg-[#d43d22] shadow-primary/20'
+                  : 'bg-primary text-white hover:bg-primary-hover shadow-primary/20'
                   }`}
+                title="Salva modifiche"
               >
                 {saved ? <Check size={15} /> : <Save size={15} />}
-                {saved ? 'Salvato!' : 'Salva modifiche'}
+                <span className="hidden sm:inline">
+                  {saved ? 'Salvato!' : 'Salva modifiche'}
+                </span>
               </button>
             </div>
           }
@@ -1495,6 +1698,10 @@ export default function RestaurantConfigurePage() {
                 toggleServiceDay={toggleServiceDay}
                 toggleServiceSlot={toggleServiceSlot}
                 updateServiceHour={updateServiceHour}
+                serviceSuspended={serviceSuspended}
+                setServiceSuspended={setServiceSuspended}
+                temporaryClosure={temporaryClosure}
+                setTemporaryClosure={setTemporaryClosure}
               />
             )}
             {currentStep === 'scheduled' && (
@@ -1994,7 +2201,7 @@ export default function RestaurantConfigurePage() {
                   </div>
                   <button
                     onClick={handleOpenAddPromoModal}
-                    className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
+                    className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover transition-colors cursor-pointer w-full sm:w-auto"
                   >
                     <Plus size={16} />
                     Aggiungi Codice
@@ -2150,6 +2357,10 @@ export default function RestaurantConfigurePage() {
                 menuCategories={menuCategories}
                 promos={promos}
                 handlePublish={handleSave}
+                handleSaveDraft={handleSave}
+                isSavedDraft={saved}
+                previewUrl={`/menu/${restaurantSlug}`}
+                restaurantStatus={(restaurantStatus as 'draft' | 'published') || 'draft'}
               />
             )}
 
@@ -2386,7 +2597,7 @@ export default function RestaurantConfigurePage() {
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                    className="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
                   >
                     {editingPromo ? 'Salva Modifiche' : 'Crea Codice'}
                   </button>

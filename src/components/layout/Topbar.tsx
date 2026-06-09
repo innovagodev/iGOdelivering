@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Menu, ChevronDown, User, Settings, LifeBuoy, LogOut, PauseCircle, PlayCircle } from 'lucide-react';
+import { Menu, ChevronDown, User, Settings, LifeBuoy, LogOut, PauseCircle, PlayCircle, CreditCard } from 'lucide-react';
 
 interface TopbarProps {
   role: 'admin' | 'ristoratore';
@@ -47,7 +47,7 @@ export default function Topbar({
     };
   }, []);
 
-  const settingsPath = role === 'admin' ? '/admin/impostazioni' : '/ristoratore/impostazioni';
+  const settingsPath = role === 'admin' ? '/admin/impostazioni' : '/ristoratore/pagamenti';
 
   return (
     <header className="h-16 bg-card border-b border-border flex items-center px-4 gap-3 flex-shrink-0 z-40 relative">
@@ -66,7 +66,7 @@ export default function Topbar({
           {leftContent}
         </div>
         {formattedDate && (
-          <span className="text-xs md:text-sm text-muted-foreground/80 flex-shrink-0 font-semibold ml-1.5 select-none">
+          <span className="hidden lg:inline-block text-xs md:text-sm text-muted-foreground/80 flex-shrink-0 font-semibold ml-1.5 select-none">
             {formattedDate}
           </span>
         )}
@@ -84,7 +84,7 @@ export default function Topbar({
             aria-expanded={isOpen}
             aria-haspopup="true"
           >
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-sm font-bold flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center text-sm font-bold flex-shrink-0">
               {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </div>
             <div className="hidden md:block">
@@ -115,8 +115,8 @@ export default function Topbar({
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
                 >
-                  <Settings size={14} />
-                  <span>Impostazioni</span>
+                  {role === 'admin' ? <Settings size={14} strokeWidth={1.75} /> : <CreditCard size={14} strokeWidth={1.75} />}
+                  <span>{role === 'admin' ? 'Impostazioni' : 'Pagamenti'}</span>
                 </Link>
               </div>
 
@@ -130,7 +130,7 @@ export default function Topbar({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 rounded-xl transition-colors cursor-pointer"
                 >
-                  <LogOut size={14} />
+                  <LogOut size={14} strokeWidth={1.75} />
                   <span>Esci</span>
                 </button>
               </div>

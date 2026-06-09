@@ -7,6 +7,7 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.example
 
 # Next.js build output
 .next/
@@ -44,3 +45,6 @@ turbo/
 
 # Documentation folder
 docs/
+
+# Local Scratch folder
+scratch/

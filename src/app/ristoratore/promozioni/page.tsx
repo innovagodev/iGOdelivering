@@ -6,6 +6,7 @@ import Toggle from '@/components/ui/Toggle';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { PromoCode, PromoType } from '@/types';
 import { Tag, Plus, Edit2, Trash2, Percent, Euro, Calendar, Info, AlertCircle, TrendingUp, UserCheck, Store } from 'lucide-react';
 
@@ -58,6 +59,8 @@ export default function PromozioniPage() {
   const [customBannerText, setCustomBannerText] = useState('');
   const [applicableDeliveryModes, setApplicableDeliveryModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>(['domicilio', 'asporto', 'tavolo']);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     // Restore sidebar state
     const stored = localStorage.getItem('iGO_sidebar_collapsed');
@@ -67,38 +70,72 @@ export default function PromozioniPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (!restaurantId || restaurantId === 'r-001') {
+      return;
+    }
+
+    async function loadPromos() {
       try {
-        const storedPromos = localStorage.getItem(`iGO_promos_${restaurantId}`);
-        if (storedPromos) {
-          const parsed = JSON.parse(storedPromos).map((p: any) => ({
-            ...p,
-            type: p.type === 'fixed' ? 'fixed_amount' : p.type,
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('promos')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data) {
+          const mappedPromos: PromoCode[] = data.map((p: any) => ({
+            id: p.id,
+            code: p.code,
+            type: p.type,
+            value: Number(p.value),
+            minOrderSubtotal: p.min_order_subtotal ? Number(p.min_order_subtotal) : undefined,
+            active: p.active,
+            startDate: p.start_date || undefined,
+            endDate: p.end_date || undefined,
+            description: p.description || undefined,
+            maxUses: p.max_uses || undefined,
+            usedCount: p.used_count || 0,
+            customBannerText: p.custom_banner_text || undefined,
+            applicableDeliveryModes: p.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
           }));
-          setPromos(parsed);
-        } else {
-          setPromos(defaultPromos);
-          localStorage.setItem(`iGO_promos_${restaurantId}`, JSON.stringify(defaultPromos));
+          setPromos(mappedPromos);
         }
       } catch (e) {
         console.error('Error loading promos:', e);
-        setPromos(defaultPromos);
+      } finally {
+        setLoading(false);
       }
     }
+
+    loadPromos();
   }, [restaurantId]);
 
-  const savePromosToStorage = (updatedPromos: PromoCode[]) => {
-    setPromos(updatedPromos);
-    try {
-      localStorage.setItem(`iGO_promos_${restaurantId}`, JSON.stringify(updatedPromos));
-    } catch (e) {
-      console.error('Error saving promos:', e);
-    }
-  };
+  const handleTogglePromo = async (id: string) => {
+    const promo = promos.find((p) => p.id === id);
+    if (!promo) return;
 
-  const handleTogglePromo = (id: string) => {
-    const updated = promos.map((p) => (p.id === id ? { ...p, active: !p.active } : p));
-    savePromosToStorage(updated);
+    const newStatus = !promo.active;
+    setPromos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, active: newStatus } : p))
+    );
+
+    try {
+      const { error } = await supabase
+        .from('promos')
+        .update({ active: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (e) {
+      console.error('Error toggling promo:', e);
+      setPromos((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, active: !newStatus } : p))
+      );
+      alert('Impossibile aggiornare lo stato del codice sconto.');
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -133,45 +170,110 @@ export default function PromozioniPage() {
     setShowModal(true);
   };
 
-  const handleDeletePromo = (id: string) => {
+  const handleDeletePromo = async (id: string) => {
     if (confirm('Sei sicuro di voler eliminare questo codice promozionale?')) {
-      const updated = promos.filter((p) => p.id !== id);
-      savePromosToStorage(updated);
+      const previousPromos = [...promos];
+      setPromos((prev) => prev.filter((p) => p.id !== id));
+
+      try {
+        const { error } = await supabase
+          .from('promos')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+      } catch (e) {
+        console.error('Error deleting promo:', e);
+        setPromos(previousPromos);
+        alert('Impossibile eliminare il codice sconto.');
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim() || !value.trim()) return;
+    if (!code.trim()) return;
 
     // Standardize promo code (uppercase, no spaces)
     const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
 
-    const promoData: PromoCode = {
-      id: editingPromo ? editingPromo.id : `promo-${Date.now()}`,
+    const promoData = {
+      restaurant_id: restaurantId,
       code: cleanCode,
       type,
-      value: parseFloat(value) || 0,
-      minOrderSubtotal: parseFloat(minOrderSubtotal) || undefined,
+      value: type === 'free_delivery' ? 0 : parseFloat(value) || 0,
+      min_order_subtotal: minOrderSubtotal ? parseFloat(minOrderSubtotal) : null,
       active: isActive,
-      startDate: startDate ? startDate : undefined,
-      endDate: endDate ? endDate : undefined,
-      description: description.trim() ? description.trim() : undefined,
-      maxUses: maxUses ? parseInt(maxUses, 10) : undefined,
-      usedCount: editingPromo ? (editingPromo.usedCount || 0) : 0,
-      customBannerText: customBannerText.trim() ? customBannerText.trim() : undefined,
-      applicableDeliveryModes: applicableDeliveryModes.length > 0 ? applicableDeliveryModes : undefined,
+      start_date: startDate ? startDate : null,
+      end_date: endDate ? endDate : null,
+      description: description.trim() ? description.trim() : null,
+      max_uses: maxUses ? parseInt(maxUses, 10) : null,
+      custom_banner_text: customBannerText.trim() ? customBannerText.trim() : null,
+      applicable_delivery_modes: applicableDeliveryModes.length > 0 ? applicableDeliveryModes : null,
     };
 
-    let updated: PromoCode[];
-    if (editingPromo) {
-      updated = promos.map((p) => (p.id === editingPromo.id ? promoData : p));
-    } else {
-      updated = [...promos, promoData];
-    }
+    try {
+      if (editingPromo) {
+        const { data, error } = await supabase
+          .from('promos')
+          .update(promoData)
+          .eq('id', editingPromo.id)
+          .select()
+          .single();
 
-    savePromosToStorage(updated);
-    setShowModal(false);
+        if (error) throw error;
+
+        if (data) {
+          const updatedPromo: PromoCode = {
+            id: data.id,
+            code: data.code,
+            type: data.type as any,
+            value: Number(data.value),
+            minOrderSubtotal: data.min_order_subtotal ? Number(data.min_order_subtotal) : undefined,
+            active: data.active,
+            startDate: data.start_date || undefined,
+            endDate: data.end_date || undefined,
+            description: data.description || undefined,
+            maxUses: data.max_uses || undefined,
+            usedCount: data.used_count || 0,
+            customBannerText: data.custom_banner_text || undefined,
+            applicableDeliveryModes: data.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
+          };
+          setPromos((prev) => prev.map((p) => (p.id === editingPromo.id ? updatedPromo : p)));
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('promos')
+          .insert([promoData])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const newPromo: PromoCode = {
+            id: data.id,
+            code: data.code,
+            type: data.type as any,
+            value: Number(data.value),
+            minOrderSubtotal: data.min_order_subtotal ? Number(data.min_order_subtotal) : undefined,
+            active: data.active,
+            startDate: data.start_date || undefined,
+            endDate: data.end_date || undefined,
+            description: data.description || undefined,
+            maxUses: data.max_uses || undefined,
+            usedCount: data.used_count || 0,
+            customBannerText: data.custom_banner_text || undefined,
+            applicableDeliveryModes: data.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
+          };
+          setPromos((prev) => [newPromo, ...prev]);
+        }
+      }
+      setShowModal(false);
+    } catch (e) {
+      console.error('Error saving promo:', e);
+      alert('Impossibile salvare il codice sconto.');
+    }
   };
 
   return (
@@ -214,7 +316,7 @@ export default function PromozioniPage() {
               </div>
               <button
                 onClick={handleOpenAddModal}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-[#d43d22] transition-colors cursor-pointer w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Aggiungi Codice
@@ -235,7 +337,11 @@ export default function PromozioniPage() {
 
             {/* List Table & Cards */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              {promos.length === 0 ? (
+              {loading ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  Caricamento promozioni in corso...
+                </div>
+              ) : promos.length === 0 ? (
                 <div className="py-12 text-center">
                   <AlertCircle size={32} className="text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm font-semibold text-foreground">
@@ -694,7 +800,7 @@ export default function PromozioniPage() {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-primary hover:bg-[#d43d22] text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              className="px-5 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
             >
               {editingPromo ? 'Salva Modifiche' : 'Crea Codice'}
             </button>
