@@ -46,7 +46,7 @@ import {
   Apple,
   Coffee,
   Wine,
-  Pizza
+  Pizza,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -266,7 +266,10 @@ function CartSidebar({
         </div>
       ) : (
         <>
-          <ul data-lenis-prevent className="flex-1 overflow-y-auto py-3 px-4 space-y-3 scrollbar-hide">
+          <ul
+            data-lenis-prevent
+            className="flex-1 overflow-y-auto py-3 px-4 space-y-3 scrollbar-hide"
+          >
             {cart.map((item) => (
               <li
                 key={`cart-${item.cartId || item.id}`}
@@ -288,31 +291,31 @@ function CartSidebar({
                   {((item.addedIngredients && item.addedIngredients.length > 0) ||
                     (item.removedIngredients && item.removedIngredients.length > 0) ||
                     item.note) && (
-                      <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
-                        {item.addedIngredients?.map((ext) => (
-                          <div
-                            key={ext.name}
-                            className="text-primary font-semibold flex justify-between"
-                          >
-                            <span>+ {ext.name}</span>
-                            <span className="text-[9px] text-muted-foreground font-normal">
-                              € {ext.price.toFixed(2)}
-                            </span>
-                          </div>
-                        ))}
-                        {item.removedIngredients?.map((rem) => (
-                          <div key={rem} className="text-red-500 font-semibold flex justify-between">
-                            <span>- Senza {rem}</span>
-                            <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
-                          </div>
-                        ))}
-                        {item.note && (
-                          <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
-                            Note: &quot;{item.note}&quot;
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
+                      {item.addedIngredients?.map((ext) => (
+                        <div
+                          key={ext.name}
+                          className="text-primary font-semibold flex justify-between"
+                        >
+                          <span>+ {ext.name}</span>
+                          <span className="text-[9px] text-muted-foreground font-normal">
+                            € {ext.price.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                      {item.removedIngredients?.map((rem) => (
+                        <div key={rem} className="text-red-500 font-semibold flex justify-between">
+                          <span>- Senza {rem}</span>
+                          <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
+                        </div>
+                      ))}
+                      {item.note && (
+                        <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
+                          Note: &quot;{item.note}&quot;
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs font-bold text-foreground mt-1 tabular-nums">
                     € {(item.price * item.qty).toFixed(2)}
                   </p>
@@ -404,7 +407,13 @@ function CartSidebar({
               disabled={!meetsMin || (isCurrentlyClosed && !isPreOrderAllowed)}
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
-              {isCurrentlyClosed && !isPreOrderAllowed ? 'Locale Chiuso' : isCurrentlyClosed ? 'Ordina per dopo' : deliveryType === 'tavolo' ? 'Procedi' : 'Procedi'}
+              {isCurrentlyClosed && !isPreOrderAllowed
+                ? 'Locale Chiuso'
+                : isCurrentlyClosed
+                  ? 'Ordina per dopo'
+                  : deliveryType === 'tavolo'
+                    ? 'Procedi'
+                    : 'Procedi'}
             </button>
           </div>
         </>
@@ -429,13 +438,29 @@ const getTagStyle = (tag: string) => {
     const t = tag.toLowerCase();
     if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
       iconName = 'leaf';
-    } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+    } else if (
+      t.includes('piccant') ||
+      t.includes('diavola') ||
+      t.includes('spicy') ||
+      tag.includes('🌶️') ||
+      tag.includes('🔥')
+    ) {
       iconName = 'flame';
     } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
       iconName = 'wheat';
-    } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+    } else if (
+      t.includes('novit') ||
+      t.includes('nuov') ||
+      t.includes('new') ||
+      tag.includes('🆕')
+    ) {
       iconName = 'sparkles';
-    } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+    } else if (
+      t.includes('consigliat') ||
+      t.includes('special') ||
+      tag.includes('⭐') ||
+      tag.includes('👑')
+    ) {
       iconName = 'star';
     } else if (t.includes('lattosio') || tag.includes('🥛')) {
       iconName = 'milk';
@@ -468,13 +493,29 @@ const getTagIcon = (tag: string) => {
     const t = tag.toLowerCase();
     if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
       iconName = 'leaf';
-    } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+    } else if (
+      t.includes('piccant') ||
+      t.includes('diavola') ||
+      t.includes('spicy') ||
+      tag.includes('🌶️') ||
+      tag.includes('🔥')
+    ) {
       iconName = 'flame';
     } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
       iconName = 'wheat';
-    } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
+    } else if (
+      t.includes('novit') ||
+      t.includes('nuov') ||
+      t.includes('new') ||
+      tag.includes('🆕')
+    ) {
       iconName = 'sparkles';
-    } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+    } else if (
+      t.includes('consigliat') ||
+      t.includes('special') ||
+      tag.includes('⭐') ||
+      tag.includes('👑')
+    ) {
       iconName = 'star';
     } else if (t.includes('lattosio') || tag.includes('🥛')) {
       iconName = 'milk';
@@ -798,7 +839,6 @@ function MenuItemCard({
   );
 }
 
-
 function CheckoutModal({
   open,
   onClose,
@@ -899,34 +939,66 @@ function CheckoutModal({
       ? `<img src="${restaurantSettings.logoUrl}" style="max-height: 48px; margin-bottom: 8px;" />`
       : ``;
 
-    const itemsHtml = order.items.map((item: any) => {
-      const customNotes = (item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0)
-        ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
-        item.addedIngredients?.map((i: any) => '+' + i.name).concat(item.removedIngredients?.map((i: string) => '-' + i)).join(', ') +
-        '</div>'
+    const itemsHtml = order.items
+      .map((item: any) => {
+        const customNotes =
+          item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
+            ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
+              item.addedIngredients
+                ?.map((i: any) => '+' + i.name)
+                .concat(item.removedIngredients?.map((i: string) => '-' + i))
+                .join(', ') +
+              '</div>'
+            : '';
+        const itemPrice =
+          (item.price +
+            (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) *
+          item.qty;
+        return (
+          '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
+          '<div>' +
+          '<strong>' +
+          item.qty +
+          'x ' +
+          item.name +
+          '</strong>' +
+          customNotes +
+          '</div>' +
+          '<span>&euro; ' +
+          itemPrice.toFixed(2) +
+          '</span>' +
+          '</div>'
+        );
+      })
+      .join('');
+
+    const tableRow =
+      order.type === 'tavolo'
+        ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
+        : '<div class="row"><strong>Cliente:</strong> <span>' +
+          (order.customer?.name || order.customerName) +
+          '</span></div>' +
+          '<div class="row"><strong>Telefono:</strong> <span>' +
+          order.customer?.phone +
+          '</span></div>' +
+          (order.type === 'domicilio'
+            ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
+              order.customer?.address +
+              '</span></div>'
+            : '');
+
+    const deliveryFeeRow =
+      (order.deliveryFee || 0) > 0
+        ? '<div class="row"><span>Consegna:</span> <span>&euro; ' +
+          (order.deliveryFee || 0).toFixed(2) +
+          '</span></div>'
         : '';
-      const itemPrice = (item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty;
-      return '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
-        '<div>' +
-        '<strong>' + item.qty + 'x ' + item.name + '</strong>' +
-        customNotes +
-        '</div>' +
-        '<span>&euro; ' + itemPrice.toFixed(2) + '</span>' +
-        '</div>';
-    }).join('');
-
-    const tableRow = order.type === 'tavolo'
-      ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
-      : '<div class="row"><strong>Cliente:</strong> <span>' + (order.customer?.name || order.customerName) + '</span></div>' +
-      '<div class="row"><strong>Telefono:</strong> <span>' + order.customer?.phone + '</span></div>' +
-      (order.type === 'domicilio' ? '<div class="row"><strong>Indirizzo:</strong> <span>' + order.customer?.address + '</span></div>' : '');
-
-    const deliveryFeeRow = (order.deliveryFee || 0) > 0
-      ? '<div class="row"><span>Consegna:</span> <span>&euro; ' + (order.deliveryFee || 0).toFixed(2) + '</span></div>'
-      : '';
-    const discountRow = (order.discount || 0) > 0
-      ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' + (order.discount || 0).toFixed(2) + '</span></div>'
-      : '';
+    const discountRow =
+      (order.discount || 0) > 0
+        ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' +
+          (order.discount || 0).toFixed(2) +
+          '</span></div>'
+        : '';
 
     printWindow.document.write(`
       <html>
@@ -986,25 +1058,39 @@ function CheckoutModal({
     printWindow.document.close();
   };
 
-  const DigitalReceipt = ({ order, onPrint }: { order: any, onPrint?: () => void }) => {
+  const DigitalReceipt = ({ order, onPrint }: { order: any; onPrint?: () => void }) => {
     if (!order) return null;
     return (
-      <div className="border border-border/80 rounded-xl bg-muted/30 p-4 text-left space-y-4 max-w-md mx-auto relative overflow-hidden" id={`receipt-${order.id}`}>
+      <div
+        className="border border-border/80 rounded-xl bg-muted/30 p-4 text-left space-y-4 max-w-md mx-auto relative overflow-hidden"
+        id={`receipt-${order.id}`}
+      >
         <div className="flex justify-between items-start border-b border-border/40 pb-3">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ID ORDINE</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              ID ORDINE
+            </p>
             <p className="text-sm font-black font-mono text-foreground">{order.id}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">DATA & ORA</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              DATA & ORA
+            </p>
             <p className="text-xs font-semibold text-foreground">
-              {new Date(order.timestamp).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              {new Date(order.timestamp).toLocaleString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </p>
           </div>
         </div>
 
         <div className="space-y-1 text-xs">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Riferimenti</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
+            Riferimenti
+          </p>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Servizio:</span>
             <span className="font-bold text-foreground capitalize">{order.type}</span>
@@ -1013,8 +1099,12 @@ function CheckoutModal({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Programmato per:</span>
               <span className="font-bold text-amber-500">
-                {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
-                {order.deliveryTime === 'asap' ? 'Il prima possibile' : `alle ${order.deliveryTime}`}
+                {order.deliveryDate
+                  ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} `
+                  : ''}
+                {order.deliveryTime === 'asap'
+                  ? 'Il prima possibile'
+                  : `alle ${order.deliveryTime}`}
               </span>
             </div>
           )}
@@ -1027,7 +1117,9 @@ function CheckoutModal({
             <>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cliente:</span>
-                <span className="font-semibold text-foreground">{order.customer?.name || order.customerName}</span>
+                <span className="font-semibold text-foreground">
+                  {order.customer?.name || order.customerName}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Telefono:</span>
@@ -1036,7 +1128,10 @@ function CheckoutModal({
               {order.type === 'domicilio' && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Indirizzo:</span>
-                  <span className="font-semibold text-foreground text-right max-w-[200px] truncate" title={order.customer?.address}>
+                  <span
+                    className="font-semibold text-foreground text-right max-w-[200px] truncate"
+                    title={order.customer?.address}
+                  >
                     {order.customer?.address}
                   </span>
                 </div>
@@ -1058,21 +1153,37 @@ function CheckoutModal({
         </div>
 
         <div className="border-t border-border/40 pt-3">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">Prodotti Ordinati</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
+            Prodotti Ordinati
+          </p>
           <ul className="space-y-2 text-xs">
-            {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
-              <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="font-bold text-foreground truncate">{item.qty}× {item.name}</p>
-                  {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
-                      {item.addedIngredients?.map((i: any) => `+${i.name}`).concat(item.removedIngredients?.map((i: string) => `-${i}`)).join(', ')}
+            {Array.isArray(order.items) &&
+              order.items.map((item: any, idx: number) => (
+                <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="font-bold text-foreground truncate">
+                      {item.qty}× {item.name}
                     </p>
-                  )}
-                </div>
-                <span className="font-bold text-foreground tabular-nums">€ {((item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty).toFixed(2)}</span>
-              </li>
-            ))}
+                    {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                        {item.addedIngredients
+                          ?.map((i: any) => `+${i.name}`)
+                          .concat(item.removedIngredients?.map((i: string) => `-${i}`))
+                          .join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <span className="font-bold text-foreground tabular-nums">
+                    €{' '}
+                    {(
+                      (item.price +
+                        (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) ||
+                          0)) *
+                      item.qty
+                    ).toFixed(2)}
+                  </span>
+                </li>
+              ))}
           </ul>
         </div>
 
@@ -1140,9 +1251,33 @@ function CheckoutModal({
         }
       } else {
         setZones([
-          { id: 'zone-1', name: 'Zona Centro (Vicino)', minOrder: 0, deliveryFee: 2.0, freeDeliveryThreshold: 25, enabled: true, caps: '20121, 20122, 20123' },
-          { id: 'zone-2', name: 'Zona Periferia (Medio)', minOrder: 0, deliveryFee: 4.0, freeDeliveryThreshold: 35, enabled: true, caps: '20124, 20125, 20126' },
-          { id: 'zone-3', name: 'Fuori Comune (Lontano)', minOrder: 0, deliveryFee: 6.0, freeDeliveryThreshold: 50, enabled: false, caps: '20127, 20128, 20129' },
+          {
+            id: 'zone-1',
+            name: 'Zona Centro (Vicino)',
+            minOrder: 0,
+            deliveryFee: 2.0,
+            freeDeliveryThreshold: 25,
+            enabled: true,
+            caps: '20121, 20122, 20123',
+          },
+          {
+            id: 'zone-2',
+            name: 'Zona Periferia (Medio)',
+            minOrder: 0,
+            deliveryFee: 4.0,
+            freeDeliveryThreshold: 35,
+            enabled: true,
+            caps: '20124, 20125, 20126',
+          },
+          {
+            id: 'zone-3',
+            name: 'Fuori Comune (Lontano)',
+            minOrder: 0,
+            deliveryFee: 6.0,
+            freeDeliveryThreshold: 50,
+            enabled: false,
+            caps: '20127, 20128, 20129',
+          },
         ]);
       }
     }
@@ -1161,7 +1296,10 @@ function CheckoutModal({
   const currentDeliveryFee = React.useMemo(() => {
     if (deliveryType !== 'domicilio') return 0;
     if (matchedZone) {
-      if (matchedZone.freeDeliveryThreshold > 0 && itemsTotal >= matchedZone.freeDeliveryThreshold) {
+      if (
+        matchedZone.freeDeliveryThreshold > 0 &&
+        itemsTotal >= matchedZone.freeDeliveryThreshold
+      ) {
         return 0;
       }
       return matchedZone.deliveryFee;
@@ -1248,7 +1386,7 @@ function CheckoutModal({
 
   useEffect(() => {
     if (dateOptions.length > 0) {
-      const exists = dateOptions.some(opt => opt.value === selectedDate);
+      const exists = dateOptions.some((opt) => opt.value === selectedDate);
       if (!exists) {
         setSelectedDate(dateOptions[0].value);
       }
@@ -1288,9 +1426,20 @@ function CheckoutModal({
       }
     }
     return slots;
-  }, [deliveryType, openingHours, deliveryHours, currentTimeStr, selectedDate, dateOptions, minNoticeMinutes, timeInterval]);
+  }, [
+    deliveryType,
+    openingHours,
+    deliveryHours,
+    currentTimeStr,
+    selectedDate,
+    dateOptions,
+    minNoticeMinutes,
+    timeInterval,
+  ]);
 
-  const showAsapOption = !isCurrentlyClosed && (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
+  const showAsapOption =
+    !isCurrentlyClosed &&
+    (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
 
   useEffect(() => {
     if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
@@ -1318,16 +1467,16 @@ function CheckoutModal({
     if (open && paymentMethods) {
       const isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected);
       const isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected);
-      const isPosEnabled = bookingContext ? false : (
-        deliveryType === 'domicilio'
+      const isPosEnabled = bookingContext
+        ? false
+        : deliveryType === 'domicilio'
           ? paymentMethods.card_delivery !== false
-          : paymentMethods.card_pickup !== false
-      );
-      const isCashEnabled = bookingContext ? true : (
-        deliveryType === 'domicilio'
+          : paymentMethods.card_pickup !== false;
+      const isCashEnabled = bookingContext
+        ? true
+        : deliveryType === 'domicilio'
           ? paymentMethods.cash_delivery !== false
-          : paymentMethods.cash_pickup !== false
-      );
+          : paymentMethods.cash_pickup !== false;
 
       if (isStripeEnabled) {
         setPayMethod('card');
@@ -1358,7 +1507,7 @@ function CheckoutModal({
 
     const rId = restaurantSettings.id;
     if (!rId) {
-      alert("Errore: Ristorante non identificato");
+      alert('Errore: Ristorante non identificato');
       setLoading(false);
       return;
     }
@@ -1406,7 +1555,7 @@ function CheckoutModal({
         setStep('success');
       } catch (err: any) {
         console.error('Error saving booking:', err);
-        alert(`Errore di rete: ${err.message || "Impossibile completare la prenotazione"}`);
+        alert(`Errore di rete: ${err.message || 'Impossibile completare la prenotazione'}`);
         setLoading(false);
       }
       return;
@@ -1431,11 +1580,11 @@ function CheckoutModal({
 
     try {
       const discount = appliedPromoDetail
-        ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
+        ? appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
           ? itemsTotal * (appliedPromoDetail.value / 100)
           : appliedPromoDetail.type === 'free_delivery'
             ? actualDeliveryFee
-            : Math.min(appliedPromoDetail.value, itemsTotal))
+            : Math.min(appliedPromoDetail.value, itemsTotal)
         : 0;
 
       const orderNumber =
@@ -1451,7 +1600,8 @@ function CheckoutModal({
         type: deliveryType,
         status: 'new',
         customer_name: deliveryType === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
-        customer_email: deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
+        customer_email:
+          deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
         customer_phone: deliveryType === 'tavolo' ? null : phone,
         customer_address: deliveryType === 'domicilio' ? `${address} (CAP: ${cap})` : null,
         table_number: deliveryType === 'tavolo' ? tableNumber : null,
@@ -1462,9 +1612,10 @@ function CheckoutModal({
         total: finalTotal,
         promo_code: appliedPromoDetail ? appliedPromoDetail.code : null,
         promo_applied: !!appliedPromoDetail,
-        scheduled_at: deliveryType !== 'tavolo' && selectedDate && deliveryTime && deliveryTime !== 'asap'
-          ? new Date(`${selectedDate}T${deliveryTime}:00`).toISOString()
-          : null,
+        scheduled_at:
+          deliveryType !== 'tavolo' && selectedDate && deliveryTime && deliveryTime !== 'asap'
+            ? new Date(`${selectedDate}T${deliveryTime}:00`).toISOString()
+            : null,
         notes: notes || '',
       };
 
@@ -1490,9 +1641,7 @@ function CheckoutModal({
         selected_options: item.selectedOptions || [],
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsPayload);
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItemsPayload);
 
       if (itemsError) throw itemsError;
 
@@ -1525,14 +1674,15 @@ function CheckoutModal({
 
   const detailsValid = bookingContext
     ? !!bookingContext.name && !!bookingContext.phone
-    : (deliveryType === 'tavolo'
+    : deliveryType === 'tavolo'
       ? !!name && !!tableNumber
       : !!name &&
-      !!phone &&
-      !!email &&
-      isEmailValid &&
-      !!deliveryTime &&
-      (deliveryType === 'asporto' || (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder)));
+        !!phone &&
+        !!email &&
+        isEmailValid &&
+        !!deliveryTime &&
+        (deliveryType === 'asporto' ||
+          (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
 
   return (
     <Modal
@@ -1546,9 +1696,7 @@ function CheckoutModal({
           {loading && (
             <div className="absolute inset-0 bg-card/85 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-lg">
               <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-3" />
-              <p className="text-sm font-bold text-primary animate-pulse">
-                Elaborazione...
-              </p>
+              <p className="text-sm font-bold text-primary animate-pulse">Elaborazione...</p>
             </div>
           )}
 
@@ -1566,51 +1714,78 @@ function CheckoutModal({
                 </div>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Data e Ora</span>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                      Data e Ora
+                    </span>
                     <strong className="text-foreground text-sm">
-                      {new Date(bookingContext.date).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })} alle {bookingContext.time}
+                      {new Date(bookingContext.date).toLocaleDateString('it-IT', {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: 'short',
+                      })}{' '}
+                      alle {bookingContext.time}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Persone</span>
-                    <strong className="text-foreground text-sm">{bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}</strong>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                      Persone
+                    </span>
+                    <strong className="text-foreground text-sm">
+                      {bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}
+                    </strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Nome Cliente</span>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                      Nome Cliente
+                    </span>
                     <strong className="text-foreground">{bookingContext.name}</strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Telefono</span>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                      Telefono
+                    </span>
                     <strong className="text-foreground">{bookingContext.phone}</strong>
                   </div>
                 </div>
                 {bookingContext.note && (
                   <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground">
-                    <span className="font-bold text-foreground">Note:</span> &quot;{bookingContext.note}&quot;
+                    <span className="font-bold text-foreground">Note:</span> &quot;
+                    {bookingContext.note}&quot;
                   </div>
                 )}
               </div>
 
               {/* Order Summary */}
               <div className="border border-border/80 bg-muted/20 rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">I Piatti Pre-ordinati</h4>
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  I Piatti Pre-ordinati
+                </h4>
                 <div className="max-h-48 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                   {cart.map((item, idx) => (
-                    <div key={`summary-item-${idx}`} className="flex justify-between items-start text-xs border-b border-border/10 pb-2 last:border-0 last:pb-0">
+                    <div
+                      key={`summary-item-${idx}`}
+                      className="flex justify-between items-start text-xs border-b border-border/10 pb-2 last:border-0 last:pb-0"
+                    >
                       <div>
-                        <p className="font-bold text-foreground">{item.qty}x {item.name}</p>
+                        <p className="font-bold text-foreground">
+                          {item.qty}x {item.name}
+                        </p>
                         {((item.addedIngredients && item.addedIngredients.length > 0) ||
                           (item.removedIngredients && item.removedIngredients.length > 0) ||
                           item.note) && (
-                            <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
-                              {item.addedIngredients?.map((ext) => (
-                                <div key={ext.name} className="text-primary font-medium">+ {ext.name}</div>
-                              ))}
-                              {item.removedIngredients?.map((rem) => (
-                                <div key={rem} className="text-red-500">- Senza {rem}</div>
-                              ))}
-                            </div>
-                          )}
+                          <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
+                            {item.addedIngredients?.map((ext) => (
+                              <div key={ext.name} className="text-primary font-medium">
+                                + {ext.name}
+                              </div>
+                            ))}
+                            {item.removedIngredients?.map((rem) => (
+                              <div key={rem} className="text-red-500">
+                                - Senza {rem}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <span className="font-bold text-foreground tabular-nums">
                         € {(item.price * item.qty).toFixed(2)}
@@ -1640,11 +1815,14 @@ function CheckoutModal({
                     <input
                       type="text"
                       value={tableNumber || ''}
-                      onChange={isTableEditable ? (e) => setTableNumber?.(e.target.value) : undefined}
+                      onChange={
+                        isTableEditable ? (e) => setTableNumber?.(e.target.value) : undefined
+                      }
                       readOnly={!isTableEditable}
                       placeholder="Es. 5"
-                      className={`w-full pl-9 pr-3 py-2.5 text-sm border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground ${!isTableEditable ? 'bg-muted cursor-not-allowed' : 'bg-input'
-                        }`}
+                      className={`w-full pl-9 pr-3 py-2.5 text-sm border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground ${
+                        !isTableEditable ? 'bg-muted cursor-not-allowed' : 'bg-input'
+                      }`}
                     />
                   </div>
                 </div>
@@ -1709,7 +1887,9 @@ function CheckoutModal({
 
               {/* Order Summary (Riepilogo Ordine) */}
               <div className="border border-border/80 bg-muted/20 rounded-xl p-3.5 space-y-2">
-                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Riepilogo Ordine</h4>
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  Riepilogo Ordine
+                </h4>
                 <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
                   {cart.map((item, idx) => (
                     <div key={`summary-item-${idx}`} className="flex justify-between text-xs">
@@ -1740,22 +1920,24 @@ function CheckoutModal({
                     type="button"
                     disabled={currentTimeStr === '12:15'}
                     onClick={() => setDeliveryType('domicilio')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${currentTimeStr === '12:15'
-                      ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
-                      : deliveryType === 'domicilio'
-                        ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                        : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                      }`}
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                      currentTimeStr === '12:15'
+                        ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
+                        : deliveryType === 'domicilio'
+                          ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                          : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                    }`}
                   >
                     Consegna a domicilio
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeliveryType('asporto')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
-                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                      : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                      }`}
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                      deliveryType === 'asporto'
+                        ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                        : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                    }`}
                   >
                     Asporto
                   </button>
@@ -1831,13 +2013,15 @@ function CheckoutModal({
                     {cap.length === 5 && matchedZone && itemsTotal < matchedZone.minOrder && (
                       <p className="text-xs text-amber-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2 rounded-lg">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
-                        L'ordine minimo per questo CAP è € {matchedZone.minOrder.toFixed(2)} (Mancano € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
+                        L&apos;ordine minimo per questo CAP è € {matchedZone.minOrder.toFixed(2)}{' '}
+                        (Mancano € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
                       </p>
                     )}
                     {cap.length === 5 && matchedZone && itemsTotal >= matchedZone.minOrder && (
                       <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1.5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 p-2 rounded-lg">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                        Zona servita! Consegna: {currentDeliveryFee === 0 ? 'Gratis' : `€ ${currentDeliveryFee.toFixed(2)}`}
+                        Zona servita! Consegna:{' '}
+                        {currentDeliveryFee === 0 ? 'Gratis' : `€ ${currentDeliveryFee.toFixed(2)}`}
                       </p>
                     )}
                   </div>
@@ -1907,10 +2091,11 @@ function CheckoutModal({
                           key={opt.value}
                           type="button"
                           onClick={() => setSelectedDate(opt.value)}
-                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isSelected
-                            ? 'bg-primary text-white border-primary shadow-sm'
-                            : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
-                            }`}
+                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                            isSelected
+                              ? 'bg-primary text-white border-primary shadow-sm'
+                              : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
+                          }`}
                         >
                           {opt.label}
                         </button>
@@ -1972,7 +2157,9 @@ function CheckoutModal({
 
               <div className="flex justify-between items-center py-2.5 border-t border-border/40 mt-4 text-sm font-bold text-foreground">
                 <span>Prezzo</span>
-                <span className="tabular-nums text-primary text-base">€ {itemsTotal.toFixed(2)}</span>
+                <span className="tabular-nums text-primary text-base">
+                  € {itemsTotal.toFixed(2)}
+                </span>
               </div>
 
               {/* Remember me checkbox */}
@@ -2010,7 +2197,11 @@ function CheckoutModal({
             const payOptions = [
               {
                 id: 'card',
-                title: bookingContext ? 'Paga con Carta' : (deliveryType === 'tavolo' ? 'Paga al Tavolo con Carta' : 'Carta di Credito'),
+                title: bookingContext
+                  ? 'Paga con Carta'
+                  : deliveryType === 'tavolo'
+                    ? 'Paga al Tavolo con Carta'
+                    : 'Carta di Credito',
                 desc: 'Paga online con carta di credito',
                 icon: (
                   <CreditCard
@@ -2022,7 +2213,11 @@ function CheckoutModal({
               },
               {
                 id: 'online',
-                title: bookingContext ? 'Paga adesso con PayPal' : (deliveryType === 'tavolo' ? 'Paga adesso con PayPal' : 'PayPal'),
+                title: bookingContext
+                  ? 'Paga adesso con PayPal'
+                  : deliveryType === 'tavolo'
+                    ? 'Paga adesso con PayPal'
+                    : 'PayPal',
                 desc: 'Paga con il tuo account PayPal o carta',
                 icon: (
                   <Wallet
@@ -2034,7 +2229,13 @@ function CheckoutModal({
               },
               {
                 id: 'pos',
-                title: bookingContext ? 'Carta al ritiro (POS)' : (deliveryType === 'tavolo' ? 'Paga al tavolo con Carta' : (deliveryType === 'asporto' ? 'Carta al Ritiro (POS)' : 'Carta alla Consegna (POS)')),
+                title: bookingContext
+                  ? 'Carta al ritiro (POS)'
+                  : deliveryType === 'tavolo'
+                    ? 'Paga al tavolo con Carta'
+                    : deliveryType === 'asporto'
+                      ? 'Carta al Ritiro (POS)'
+                      : 'Carta alla Consegna (POS)',
                 desc: 'Pagamento con terminale POS fisico',
                 icon: (
                   <CreditCard
@@ -2042,33 +2243,39 @@ function CheckoutModal({
                     className={payMethod === 'pos' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled: bookingContext ? false : (
-                  deliveryType === 'domicilio'
+                enabled: bookingContext
+                  ? false
+                  : deliveryType === 'domicilio'
                     ? paymentMethods?.card_delivery !== false
-                    : paymentMethods?.card_pickup !== false
-                ),
+                    : paymentMethods?.card_pickup !== false,
               },
               {
                 id: 'cash',
-                title: bookingContext ? 'Paga alla cassa' : (deliveryType === 'tavolo' ? 'Paga in Cassa' : deliveryType === 'asporto' ? 'Contanti al ritiro' : 'Contanti alla consegna'),
-                desc: bookingContext ? 'Invia l\'ordine e paga in cassa' : (
-                  deliveryType === 'tavolo'
-                    ? 'Invia l\'ordine e paga alla cassa'
+                title: bookingContext
+                  ? 'Paga alla cassa'
+                  : deliveryType === 'tavolo'
+                    ? 'Paga in Cassa'
+                    : deliveryType === 'asporto'
+                      ? 'Contanti al ritiro'
+                      : 'Contanti alla consegna',
+                desc: bookingContext
+                  ? "Invia l'ordine e paga in cassa"
+                  : deliveryType === 'tavolo'
+                    ? "Invia l'ordine e paga alla cassa"
                     : deliveryType === 'asporto'
                       ? 'Paga in cassa'
-                      : "Paga alla consegna"
-                ),
+                      : 'Paga alla consegna',
                 icon: (
                   <Banknote
                     size={18}
                     className={payMethod === 'cash' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled: bookingContext ? true : (
-                  deliveryType === 'domicilio'
+                enabled: bookingContext
+                  ? true
+                  : deliveryType === 'domicilio'
                     ? paymentMethods?.cash_delivery !== false
-                    : paymentMethods?.cash_pickup !== false
-                ),
+                    : paymentMethods?.cash_pickup !== false,
               },
             ].filter((opt) => opt.enabled);
 
@@ -2085,10 +2292,11 @@ function CheckoutModal({
                         key={`pay-${opt.id}`}
                         type="button"
                         onClick={() => setPayMethod(opt.id as any)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${active
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                          : 'border-border/60 hover:border-muted-foreground/30 bg-card'
-                          }`}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
+                          active
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                            : 'border-border/60 hover:border-muted-foreground/30 bg-card'
+                        }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -2103,8 +2311,9 @@ function CheckoutModal({
                         </div>
 
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${active ? 'border-primary' : 'border-border'
-                            }`}
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                            active ? 'border-primary' : 'border-border'
+                          }`}
                         >
                           {active && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                         </div>
@@ -2120,7 +2329,9 @@ function CheckoutModal({
             <div className="space-y-2">
               {bookingContext && (
                 <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3.5 text-xs text-blue-700 dark:text-blue-300 mb-2 leading-relaxed">
-                  💳 <strong>Pre-autorizzazione:</strong> I dati della carta serviranno solo a pre-autorizzare l'importo. L'addebito effettivo avverrà <strong>solo dopo la conferma</strong> della prenotazione da parte del ristorante.
+                  💳 <strong>Pre-autorizzazione:</strong> I dati della carta serviranno solo a
+                  pre-autorizzare l&apos;importo. L&apos;addebito effettivo avverrà{' '}
+                  <strong>solo dopo la conferma</strong> della prenotazione da parte del ristorante.
                 </div>
               )}
               <CardPaymentForm
@@ -2140,9 +2351,9 @@ function CheckoutModal({
               <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
                 {bookingContext
                   ? "Invia la prenotazione e l'ordine. Pagherai comodamente in cassa a fine pasto (dopo che il ristorante avrà accettato e confermato)."
-                  : (deliveryType === 'tavolo'
-                    ? 'Invia l\'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto.'
-                    : `Assicurati di avere il contante pronto ${deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.`)}
+                  : deliveryType === 'tavolo'
+                    ? "Invia l'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto."
+                    : `Assicurati di avere il contante pronto ${deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.`}
               </div>
               {deliveryType === 'domicilio' && (
                 <div className="space-y-2">
@@ -2167,11 +2378,12 @@ function CheckoutModal({
                             setNeedRest(false);
                           }
                         }}
-                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${(opt.value === 'no' && needRest === false) ||
+                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
+                          (opt.value === 'no' && needRest === false) ||
                           (opt.value !== 'no' && needRest === true && restAmount === opt.value)
-                          ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                          : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                          }`}
+                            ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                            : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                        }`}
                       >
                         {opt.label}
                       </button>
@@ -2208,10 +2420,10 @@ function CheckoutModal({
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 {bookingContext
-                  ? "Pagherai comodamente al ristorante tramite carta di credito/debito."
-                  : (deliveryType === 'tavolo'
-                    ? 'Invia l\'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto.'
-                    : `Il corriere avrà con sé il terminale POS portatile per il pagamento con carta ${deliveryType === 'asporto' ? 'in cassa al ritiro' : 'alla consegna'}.`)}
+                  ? 'Pagherai comodamente al ristorante tramite carta di credito/debito.'
+                  : deliveryType === 'tavolo'
+                    ? "Invia l'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto."
+                    : `Il corriere avrà con sé il terminale POS portatile per il pagamento con carta ${deliveryType === 'asporto' ? 'in cassa al ritiro' : 'alla consegna'}.`}
               </p>
             </div>
           )}
@@ -2261,9 +2473,7 @@ function CheckoutModal({
             <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Articoli</span>
-                <span className="tabular-nums font-semibold">
-                  € {itemsTotal.toFixed(2)}
-                </span>
+                <span className="tabular-nums font-semibold">€ {itemsTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Consegna</span>
@@ -2345,14 +2555,16 @@ function CheckoutModal({
           </div>
           <div className="space-y-1">
             <h3 className="text-xl font-black text-foreground">
-              {lastCreatedOrder?.type === 'prenotazione_tavolo' ? 'Prenotazione Inviata!' : 'Ordine inviato!'}
+              {lastCreatedOrder?.type === 'prenotazione_tavolo'
+                ? 'Prenotazione Inviata!'
+                : 'Ordine inviato!'}
             </h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
               {lastCreatedOrder?.type === 'prenotazione_tavolo'
                 ? 'La tua prenotazione e pre-ordine del cibo sono stati inviati. Attendi la conferma direttamente da questa pagina del menu.'
-                : (deliveryType === 'tavolo'
+                : deliveryType === 'tavolo'
                   ? `Il tuo ordine per il tavolo ${tableNumber} è in attesa di accettazione. Torna alla pagina del menu per ricevere aggiornamenti.`
-                  : 'Il tuo ordine è in attesa di essere accettato dal ristorante. Torna alla pagina del menu per ricevere la notifica di conferma.')}
+                  : 'Il tuo ordine è in attesa di essere accettato dal ristorante. Torna alla pagina del menu per ricevere la notifica di conferma.'}
             </p>
           </div>
 
@@ -2473,20 +2685,29 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
 
       <div className="px-4 py-3 flex items-start gap-3">
         {/* Icon dot */}
-        <div className={`mt-0.5 w-7 h-7 rounded-full ${c.iconBg} text-white flex items-center justify-center text-xs font-black flex-shrink-0`}>
+        <div
+          className={`mt-0.5 w-7 h-7 rounded-full ${c.iconBg} text-white flex items-center justify-center text-xs font-black flex-shrink-0`}
+        >
           {c.icon}
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">{c.label}</p>
+          <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">
+            {c.label}
+          </p>
           <p className="text-sm font-bold text-foreground leading-snug">{notification.title}</p>
-          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{notification.message}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+            {notification.message}
+          </p>
         </div>
 
         {/* Close */}
         <button
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="flex-shrink-0 w-5 h-5 rounded-full bg-muted hover:bg-border text-muted-foreground flex items-center justify-center transition-colors"
           aria-label="Chiudi"
         >
@@ -2621,7 +2842,6 @@ function CustomizationView({
   const toggleRemove = (rem: string) => {
     setRemoved((prev) => (prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]));
   };
-
 
   // Categorize extras dynamically based on keywords or categories:
   const categories = [
@@ -2778,10 +2998,11 @@ function CustomizationView({
                     key={`remove-${rem}`}
                     type="button"
                     onClick={() => toggleRemove(rem)}
-                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${isRemoved
-                      ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
-                      }`}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${
+                      isRemoved
+                        ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -2834,7 +3055,10 @@ function CustomizationView({
                       </span>
                     </button>
                     {isOpen && (
-                      <div data-lenis-prevent className="p-2 space-y-1.5 bg-card border-t border-border/40 max-h-[25vh] overflow-y-auto">
+                      <div
+                        data-lenis-prevent
+                        className="p-2 space-y-1.5 bg-card border-t border-border/40 max-h-[25vh] overflow-y-auto"
+                      >
                         {category.items.map((ext) => {
                           const isAdded = added.some((e) => e.name === ext.name);
                           return (
@@ -2842,10 +3066,11 @@ function CustomizationView({
                               key={`extra-${ext.name}`}
                               type="button"
                               onClick={() => toggleExtra(ext)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAdded
-                                ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                                : 'border-border bg-card text-foreground hover:bg-muted'
-                                }`}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                                isAdded
+                                  ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                                  : 'border-border bg-card text-foreground hover:bg-muted'
+                              }`}
                             >
                               <div className="flex flex-col items-start">
                                 <span>{ext.name}</span>
@@ -2874,38 +3099,39 @@ function CustomizationView({
         {(item.category.toLowerCase().includes('pizz') ||
           item.category.toLowerCase().includes('panin') ||
           item.category.toLowerCase().includes('burger')) && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Impasti & Cotture
-              </h4>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'classico', label: 'Classico', price: 0.0 },
-                  { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
-                  { id: 'calzone', label: 'A Calzone', price: 0.0 },
-                  { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
-                ].map((style) => {
-                  const isSelected = cookingStyle === style.id;
-                  return (
-                    <button
-                      key={style.id}
-                      type="button"
-                      onClick={() => setCookingStyle(style.id as any)}
-                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${isSelected
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Impasti & Cotture
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'classico', label: 'Classico', price: 0.0 },
+                { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
+                { id: 'calzone', label: 'A Calzone', price: 0.0 },
+                { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
+              ].map((style) => {
+                const isSelected = cookingStyle === style.id;
+                return (
+                  <button
+                    key={style.id}
+                    type="button"
+                    onClick={() => setCookingStyle(style.id as any)}
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${
+                      isSelected
                         ? 'border-primary bg-primary/5 text-primary shadow-sm'
                         : 'border-border bg-card text-foreground hover:bg-muted'
-                        }`}
-                    >
-                      <span>{style.label}</span>
-                      <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
-                        {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                    }`}
+                  >
+                    <span>{style.label}</span>
+                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
+                      {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
         {/* 4. Notes */}
         <div className="space-y-2">
@@ -2918,7 +3144,6 @@ function CustomizationView({
             placeholder="Es. ben cotta, senza pepe, allergie..."
             className="w-full p-2.5 text-base bg-muted/60 border border-border rounded-xl focus:outline-none focus:ring-0 transition-colors h-14 resize-none placeholder:text-muted-foreground/75"
           />
-
         </div>
       </div>
 
@@ -2978,7 +3203,9 @@ export default function CustomerStorefront() {
     if (typeof window !== 'undefined' && slug) {
       const rId = getRestaurantId(slug);
       const loadConfig = () => {
-        const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+        const stored =
+          localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
+          localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
         if (stored) {
           try {
             setServiceHoursConfig(JSON.parse(stored));
@@ -3041,7 +3268,8 @@ export default function CustomerStorefront() {
           dishTags: item.dish_tags || [],
           ingredients: item.ingredients || [],
           optionGroups: item.option_groups || [],
-          customizationEnabled: item.customization_enabled !== undefined ? !!item.customization_enabled : true,
+          customizationEnabled:
+            item.customization_enabled !== undefined ? !!item.customization_enabled : true,
           notesEnabled: item.notes_enabled !== undefined ? !!item.notes_enabled : true,
         }));
 
@@ -3057,7 +3285,9 @@ export default function CustomerStorefront() {
   // Dynamic categories list based on loaded menu items
   const categories = [
     'Promozioni',
-    ...Array.from(new Set(menuItemsList.map((item) => item.category).filter((cat) => cat !== 'Promozioni')))
+    ...Array.from(
+      new Set(menuItemsList.map((item) => item.category).filter((cat) => cat !== 'Promozioni'))
+    ),
   ];
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -3100,7 +3330,10 @@ export default function CustomerStorefront() {
     let tableName = '';
     let channelName = '';
 
-    const isBooking = lastCreatedOrder.type === 'prenotazione_tavolo' || orderId.startsWith('booking-') || (lastCreatedOrder.guests !== undefined && lastCreatedOrder.customer_email !== undefined);
+    const isBooking =
+      lastCreatedOrder.type === 'prenotazione_tavolo' ||
+      orderId.startsWith('booking-') ||
+      (lastCreatedOrder.guests !== undefined && lastCreatedOrder.customer_email !== undefined);
 
     if (isBooking) {
       tableName = 'bookings';
@@ -3126,7 +3359,8 @@ export default function CustomerStorefront() {
             const oldStatus = lastCreatedOrder.status;
             const newStatus = updatedRecord.status;
             const restName = restaurantSettings?.name || 'iGOdelivering';
-            const customerName = lastCreatedOrder.customer_name || lastCreatedOrder.name || 'Cliente';
+            const customerName =
+              lastCreatedOrder.customer_name || lastCreatedOrder.name || 'Cliente';
 
             let variant: 'success' | 'warning' | 'danger' = 'success';
             let title = '';
@@ -3167,7 +3401,10 @@ export default function CustomerStorefront() {
 
             setIncomingNotification({ variant, title, message, orderId });
             setLastCreatedOrder((prev: any) => ({ ...prev, status: newStatus }));
-            sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify({ ...lastCreatedOrder, status: newStatus }));
+            sessionStorage.setItem(
+              `iGO_last_order_${slug}`,
+              JSON.stringify({ ...lastCreatedOrder, status: newStatus })
+            );
           }
         }
       )
@@ -3245,34 +3482,66 @@ export default function CustomerStorefront() {
       ? `<img src="${restaurantSettings.logoUrl}" style="max-height: 48px; margin-bottom: 8px;" />`
       : ``;
 
-    const itemsHtml = order.items.map((item: any) => {
-      const customNotes = (item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0)
-        ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
-        item.addedIngredients?.map((i: any) => '+' + i.name).concat(item.removedIngredients?.map((i: string) => '-' + i)).join(', ') +
-        '</div>'
+    const itemsHtml = order.items
+      .map((item: any) => {
+        const customNotes =
+          item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
+            ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
+              item.addedIngredients
+                ?.map((i: any) => '+' + i.name)
+                .concat(item.removedIngredients?.map((i: string) => '-' + i))
+                .join(', ') +
+              '</div>'
+            : '';
+        const itemPrice =
+          (item.price +
+            (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) *
+          item.qty;
+        return (
+          '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
+          '<div>' +
+          '<strong>' +
+          item.qty +
+          'x ' +
+          item.name +
+          '</strong>' +
+          customNotes +
+          '</div>' +
+          '<span>&euro; ' +
+          itemPrice.toFixed(2) +
+          '</span>' +
+          '</div>'
+        );
+      })
+      .join('');
+
+    const tableRow =
+      order.type === 'tavolo'
+        ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
+        : '<div class="row"><strong>Cliente:</strong> <span>' +
+          (order.customer?.name || order.customerName) +
+          '</span></div>' +
+          '<div class="row"><strong>Telefono:</strong> <span>' +
+          order.customer?.phone +
+          '</span></div>' +
+          (order.type === 'domicilio'
+            ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
+              order.customer?.address +
+              '</span></div>'
+            : '');
+
+    const deliveryFeeRow =
+      order.deliveryFee > 0
+        ? '<div class="row"><span>Consegna:</span> <span>&euro; ' +
+          order.deliveryFee.toFixed(2) +
+          '</span></div>'
         : '';
-      const itemPrice = (item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty;
-      return '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
-        '<div>' +
-        '<strong>' + item.qty + 'x ' + item.name + '</strong>' +
-        customNotes +
-        '</div>' +
-        '<span>&euro; ' + itemPrice.toFixed(2) + '</span>' +
-        '</div>';
-    }).join('');
-
-    const tableRow = order.type === 'tavolo'
-      ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
-      : '<div class="row"><strong>Cliente:</strong> <span>' + (order.customer?.name || order.customerName) + '</span></div>' +
-      '<div class="row"><strong>Telefono:</strong> <span>' + order.customer?.phone + '</span></div>' +
-      (order.type === 'domicilio' ? '<div class="row"><strong>Indirizzo:</strong> <span>' + order.customer?.address + '</span></div>' : '');
-
-    const deliveryFeeRow = order.deliveryFee > 0
-      ? '<div class="row"><span>Consegna:</span> <span>&euro; ' + order.deliveryFee.toFixed(2) + '</span></div>'
-      : '';
-    const discountRow = order.discount > 0
-      ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' + order.discount.toFixed(2) + '</span></div>'
-      : '';
+    const discountRow =
+      order.discount > 0
+        ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' +
+          order.discount.toFixed(2) +
+          '</span></div>'
+        : '';
 
     printWindow.document.write(`
       <html>
@@ -3332,25 +3601,39 @@ export default function CustomerStorefront() {
     printWindow.document.close();
   };
 
-  const DigitalReceipt = ({ order, onPrint }: { order: any, onPrint?: () => void }) => {
+  const DigitalReceipt = ({ order, onPrint }: { order: any; onPrint?: () => void }) => {
     if (!order) return null;
     return (
-      <div className="border border-border/80 rounded-xl bg-muted/30 p-4 text-left space-y-4 max-w-md mx-auto relative overflow-hidden" id={`receipt-${order.id}`}>
+      <div
+        className="border border-border/80 rounded-xl bg-muted/30 p-4 text-left space-y-4 max-w-md mx-auto relative overflow-hidden"
+        id={`receipt-${order.id}`}
+      >
         <div className="flex justify-between items-start border-b border-border/40 pb-3">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">ID ORDINE</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              ID ORDINE
+            </p>
             <p className="text-sm font-black font-mono text-foreground">{order.id}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">DATA & ORA</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              DATA & ORA
+            </p>
             <p className="text-xs font-semibold text-foreground">
-              {new Date(order.timestamp).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              {new Date(order.timestamp).toLocaleString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </p>
           </div>
         </div>
 
         <div className="space-y-1 text-xs">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Riferimenti</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
+            Riferimenti
+          </p>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Servizio:</span>
             <span className="font-bold text-foreground capitalize">{order.type}</span>
@@ -3359,8 +3642,12 @@ export default function CustomerStorefront() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Programmato per:</span>
               <span className="font-bold text-amber-500">
-                {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
-                {order.deliveryTime === 'asap' ? 'Il prima possibile' : `alle ${order.deliveryTime}`}
+                {order.deliveryDate
+                  ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} `
+                  : ''}
+                {order.deliveryTime === 'asap'
+                  ? 'Il prima possibile'
+                  : `alle ${order.deliveryTime}`}
               </span>
             </div>
           )}
@@ -3373,7 +3660,9 @@ export default function CustomerStorefront() {
             <>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cliente:</span>
-                <span className="font-semibold text-foreground">{order.customer?.name || order.customerName}</span>
+                <span className="font-semibold text-foreground">
+                  {order.customer?.name || order.customerName}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Telefono:</span>
@@ -3382,7 +3671,10 @@ export default function CustomerStorefront() {
               {order.type === 'domicilio' && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Indirizzo:</span>
-                  <span className="font-semibold text-foreground text-right max-w-[200px] truncate" title={order.customer?.address}>
+                  <span
+                    className="font-semibold text-foreground text-right max-w-[200px] truncate"
+                    title={order.customer?.address}
+                  >
                     {order.customer?.address}
                   </span>
                 </div>
@@ -3404,21 +3696,37 @@ export default function CustomerStorefront() {
         </div>
 
         <div className="border-t border-border/40 pt-3">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">Prodotti Ordinati</p>
+          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
+            Prodotti Ordinati
+          </p>
           <ul className="space-y-2 text-xs">
-            {Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
-              <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="font-bold text-foreground truncate">{item.qty}× {item.name}</p>
-                  {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
-                      {item.addedIngredients?.map((i: any) => `+${i.name}`).concat(item.removedIngredients?.map((i: string) => `-${i}`)).join(', ')}
+            {Array.isArray(order.items) &&
+              order.items.map((item: any, idx: number) => (
+                <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="font-bold text-foreground truncate">
+                      {item.qty}× {item.name}
                     </p>
-                  )}
-                </div>
-                <span className="font-bold text-foreground tabular-nums">€ {((item.price + (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) * item.qty).toFixed(2)}</span>
-              </li>
-            ))}
+                    {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                        {item.addedIngredients
+                          ?.map((i: any) => `+${i.name}`)
+                          .concat(item.removedIngredients?.map((i: string) => `-${i}`))
+                          .join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <span className="font-bold text-foreground tabular-nums">
+                    €{' '}
+                    {(
+                      (item.price +
+                        (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) ||
+                          0)) *
+                      item.qty
+                    ).toFixed(2)}
+                  </span>
+                </li>
+              ))}
           </ul>
         </div>
 
@@ -3500,7 +3808,9 @@ export default function CustomerStorefront() {
     let hasDedicatedReservationHours = false;
 
     if (serviceHoursConfig) {
-      const useGeneral = serviceHoursConfig.useGeneral?.reservation !== false && !!serviceHoursConfig.serviceHours?.general;
+      const useGeneral =
+        serviceHoursConfig.useGeneral?.reservation !== false &&
+        !!serviceHoursConfig.serviceHours?.general;
       const targetHoursKey = useGeneral ? 'general' : 'reservation';
       const dayConfig = serviceHoursConfig.serviceHours?.[targetHoursKey]?.[targetDayName];
 
@@ -3548,7 +3858,7 @@ export default function CustomerStorefront() {
 
       // Se l'admin ha definito orari dedicati alle prenotazioni, li applichiamo esattamente (senza sottrarre orari).
       // Se invece usiamo gli orari generali come ripiego, applichiamo un cut-off protettivo di 1 ora prima della chiusura.
-      const cutoffMin = hasDedicatedReservationHours ? endMin : (endMin - 60);
+      const cutoffMin = hasDedicatedReservationHours ? endMin : endMin - 60;
 
       for (let min = startMin; min <= cutoffMin; min += 15) {
         const h = Math.floor(min / 60);
@@ -3597,11 +3907,11 @@ export default function CustomerStorefront() {
       if (existing) {
         return prev.map((c) =>
           c.id === item.id &&
-            JSON.stringify({
-              addedIngredients: c.addedIngredients || [],
-              removedIngredients: c.removedIngredients || [],
-              note: c.note || '',
-            }) === customizationsKey
+          JSON.stringify({
+            addedIngredients: c.addedIngredients || [],
+            removedIngredients: c.removedIngredients || [],
+            note: c.note || '',
+          }) === customizationsKey
             ? { ...c, qty: c.qty + qty }
             : c
         );
@@ -3671,7 +3981,10 @@ export default function CustomerStorefront() {
   const searchParams = useSearchParams();
   const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto' | 'tavolo'>('domicilio');
   const [tableNumber, setTableNumber] = useState<string | null>(null);
-  const isTableEditable = !searchParams?.get('tavolo') || searchParams?.get('tavolo')?.toLowerCase() === 'generico' || searchParams?.get('tavolo')?.toLowerCase() === 'generic';
+  const isTableEditable =
+    !searchParams?.get('tavolo') ||
+    searchParams?.get('tavolo')?.toLowerCase() === 'generico' ||
+    searchParams?.get('tavolo')?.toLowerCase() === 'generic';
   const [guests, setGuests] = useState<number>(2);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -3746,82 +4059,125 @@ export default function CustomerStorefront() {
     return `${y}-${m}-${d}`;
   }, []);
 
-  const checkServiceOpen = React.useCallback((serviceType: 'pickup' | 'delivery' | 'reservation') => {
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) { }
-      }
-    }
-
-    if (config) {
-      // Controllo chiusura temporanea (es. ferie)
-      if (config.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
-        const currentDate = getCurrentDateStr();
-        if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
-          return false;
+  const checkServiceOpen = React.useCallback(
+    (serviceType: 'pickup' | 'delivery' | 'reservation') => {
+      let config = serviceHoursConfig;
+      if (!config && typeof window !== 'undefined') {
+        const rId = getRestaurantId(slug);
+        const stored =
+          localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
+          localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+        if (stored) {
+          try {
+            config = JSON.parse(stored);
+          } catch (e) {
+            /* ignore */
+          }
         }
       }
 
-      if (config.serviceSuspended?.[serviceType] === true) {
-        return false;
-      }
-      const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-      const todayDayName = DAYS_MAP[new Date().getDay()];
+      if (config) {
+        // Controllo chiusura temporanea (es. ferie)
+        if (
+          config.temporaryClosure?.enabled &&
+          config.temporaryClosure.from &&
+          config.temporaryClosure.to
+        ) {
+          const currentDate = getCurrentDateStr();
+          if (
+            currentDate >= config.temporaryClosure.from &&
+            currentDate <= config.temporaryClosure.to
+          ) {
+            return false;
+          }
+        }
 
-      const useGeneral = config.useGeneral?.[serviceType] !== false && !!config.serviceHours?.general;
-      const targetHoursKey = useGeneral ? 'general' : serviceType;
-
-      const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
-      if (dayConfig) {
-        if (dayConfig.enabled === false) {
+        if (config.serviceSuspended?.[serviceType] === true) {
           return false;
         }
-        const currentStr = getCurrentTimeStr();
+        const DAYS_MAP = [
+          'Domenica',
+          'Lunedì',
+          'Martedì',
+          'Mercoledì',
+          'Giovedì',
+          'Venerdì',
+          'Sabato',
+        ];
+        const todayDayName = DAYS_MAP[new Date().getDay()];
 
-        const lunchEnabled = dayConfig.lunchEnabled !== false;
-        const inLunch = currentStr >= dayConfig.lunch.from && currentStr <= dayConfig.lunch.to;
+        const useGeneral =
+          config.useGeneral?.[serviceType] !== false && !!config.serviceHours?.general;
+        const targetHoursKey = useGeneral ? 'general' : serviceType;
 
-        const dinnerEnabled = dayConfig.dinnerEnabled !== false;
-        const inDinner = currentStr >= dayConfig.dinner.from && currentStr <= dayConfig.dinner.to;
+        const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
+        if (dayConfig) {
+          if (dayConfig.enabled === false) {
+            return false;
+          }
+          const currentStr = getCurrentTimeStr();
 
-        return (lunchEnabled && inLunch) || (dinnerEnabled && inDinner);
+          const lunchEnabled = dayConfig.lunchEnabled !== false;
+          const inLunch = currentStr >= dayConfig.lunch.from && currentStr <= dayConfig.lunch.to;
+
+          const dinnerEnabled = dayConfig.dinnerEnabled !== false;
+          const inDinner = currentStr >= dayConfig.dinner.from && currentStr <= dayConfig.dinner.to;
+
+          return (lunchEnabled && inLunch) || (dinnerEnabled && inDinner);
+        }
       }
-    }
 
-    // Fallback to legacy check
-    const currentStr = getCurrentTimeStr();
-    if (serviceType === 'delivery') {
-      return !restaurantSettings.deliveryHours ||
-        restaurantSettings.deliveryHours.length === 0 ||
-        restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-    } else {
-      return !restaurantSettings.openingHours ||
-        restaurantSettings.openingHours.length === 0 ||
-        restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end);
-    }
-  }, [serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]);
+      // Fallback to legacy check
+      const currentStr = getCurrentTimeStr();
+      if (serviceType === 'delivery') {
+        return (
+          !restaurantSettings.deliveryHours ||
+          restaurantSettings.deliveryHours.length === 0 ||
+          restaurantSettings.deliveryHours.some((h) => currentStr >= h.start && currentStr <= h.end)
+        );
+      } else {
+        return (
+          !restaurantSettings.openingHours ||
+          restaurantSettings.openingHours.length === 0 ||
+          restaurantSettings.openingHours.some((h) => currentStr >= h.start && currentStr <= h.end)
+        );
+      }
+    },
+    [serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]
+  );
 
   const getClosedReason = () => {
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      const stored =
+        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
+        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
-        try { config = JSON.parse(stored); } catch (e) { }
+        try {
+          config = JSON.parse(stored);
+        } catch (e) {
+          /* ignore */
+        }
       }
     }
 
     if (config) {
       // Controllo chiusura temporanea (es. ferie)
-      if (config.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+      if (
+        config.temporaryClosure?.enabled &&
+        config.temporaryClosure.from &&
+        config.temporaryClosure.to
+      ) {
         const currentDate = getCurrentDateStr();
-        if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
-          return config.temporaryClosure.message || `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`;
+        if (
+          currentDate >= config.temporaryClosure.from &&
+          currentDate <= config.temporaryClosure.to
+        ) {
+          return (
+            config.temporaryClosure.message ||
+            `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`
+          );
         }
       }
     }
@@ -3835,7 +4191,8 @@ export default function CustomerStorefront() {
         return `Il servizio di ${activeType === 'delivery' ? 'Consegna' : 'Asporto'} è stato temporaneamente sospeso dal gestore.`;
       }
 
-      const useGeneral = config.useGeneral?.[activeType] !== false && !!config.serviceHours?.general;
+      const useGeneral =
+        config.useGeneral?.[activeType] !== false && !!config.serviceHours?.general;
       const targetHoursKey = useGeneral ? 'general' : activeType;
 
       const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
@@ -4026,7 +4383,8 @@ export default function CustomerStorefront() {
 
     // Create a temporary fly dot
     const flyDot = document.createElement('div');
-    flyDot.className = 'fixed z-[9999] flex items-center justify-center bg-primary text-white text-[11px] font-black rounded-full pointer-events-none shadow-lg';
+    flyDot.className =
+      'fixed z-[9999] flex items-center justify-center bg-primary text-white text-[11px] font-black rounded-full pointer-events-none shadow-lg';
     flyDot.style.width = '30px';
     flyDot.style.height = '30px';
     flyDot.style.left = `${sourceRect.left + sourceRect.width / 2 - 15}px`;
@@ -4046,34 +4404,46 @@ export default function CustomerStorefront() {
       onComplete: () => {
         flyDot.remove();
         // Subtle bounce/shake animation on the header cart button
-        gsap.timeline()
+        gsap
+          .timeline()
           .to(targetEl, { scale: 1.15, duration: 0.1 })
           .to(targetEl, { rotation: 8, duration: 0.05, repeat: 3, yoyo: true })
           .to(targetEl, { rotation: 0, scale: 1, duration: 0.1 });
-      }
+      },
     });
 
     // Horizontal linear movement
-    tl.to(flyDot, {
-      x: dx,
-      duration: 0.75,
-      ease: 'power1.inOut'
-    }, 0);
+    tl.to(
+      flyDot,
+      {
+        x: dx,
+        duration: 0.75,
+        ease: 'power1.inOut',
+      },
+      0
+    );
 
     // Vertical arc (goes up then falls down)
-    tl.to(flyDot, {
-      y: peakY,
-      scale: 1.3,
-      duration: 0.35,
-      ease: 'power1.out'
-    }, 0)
-      .to(flyDot, {
+    tl.to(
+      flyDot,
+      {
+        y: peakY,
+        scale: 1.3,
+        duration: 0.35,
+        ease: 'power1.out',
+      },
+      0
+    ).to(
+      flyDot,
+      {
         y: dy,
         scale: 0.4,
         opacity: 0.5,
         duration: 0.4,
-        ease: 'power2.in'
-      }, 0.35);
+        ease: 'power2.in',
+      },
+      0.35
+    );
   };
 
   const addToCartCustom = (
@@ -4103,11 +4473,11 @@ export default function CustomerStorefront() {
       if (existing) {
         return prev.map((c) =>
           c.id === item.id &&
-            JSON.stringify({
-              addedIngredients: c.addedIngredients || [],
-              removedIngredients: c.removedIngredients || [],
-              note: c.note || '',
-            }) === customizationsKey
+          JSON.stringify({
+            addedIngredients: c.addedIngredients || [],
+            removedIngredients: c.removedIngredients || [],
+            note: c.note || '',
+          }) === customizationsKey
             ? { ...c, qty: c.qty + qty }
             : c
         );
@@ -4217,21 +4587,39 @@ export default function CustomerStorefront() {
   const deleteFromCart = (cartId: string) =>
     setCart((prev) => prev.filter((c) => c.cartId !== cartId));
 
-  const activeServiceType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
+  const activeServiceType =
+    deliveryType === 'domicilio'
+      ? 'delivery'
+      : deliveryType === 'asporto'
+        ? 'pickup'
+        : 'reservation';
   const isCurrentlyClosed = isMounted ? !checkServiceOpen(activeServiceType) : false;
 
   const isTemporaryClosure = React.useMemo(() => {
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      const stored =
+        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
+        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
-        try { config = JSON.parse(stored); } catch (e) { }
+        try {
+          config = JSON.parse(stored);
+        } catch (e) {
+          /* ignore */
+        }
       }
     }
-    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+    if (
+      config?.temporaryClosure?.enabled &&
+      config.temporaryClosure.from &&
+      config.temporaryClosure.to
+    ) {
       const currentDate = getCurrentDateStr();
-      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+      if (
+        currentDate >= config.temporaryClosure.from &&
+        currentDate <= config.temporaryClosure.to
+      ) {
         return true;
       }
     }
@@ -4242,15 +4630,31 @@ export default function CustomerStorefront() {
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      const stored =
+        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
+        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
-        try { config = JSON.parse(stored); } catch (e) { }
+        try {
+          config = JSON.parse(stored);
+        } catch (e) {
+          /* ignore */
+        }
       }
     }
-    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+    if (
+      config?.temporaryClosure?.enabled &&
+      config.temporaryClosure.from &&
+      config.temporaryClosure.to
+    ) {
       const currentDate = getCurrentDateStr();
-      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
-        return config.temporaryClosure.message || `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`;
+      if (
+        currentDate >= config.temporaryClosure.from &&
+        currentDate <= config.temporaryClosure.to
+      ) {
+        return (
+          config.temporaryClosure.message ||
+          `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`
+        );
       }
     }
     return null;
@@ -4275,7 +4679,10 @@ export default function CustomerStorefront() {
 
     if (!isPickupOpen && !isDeliveryOpen) {
       if (isPreOrderAllowed) {
-        return { label: 'PREORDINI ATTIVI', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
+        return {
+          label: 'PREORDINI ATTIVI',
+          color: 'bg-amber-500/20 border-amber-500/40 text-amber-300',
+        };
       }
       return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
@@ -4293,17 +4700,28 @@ export default function CustomerStorefront() {
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
       const rId = getRestaurantId(slug);
-      const stored = localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) || localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
+      const stored =
+        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
+        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
       if (stored) {
         try {
           config = JSON.parse(stored);
-        } catch (e) { }
+        } catch (e) {
+          /* ignore */
+        }
       }
     }
 
-    if (config?.temporaryClosure?.enabled && config.temporaryClosure.from && config.temporaryClosure.to) {
+    if (
+      config?.temporaryClosure?.enabled &&
+      config.temporaryClosure.from &&
+      config.temporaryClosure.to
+    ) {
       const currentDate = getCurrentDateStr();
-      if (currentDate >= config.temporaryClosure.from && currentDate <= config.temporaryClosure.to) {
+      if (
+        currentDate >= config.temporaryClosure.from &&
+        currentDate <= config.temporaryClosure.to
+      ) {
         return 'Ferie';
       }
     }
@@ -4311,14 +4729,20 @@ export default function CustomerStorefront() {
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
     const todayDayName = DAYS_MAP[new Date().getDay()];
 
-    const activeType = deliveryType === 'domicilio' ? 'delivery' : deliveryType === 'asporto' ? 'pickup' : 'reservation';
+    const activeType =
+      deliveryType === 'domicilio'
+        ? 'delivery'
+        : deliveryType === 'asporto'
+          ? 'pickup'
+          : 'reservation';
 
     if (config) {
       if (config.serviceSuspended?.[activeType] === true) {
         return 'Sospeso';
       }
 
-      const useGeneral = config.useGeneral?.[activeType] !== false && !!config.serviceHours?.general;
+      const useGeneral =
+        config.useGeneral?.[activeType] !== false && !!config.serviceHours?.general;
       const targetHoursKey = useGeneral ? 'general' : activeType;
 
       const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
@@ -4339,31 +4763,36 @@ export default function CustomerStorefront() {
       }
     }
 
-    const legacyHours = deliveryType === 'domicilio'
-      ? restaurantSettings.deliveryHours
-      : restaurantSettings.openingHours;
+    const legacyHours =
+      deliveryType === 'domicilio'
+        ? restaurantSettings.deliveryHours
+        : restaurantSettings.openingHours;
 
     if (legacyHours && legacyHours.length > 0) {
-      const is24h = legacyHours.length === 1 && legacyHours[0].start === '00:00' && legacyHours[0].end === '23:59';
+      const is24h =
+        legacyHours.length === 1 &&
+        legacyHours[0].start === '00:00' &&
+        legacyHours[0].end === '23:59';
       if (is24h) {
         return '24 Ore';
       }
-      return legacyHours.map(h => `${h.start}-${h.end}`).join(', ');
+      return legacyHours.map((h) => `${h.start}-${h.end}`).join(', ');
     }
 
     return 'Chiuso';
   }, [isMounted, serviceHoursConfig, slug, deliveryType, restaurantSettings, getCurrentDateStr]);
 
   // Dynamic promo banner text
-  const activePromo = promos.find(p => p.active);
+  const activePromo = promos.find((p) => p.active);
   let bannerText = '';
   if (activePromo) {
     if (activePromo.customBannerText) {
       bannerText = activePromo.customBannerText;
     } else {
-      const minStr = activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0
-        ? ` con spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`
-        : '';
+      const minStr =
+        activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0
+          ? ` con spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`
+          : '';
       if (activePromo.type === 'percentage') {
         bannerText = `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto${minStr}!`;
       } else if (activePromo.type === 'first_order') {
@@ -4423,7 +4852,7 @@ export default function CustomerStorefront() {
 
   const discount =
     promoApplied && appliedPromoDetail
-      ? (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order')
+      ? appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
         ? subtotal * (appliedPromoDetail.value / 100)
         : appliedPromoDetail.type === 'free_delivery'
           ? actualDeliveryFee
@@ -4449,7 +4878,13 @@ export default function CustomerStorefront() {
   useEffect(() => {
     if (promoApplied && appliedPromoDetail) {
       const checkPromo = async () => {
-        const res = await validatePromo(appliedPromoDetail.code, subtotal, email, deliveryType, actualDeliveryFee);
+        const res = await validatePromo(
+          appliedPromoDetail.code,
+          subtotal,
+          email,
+          deliveryType,
+          actualDeliveryFee
+        );
         if (!res.isValid) {
           setPromoApplied(false);
           setPromoError(res.error || "L'ordine non soddisfa più i requisiti della promo");
@@ -4458,7 +4893,15 @@ export default function CustomerStorefront() {
       };
       checkPromo();
     }
-  }, [subtotal, promoApplied, appliedPromoDetail, validatePromo, email, deliveryType, actualDeliveryFee]);
+  }, [
+    subtotal,
+    promoApplied,
+    appliedPromoDetail,
+    validatePromo,
+    email,
+    deliveryType,
+    actualDeliveryFee,
+  ]);
 
   const filteredItems = menuItemsList.filter(
     (item) =>
@@ -4492,22 +4935,31 @@ export default function CustomerStorefront() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
-    <div className={`flex flex-col min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : 'pb-16 md:pb-0'}`}>
+    <div
+      className={`flex flex-col min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : 'pb-16 md:pb-0'}`}
+    >
       {/* Closed Banner */}
       {isCurrentlyClosed && (
-        <div className={`fixed top-0 left-0 right-0 z-50 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}>
+        <div
+          className={`fixed top-0 left-0 right-0 z-50 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}
+        >
           <Clock size={12} className="animate-pulse flex-shrink-0" />
           <span className="truncate max-w-full">
             {isTemporaryClosure
-              ? (closureMessage || 'Locale Chiuso per Ferie')
-              : (isPreOrderAllowed ? 'Siamo chiusi ora, ma puoi ordinare per dopo!' : 'Locale Chiuso - Solo consultazione menu')}
+              ? closureMessage || 'Locale Chiuso per Ferie'
+              : isPreOrderAllowed
+                ? 'Siamo chiusi ora, ma puoi ordinare per dopo!'
+                : 'Locale Chiuso - Solo consultazione menu'}
           </span>
         </div>
       )}
 
       {/* Topbar */}
       {/* Topbar */}
-      <header className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isCurrentlyClosed ? 'top-8' : 'top-0'}`} ref={headerRef}>
+      <header
+        className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isCurrentlyClosed ? 'top-8' : 'top-0'}`}
+        ref={headerRef}
+      >
         {/* Layer 1: Solid glassmorphic background managed by GSAP */}
         <div
           ref={headerBgSolidRef}
@@ -4557,10 +5009,11 @@ export default function CustomerStorefront() {
                 placeholder="Cerca nel menu..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
-                  ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
-                  : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
-                  }`}
+                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${
+                  !isScrolled
+                    ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
+                    : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
+                }`}
               />
             </div>
           </div>
@@ -4571,10 +5024,11 @@ export default function CustomerStorefront() {
             <button
               onClick={handleShare}
               title="Condividi Vetrina"
-              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
-                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                : 'bg-secondary text-foreground hover:bg-muted border border-border'
-                }`}
+              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${
+                !isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
+              }`}
             >
               <Share2 size={16} />
             </button>
@@ -4591,10 +5045,11 @@ export default function CustomerStorefront() {
                   }
                 }}
                 title="I miei ordini"
-                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
-                  }`}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${
+                  !isScrolled
+                    ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                    : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                }`}
               >
                 <History size={16} />
               </button>
@@ -4604,10 +5059,11 @@ export default function CustomerStorefront() {
             {deliveryType !== 'tavolo' && (
               <button
                 onClick={() => setShowBookingModal(true)}
-                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
-                  : 'bg-[var(--success)] text-white hover:bg-green-700'
-                  }`}
+                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
+                  !isScrolled
+                    ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                    : 'bg-[var(--success)] text-white hover:bg-green-700'
+                }`}
               >
                 <CalendarCheck size={14} />
                 PRENOTA TAVOLO
@@ -4618,10 +5074,11 @@ export default function CustomerStorefront() {
             <button
               id="header-cart-button"
               onClick={() => setCartOpen((o) => !o)}
-              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                : 'bg-primary text-white hover:bg-primary-hover'
-                }`}
+              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
+                !isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-primary text-white hover:bg-primary-hover'
+              }`}
             >
               <ShoppingCart size={14} />
               <span className="hidden sm:inline">Carrello</span>
@@ -4637,12 +5094,22 @@ export default function CustomerStorefront() {
 
       {/* Booking Context Bar (sticky under navbar) */}
       {bookingContext && (
-        <div className={`fixed left-0 right-0 z-35 transition-all duration-300 ${isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-[4rem] sm:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}>
+        <div
+          className={`fixed left-0 right-0 z-35 transition-all duration-300 ${isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-[4rem] sm:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}
+        >
           <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold">
               <Calendar size={14} className="flex-shrink-0 animate-pulse text-green-600" />
               <span className="truncate text-foreground font-semibold">
-                Tavolo: <span className="font-extrabold text-green-600 dark:text-green-400">{new Date(bookingContext.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} {bookingContext.time}</span> · {bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}
+                Tavolo:{' '}
+                <span className="font-extrabold text-green-600 dark:text-green-400">
+                  {new Date(bookingContext.date).toLocaleDateString('it-IT', {
+                    day: '2-digit',
+                    month: 'short',
+                  })}{' '}
+                  {bookingContext.time}
+                </span>{' '}
+                · {bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -4654,7 +5121,9 @@ export default function CustomerStorefront() {
               </button>
               <button
                 onClick={() => {
-                  if (confirm("Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.")) {
+                  if (
+                    confirm('Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.')
+                  ) {
                     setBookingContext(null);
                     setCart([]);
                   }
@@ -4737,19 +5206,26 @@ export default function CustomerStorefront() {
                   ) : (
                     <>
                       Usa il codice <strong>{activePromo.code}</strong> per{' '}
-                      {activePromo.type === 'percentage' && `ricevere il ${activePromo.value}% di sconto`}
-                      {activePromo.type === 'first_order' && `ricevere il ${activePromo.value}% di sconto sul tuo primo ordine`}
-                      {activePromo.type === 'fixed_amount' && `ricevere uno sconto fisso di € ${activePromo.value.toFixed(2)}`}
-                      {activePromo.type === 'threshold_based' && `ricevere uno sconto di € ${activePromo.value.toFixed(2)}`}
+                      {activePromo.type === 'percentage' &&
+                        `ricevere il ${activePromo.value}% di sconto`}
+                      {activePromo.type === 'first_order' &&
+                        `ricevere il ${activePromo.value}% di sconto sul tuo primo ordine`}
+                      {activePromo.type === 'fixed_amount' &&
+                        `ricevere uno sconto fisso di € ${activePromo.value.toFixed(2)}`}
+                      {activePromo.type === 'threshold_based' &&
+                        `ricevere uno sconto di € ${activePromo.value.toFixed(2)}`}
                       {activePromo.type === 'free_delivery' && `ottenere la consegna gratuita`}
-                      {activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0 && ` su una spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`}
+                      {activePromo.minOrderSubtotal &&
+                        activePromo.minOrderSubtotal > 0 &&
+                        ` su una spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`}
                       !
                     </>
                   )}
                 </>
               ) : (
                 <>
-                  🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo ordine!
+                  🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo
+                  ordine!
                 </>
               )}
             </p>
@@ -4758,7 +5234,9 @@ export default function CustomerStorefront() {
       )}
 
       {/* Sticky category nav */}
-      <div className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : (isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]')}`}>
+      <div
+        className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]'}`}
+      >
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-10">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-3">
             {categories.map((cat) => {
@@ -4767,10 +5245,11 @@ export default function CustomerStorefront() {
                 <button
                   key={`cat-nav-${cat}`}
                   onClick={() => handleCategoryClick(cat)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
-                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
-                    : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
-                    }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${
+                    isActive
+                      ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
+                      : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
+                  }`}
                 >
                   <span>{cat}</span>
                 </button>
@@ -4839,8 +5318,6 @@ export default function CustomerStorefront() {
                   </div>
                 </div>
               )}
-
-
 
               <div className="flex items-center gap-3 mb-5">
                 <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
@@ -4943,7 +5420,13 @@ export default function CustomerStorefront() {
                   note
                 );
               } else {
-                addBookingPreOrderItemCustom(customizingItem, qty, addedIngredients, removedIngredients, note);
+                addBookingPreOrderItemCustom(
+                  customizingItem,
+                  qty,
+                  addedIngredients,
+                  removedIngredients,
+                  note
+                );
               }
               setIsBookingPreOrderCustomizing(false);
             } else {
@@ -5022,26 +5505,23 @@ export default function CustomerStorefront() {
       >
         <div className="space-y-4 text-center py-1">
           <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed'
-              ? (isPreOrderAllowed ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500')
-              : 'bg-amber-500/10 text-amber-500'
-              }`}
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              availabilityError === 'closed'
+                ? isPreOrderAllowed
+                  ? 'bg-amber-500/10 text-amber-500'
+                  : 'bg-red-500/10 text-red-500'
+                : 'bg-amber-500/10 text-amber-500'
+            }`}
           >
-            {availabilityError === 'closed' ? (
-              <Clock size={22} />
-            ) : (
-              <Bike size={22} />
-            )}
+            {availabilityError === 'closed' ? <Clock size={22} /> : <Bike size={22} />}
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-foreground tracking-tight">
-              {availabilityError === 'closed'
-                ? 'Locale Chiuso'
-                : 'Consegna Non Disponibile'}
+              {availabilityError === 'closed' ? 'Locale Chiuso' : 'Consegna Non Disponibile'}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
               {availabilityError === 'closed' && isPreOrderAllowed
-                ? 'Siamo chiusi in questo momento, ma puoi già ordinare per la prossima apertura! Seleziona l\'orario di ritiro o consegna al checkout.'
+                ? "Siamo chiusi in questo momento, ma puoi già ordinare per la prossima apertura! Seleziona l'orario di ritiro o consegna al checkout."
                 : getClosedReason()}
             </p>
           </div>
@@ -5115,7 +5595,6 @@ export default function CustomerStorefront() {
             }}
           />
           <div className="relative bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[92vh]">
-
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-2.5">
@@ -5123,7 +5602,9 @@ export default function CustomerStorefront() {
                   <CalendarCheck size={16} className="text-[var(--success)]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-sm leading-tight">Prenota un Tavolo</h3>
+                  <h3 className="font-bold text-foreground text-sm leading-tight">
+                    Prenota un Tavolo
+                  </h3>
                   {!bookingConfirmed && (
                     <p className="text-[10px] text-muted-foreground leading-tight">
                       Dati prenotazione
@@ -5146,7 +5627,6 @@ export default function CustomerStorefront() {
 
             {/* ── Scrollable body ─────────────────────────────────── */}
             <div className="overflow-y-auto flex-1 min-h-0">
-
               {/* CONFIRMED */}
               {bookingConfirmed ? (
                 <div className="px-6 py-10 text-center space-y-4">
@@ -5154,21 +5634,32 @@ export default function CustomerStorefront() {
                     <CheckCircle size={32} className="text-[var(--success)]" />
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold text-foreground mb-1">Prenotazione Inviata!</h4>
-                    <p className="text-xs text-muted-foreground">In attesa di conferma dal ristorante. Ti invieremo una notifica di conferma qui sul menu.</p>
+                    <h4 className="text-lg font-bold text-foreground mb-1">
+                      Prenotazione Inviata!
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      In attesa di conferma dal ristorante. Ti invieremo una notifica di conferma
+                      qui sul menu.
+                    </p>
                   </div>
                   <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2.5 text-sm">
                     <div className="flex items-center gap-2 text-foreground font-medium">
                       <Users size={14} className="text-muted-foreground flex-shrink-0" />
-                      <span>{bookingGuests} {bookingGuests === 1 ? 'persona' : 'persone'}</span>
+                      <span>
+                        {bookingGuests} {bookingGuests === 1 ? 'persona' : 'persone'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-foreground font-medium">
                       <CalendarCheck size={14} className="text-muted-foreground flex-shrink-0" />
-                      <span>{bookingDate} alle {bookingTime}</span>
+                      <span>
+                        {bookingDate} alle {bookingTime}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-foreground font-medium">
                       <User size={14} className="text-muted-foreground flex-shrink-0" />
-                      <span>{bookingName} ({bookingPhone})</span>
+                      <span>
+                        {bookingName} ({bookingPhone})
+                      </span>
                     </div>
                   </div>
                   <button
@@ -5188,7 +5679,9 @@ export default function CustomerStorefront() {
                   {/* Date + Time side by side */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-foreground mb-1.5">Giorno *</label>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">
+                        Giorno *
+                      </label>
                       <input
                         type="date"
                         value={bookingDate}
@@ -5198,7 +5691,9 @@ export default function CustomerStorefront() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-foreground mb-1.5">Orario *</label>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">
+                        Orario *
+                      </label>
                       {bookingTimeSlots.length > 0 ? (
                         <select
                           value={bookingTime}
@@ -5225,25 +5720,37 @@ export default function CustomerStorefront() {
 
                   {/* Guests stepper */}
                   <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">Persone *</label>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Persone *
+                    </label>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setBookingGuests((g) => Math.max(1, g - 1))}
                         className="w-10 h-10 rounded-xl bg-muted hover:bg-border transition-colors font-bold text-xl leading-none select-none"
-                      >−</button>
-                      <span className="text-2xl font-bold text-foreground w-10 text-center tabular-nums">{bookingGuests}</span>
+                      >
+                        −
+                      </button>
+                      <span className="text-2xl font-bold text-foreground w-10 text-center tabular-nums">
+                        {bookingGuests}
+                      </span>
                       <button
                         onClick={() => setBookingGuests((g) => Math.min(20, g + 1))}
                         className="w-10 h-10 rounded-xl bg-muted hover:bg-border transition-colors font-bold text-xl leading-none select-none"
-                      >+</button>
-                      <span className="text-xs text-muted-foreground">{bookingGuests === 1 ? 'persona' : 'persone'}</span>
+                      >
+                        +
+                      </button>
+                      <span className="text-xs text-muted-foreground">
+                        {bookingGuests === 1 ? 'persona' : 'persone'}
+                      </span>
                     </div>
                   </div>
 
                   {/* Name + Phone side by side */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-foreground mb-1.5">Nome *</label>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">
+                        Nome *
+                      </label>
                       <input
                         type="text"
                         value={bookingName}
@@ -5253,7 +5760,9 @@ export default function CustomerStorefront() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-foreground mb-1.5">Telefono *</label>
+                      <label className="block text-xs font-semibold text-foreground mb-1.5">
+                        Telefono *
+                      </label>
                       <input
                         type="tel"
                         value={bookingPhone}
@@ -5266,7 +5775,9 @@ export default function CustomerStorefront() {
 
                   {/* Notes */}
                   <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">Note (opzionale)</label>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Note (opzionale)
+                    </label>
                     <textarea
                       value={bookingNote}
                       onChange={(e) => setBookingNote(e.target.value)}
@@ -5283,17 +5794,30 @@ export default function CustomerStorefront() {
             {!bookingConfirmed && (
               <div className="px-5 py-4 border-t border-border flex-shrink-0 flex flex-col sm:flex-row gap-3">
                 <button
-                  disabled={!bookingDate || !bookingTime || bookingGuests < 1 || !bookingName.trim() || !bookingPhone.trim()}
+                  disabled={
+                    !bookingDate ||
+                    !bookingTime ||
+                    bookingGuests < 1 ||
+                    !bookingName.trim() ||
+                    !bookingPhone.trim()
+                  }
                   onClick={() => {
                     // Submit Solo Tavolo
                     try {
-                      localStorage.setItem('iGO_booking_info', JSON.stringify({ name: bookingName, phone: bookingPhone }));
+                      localStorage.setItem(
+                        'iGO_booking_info',
+                        JSON.stringify({ name: bookingName, phone: bookingPhone })
+                      );
                       const rId = getRestaurantId(slug);
                       const bookingsKey = STORAGE_KEYS.bookings(rId);
                       const existingStr = localStorage.getItem(bookingsKey);
                       let bookingsArray: any[] = [];
                       if (existingStr) {
-                        try { bookingsArray = JSON.parse(existingStr); } catch (e) { console.error(e); }
+                        try {
+                          bookingsArray = JSON.parse(existingStr);
+                        } catch (e) {
+                          console.error(e);
+                        }
                       }
                       const newBooking = {
                         id: `booking-${Date.now()}`,
@@ -5319,7 +5843,10 @@ export default function CustomerStorefront() {
                         total: 0,
                       };
                       setLastCreatedOrder(trackedOrder);
-                      sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
+                      sessionStorage.setItem(
+                        `iGO_last_order_${slug}`,
+                        JSON.stringify(trackedOrder)
+                      );
 
                       window.dispatchEvent(new Event('iGO_bookings_updated'));
                       setBookingConfirmed(true);
@@ -5332,11 +5859,19 @@ export default function CustomerStorefront() {
                   <Calendar size={14} /> Solo Tavolo
                 </button>
                 <button
-                  disabled={!bookingDate || !bookingTime || bookingGuests < 1 || !bookingName.trim() || !bookingPhone.trim()}
+                  disabled={
+                    !bookingDate ||
+                    !bookingTime ||
+                    bookingGuests < 1 ||
+                    !bookingName.trim() ||
+                    !bookingPhone.trim()
+                  }
                   onClick={() => {
                     // Ordina anche il cibo
                     if (cart.length > 0) {
-                      const ok = window.confirm("Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?");
+                      const ok = window.confirm(
+                        'Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?'
+                      );
                       if (!ok) return;
                     }
                     setCart([]);
@@ -5384,7 +5919,10 @@ export default function CustomerStorefront() {
             >
               ← Torna alla lista
             </button>
-            <DigitalReceipt order={selectedHistoryOrder} onPrint={() => handlePrintReceipt(selectedHistoryOrder)} />
+            <DigitalReceipt
+              order={selectedHistoryOrder}
+              onPrint={() => handlePrintReceipt(selectedHistoryOrder)}
+            />
           </div>
         ) : !myOrdersEmail ? (
           <form
@@ -5392,7 +5930,7 @@ export default function CustomerStorefront() {
               e.preventDefault();
               const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
               if (!historyEmailInput.trim()) {
-                setHistoryEmailError('L\'email è obbligatoria.');
+                setHistoryEmailError("L'email è obbligatoria.");
                 return;
               }
               if (!emailRegex.test(historyEmailInput.trim())) {
@@ -5412,7 +5950,8 @@ export default function CustomerStorefront() {
             <div className="space-y-1">
               <h3 className="text-base font-bold text-foreground">Visualizza i tuoi ordini</h3>
               <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                Inserisci l'email utilizzata per gli ordini per recuperare lo storico dei tuoi ultimi 10 acquisti.
+                Inserisci l&apos;email utilizzata per gli ordini per recuperare lo storico dei tuoi
+                ultimi 10 acquisti.
               </p>
             </div>
             <div className="max-w-xs mx-auto space-y-3">
@@ -5494,15 +6033,20 @@ export default function CustomerStorefront() {
                     >
                       <div className="space-y-1 text-left">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold font-mono text-foreground">{order.id}</span>
+                          <span className="text-xs font-bold font-mono text-foreground">
+                            {order.id}
+                          </span>
                           {getStatusBadge(liveStatus)}
                         </div>
                         <p className="text-[10px] text-muted-foreground">
-                          {new Date(order.timestamp).toLocaleDateString('it-IT')} - {order.itemsCount} {order.itemsCount === 1 ? 'prodotto' : 'prodotti'}
+                          {new Date(order.timestamp).toLocaleDateString('it-IT')} -{' '}
+                          {order.itemsCount} {order.itemsCount === 1 ? 'prodotto' : 'prodotti'}
                         </p>
                       </div>
                       <div className="text-right space-y-1">
-                        <p className="text-xs font-extrabold text-foreground">€ {order.total.toFixed(2)}</p>
+                        <p className="text-xs font-extrabold text-foreground">
+                          € {order.total.toFixed(2)}
+                        </p>
                         <p className="text-[9px] font-bold text-primary uppercase">{order.type}</p>
                       </div>
                     </div>

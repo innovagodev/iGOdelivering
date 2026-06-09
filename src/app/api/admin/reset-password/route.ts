@@ -26,7 +26,9 @@ export async function POST(request: Request) {
       }
     );
 
-    const { data: { user } } = await supabaseServer.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseServer.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
@@ -44,33 +46,37 @@ export async function POST(request: Request) {
     // 2. Initialize admin client with Service Role Key
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!serviceRoleKey || serviceRoleKey === 'YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE') {
-      return NextResponse.json({ error: 'Configurazione server mancante (SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Configurazione server mancante (SUPABASE_SERVICE_ROLE_KEY)' },
+        { status: 500 }
+      );
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // 3. Update user password
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
 
     if (authError) {
-      return NextResponse.json({ error: authError.message || 'Errore durante il reset della password' }, { status: 400 });
+      return NextResponse.json(
+        { error: authError.message || 'Errore durante il reset della password' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Error in reset-password API:', err);
-    return NextResponse.json({ error: err.message || 'Errore interno del server' }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || 'Errore interno del server' },
+      { status: 500 }
+    );
   }
 }

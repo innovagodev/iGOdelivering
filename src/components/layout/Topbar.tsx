@@ -3,7 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Menu, ChevronDown, User, Settings, LifeBuoy, LogOut, PauseCircle, PlayCircle, CreditCard } from 'lucide-react';
+import {
+  Menu,
+  ChevronDown,
+  User,
+  Settings,
+  LifeBuoy,
+  LogOut,
+  PauseCircle,
+  PlayCircle,
+  CreditCard,
+} from 'lucide-react';
 
 interface TopbarProps {
   role: 'admin' | 'ristoratore';
@@ -14,12 +24,7 @@ interface TopbarProps {
   onToggleSidebar?: () => void;
 }
 
-export default function Topbar({
-  role,
-  leftContent,
-  rightExtra,
-  onMobileMenuOpen,
-}: TopbarProps) {
+export default function Topbar({ role, leftContent, rightExtra, onMobileMenuOpen }: TopbarProps) {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [formattedDate, setFormattedDate] = useState('');
@@ -62,9 +67,7 @@ export default function Topbar({
 
       {/* Left Content Area */}
       <div className="flex items-center justify-between flex-1 min-w-0 pr-4">
-        <div className="flex items-center gap-2 min-w-0">
-          {leftContent}
-        </div>
+        <div className="flex items-center gap-2 min-w-0">{leftContent}</div>
         {formattedDate && (
           <span className="hidden lg:inline-block text-xs md:text-sm text-muted-foreground/80 flex-shrink-0 font-semibold ml-1.5 select-none">
             {formattedDate}
@@ -95,7 +98,10 @@ export default function Topbar({
                 {role === 'admin' ? 'Amministratore' : 'Ristoratore'}
               </p>
             </div>
-            <ChevronDown size={14} className={`text-muted-foreground hidden md:block transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              size={14}
+              className={`text-muted-foreground hidden md:block transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            />
           </button>
 
           {isOpen && (
@@ -115,7 +121,11 @@ export default function Topbar({
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl transition-colors"
                 >
-                  {role === 'admin' ? <Settings size={14} strokeWidth={1.75} /> : <CreditCard size={14} strokeWidth={1.75} />}
+                  {role === 'admin' ? (
+                    <Settings size={14} strokeWidth={1.75} />
+                  ) : (
+                    <CreditCard size={14} strokeWidth={1.75} />
+                  )}
                   <span>{role === 'admin' ? 'Impostazioni' : 'Pagamenti'}</span>
                 </Link>
               </div>

@@ -74,7 +74,7 @@ export default function AdminSicurezzaPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-sicurezza"
-        onSectionChange={() => { }}
+        onSectionChange={() => {}}
         role="admin"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -157,10 +157,11 @@ export default function AdminSicurezzaPage() {
                   <button
                     key={`filter-${s}`}
                     onClick={() => setSeverityFilter(s)}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${severityFilter === s
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+                      severityFilter === s
                         ? 'bg-primary text-white'
                         : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
+                    }`}
                   >
                     {s === 'all'
                       ? 'Tutte'
@@ -211,7 +212,10 @@ export default function AdminSicurezzaPage() {
                     )}
                     {filteredLogs.map((log) => {
                       return (
-                        <tr key={log.id} className="hover:bg-muted/40 transition-colors duration-150">
+                        <tr
+                          key={log.id}
+                          className="hover:bg-muted/40 transition-colors duration-150"
+                        >
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="text-xs font-mono text-muted-foreground">
                               {log.timestamp}
@@ -232,12 +236,13 @@ export default function AdminSicurezzaPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${log.severity === 'high'
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                                log.severity === 'high'
                                   ? 'bg-red-500/10 text-red-500 border-red-500/20'
                                   : log.severity === 'medium'
                                     ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                     : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                                }`}
+                              }`}
                             >
                               {log.severity === 'high'
                                 ? 'Alta'
@@ -248,10 +253,11 @@ export default function AdminSicurezzaPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${log.status === 'success'
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                log.status === 'success'
                                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                   : 'bg-red-500/10 text-red-500 border-red-500/20'
-                                }`}
+                              }`}
                             >
                               {log.status === 'success' ? (
                                 <>
@@ -288,13 +294,16 @@ export default function AdminSicurezzaPage() {
                           <span className="text-[10px] font-mono text-muted-foreground block mb-0.5">
                             {log.timestamp}
                           </span>
-                          <h4 className="font-semibold text-sm text-foreground leading-snug">{log.event}</h4>
+                          <h4 className="font-semibold text-sm text-foreground leading-snug">
+                            {log.event}
+                          </h4>
                         </div>
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${log.status === 'success'
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                            log.status === 'success'
                               ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                               : 'bg-red-500/10 text-red-500 border-red-500/20'
-                            }`}
+                          }`}
                         >
                           {log.status === 'success' ? 'Ok' : 'Fallito'}
                         </span>
@@ -303,7 +312,9 @@ export default function AdminSicurezzaPage() {
                       <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
                         <div>
                           <p className="text-muted-foreground mb-0.5">Utente / Operatore</p>
-                          <p className="font-medium text-foreground truncate max-w-xs">{log.user}</p>
+                          <p className="font-medium text-foreground truncate max-w-xs">
+                            {log.user}
+                          </p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-0.5">Indirizzo IP</p>
@@ -314,12 +325,13 @@ export default function AdminSicurezzaPage() {
                       <div className="flex items-center justify-between pt-1">
                         <span className="text-xs text-muted-foreground">Severità</span>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${log.severity === 'high'
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                            log.severity === 'high'
                               ? 'bg-red-500/10 text-red-500 border-red-500/20'
                               : log.severity === 'medium'
                                 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                                 : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                            }`}
+                          }`}
                         >
                           {log.severity === 'high'
                             ? 'Alta'

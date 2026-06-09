@@ -41,7 +41,7 @@ export default function RevenueChart({ orders = [] }: { orders?: any[] }) {
   const chartData = React.useMemo(() => {
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
     const days: { dateStr: string; label: string; ricavi: number; ordini: number }[] = [];
-    
+
     // Initialize last 7 days
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -50,7 +50,7 @@ export default function RevenueChart({ orders = [] }: { orders?: any[] }) {
         dateStr: d.toDateString(),
         label: dayNames[d.getDay()],
         ricavi: 0,
-        ordini: 0
+        ordini: 0,
       });
     }
 
@@ -65,10 +65,10 @@ export default function RevenueChart({ orders = [] }: { orders?: any[] }) {
       }
     });
 
-    return days.map(d => ({
+    return days.map((d) => ({
       giorno: d.label,
       ricavi: Math.round(d.ricavi),
-      ordini: d.ordini
+      ordini: d.ordini,
     }));
   }, [orders]);
 

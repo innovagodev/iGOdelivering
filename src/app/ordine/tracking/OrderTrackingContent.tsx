@@ -86,7 +86,11 @@ export default function OrderTrackingContent() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'granted'
+    ) {
       const step = STEPS.find((s) => s.id === currentStatus);
       if (step) {
         new Notification(`Stato Ordine: ${step.label}`, {

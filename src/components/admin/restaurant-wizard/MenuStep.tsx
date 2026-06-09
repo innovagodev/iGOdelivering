@@ -21,7 +21,7 @@ import {
   Apple,
   Coffee,
   Wine,
-  Pizza
+  Pizza,
 } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import { DISH_TAGS_LIST } from '@/lib/constants';
@@ -38,7 +38,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
   apple: Apple,
   coffee: Coffee,
   wine: Wine,
-  pizza: Pizza
+  pizza: Pizza,
 };
 
 const ICON_LABELS: Record<string, string> = {
@@ -53,10 +53,10 @@ const ICON_LABELS: Record<string, string> = {
   apple: 'Fresco / Frutta',
   coffee: 'Colazione',
   wine: 'Alcolico / Vino',
-  pizza: 'Pizza / Forno'
+  pizza: 'Pizza / Forno',
 };
 
-const getIconComponent = (name: string, size = 14, className = "") => {
+const getIconComponent = (name: string, size = 14, className = '') => {
   const Icon = ICON_MAP[name.toLowerCase()];
   if (!Icon) return null;
   return <Icon size={size} className={className} />;
@@ -69,28 +69,41 @@ const parseTag = (tag: string) => {
     const label = parts.slice(1).join(':').trim();
     return { iconName, label };
   }
-  
+
   // Legacy parsing fallback
   const t = tag.toLowerCase();
   let iconName = 'leaf';
   let label = tag;
-  
-  label = label.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+
+  label = label
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+    .trim();
 
   if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
     iconName = 'leaf';
-  } else if (t.includes('piccant') || t.includes('diavola') || t.includes('spicy') || tag.includes('🌶️') || tag.includes('🔥')) {
+  } else if (
+    t.includes('piccant') ||
+    t.includes('diavola') ||
+    t.includes('spicy') ||
+    tag.includes('🌶️') ||
+    tag.includes('🔥')
+  ) {
     iconName = 'flame';
   } else if (t.includes('gluten') || t.includes('glutine') || tag.includes('🌾')) {
     iconName = 'wheat';
   } else if (t.includes('novit') || t.includes('nuov') || t.includes('new') || tag.includes('🆕')) {
     iconName = 'sparkles';
-  } else if (t.includes('consigliat') || t.includes('special') || tag.includes('⭐') || tag.includes('👑')) {
+  } else if (
+    t.includes('consigliat') ||
+    t.includes('special') ||
+    tag.includes('⭐') ||
+    tag.includes('👑')
+  ) {
     iconName = 'star';
   } else if (t.includes('lattosio') || tag.includes('🥛')) {
     iconName = 'milk';
   }
-  
+
   return { iconName, label };
 };
 
@@ -235,10 +248,29 @@ export default function MenuStep({
   const [selectedTagIcon, setSelectedTagIcon] = React.useState('leaf');
 
   const EMOJI_LIST = [
-    '🌱', '🥗', '🌶️', '🔥', '🆕', '⭐', '👑',
-    '🍕', '🍔', '🍣', '🥩', '🐟', '🥛', '🥚',
-    '🥜', '🌾', '🍪', '🍇', '🍋', '🥤', '🍷',
-    '❄️', '🧪'
+    '🌱',
+    '🥗',
+    '🌶️',
+    '🔥',
+    '🆕',
+    '⭐',
+    '👑',
+    '🍕',
+    '🍔',
+    '🍣',
+    '🥩',
+    '🐟',
+    '🥛',
+    '🥚',
+    '🥜',
+    '🌾',
+    '🍪',
+    '🍇',
+    '🍋',
+    '🥤',
+    '🍷',
+    '❄️',
+    '🧪',
   ];
 
   React.useEffect(() => {
@@ -496,19 +528,25 @@ export default function MenuStep({
                       setNewGroupMaxSelections(1);
                       setNewGroupMinSelections((prev) => Math.min(1, prev));
                     }}
-                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMaxSelections === 1
-                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
-                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
-                      }`}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      newGroupMaxSelections === 1
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
                   >
                     <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${newGroupMaxSelections === 1 ? 'border-primary' : 'border-muted-foreground'}`}>
-                        {newGroupMaxSelections === 1 && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                      <span
+                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${newGroupMaxSelections === 1 ? 'border-primary' : 'border-muted-foreground'}`}
+                      >
+                        {newGroupMaxSelections === 1 && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        )}
                       </span>
                       Una sola scelta (es. Impasto)
                     </span>
                     <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
-                      Il cliente può scegliere un solo elemento. La selezione di uno esclude gli altri.
+                      Il cliente può scegliere un solo elemento. La selezione di uno esclude gli
+                      altri.
                     </span>
                   </button>
 
@@ -517,14 +555,19 @@ export default function MenuStep({
                     onClick={() => {
                       setNewGroupMaxSelections(null);
                     }}
-                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMaxSelections !== 1
-                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
-                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
-                      }`}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      newGroupMaxSelections !== 1
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
                   >
                     <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${newGroupMaxSelections !== 1 ? 'border-primary bg-primary/10' : 'border-muted-foreground'}`}>
-                        {newGroupMaxSelections !== 1 && <span className="w-1.5 h-1.5 bg-primary rounded-[2px]" />}
+                      <span
+                        className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${newGroupMaxSelections !== 1 ? 'border-primary bg-primary/10' : 'border-muted-foreground'}`}
+                      >
+                        {newGroupMaxSelections !== 1 && (
+                          <span className="w-1.5 h-1.5 bg-primary rounded-[2px]" />
+                        )}
                       </span>
                       Scelte multiple (es. Aggiunte)
                     </span>
@@ -546,17 +589,19 @@ export default function MenuStep({
                     onClick={() => {
                       setNewGroupMinSelections(0);
                     }}
-                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMinSelections === 0
-                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
-                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
-                      }`}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      newGroupMinSelections === 0
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
                   >
                     <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <span className="text-xs">⚪</span>
                       Facoltativa
                     </span>
                     <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
-                      Il cliente può procedere all'ordine anche senza selezionare alcuna opzione da questo gruppo.
+                      Il cliente può procedere all&apos;ordine anche senza selezionare alcuna
+                      opzione da questo gruppo.
                     </span>
                   </button>
 
@@ -565,17 +610,19 @@ export default function MenuStep({
                     onClick={() => {
                       setNewGroupMinSelections(1);
                     }}
-                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${newGroupMinSelections > 0
-                      ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
-                      : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
-                      }`}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      newGroupMinSelections > 0
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
                   >
                     <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                       <span className="text-xs">🔴</span>
                       Obbligatoria
                     </span>
                     <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
-                      Il cliente non può aggiungere il piatto al carrello se non seleziona almeno un'opzione.
+                      Il cliente non può aggiungere il piatto al carrello se non seleziona almeno
+                      un&apos;opzione.
                     </span>
                   </button>
                 </div>
@@ -819,7 +866,9 @@ export default function MenuStep({
                     }`}
                   />
                   {showErrors && !newItem.name.trim() && (
-                    <p className="text-red-500 text-[10px] font-semibold mt-1">Il nome del piatto è obbligatorio</p>
+                    <p className="text-red-500 text-[10px] font-semibold mt-1">
+                      Il nome del piatto è obbligatorio
+                    </p>
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -881,7 +930,9 @@ export default function MenuStep({
                       </label>
                     </div>
                     {showErrors && !newItem.price.trim() && (
-                      <p className="text-red-500 text-[10px] font-semibold mt-1">Il prezzo di listino è obbligatorio</p>
+                      <p className="text-red-500 text-[10px] font-semibold mt-1">
+                        Il prezzo di listino è obbligatorio
+                      </p>
                     )}
                   </div>
                 </div>
@@ -898,7 +949,9 @@ export default function MenuStep({
                       <input
                         type="number"
                         value={newItem.originalPrice || ''}
-                        onChange={(e) => setNewItem((p) => ({ ...p, originalPrice: e.target.value }))}
+                        onChange={(e) =>
+                          setNewItem((p) => ({ ...p, originalPrice: e.target.value }))
+                        }
                         placeholder="5.50"
                         step="0.1"
                         className="w-full pl-8 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
@@ -935,7 +988,9 @@ export default function MenuStep({
                   </div>
                   <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1 p-2 bg-muted/25 border border-border rounded-xl">
                     {(!newItem.ingredients || newItem.ingredients.length === 0) && (
-                      <p className="text-xs text-muted-foreground italic">Nessun ingrediente inserito (es. Pomodoro, Mozzarella...)</p>
+                      <p className="text-xs text-muted-foreground italic">
+                        Nessun ingrediente inserito (es. Pomodoro, Mozzarella...)
+                      </p>
                     )}
                     {(newItem.ingredients || []).map((ing) => (
                       <div
@@ -1043,7 +1098,13 @@ export default function MenuStep({
                         Aggiungi o importa da gruppi opzioni creati.
                       </p>
                     </div>
-                    {optionGroups.filter((g) => g.id !== 'supplementi-singoli' && g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && !newItem.optionGroups.includes(g.id)).length > 0 && (
+                    {optionGroups.filter(
+                      (g) =>
+                        g.id !== 'supplementi-singoli' &&
+                        g.name !== 'Supplementi' &&
+                        g.name !== 'Supplementi Singoli' &&
+                        !newItem.optionGroups.includes(g.id)
+                    ).length > 0 && (
                       <select
                         onChange={(e) => {
                           const gid = e.target.value;
@@ -1061,11 +1122,21 @@ export default function MenuStep({
                         className="px-2 py-0.5 text-[10px] bg-input border border-border rounded-md focus:outline-none cursor-pointer self-start sm:self-auto font-semibold"
                         defaultValue=""
                       >
-                        <option value="" disabled>Inserisci da gruppo...</option>
+                        <option value="" disabled>
+                          Inserisci da gruppo...
+                        </option>
                         {optionGroups
-                          .filter((g) => g.id !== 'supplementi-singoli' && g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && !newItem.optionGroups.includes(g.id))
+                          .filter(
+                            (g) =>
+                              g.id !== 'supplementi-singoli' &&
+                              g.name !== 'Supplementi' &&
+                              g.name !== 'Supplementi Singoli' &&
+                              !newItem.optionGroups.includes(g.id)
+                          )
                           .map((g) => (
-                            <option key={g.id} value={g.id}>{g.name}</option>
+                            <option key={g.id} value={g.id}>
+                              {g.name}
+                            </option>
                           ))}
                       </select>
                     )}
@@ -1073,7 +1144,9 @@ export default function MenuStep({
 
                   <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-card border border-border rounded-xl">
                     {(!newItem.singleSupplements || newItem.singleSupplements.length === 0) && (
-                      <p className="text-[10px] text-muted-foreground italic">Nessun supplemento singolo configurato.</p>
+                      <p className="text-[10px] text-muted-foreground italic">
+                        Nessun supplemento singolo configurato.
+                      </p>
                     )}
                     {(newItem.singleSupplements || []).map((choice) => (
                       <div
@@ -1081,13 +1154,19 @@ export default function MenuStep({
                         className="relative px-2 py-1 rounded-lg text-[10px] font-semibold border bg-card border-border text-foreground pr-6"
                       >
                         <span>{choice.name}</span>
-                        <span className="text-primary font-bold ml-1">(+€{choice.price.toFixed(2)})</span>
+                        <span className="text-primary font-bold ml-1">
+                          (+€{choice.price.toFixed(2)})
+                        </span>
                         <button
                           type="button"
-                          onClick={() => setNewItem((prev) => ({
-                            ...prev,
-                            singleSupplements: (prev.singleSupplements || []).filter((c) => c.id !== choice.id),
-                          }))}
+                          onClick={() =>
+                            setNewItem((prev) => ({
+                              ...prev,
+                              singleSupplements: (prev.singleSupplements || []).filter(
+                                (c) => c.id !== choice.id
+                              ),
+                            }))
+                          }
                           className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95 cursor-pointer"
                           style={{ fontSize: '7px', lineHeight: '1' }}
                           title={`Elimina ${choice.name}`}
@@ -1110,12 +1189,19 @@ export default function MenuStep({
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           if (newWizardSuppName.trim()) {
-                            const price = parseFloat(newWizardSuppPrice) >= 0 ? parseFloat(newWizardSuppPrice) : 0;
+                            const price =
+                              parseFloat(newWizardSuppPrice) >= 0
+                                ? parseFloat(newWizardSuppPrice)
+                                : 0;
                             setNewItem((prev) => ({
                               ...prev,
                               singleSupplements: [
                                 ...(prev.singleSupplements || []),
-                                { id: `choice-${Date.now()}`, name: newWizardSuppName.trim(), price },
+                                {
+                                  id: `choice-${Date.now()}`,
+                                  name: newWizardSuppName.trim(),
+                                  price,
+                                },
                               ],
                             }));
                             setNewWizardSuppName('');
@@ -1137,7 +1223,10 @@ export default function MenuStep({
                       type="button"
                       onClick={() => {
                         if (newWizardSuppName.trim()) {
-                          const price = parseFloat(newWizardSuppPrice) >= 0 ? parseFloat(newWizardSuppPrice) : 0;
+                          const price =
+                            parseFloat(newWizardSuppPrice) >= 0
+                              ? parseFloat(newWizardSuppPrice)
+                              : 0;
                           setNewItem((prev) => ({
                             ...prev,
                             singleSupplements: [
@@ -1178,7 +1267,9 @@ export default function MenuStep({
                         <div className="flex flex-col">
                           <span className="text-xs font-semibold">{g.name}</span>
                           <span className="text-[9px] text-muted-foreground font-semibold">
-                            {g.minSelections !== undefined && g.minSelections > 0 ? 'Obbligatorio' : 'Opzionale'}
+                            {g.minSelections !== undefined && g.minSelections > 0
+                              ? 'Obbligatorio'
+                              : 'Opzionale'}
                             {g.maxSelections === 1 ? ' • Scelta Singola' : ' • Scelta Multipla'}
                           </span>
                         </div>
@@ -1221,7 +1312,9 @@ export default function MenuStep({
 
                   <div className="flex flex-wrap gap-2 mb-3 max-h-28 overflow-y-auto pr-1">
                     {availableAllergens.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">Nessun allergene inserito</p>
+                      <p className="text-xs text-muted-foreground italic">
+                        Nessun allergene inserito
+                      </p>
                     )}
                     {availableAllergens.map((a) => {
                       const isActive = newItem.allergens.includes(a);
@@ -1229,10 +1322,11 @@ export default function MenuStep({
                         <div
                           key={a}
                           onClick={() => toggleAllergen(a)}
-                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${isActive
+                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
+                            isActive
                               ? 'bg-amber-100 border-amber-300 text-amber-800'
                               : 'bg-card border-border text-muted-foreground hover:bg-muted'
-                            }`}
+                          }`}
                         >
                           {a}
                           <button
@@ -1303,7 +1397,8 @@ export default function MenuStep({
                           e.preventDefault();
                           const txt = customAllergen.trim();
                           if (txt) {
-                            const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
+                            const finalVal =
+                              allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
                             handleAddAllergen(finalVal);
                             setCustomAllergen('');
                             setAllergenEmoji('➕');
@@ -1356,11 +1451,11 @@ export default function MenuStep({
                             'flame:Piccante',
                             'wheat:Senza Glutine',
                             'sparkles:Novità',
-                            'star:Consigliato'
+                            'star:Consigliato',
                           ];
                           setNewItem((p) => ({
                             ...p,
-                            dishTags: Array.from(new Set([...(p.dishTags || []), ...standardOnly]))
+                            dishTags: Array.from(new Set([...(p.dishTags || []), ...standardOnly])),
                           }));
                         }}
                         className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
@@ -1372,21 +1467,24 @@ export default function MenuStep({
 
                   <div className="flex flex-wrap gap-2.5 p-3.5 bg-muted/20 border border-border rounded-xl mb-3.5 max-h-40 overflow-y-auto">
                     {availableDishTags.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">Nessuna etichetta inserita</p>
+                      <p className="text-xs text-muted-foreground italic">
+                        Nessuna etichetta inserita
+                      </p>
                     )}
                     {availableDishTags.map((t) => {
                       const isActive = (newItem.dishTags || []).includes(t);
                       const { iconName, label } = parseTag(t);
                       const IconComp = getIconComponent(iconName);
-                      
+
                       return (
                         <div
                           key={t}
                           onClick={() => toggleDishTag(t)}
-                          className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-8 ${isActive
-                            ? 'bg-primary/10 border-primary/40 text-primary shadow-sm shadow-primary/5'
-                            : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
-                            }`}
+                          className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer select-none active:scale-[0.97] pr-8 ${
+                            isActive
+                              ? 'bg-primary/10 border-primary/40 text-primary shadow-sm shadow-primary/5'
+                              : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                          }`}
                         >
                           {IconComp}
                           <span>{label}</span>
@@ -1438,7 +1536,10 @@ export default function MenuStep({
 
                     <div className="flex flex-col gap-2">
                       <div className="space-y-1.5">
-                        <label htmlFor="custom-tag-name-wizard" className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                        <label
+                          htmlFor="custom-tag-name-wizard"
+                          className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide"
+                        >
                           2. Inserisci Testo Etichetta
                         </label>
                         <input
@@ -1491,9 +1592,12 @@ export default function MenuStep({
                 {/* customizationEnabled Toggle */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <span className="text-xs font-bold text-foreground block">Consenti modifiche al piatto</span>
+                    <span className="text-xs font-bold text-foreground block">
+                      Consenti modifiche al piatto
+                    </span>
                     <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
-                      Se disattivato, il cliente non potrà aggiungere supplementi o rimuovere ingredienti. Il piatto verrà aggiunto direttamente al carrello.
+                      Se disattivato, il cliente non potrà aggiungere supplementi o rimuovere
+                      ingredienti. Il piatto verrà aggiunto direttamente al carrello.
                     </span>
                   </div>
                   <Toggle
@@ -1505,9 +1609,12 @@ export default function MenuStep({
                 {/* notesEnabled Toggle */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <span className="text-xs font-bold text-foreground block">Consenti note per la cucina</span>
+                    <span className="text-xs font-bold text-foreground block">
+                      Consenti note per la cucina
+                    </span>
                     <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
-                      Se disattivato, il campo note cucina non verrà mostrato nel dettaglio di questo piatto.
+                      Se disattivato, il campo note cucina non verrà mostrato nel dettaglio di
+                      questo piatto.
                     </span>
                   </div>
                   <Toggle

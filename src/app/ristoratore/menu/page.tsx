@@ -107,8 +107,8 @@ export default function RistoratoreMenuPage() {
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, '')
-      .replace(/\-\-+/g, '-');
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-');
   };
 
   const restaurantId = user?.restaurantId || 'r-001';
@@ -128,10 +128,9 @@ export default function RistoratoreMenuPage() {
         .order('sort_order', { ascending: true });
 
       if (catError) throw catError;
-      
-      const categoryNames = dbCats && dbCats.length > 0 
-        ? dbCats.map((c) => c.name) 
-        : DEFAULT_CATEGORIES;
+
+      const categoryNames =
+        dbCats && dbCats.length > 0 ? dbCats.map((c) => c.name) : DEFAULT_CATEGORIES;
       setCategories(categoryNames);
 
       // 2. Fetch items
@@ -158,9 +157,13 @@ export default function RistoratoreMenuPage() {
         ingredients: i.ingredients || [],
         orders: i.orders_count || 0,
         visibility: i.visibility || 'always',
-        visibilitySchedule: i.visibility_from && i.visibility_to ? { from: i.visibility_from.slice(0, 5), to: i.visibility_to.slice(0, 5) } : undefined,
+        visibilitySchedule:
+          i.visibility_from && i.visibility_to
+            ? { from: i.visibility_from.slice(0, 5), to: i.visibility_to.slice(0, 5) }
+            : undefined,
         optionGroups: i.option_groups || [],
-        customizationEnabled: i.customization_enabled !== undefined ? !!i.customization_enabled : true,
+        customizationEnabled:
+          i.customization_enabled !== undefined ? !!i.customization_enabled : true,
         notesEnabled: i.notes_enabled !== undefined ? !!i.notes_enabled : true,
       }));
 
@@ -198,10 +201,7 @@ export default function RistoratoreMenuPage() {
 
   const removeMenuItem = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('menu_items')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('menu_items').delete().eq('id', id);
       if (error) throw error;
       setItems((prev) => prev.filter((m) => m.id !== id));
       showFeedback('Piatto rimosso');
@@ -213,13 +213,11 @@ export default function RistoratoreMenuPage() {
   const addCategory = async (cat: string) => {
     if (categories.includes(cat)) return;
     try {
-      const { error } = await supabase
-        .from('menu_categories')
-        .insert({
-          restaurant_id: restaurantId,
-          name: cat,
-          sort_order: categories.length
-        });
+      const { error } = await supabase.from('menu_categories').insert({
+        restaurant_id: restaurantId,
+        name: cat,
+        sort_order: categories.length,
+      });
       if (error) throw error;
       setCategories((p) => [...p, cat]);
     } catch (e) {
@@ -248,29 +246,27 @@ export default function RistoratoreMenuPage() {
         .eq('name', draft.category)
         .maybeSingle();
 
-      const { error } = await supabase
-        .from('menu_items')
-        .insert({
-          restaurant_id: restaurantId,
-          category_id: catData?.id || null,
-          category_name: draft.category,
-          name: draft.name,
-          description: draft.description,
-          price: isPromoActive ? promoPrice! : listPrice,
-          original_price: isPromoActive ? listPrice : null,
-          image_url: draft.imageUrl || null,
-          image_alt: draft.name,
-          allergens: draft.allergens,
-          dish_tags: draft.dishTags || [],
-          ingredients: draft.ingredients || [],
-          available: draft.available,
-          visibility: draft.visibility,
-          visibility_from: draft.visibilitySchedule?.from || null,
-          visibility_to: draft.visibilitySchedule?.to || null,
-          option_groups: draft.optionGroups || [],
-          customization_enabled: draft.customizationEnabled ?? true,
-          notes_enabled: draft.notesEnabled ?? true,
-        });
+      const { error } = await supabase.from('menu_items').insert({
+        restaurant_id: restaurantId,
+        category_id: catData?.id || null,
+        category_name: draft.category,
+        name: draft.name,
+        description: draft.description,
+        price: isPromoActive ? promoPrice! : listPrice,
+        original_price: isPromoActive ? listPrice : null,
+        image_url: draft.imageUrl || null,
+        image_alt: draft.name,
+        allergens: draft.allergens,
+        dish_tags: draft.dishTags || [],
+        ingredients: draft.ingredients || [],
+        available: draft.available,
+        visibility: draft.visibility,
+        visibility_from: draft.visibilitySchedule?.from || null,
+        visibility_to: draft.visibilitySchedule?.to || null,
+        option_groups: draft.optionGroups || [],
+        customization_enabled: draft.customizationEnabled ?? true,
+        notes_enabled: draft.notesEnabled ?? true,
+      });
 
       if (error) throw error;
       setShowAddItem(false);
@@ -278,7 +274,7 @@ export default function RistoratoreMenuPage() {
       await fetchMenuData();
     } catch (e) {
       console.error('Error adding menu item:', e);
-      alert('Errore nell\'aggiungere il piatto.');
+      alert("Errore nell'aggiungere il piatto.");
     }
   };
 
@@ -417,8 +413,11 @@ export default function RistoratoreMenuPage() {
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Gestione Menu</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {items.filter((i) => i.available).length} {items.filter((i) => i.available).length === 1 ? "disponibile" : "disponibili"} ·{' '}
-                  {items.filter((i) => !i.available).length} {items.filter((i) => !i.available).length === 1 ? "sospeso" : "sospesi"}</p>
+                  {items.filter((i) => i.available).length}{' '}
+                  {items.filter((i) => i.available).length === 1 ? 'disponibile' : 'disponibili'} ·{' '}
+                  {items.filter((i) => !i.available).length}{' '}
+                  {items.filter((i) => !i.available).length === 1 ? 'sospeso' : 'sospesi'}
+                </p>
               </div>
               <button
                 onClick={() => setShowAddItem(true)}

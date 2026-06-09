@@ -7,9 +7,11 @@ export function usePromoCode(slugOrId: string) {
 
   const loadPromos = async () => {
     try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
-      
-      let query = supabase.from('restaurants').select('id');
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        slugOrId
+      );
+
+      const query = supabase.from('restaurants').select('id');
       const { data: restaurant } = isUuid
         ? await query.eq('id', slugOrId).maybeSingle()
         : await query.eq('slug', slugOrId).maybeSingle();
@@ -76,9 +78,11 @@ export function usePromoCode(slugOrId: string) {
     }
 
     try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
-      
-      let query = supabase.from('restaurants').select('id');
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        slugOrId
+      );
+
+      const query = supabase.from('restaurants').select('id');
       const { data: restaurant } = isUuid
         ? await query.eq('id', slugOrId).maybeSingle()
         : await query.eq('slug', slugOrId).maybeSingle();
@@ -117,11 +121,18 @@ export function usePromoCode(slugOrId: string) {
         promo.max_uses > 0 &&
         (promo.used_count || 0) >= promo.max_uses
       ) {
-        return { isValid: false, error: 'Questo codice ha raggiunto il limite massimo di utilizzi' };
+        return {
+          isValid: false,
+          error: 'Questo codice ha raggiunto il limite massimo di utilizzi',
+        };
       }
 
       // Order Mode Check
-      if (promo.applicable_delivery_modes && promo.applicable_delivery_modes.length > 0 && deliveryMode) {
+      if (
+        promo.applicable_delivery_modes &&
+        promo.applicable_delivery_modes.length > 0 &&
+        deliveryMode
+      ) {
         if (!promo.applicable_delivery_modes.includes(deliveryMode)) {
           const modeLabels: Record<string, string> = {
             domicilio: 'Consegna a Domicilio',
@@ -156,7 +167,7 @@ export function usePromoCode(slugOrId: string) {
           };
         }
         const cleanEmail = email.trim().toLowerCase();
-        
+
         // Count orders for this email
         const { count, error: countError } = await supabase
           .from('orders')
@@ -169,7 +180,8 @@ export function usePromoCode(slugOrId: string) {
         } else if (count && count > 0) {
           return {
             isValid: false,
-            error: 'Codice riservato solo al primo ordine. Risultano già altri ordini per questa email.',
+            error:
+              'Codice riservato solo al primo ordine. Risultano già altri ordini per questa email.',
           };
         }
       }

@@ -3,15 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { supabase } from '@/lib/supabase';
-import {
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  CheckCircle,
-  AlertTriangle,
-  ShieldCheck,
-} from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface LoginForm {
   email: string;
@@ -105,7 +97,9 @@ export default function LoginPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('error') === 'suspended') {
-        setLoginError("Il tuo account ristorante è stato sospeso dall'amministratore. Contatta il supporto per assistenza.");
+        setLoginError(
+          "Il tuo account ristorante è stato sospeso dall'amministratore. Contatta il supporto per assistenza."
+        );
       }
     }
   }, []);
@@ -121,7 +115,9 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setLoginError(error.message === 'Invalid login credentials' ? 'Credenziali non valide.' : error.message);
+        setLoginError(
+          error.message === 'Invalid login credentials' ? 'Credenziali non valide.' : error.message
+        );
         setLoginLoading(false);
         return;
       }
@@ -152,7 +148,9 @@ export default function LoginPage() {
           if (restaurant && restaurant.status === 'suspended') {
             await supabase.auth.signOut();
             document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            setLoginError("Il tuo account ristorante è stato sospeso dall'amministratore. Contatta il supporto per assistenza.");
+            setLoginError(
+              "Il tuo account ristorante è stato sospeso dall'amministratore. Contatta il supporto per assistenza."
+            );
             setLoginLoading(false);
             return;
           }
@@ -167,7 +165,8 @@ export default function LoginPage() {
           setPendingEmail(data.email);
           setLoginLoading(false);
         } else {
-          window.location.href = profile.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
+          window.location.href =
+            profile.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
         }
       }
     } catch (err: any) {
@@ -183,7 +182,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.updateUser({
         password: data.newPassword,
-        data: { is_first_login: false }
+        data: { is_first_login: false },
       });
 
       if (error) {
@@ -220,20 +219,31 @@ export default function LoginPage() {
               <div className="mb-6 text-center">
                 <h1 className="text-2xl font-bold text-foreground mb-1.5">Ripristina Password</h1>
                 <p className="text-muted-foreground text-sm">
-                  Inserisci l'indirizzo email associato al tuo account per ricevere le istruzioni di ripristino.
+                  Inserisci l&apos;indirizzo email associato al tuo account per ricevere le
+                  istruzioni di ripristino.
                 </p>
               </div>
             )}
 
             {!resetEmailSent ? (
-              <form key="forgot-password-form" onSubmit={handleForgotPassword} className="space-y-4">
+              <form
+                key="forgot-password-form"
+                onSubmit={handleForgotPassword}
+                className="space-y-4"
+              >
                 {/* Email */}
                 <div>
-                  <label htmlFor="forgot-email" className="block text-sm font-semibold text-foreground mb-1.5">
+                  <label
+                    htmlFor="forgot-email"
+                    className="block text-sm font-semibold text-foreground mb-1.5"
+                  >
                     Email
                   </label>
                   <div className="relative">
-                    <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Mail
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
                     <input
                       id="forgot-email"
                       type="email"
@@ -264,9 +274,7 @@ export default function LoginPage() {
                       Invio in corso...
                     </>
                   ) : (
-                    <>
-                      Invia link di ripristino
-                    </>
+                    <>Invia link di ripristino</>
                   )}
                 </button>
 
@@ -289,7 +297,9 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <h3 className="text-lg font-bold text-foreground">Link Inviato!</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    Abbiamo inviato le istruzioni di ripristino all'indirizzo <strong className="text-foreground">{forgotEmail}</strong>. Controlla la tua casella di posta.
+                    Abbiamo inviato le istruzioni di ripristino all&apos;indirizzo{' '}
+                    <strong className="text-foreground">{forgotEmail}</strong>. Controlla la tua
+                    casella di posta.
                   </p>
                 </div>
                 <button
@@ -318,11 +328,17 @@ export default function LoginPage() {
             <form key="login-form" onSubmit={handleLogin} className="space-y-4">
               {/* Email */}
               <div>
-                <label htmlFor="login-email" className="block text-sm font-semibold text-foreground mb-1.5">
+                <label
+                  htmlFor="login-email"
+                  className="block text-sm font-semibold text-foreground mb-1.5"
+                >
                   Email
                 </label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Mail
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <input
                     id="login-email"
                     type="email"
@@ -336,14 +352,19 @@ export default function LoginPage() {
                   />
                 </div>
                 {loginForm.formState.errors.email && (
-                  <p className="mt-1.5 text-xs text-[var(--danger)]">{loginForm.formState.errors.email.message}</p>
+                  <p className="mt-1.5 text-xs text-[var(--danger)]">
+                    {loginForm.formState.errors.email.message}
+                  </p>
                 )}
               </div>
 
               {/* Password */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="login-password" className="block text-sm font-semibold text-foreground">
+                  <label
+                    htmlFor="login-password"
+                    className="block text-sm font-semibold text-foreground"
+                  >
                     Password
                   </label>
                   <button
@@ -362,10 +383,14 @@ export default function LoginPage() {
                   id="login-password"
                   placeholder="Password"
                   hasError={!!loginForm.formState.errors.password}
-                  registration={loginForm.register('password', { required: 'Password obbligatoria' })}
+                  registration={loginForm.register('password', {
+                    required: 'Password obbligatoria',
+                  })}
                 />
                 {loginForm.formState.errors.password && (
-                  <p className="mt-1.5 text-xs text-[var(--danger)]">{loginForm.formState.errors.password.message}</p>
+                  <p className="mt-1.5 text-xs text-[var(--danger)]">
+                    {loginForm.formState.errors.password.message}
+                  </p>
                 )}
               </div>
 
@@ -387,9 +412,7 @@ export default function LoginPage() {
                     Verifica in corso...
                   </>
                 ) : (
-                  <>
-                    Accedi al Pannello
-                  </>
+                  <>Accedi al Pannello</>
                 )}
               </button>
             </form>
@@ -407,7 +430,11 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form key="first-login-change-password-form" onSubmit={handleChangePassword} className="space-y-4">
+            <form
+              key="first-login-change-password-form"
+              onSubmit={handleChangePassword}
+              className="space-y-4"
+            >
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-1.5">
                   Nuova Password
@@ -438,7 +465,8 @@ export default function LoginPage() {
                   registration={changePasswordForm.register('confirmPassword', {
                     required: true,
                     validate: (v) =>
-                      v === changePasswordForm.watch('newPassword') || 'Le password non corrispondono',
+                      v === changePasswordForm.watch('newPassword') ||
+                      'Le password non corrispondono',
                   })}
                 />
                 {changePasswordForm.formState.errors.confirmPassword && (

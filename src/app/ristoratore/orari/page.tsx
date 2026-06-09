@@ -67,7 +67,11 @@ export default function RistoratoreOrariPage() {
     reservation: buildDefaultDays(),
   }));
 
-  const [useGeneral, setUseGeneral] = useState<{ pickup: boolean; delivery: boolean; reservation: boolean }>({
+  const [useGeneral, setUseGeneral] = useState<{
+    pickup: boolean;
+    delivery: boolean;
+    reservation: boolean;
+  }>({
     pickup: true,
     delivery: true,
     reservation: true,
@@ -116,15 +120,16 @@ export default function RistoratoreOrariPage() {
     const mergeWithDefaultDays = (existing: any): Record<string, DayServiceHours> => {
       const defaults = buildDefaultDays();
       if (!existing || typeof existing !== 'object') return defaults;
-      
+
       const merged: Record<string, DayServiceHours> = {};
       DAYS.forEach((d) => {
         const defaultDay = defaults[d];
         const existingDay = existing[d] || {};
-        
+
         merged[d] = {
           enabled: existingDay.enabled !== undefined ? existingDay.enabled : defaultDay.enabled,
-          suspended: existingDay.suspended !== undefined ? existingDay.suspended : defaultDay.suspended,
+          suspended:
+            existingDay.suspended !== undefined ? existingDay.suspended : defaultDay.suspended,
           lunch: {
             from: existingDay.lunch?.from || defaultDay.lunch.from,
             to: existingDay.lunch?.to || defaultDay.lunch.to,
@@ -133,8 +138,14 @@ export default function RistoratoreOrariPage() {
             from: existingDay.dinner?.from || defaultDay.dinner.from,
             to: existingDay.dinner?.to || defaultDay.dinner.to,
           },
-          lunchEnabled: existingDay.lunchEnabled !== undefined ? existingDay.lunchEnabled : defaultDay.lunchEnabled,
-          dinnerEnabled: existingDay.dinnerEnabled !== undefined ? existingDay.dinnerEnabled : defaultDay.dinnerEnabled,
+          lunchEnabled:
+            existingDay.lunchEnabled !== undefined
+              ? existingDay.lunchEnabled
+              : defaultDay.lunchEnabled,
+          dinnerEnabled:
+            existingDay.dinnerEnabled !== undefined
+              ? existingDay.dinnerEnabled
+              : defaultDay.dinnerEnabled,
         };
       });
       return merged;
@@ -153,7 +164,7 @@ export default function RistoratoreOrariPage() {
           console.warn('Error loading service hours from Supabase:', error.message || error);
           return;
         }
-        
+
         if (data) {
           if (data.hours_config && typeof data.hours_config === 'object') {
             const parsed = data.hours_config as any;
@@ -197,7 +208,9 @@ export default function RistoratoreOrariPage() {
   const toggleServiceSuspension = (s: 'pickup' | 'delivery' | 'reservation') => {
     setServiceSuspended((p) => {
       const n = { ...p, [s]: !p[s] };
-      showFeedback(`Servizio ${s === 'pickup' ? 'Asporto' : s === 'delivery' ? 'Consegna' : 'Prenotazione'} ${n[s] ? 'sospeso' : 'riattivato'}`);
+      showFeedback(
+        `Servizio ${s === 'pickup' ? 'Asporto' : s === 'delivery' ? 'Consegna' : 'Prenotazione'} ${n[s] ? 'sospeso' : 'riattivato'}`
+      );
       return n;
     });
   };
@@ -277,7 +290,9 @@ export default function RistoratoreOrariPage() {
     // Dispatch custom update events for realtime UI sync
     try {
       window.dispatchEvent(new CustomEvent('iGO_service_hours_updated', { detail: dataToSave }));
-      window.dispatchEvent(new CustomEvent(`iGO_service_hours_${restaurantId}_updated`, { detail: dataToSave }));
+      window.dispatchEvent(
+        new CustomEvent(`iGO_service_hours_${restaurantId}_updated`, { detail: dataToSave })
+      );
     } catch (evtErr) {
       // ignore
     }
@@ -285,34 +300,40 @@ export default function RistoratoreOrariPage() {
     // Sync to Supabase
     if (restaurantId && restaurantId !== 'r-001') {
       try {
-
         // Update hours_config and scheduled_orders in restaurants table
         const { error: configError } = await supabase
           .from('restaurants')
           .update({
             hours_config: dataToSave,
-            scheduled_orders: scheduledOrders
+            scheduled_orders: scheduledOrders,
           })
           .eq('id', restaurantId);
 
         if (configError) {
-          console.warn('Failed to update Supabase hours_config:', configError.message || configError);
+          console.warn(
+            'Failed to update Supabase hours_config:',
+            configError.message || configError
+          );
         }
 
         // Synchronize restaurant_hours table
         const dayMapping: Record<string, number> = {
-          'Lunedì': 0,
-          'Martedì': 1,
-          'Mercoledì': 2,
-          'Giovedì': 3,
-          'Venerdì': 4,
-          'Sabato': 5,
-          'Domenica': 6
+          Lunedì: 0,
+          Martedì: 1,
+          Mercoledì: 2,
+          Giovedì: 3,
+          Venerdì: 4,
+          Sabato: 5,
+          Domenica: 6,
         };
 
         const hoursToUpsert = DAYS.map((dayName) => {
           const dayIdx = dayMapping[dayName];
-          const dayData = serviceHours.general[dayName] || { enabled: true, lunch: { from: '11:30', to: '14:30' }, dinner: { from: '19:00', to: '22:30' } };
+          const dayData = serviceHours.general[dayName] || {
+            enabled: true,
+            lunch: { from: '11:30', to: '14:30' },
+            dinner: { from: '19:00', to: '22:30' },
+          };
           return {
             restaurant_id: restaurantId,
             day_of_week: dayIdx,
@@ -331,7 +352,10 @@ export default function RistoratoreOrariPage() {
           .upsert(hoursToUpsert, { onConflict: 'restaurant_id,day_of_week' });
 
         if (hoursError) {
-          console.warn('Failed to update Supabase restaurant_hours table:', hoursError.message || hoursError);
+          console.warn(
+            'Failed to update Supabase restaurant_hours table:',
+            hoursError.message || hoursError
+          );
         }
       } catch (dbErr: any) {
         console.warn('Database connection error during hours sync:', dbErr.message || dbErr);

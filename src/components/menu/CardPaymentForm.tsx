@@ -144,7 +144,9 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
             } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring`}
           />
         </div>
-        {touched.name && errors.name && <p className="text-[10px] text-red-500 font-semibold">{errors.name}</p>}
+        {touched.name && errors.name && (
+          <p className="text-[10px] text-red-500 font-semibold">{errors.name}</p>
+        )}
       </div>
 
       {/* Numero Carta */}
@@ -166,7 +168,9 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
             } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums`}
           />
         </div>
-        {touched.number && errors.number && <p className="text-[10px] text-red-500 font-semibold">{errors.number}</p>}
+        {touched.number && errors.number && (
+          <p className="text-[10px] text-red-500 font-semibold">{errors.number}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -213,7 +217,9 @@ export default function CardPaymentForm({ onChange }: CardPaymentFormProps) {
               } rounded-xl focus:outline-none focus:ring-2 focus:ring-ring`}
             />
           </div>
-          {touched.cvv && errors.cvv && <p className="text-[10px] text-red-500 font-semibold">{errors.cvv}</p>}
+          {touched.cvv && errors.cvv && (
+            <p className="text-[10px] text-red-500 font-semibold">{errors.cvv}</p>
+          )}
         </div>
       </div>
     </div>

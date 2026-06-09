@@ -122,7 +122,7 @@ export default function RegisterPage() {
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
-      setError("Impossibile connettersi al server. Riprova più tardi.");
+      setError('Impossibile connettersi al server. Riprova più tardi.');
       setLoading(false);
     }
   });
@@ -144,20 +144,29 @@ export default function RegisterPage() {
         {!success ? (
           <>
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-foreground mb-1.5">Attiva Account Ristorante</h1>
+              <h1 className="text-2xl font-bold text-foreground mb-1.5">
+                Attiva Account Ristorante
+              </h1>
               <p className="text-muted-foreground text-sm">
-                Crea le tue credenziali di accesso per attivare l'account ed entrare nel tuo pannello ristoratore.
+                Crea le tue credenziali di accesso per attivare l&apos;account ed entrare nel tuo
+                pannello ristoratore.
               </p>
             </div>
 
             <form onSubmit={handleRegister} className="space-y-4">
               {/* Email (Readonly) */}
               <div>
-                <label htmlFor="reg-email" className="block text-sm font-semibold text-foreground mb-1.5">
+                <label
+                  htmlFor="reg-email"
+                  className="block text-sm font-semibold text-foreground mb-1.5"
+                >
                   Email Ristorante
                 </label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Mail
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <input
                     id="reg-email"
                     type="email"
@@ -171,11 +180,17 @@ export default function RegisterPage() {
 
               {/* Name */}
               <div>
-                <label htmlFor="reg-name" className="block text-sm font-semibold text-foreground mb-1.5">
+                <label
+                  htmlFor="reg-name"
+                  className="block text-sm font-semibold text-foreground mb-1.5"
+                >
                   Nome Completo / Referente
                 </label>
                 <div className="relative">
-                  <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <User
+                    size={15}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <input
                     id="reg-name"
                     type="text"
@@ -191,7 +206,10 @@ export default function RegisterPage() {
 
               {/* Password */}
               <div>
-                <label htmlFor="reg-password" className="block text-sm font-semibold text-foreground mb-1.5">
+                <label
+                  htmlFor="reg-password"
+                  className="block text-sm font-semibold text-foreground mb-1.5"
+                >
                   Crea Password
                 </label>
                 <PasswordInput
@@ -210,7 +228,10 @@ export default function RegisterPage() {
 
               {/* Confirm Password */}
               <div>
-                <label htmlFor="reg-confirm" className="block text-sm font-semibold text-foreground mb-1.5">
+                <label
+                  htmlFor="reg-confirm"
+                  className="block text-sm font-semibold text-foreground mb-1.5"
+                >
                   Ripeti Password
                 </label>
                 <PasswordInput
@@ -224,7 +245,9 @@ export default function RegisterPage() {
                   })}
                 />
                 {errors.confirmPassword && (
-                  <p className="mt-1.5 text-xs text-[var(--danger)]">{errors.confirmPassword.message}</p>
+                  <p className="mt-1.5 text-xs text-[var(--danger)]">
+                    {errors.confirmPassword.message}
+                  </p>
                 )}
               </div>
 
@@ -246,9 +269,7 @@ export default function RegisterPage() {
                     Attivazione in corso...
                   </>
                 ) : (
-                  <>
-                    Attiva il tuo Account
-                  </>
+                  <>Attiva il tuo Account</>
                 )}
               </button>
 
@@ -267,7 +288,8 @@ export default function RegisterPage() {
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-3">Account Attivato!</h1>
             <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-              Le tue credenziali sono state registrate con successo. Ora puoi accedere al tuo pannello ristoratore con i dati scelti.
+              Le tue credenziali sono state registrate con successo. Ora puoi accedere al tuo
+              pannello ristoratore con i dati scelti.
             </p>
             <a
               href={`/login?email=${encodeURIComponent(emailParam)}`}

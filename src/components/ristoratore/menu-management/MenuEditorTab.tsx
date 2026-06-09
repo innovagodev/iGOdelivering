@@ -1,6 +1,17 @@
 'use client';
 import React from 'react';
-import { Search, Eye, EyeOff, Trash2, Pencil, AlertTriangle, X, PauseCircle, PlayCircle, Plus } from 'lucide-react';
+import {
+  Search,
+  Eye,
+  EyeOff,
+  Trash2,
+  Pencil,
+  AlertTriangle,
+  X,
+  PauseCircle,
+  PlayCircle,
+  Plus,
+} from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import AppImage from '@/components/ui/AppImage';
 import Toggle from '@/components/ui/Toggle';
@@ -101,10 +112,11 @@ export default function MenuEditorTab({
             <div
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all whitespace-nowrap cursor-pointer select-none ${isActive
+              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all whitespace-nowrap cursor-pointer select-none ${
+                isActive
                   ? 'bg-primary text-white border-primary shadow-sm'
                   : 'bg-card text-muted-foreground border-border hover:border-primary/50'
-                } ${isHidden ? 'opacity-50' : ''}`}
+              } ${isHidden ? 'opacity-50' : ''}`}
             >
               <span>{cat}</span>
               {cat !== 'Tutti' && (
@@ -114,10 +126,11 @@ export default function MenuEditorTab({
                     e.stopPropagation();
                     toggleCategoryVisibility(cat);
                   }}
-                  className={`p-0.5 rounded transition-colors cursor-pointer ${isActive
+                  className={`p-0.5 rounded transition-colors cursor-pointer ${
+                    isActive
                       ? 'text-white/80 hover:bg-white/20 hover:text-white'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
+                  }`}
                   title={isHidden ? 'Rendi visibile' : 'Nascondi categoria'}
                 >
                   {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -182,8 +195,9 @@ export default function MenuEditorTab({
                 </div>
               ) : (
                 <div
-                  className={`bg-card border border-border rounded-2xl overflow-hidden flex gap-4 p-4 transition-all hover:shadow-md ${!item.available ? 'opacity-75 grayscale-[0.5]' : ''
-                    }`}
+                  className={`bg-card border border-border rounded-2xl overflow-hidden flex gap-4 p-4 transition-all hover:shadow-md ${
+                    !item.available ? 'opacity-75 grayscale-[0.5]' : ''
+                  }`}
                 >
                   <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
                     <AppImage

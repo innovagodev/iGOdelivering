@@ -50,11 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (profileError || !profile) {
           console.error('Error fetching profile:', profileError);
-          
+
           // Self-healing: if auth session is active but profile is missing/error, sign out to clear session
           await supabase.auth.signOut();
           document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          
+
           if (isMounted) {
             setUser(null);
             setIsLoading(false);
@@ -77,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (restaurant.status === 'suspended') {
               console.warn('Restaurant is suspended. Logging out.');
               await supabase.auth.signOut();
-              document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              document.cookie =
+                'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
               if (isMounted) {
                 setUser(null);
                 setIsLoading(false);
@@ -121,7 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
         if (isMounted) {
           setUser(null);
@@ -141,7 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (email: string, role: Role) => {
     // Left for compatibility, but the application should perform authentication
     // directly via Supabase Auth in the page component.
-    console.warn('login() context helper is deprecated. Use supabase.auth.signInWithPassword() directly.');
+    console.warn(
+      'login() context helper is deprecated. Use supabase.auth.signInWithPassword() directly.'
+    );
   };
 
   const logout = async () => {

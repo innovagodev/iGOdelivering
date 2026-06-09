@@ -18,7 +18,7 @@ export default function RestaurantDashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('nav-panoramica');
-  
+
   const { orders, loading } = useOrders(restaurantId);
 
   useEffect(() => {
@@ -68,7 +68,11 @@ export default function RestaurantDashboardPage() {
 
     return {
       distribution: [
-        { label: 'Consegna a domicilio', pct: orders.length ? deliveryPct : 0, color: 'bg-primary' },
+        {
+          label: 'Consegna a domicilio',
+          pct: orders.length ? deliveryPct : 0,
+          color: 'bg-primary',
+        },
         { label: 'Asporto', pct: orders.length ? pickupPct : 0, color: 'bg-accent' },
         { label: 'Tavolo', pct: orders.length ? tablePct : 0, color: 'bg-muted-foreground' },
       ],
@@ -119,9 +123,10 @@ export default function RestaurantDashboardPage() {
                 </p>
               </div>
             </div>
-            {/* KPIs */}
+
+            {/* KPIs */}
             <KPIBentoGrid orders={orders} loading={loading} />
- 
+
             {/* Revenue Chart + quick stats */}
             <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
@@ -153,7 +158,9 @@ export default function RestaurantDashboardPage() {
                   <h4 className="text-sm font-semibold text-foreground mb-3">Top Prodotti Oggi</h4>
                   <ul className="space-y-2">
                     {stats.topProducts.length === 0 ? (
-                      <li className="text-xs text-muted-foreground text-center py-4">Nessun prodotto venduto</li>
+                      <li className="text-xs text-muted-foreground text-center py-4">
+                        Nessun prodotto venduto
+                      </li>
                     ) : (
                       stats.topProducts.map((p, i) => (
                         <li key={`top-${p?.name}`} className="flex items-center gap-3">
@@ -174,7 +181,7 @@ export default function RestaurantDashboardPage() {
                 </div>
               </div>
             </div>
- 
+
             {/* Order History */}
             <OrderHistoryTable orders={orders} loading={loading} limit={5} />
           </div>

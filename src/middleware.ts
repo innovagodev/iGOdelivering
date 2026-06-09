@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -34,7 +34,9 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Protect paths
   const isRistoratorePath = pathname.startsWith('/ristoratore');
@@ -65,10 +67,14 @@ export async function middleware(request: NextRequest) {
       .select('role')
       .eq('id', user.id)
       .single();
-    
+
     if (profile && profile.role) {
       role = profile.role;
-      response.cookies.set('igodelivering_role', profile.role, { path: '/', maxAge: 86400, sameSite: 'lax' });
+      response.cookies.set('igodelivering_role', profile.role, {
+        path: '/',
+        maxAge: 86400,
+        sameSite: 'lax',
+      });
     }
   }
 
@@ -86,7 +92,7 @@ export async function middleware(request: NextRequest) {
       '/ristoratore/prenotazioni',
       '/ristoratore/promozioni',
       '/ristoratore/zone',
-      '/ristoratore/tavoli'
+      '/ristoratore/tavoli',
     ];
     if (!validRistoratoreRoutes.includes(pathname)) {
       return NextResponse.redirect(new URL('/ristoratore/dashboard', request.url));
@@ -104,7 +110,7 @@ export async function middleware(request: NextRequest) {
       '/admin/restaurants/new',
       '/admin/utenti',
       '/admin/impostazioni',
-      '/admin/sicurezza'
+      '/admin/sicurezza',
     ];
     const isConfigureOrAccess = pathname.match(/^\/admin\/restaurants\/[^/]+\/(configure|access)$/);
 

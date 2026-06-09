@@ -22,6 +22,6 @@ export const getRestaurantId = (slug: string): string => {
 /**
  * Returns false as all mock/demo restaurants have been removed.
  */
-export const isMockRestaurant = (slugOrId: string): boolean => {
+export const isMockRestaurant = (_slugOrId: string): boolean => {
   return false;
 };

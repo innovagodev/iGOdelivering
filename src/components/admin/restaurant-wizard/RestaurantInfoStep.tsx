@@ -88,7 +88,10 @@ export default function RestaurantInfoStep({
           <div className="sm:col-span-2">
             <label className={labelCls}>Nome Ristorante *</label>
             <div className="relative">
-              <Store size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Store
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="text"
                 value={info.name}
@@ -104,7 +107,10 @@ export default function RestaurantInfoStep({
             <label className={labelCls}>Categoria *</label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Tag
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                />
                 <select
                   value={info.category}
                   onChange={(e) => setInfo((p) => ({ ...p, category: e.target.value }))}
@@ -112,7 +118,9 @@ export default function RestaurantInfoStep({
                 >
                   <option value="">Seleziona categoria...</option>
                   {allCategories.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -135,7 +143,10 @@ export default function RestaurantInfoStep({
                   type="text"
                   value={newCategoryInput}
                   onChange={(e) => setNewCategoryInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') setShowAddCategory(false); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddCategory();
+                    if (e.key === 'Escape') setShowAddCategory(false);
+                  }}
                   placeholder="Nuova categoria..."
                   className={`${inputCls} flex-1`}
                 />
@@ -161,7 +172,10 @@ export default function RestaurantInfoStep({
           <div>
             <label className={labelCls}>Partita IVA</label>
             <div className="relative">
-              <FileText size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <FileText
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="text"
                 value={info.vatNumber}
@@ -222,8 +236,16 @@ export default function RestaurantInfoStep({
                   <Upload size={13} />
                   {info.logoUrl ? 'Cambia logo' : 'Carica logo'}
                 </button>
-                <p className="text-[11px] text-muted-foreground mt-1">PNG, JPG — mostrato in sidebar</p>
-                <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  PNG, JPG — mostrato in sidebar
+                </p>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoFile}
+                />
               </div>
             </div>
           </div>
@@ -234,7 +256,11 @@ export default function RestaurantInfoStep({
             <div className="flex items-center gap-3">
               {info.backgroundImageUrl ? (
                 <div className="relative w-14 h-14 rounded-xl border border-border overflow-hidden flex-shrink-0">
-                  <img src={info.backgroundImageUrl} alt="Sfondo" className="w-full h-full object-cover" />
+                  <img
+                    src={info.backgroundImageUrl}
+                    alt="Sfondo"
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => setInfo((p) => ({ ...p, backgroundImageUrl: '' }))}
@@ -257,8 +283,16 @@ export default function RestaurantInfoStep({
                   <Upload size={13} />
                   {info.backgroundImageUrl ? 'Cambia sfondo' : 'Carica sfondo'}
                 </button>
-                <p className="text-[11px] text-muted-foreground mt-1">JPG, PNG — banner hero nel menu</p>
-                <input ref={bgImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgImageFile} />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  JPG, PNG — banner hero nel menu
+                </p>
+                <input
+                  ref={bgImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleBgImageFile}
+                />
               </div>
             </div>
           </div>
@@ -275,7 +309,10 @@ export default function RestaurantInfoStep({
           <div className="sm:col-span-2">
             <label className={labelCls}>Via / Piazza *</label>
             <div className="relative">
-              <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <MapPin
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="text"
                 value={info.address}
@@ -332,11 +369,16 @@ export default function RestaurantInfoStep({
           <div>
             <label className={labelCls}>Telefono *</label>
             <div className="relative">
-              <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Phone
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="tel"
                 value={info.phone}
-                onChange={(e) => setInfo((p) => ({ ...p, phone: e.target.value.replace(/[^\d+]/g, '') }))}
+                onChange={(e) =>
+                  setInfo((p) => ({ ...p, phone: e.target.value.replace(/[^\d+]/g, '') }))
+                }
                 placeholder="+39 081 123 4567"
                 className={inputIconCls}
               />
@@ -345,7 +387,10 @@ export default function RestaurantInfoStep({
           <div>
             <label className={labelCls}>Email *</label>
             <div className="relative">
-              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Mail
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="email"
                 value={info.email}
@@ -366,7 +411,10 @@ export default function RestaurantInfoStep({
           <div className="sm:col-span-2">
             <label className={labelCls}>Sito web</label>
             <div className="relative">
-              <Globe size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Globe
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="url"
                 value={info.website}

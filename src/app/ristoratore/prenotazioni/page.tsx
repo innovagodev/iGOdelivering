@@ -84,7 +84,9 @@ export default function PrenotazioniPage() {
   const [bookings, setBookings] = useState<TableBooking[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterDate, setFilterDate] = useState<string>('');
-  const [dateFilterType, setDateFilterType] = useState<'all' | 'today' | 'tomorrow' | 'next7' | 'custom'>('all');
+  const [dateFilterType, setDateFilterType] = useState<
+    'all' | 'today' | 'tomorrow' | 'next7' | 'custom'
+  >('all');
 
   const getTodayStr = () => {
     const d = new Date();
@@ -145,7 +147,7 @@ export default function PrenotazioniPage() {
         .order('time', { ascending: true });
 
       if (error) throw error;
-      
+
       const mapped: TableBooking[] = (data || []).map((b: any) => ({
         id: b.id,
         restaurantId: b.restaurant_id,
@@ -206,16 +208,29 @@ export default function PrenotazioniPage() {
     setShowModal(true);
   };
 
-  const handleUpdateStatus = async (id: string, newStatus: 'pending' | 'confirmed' | 'cancelled') => {
+  const handleUpdateStatus = async (
+    id: string,
+    newStatus: 'pending' | 'confirmed' | 'cancelled'
+  ) => {
     const targetBooking = bookings.find((b) => b.id === id);
     if (!targetBooking) return;
 
     let updatedLinkedOrderId = targetBooking.linkedOrderId;
 
     try {
-      if (newStatus === 'confirmed' && targetBooking.preOrderItems && targetBooking.preOrderItems.length > 0 && !targetBooking.linkedOrderId) {
-        const calculatedTotal = targetBooking.preOrderTotal || targetBooking.preOrderItems.reduce((acc: number, item: any) => acc + ((item.price || 0) * (item.qty || 1)), 0);
-        
+      if (
+        newStatus === 'confirmed' &&
+        targetBooking.preOrderItems &&
+        targetBooking.preOrderItems.length > 0 &&
+        !targetBooking.linkedOrderId
+      ) {
+        const calculatedTotal =
+          targetBooking.preOrderTotal ||
+          targetBooking.preOrderItems.reduce(
+            (acc: number, item: any) => acc + (item.price || 0) * (item.qty || 1),
+            0
+          );
+
         // 1. Create order in Supabase
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
@@ -249,9 +264,7 @@ export default function PrenotazioniPage() {
             removed_ingredients: item.removedIngredients || [],
             selected_options: item.selectedOptions || [],
           }));
-          const { error: itemsError } = await supabase
-            .from('order_items')
-            .insert(itemsPayload);
+          const { error: itemsError } = await supabase.from('order_items').insert(itemsPayload);
           if (itemsError) throw itemsError;
         }
 
@@ -271,7 +284,7 @@ export default function PrenotazioniPage() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       // Refetch bookings to update state
       await fetchBookings();
     } catch (e) {
@@ -283,16 +296,13 @@ export default function PrenotazioniPage() {
   const handleDeleteBooking = async (id: string) => {
     if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
       try {
-        const { error } = await supabase
-          .from('bookings')
-          .delete()
-          .eq('id', id);
+        const { error } = await supabase.from('bookings').delete().eq('id', id);
 
         if (error) throw error;
         await fetchBookings();
       } catch (e) {
         console.error('Error deleting booking:', e);
-        alert('Errore nell\'eliminazione della prenotazione.');
+        alert("Errore nell'eliminazione della prenotazione.");
       }
     }
   };
@@ -321,9 +331,7 @@ export default function PrenotazioniPage() {
           .eq('id', editingBooking.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('bookings')
-          .insert(bookingPayload);
+        const { error } = await supabase.from('bookings').insert(bookingPayload);
         if (error) throw error;
       }
 
@@ -365,7 +373,7 @@ export default function PrenotazioniPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-prenotazioni"
-        onSectionChange={() => { }}
+        onSectionChange={() => {}}
         role="ristoratore"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -479,8 +487,11 @@ export default function PrenotazioniPage() {
                       setDateFilterType('today');
                       setFilterDate(getTodayStr());
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${dateFilterType === 'today' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${
+                      dateFilterType === 'today'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
                     Oggi
                   </button>
@@ -489,8 +500,11 @@ export default function PrenotazioniPage() {
                       setDateFilterType('tomorrow');
                       setFilterDate(getTomorrowStr());
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${dateFilterType === 'tomorrow' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${
+                      dateFilterType === 'tomorrow'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
                     Domani
                   </button>
@@ -499,8 +513,11 @@ export default function PrenotazioniPage() {
                       setDateFilterType('next7');
                       setFilterDate('');
                     }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${dateFilterType === 'next7' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${
+                      dateFilterType === 'next7'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
                     Prossimi 7 Giorni
                   </button>
@@ -551,12 +568,13 @@ export default function PrenotazioniPage() {
                   {filteredBookings.map((booking) => (
                     <div
                       key={booking.id}
-                      className={`p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-muted/30 transition-all duration-200 border-l-4 ${booking.status === 'confirmed'
-                        ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
-                        : booking.status === 'cancelled'
-                          ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
-                          : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
-                        }`}
+                      className={`p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-muted/30 transition-all duration-200 border-l-4 ${
+                        booking.status === 'confirmed'
+                          ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
+                          : booking.status === 'cancelled'
+                            ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
+                            : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
+                      }`}
                     >
                       {/* Date & Time Widget */}
                       <div className="flex items-center gap-3 flex-shrink-0">
@@ -574,7 +592,9 @@ export default function PrenotazioniPage() {
                             {booking.time}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {new Date(booking.date).toLocaleDateString('it-IT', { weekday: 'short' })}
+                            {new Date(booking.date).toLocaleDateString('it-IT', {
+                              weekday: 'short',
+                            })}
                           </span>
                         </div>
                       </div>
@@ -624,7 +644,10 @@ export default function PrenotazioniPage() {
                         <div className="lg:col-span-1 space-y-2">
                           {booking.notes && (
                             <div className="bg-background/80 p-2.5 rounded-lg border border-border/60 text-xs flex gap-1.5 max-w-xs lg:max-w-none">
-                              <MessageSquare size={12} className="text-primary/75 flex-shrink-0 mt-0.5" />
+                              <MessageSquare
+                                size={12}
+                                className="text-primary/75 flex-shrink-0 mt-0.5"
+                              />
                               <p className="text-muted-foreground italic line-clamp-2 leading-tight">
                                 &quot;{booking.notes}&quot;
                               </p>
@@ -646,20 +669,35 @@ export default function PrenotazioniPage() {
                               <div className="space-y-1 font-medium text-foreground text-[11px]">
                                 {booking.preOrderItems.map((item: any, idx: number) => (
                                   <div key={idx} className="flex justify-between gap-2">
-                                    <span className="truncate">{item.qty}x {item.name}</span>
-                                    <span className="font-semibold text-muted-foreground">€{(item.price * item.qty).toFixed(2)}</span>
+                                    <span className="truncate">
+                                      {item.qty}x {item.name}
+                                    </span>
+                                    <span className="font-semibold text-muted-foreground">
+                                      €{(item.price * item.qty).toFixed(2)}
+                                    </span>
                                   </div>
                                 ))}
                                 <div className="border-t border-green-500/15 pt-1 mt-1 flex justify-between font-bold text-green-700 dark:text-green-400">
                                   <span>Totale:</span>
-                                  <span>€{booking.preOrderItems.reduce((acc: number, item: any) => acc + item.price * item.qty, 0).toFixed(2)}</span>
+                                  <span>
+                                    €
+                                    {booking.preOrderItems
+                                      .reduce(
+                                        (acc: number, item: any) => acc + item.price * item.qty,
+                                        0
+                                      )
+                                      .toFixed(2)}
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           )}
-                          {!booking.notes && (!booking.preOrderItems || booking.preOrderItems.length === 0) && (
-                            <span className="text-xs text-muted-foreground/40 italic">Nessuna nota</span>
-                          )}
+                          {!booking.notes &&
+                            (!booking.preOrderItems || booking.preOrderItems.length === 0) && (
+                              <span className="text-xs text-muted-foreground/40 italic">
+                                Nessuna nota
+                              </span>
+                            )}
                         </div>
                       </div>
 

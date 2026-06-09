@@ -117,9 +117,7 @@ export default function DeliveryZonesPage() {
     if (!zone) return;
 
     const newStatus = !zone.enabled;
-    setZones((prev) =>
-      prev.map((z) => (z.id === id ? { ...z, enabled: newStatus } : z))
-    );
+    setZones((prev) => prev.map((z) => (z.id === id ? { ...z, enabled: newStatus } : z)));
 
     try {
       const { error } = await supabase
@@ -130,9 +128,7 @@ export default function DeliveryZonesPage() {
       if (error) throw error;
     } catch (e) {
       console.error('Error toggling zone:', e);
-      setZones((prev) =>
-        prev.map((z) => (z.id === id ? { ...z, enabled: !newStatus } : z))
-      );
+      setZones((prev) => prev.map((z) => (z.id === id ? { ...z, enabled: !newStatus } : z)));
       alert('Impossibile aggiornare lo stato della zona.');
     }
   };
@@ -167,10 +163,7 @@ export default function DeliveryZonesPage() {
       setZones((prev) => prev.filter((z) => z.id !== id));
 
       try {
-        const { error } = await supabase
-          .from('delivery_zones')
-          .delete()
-          .eq('id', id);
+        const { error } = await supabase.from('delivery_zones').delete().eq('id', id);
 
         if (error) throw error;
       } catch (e) {
@@ -410,9 +403,7 @@ export default function DeliveryZonesPage() {
                       >
                         {/* Header: Zone Name & Enable Toggle */}
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-foreground text-sm">
-                            {zone.name}
-                          </span>
+                          <span className="font-bold text-foreground text-sm">{zone.name}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-muted-foreground">
                               {zone.enabled ? 'Abilitata' : 'Disabilitata'}

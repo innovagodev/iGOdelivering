@@ -16,7 +16,8 @@ const inputClass =
   'w-full bg-input border border-border rounded-xl px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-ring tabular-nums';
 const inputWithIconClass =
   'w-full pl-7 pr-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums';
-const labelClass = 'block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5';
+const labelClass =
+  'block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5';
 
 export default function DeliveryZonesStep({
   zones,
@@ -165,11 +166,7 @@ export default function DeliveryZonesStep({
                     type="number"
                     value={zone.freeDeliveryThreshold}
                     onChange={(e) =>
-                      updateZone(
-                        zone.id,
-                        'freeDeliveryThreshold',
-                        parseFloat(e.target.value) || 0
-                      )
+                      updateZone(zone.id, 'freeDeliveryThreshold', parseFloat(e.target.value) || 0)
                     }
                     min={0}
                     step={1}

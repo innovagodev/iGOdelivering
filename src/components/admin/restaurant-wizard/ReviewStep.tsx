@@ -161,18 +161,24 @@ export default function ReviewStep({
                 free_delivery: 'Consegna Gratuita',
               };
               return (
-                <div key={p.id} className="border border-border/80 rounded-xl p-3 flex items-center justify-between bg-muted/40">
+                <div
+                  key={p.id}
+                  className="border border-border/80 rounded-xl p-3 flex items-center justify-between bg-muted/40"
+                >
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-xs bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 uppercase">
                         {p.code}
                       </span>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${p.active ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}>
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${p.active ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}
+                      >
                         {p.active ? 'Attivo' : 'Inattivo'}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-                      {p.description || `${promoLabels[p.type] || p.type} - Valore: ${p.type === 'free_delivery' ? 'Gratis' : p.value + (p.type === 'percentage' || p.type === 'first_order' ? '%' : '€')}`}
+                      {p.description ||
+                        `${promoLabels[p.type] || p.type} - Valore: ${p.type === 'free_delivery' ? 'Gratis' : p.value + (p.type === 'percentage' || p.type === 'first_order' ? '%' : '€')}`}
                     </p>
                   </div>
                 </div>
@@ -188,7 +194,8 @@ export default function ReviewStep({
           <div>
             <h4 className="text-sm font-bold text-foreground">Stato di Salvataggio</h4>
             <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-              Salva come bozza per generare il link e vedere l'anteprima, oppure pubblica per andare online.
+              Salva come bozza per generare il link e vedere l&apos;anteprima, oppure pubblica per
+              andare online.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -199,7 +206,9 @@ export default function ReviewStep({
                   : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${isSavedDraft ? 'bg-muted-foreground' : 'bg-orange-500 animate-pulse'}`} />
+              <span
+                className={`w-2 h-2 rounded-full ${isSavedDraft ? 'bg-muted-foreground' : 'bg-orange-500 animate-pulse'}`}
+              />
               {isSavedDraft ? `Bozza Salvata` : 'Non Salvato'}
             </span>
 

@@ -33,18 +33,18 @@ export interface RestaurantPaymentMethods {
   card?: boolean;
   // Stripe Connect OAuth
   stripe_enabled?: boolean;
-  stripe_connected?: boolean;       // true = account Stripe collegato via OAuth
-  stripe_account_id?: string;       // acct_xxx — ID pubblico account Stripe (non sensibile)
-  stripe_account_label?: string;    // Nome leggibile account (es. email ristorante)
+  stripe_connected?: boolean; // true = account Stripe collegato via OAuth
+  stripe_account_id?: string; // acct_xxx — ID pubblico account Stripe (non sensibile)
+  stripe_account_label?: string; // Nome leggibile account (es. email ristorante)
   // PayPal OAuth
   paypal_enabled?: boolean;
-  paypal_connected?: boolean;       // true = account PayPal collegato via OAuth
-  paypal_merchant_id?: string;      // ID pubblico account PayPal (non sensibile)
-  paypal_email?: string;            // Email account PayPal (per UI)
+  paypal_connected?: boolean; // true = account PayPal collegato via OAuth
+  paypal_merchant_id?: string; // ID pubblico account PayPal (non sensibile)
+  paypal_email?: string; // Email account PayPal (per UI)
   // IBAN (dato pubblico, nessun OAuth)
   iban_enabled?: boolean;
-  onlinePaymentAccount?: string;    // Codice IBAN
-  ibanHolder?: string;              // Intestatario conto
+  onlinePaymentAccount?: string; // Codice IBAN
+  ibanHolder?: string; // Intestatario conto
 }
 
 export interface RestaurantSettingsFull {

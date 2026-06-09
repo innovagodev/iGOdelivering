@@ -1,4 +1,9 @@
-export type PromoType = 'percentage' | 'fixed_amount' | 'threshold_based' | 'first_order' | 'free_delivery';
+export type PromoType =
+  | 'percentage'
+  | 'fixed_amount'
+  | 'threshold_based'
+  | 'first_order'
+  | 'free_delivery';
 
 export interface PromoCode {
   id: string;

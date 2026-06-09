@@ -32,8 +32,8 @@ const slugify = (text: string) => {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
 };
 
 interface Restaurant {
@@ -68,7 +68,9 @@ export default function AdminRestaurantsPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(
+    null
+  );
 
   const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
     setFeedback({ message, type });
@@ -78,9 +80,7 @@ export default function AdminRestaurantsPage() {
   const loadRestaurants = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('restaurants')
-        .select('*, profiles(name, email)');
+      const { data, error } = await supabase.from('restaurants').select('*, profiles(name, email)');
 
       if (error) throw error;
 
@@ -124,9 +124,7 @@ export default function AdminRestaurantsPage() {
     if (!restaurant) return;
 
     const newStatus = restaurant.status === 'suspended' ? 'published' : 'suspended';
-    setRestaurants((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
+    setRestaurants((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
 
     try {
       const { error } = await supabase
@@ -149,9 +147,7 @@ export default function AdminRestaurantsPage() {
     const restaurant = restaurants.find((r) => r.id === id);
     if (!restaurant) return;
 
-    setRestaurants((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'published' } : r))
-    );
+    setRestaurants((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'published' } : r)));
 
     try {
       const { error } = await supabase
@@ -173,15 +169,13 @@ export default function AdminRestaurantsPage() {
       if (!response.ok) {
         const errData = await response.json();
         console.error('Failed to send activation email:', errData.error);
-        showFeedback('Ristorante pubblicato, ma non è stato possibile inviare l\'email.', 'error');
+        showFeedback("Ristorante pubblicato, ma non è stato possibile inviare l'email.", 'error');
       } else {
         showFeedback('Ristorante pubblicato! Email di attivazione inviata.');
       }
     } catch (e) {
       console.error('Error publishing restaurant:', e);
-      setRestaurants((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: 'draft' } : r))
-      );
+      setRestaurants((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'draft' } : r)));
       showFeedback('Impossibile pubblicare il ristorante.', 'error');
     }
   };
@@ -192,10 +186,7 @@ export default function AdminRestaurantsPage() {
     setRestaurants((prev) => prev.filter((r) => r.id !== deleteTarget.id));
 
     try {
-      const { error } = await supabase
-        .from('restaurants')
-        .delete()
-        .eq('id', deleteTarget.id);
+      const { error } = await supabase.from('restaurants').delete().eq('id', deleteTarget.id);
 
       if (error) throw error;
       setDeleteTarget(null);
@@ -244,11 +235,13 @@ export default function AdminRestaurantsPage() {
 
         <main className="flex-1 min-h-0 overflow-y-auto relative">
           {feedback && (
-            <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
-              feedback.type === 'error'
-                ? 'bg-red-600 text-white'
-                : 'bg-foreground text-background'
-            }`}>
+            <div
+              className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
+                feedback.type === 'error'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-foreground text-background'
+              }`}
+            >
               {feedback.type === 'error' ? <AlertCircle size={14} /> : <Zap size={14} />}
               {feedback.message}
             </div>
@@ -394,143 +387,148 @@ export default function AdminRestaurantsPage() {
                       </tr>
                     ) : (
                       filtered.map((r) => {
-                      const sc = statusConfig[r.status];
-                      const isSuspended = r.status === 'suspended';
-                      return (
-                        <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
-                                <Store size={16} className="text-primary" />
+                        const sc = statusConfig[r.status];
+                        const isSuspended = r.status === 'suspended';
+                        return (
+                          <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
+                                  <Store size={16} className="text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-sm text-foreground">{r.name}</p>
+                                  <p className="text-xs text-muted-foreground">{r.category}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-semibold text-sm text-foreground">{r.name}</p>
-                                <p className="text-xs text-muted-foreground">{r.category}</p>
+                            </td>
+                            <td className="px-5 py-4 hidden md:table-cell">
+                              <div className="flex flex-col">
+                                {r.owner_id ? (
+                                  <>
+                                    <p className="text-sm text-foreground font-medium">{r.owner}</p>
+                                    <p className="text-xs text-muted-foreground">{r.email}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="inline-flex items-center text-xs font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-2 py-0.5 rounded w-max">
+                                      Attivazione pendente
+                                    </span>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {r.email}
+                                    </p>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 hidden md:table-cell">
-                            <div className="flex flex-col">
-                              {r.owner_id ? (
-                                <>
-                                  <p className="text-sm text-foreground font-medium">{r.owner}</p>
-                                  <p className="text-xs text-muted-foreground">{r.email}</p>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="inline-flex items-center text-xs font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-2 py-0.5 rounded w-max">
-                                    Attivazione pendente
-                                  </span>
-                                  <p className="text-xs text-muted-foreground mt-0.5">{r.email}</p>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 hidden lg:table-cell">
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <MapPin size={12} />
-                              {r.city}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                r.status === 'published'
-                                  ? 'bg-[var(--success-bg)] text-[var(--success)]'
-                                  : r.status === 'draft'
-                                    ? 'bg-muted text-muted-foreground'
-                                    : 'bg-[var(--warning-bg)] text-[var(--warning)]'
-                              }`}
-                            >
-                              {sc.icon}
-                              {sc.label}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4 hidden lg:table-cell">
-                            <span className="text-sm font-semibold tabular-nums text-foreground">
-                              {r.menuItems}
-                            </span>
-                            <span className="text-xs text-muted-foreground ml-1">voci</span>
-                          </td>
-                          <td className="px-5 py-4 hidden xl:table-cell">
-                            <span className="text-sm font-semibold tabular-nums text-foreground">
-                              {r.ordersToday}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center justify-end gap-1">
-                              <Link
-                                href={`/menu/${slugify(r.name)}`}
-                                target="_blank"
-                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                                title="Apri Vetrina"
+                            </td>
+                            <td className="px-5 py-4 hidden lg:table-cell">
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <MapPin size={12} />
+                                {r.city}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                  r.status === 'published'
+                                    ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                                    : r.status === 'draft'
+                                      ? 'bg-muted text-muted-foreground'
+                                      : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+                                }`}
                               >
-                                <ExternalLink size={15} />
-                              </Link>
-                              <Link
-                                href={`/admin/restaurants/${r.id}/configure`}
-                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                title="Configura ristorante"
-                              >
-                                <Settings size={15} />
-                              </Link>
-                              <Link
-                                href={`/admin/restaurants/${r.id}/access`}
-                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                title="Gestisci accessi"
-                              >
-                                <Users size={15} />
-                              </Link>
-                              {!r.owner_id && (
-                                <button
-                                  onClick={() => {
-                                    const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
-                                    navigator.clipboard.writeText(link);
-                                    showFeedback('Link di attivazione copiato negli appunti!');
-                                  }}
-                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                                  title="Copia link attivazione"
+                                {sc.icon}
+                                {sc.label}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 hidden lg:table-cell">
+                              <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {r.menuItems}
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-1">voci</span>
+                            </td>
+                            <td className="px-5 py-4 hidden xl:table-cell">
+                              <span className="text-sm font-semibold tabular-nums text-foreground">
+                                {r.ordersToday}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex items-center justify-end gap-1">
+                                <Link
+                                  href={`/menu/${slugify(r.name)}`}
+                                  target="_blank"
+                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                                  title="Apri Vetrina"
                                 >
-                                  <Copy size={15} />
-                                </button>
-                              )}
-                              {r.status === 'draft' ? (
-                                <button
-                                  onClick={() => handlePublishDraft(r.id)}
-                                  className="p-2 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors cursor-pointer"
-                                  title="Pubblica ristorante"
+                                  <ExternalLink size={15} />
+                                </Link>
+                                <Link
+                                  href={`/admin/restaurants/${r.id}/configure`}
+                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Configura ristorante"
                                 >
-                                  <PlayCircle size={15} />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleToggleSuspend(r.id)}
-                                  className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                                    isSuspended
-                                      ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
-                                      : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
-                                  }`}
-                                  title={isSuspended ? 'Riattiva ristorante' : 'Sospendi ristorante'}
+                                  <Settings size={15} />
+                                </Link>
+                                <Link
+                                  href={`/admin/restaurants/${r.id}/access`}
+                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Gestisci accessi"
                                 >
-                                  {isSuspended ? (
+                                  <Users size={15} />
+                                </Link>
+                                {!r.owner_id && (
+                                  <button
+                                    onClick={() => {
+                                      const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
+                                      navigator.clipboard.writeText(link);
+                                      showFeedback('Link di attivazione copiato negli appunti!');
+                                    }}
+                                    className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                                    title="Copia link attivazione"
+                                  >
+                                    <Copy size={15} />
+                                  </button>
+                                )}
+                                {r.status === 'draft' ? (
+                                  <button
+                                    onClick={() => handlePublishDraft(r.id)}
+                                    className="p-2 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors cursor-pointer"
+                                    title="Pubblica ristorante"
+                                  >
                                     <PlayCircle size={15} />
-                                  ) : (
-                                    <PauseOctagon size={15} />
-                                  )}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleToggleSuspend(r.id)}
+                                    className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                                      isSuspended
+                                        ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
+                                        : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
+                                    }`}
+                                    title={
+                                      isSuspended ? 'Riattiva ristorante' : 'Sospendi ristorante'
+                                    }
+                                  >
+                                    {isSuspended ? (
+                                      <PlayCircle size={15} />
+                                    ) : (
+                                      <PauseOctagon size={15} />
+                                    )}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setDeleteTarget(r)}
+                                  className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
+                                  title="Elimina ristorante"
+                                >
+                                  <Trash2 size={15} />
                                 </button>
-                              )}
-                              <button
-                                onClick={() => setDeleteTarget(r)}
-                                className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors cursor-pointer"
-                                title="Elimina ristorante"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }))}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -551,135 +549,134 @@ export default function AdminRestaurantsPage() {
                     const isSuspended = r.status === 'suspended';
                     return (
                       <div key={r.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
-                            <Store size={16} className="text-primary" />
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
+                              <Store size={16} className="text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-sm text-foreground">{r.name}</h4>
+                              <p className="text-xs text-muted-foreground">{r.category}</p>
+                            </div>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              r.status === 'published'
+                                ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                                : r.status === 'draft'
+                                  ? 'bg-muted text-muted-foreground'
+                                  : 'bg-[var(--warning-bg)] text-[var(--warning)]'
+                            }`}
+                          >
+                            {sc.icon}
+                            {sc.label}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
+                          <div>
+                            <p className="text-muted-foreground mb-0.5">Proprietario</p>
+                            {r.owner_id ? (
+                              <>
+                                <p className="font-medium text-foreground">{r.owner}</p>
+                                <p className="text-muted-foreground text-[10px]">{r.email}</p>
+                              </>
+                            ) : (
+                              <>
+                                <span className="inline-flex items-center text-[10px] font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-1.5 py-0.5 rounded">
+                                  Attivazione pendente
+                                </span>
+                                <p className="text-muted-foreground text-[10px] mt-0.5">
+                                  {r.email}
+                                </p>
+                              </>
+                            )}
                           </div>
                           <div>
-                            <h4 className="font-semibold text-sm text-foreground">{r.name}</h4>
-                            <p className="text-xs text-muted-foreground">{r.category}</p>
+                            <p className="text-muted-foreground mb-0.5">Località</p>
+                            <p className="font-medium text-foreground">{r.city}</p>
+                          </div>
+                          <div className="mt-1">
+                            <p className="text-muted-foreground mb-0.5">Menu</p>
+                            <p className="font-medium text-foreground">{r.menuItems} voci</p>
+                          </div>
+                          <div className="mt-1">
+                            <p className="text-muted-foreground mb-0.5">Ordini Oggi</p>
+                            <p className="font-medium text-foreground">{r.ordersToday}</p>
                           </div>
                         </div>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            r.status === 'published'
-                              ? 'bg-[var(--success-bg)] text-[var(--success)]'
-                              : r.status === 'draft'
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-[var(--warning-bg)] text-[var(--warning)]'
-                          }`}
-                        >
-                          {sc.icon}
-                          {sc.label}
-                        </span>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
-                        <div>
-                          <p className="text-muted-foreground mb-0.5">Proprietario</p>
-                          {r.owner_id ? (
-                            <>
-                              <p className="font-medium text-foreground">{r.owner}</p>
-                              <p className="text-muted-foreground text-[10px]">{r.email}</p>
-                            </>
-                          ) : (
-                            <>
-                              <span className="inline-flex items-center text-[10px] font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-1.5 py-0.5 rounded">
-                                Attivazione pendente
-                              </span>
-                              <p className="text-muted-foreground text-[10px] mt-0.5">{r.email}</p>
-                            </>
+                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                          <Link
+                            href={`/menu/${slugify(r.name)}`}
+                            target="_blank"
+                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors text-xs font-semibold border border-border/50"
+                            title="Apri Vetrina"
+                          >
+                            <ExternalLink size={14} className="mr-1" />
+                            Menu
+                          </Link>
+                          <Link
+                            href={`/admin/restaurants/${r.id}/configure`}
+                            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                            title="Configura"
+                          >
+                            <Settings size={14} />
+                          </Link>
+                          <Link
+                            href={`/admin/restaurants/${r.id}/access`}
+                            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                            title="Accessi"
+                          >
+                            <Users size={14} />
+                          </Link>
+                          {!r.owner_id && (
+                            <button
+                              onClick={() => {
+                                const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
+                                navigator.clipboard.writeText(link);
+                                showFeedback('Link di attivazione copiato negli appunti!');
+                              }}
+                              className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted hover:bg-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors cursor-pointer border border-border/50"
+                              title="Copia link attivazione"
+                            >
+                              <Copy size={13} />
+                              Link Attivazione
+                            </button>
                           )}
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground mb-0.5">Località</p>
-                          <p className="font-medium text-foreground">{r.city}</p>
-                        </div>
-                        <div className="mt-1">
-                          <p className="text-muted-foreground mb-0.5">Menu</p>
-                          <p className="font-medium text-foreground">{r.menuItems} voci</p>
-                        </div>
-                        <div className="mt-1">
-                          <p className="text-muted-foreground mb-0.5">Ordini Oggi</p>
-                          <p className="font-medium text-foreground">{r.ordersToday}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-1.5 pt-1">
-                        <Link
-                          href={`/menu/${slugify(r.name)}`}
-                          target="_blank"
-                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors text-xs font-semibold border border-border/50"
-                          title="Apri Vetrina"
-                        >
-                          <ExternalLink size={14} className="mr-1" />
-                          Menu
-                        </Link>
-                        <Link
-                          href={`/admin/restaurants/${r.id}/configure`}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
-                          title="Configura"
-                        >
-                          <Settings size={14} />
-                        </Link>
-                        <Link
-                          href={`/admin/restaurants/${r.id}/access`}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
-                          title="Accessi"
-                        >
-                          <Users size={14} />
-                        </Link>
-                        {!r.owner_id && (
-                          <button
-                            onClick={() => {
-                              const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
-                              navigator.clipboard.writeText(link);
-                              showFeedback('Link di attivazione copiato negli appunti!');
-                            }}
-                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted hover:bg-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors cursor-pointer border border-border/50"
-                            title="Copia link attivazione"
-                          >
-                            <Copy size={13} />
-                            Link Attivazione
-                          </button>
-                        )}
-                        {r.status === 'draft' ? (
-                          <button
-                            onClick={() => handlePublishDraft(r.id)}
-                            className="p-1.5 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50 cursor-pointer"
-                            title="Pubblica"
-                          >
-                            <PlayCircle size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleToggleSuspend(r.id)}
-                            className={`p-1.5 rounded-lg transition-colors border border-border/50 ${
-                              isSuspended
-                                ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
-                                : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
-                            }`}
-                            title={isSuspended ? 'Riattiva' : 'Sospendi'}
-                          >
-                            {isSuspended ? (
+                          {r.status === 'draft' ? (
+                            <button
+                              onClick={() => handlePublishDraft(r.id)}
+                              className="p-1.5 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50 cursor-pointer"
+                              title="Pubblica"
+                            >
                               <PlayCircle size={14} />
-                            ) : (
-                              <PauseOctagon size={14} />
-                            )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleSuspend(r.id)}
+                              className={`p-1.5 rounded-lg transition-colors border border-border/50 ${
+                                isSuspended
+                                  ? 'hover:bg-[var(--success-bg)] text-[var(--success)] hover:text-[var(--success)]'
+                                  : 'hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)]'
+                              }`}
+                              title={isSuspended ? 'Riattiva' : 'Sospendi'}
+                            >
+                              {isSuspended ? <PlayCircle size={14} /> : <PauseOctagon size={14} />}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setDeleteTarget(r)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
+                            title="Elimina"
+                          >
+                            <Trash2 size={14} />
                           </button>
-                        )}
-                        <button
-                          onClick={() => setDeleteTarget(r)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
-                          title="Elimina"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                }))}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

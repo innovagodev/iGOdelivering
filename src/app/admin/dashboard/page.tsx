@@ -41,7 +41,13 @@ export default function AdminDashboardPage() {
     newRestaurants: 0,
     topRestaurants: [] as { name: string; ordini: number; ricavi: number }[],
     orderTrendData: [] as { name: string; ordini: number; ricavi: number }[],
-    recentActivities: [] as { id: number; type: string; text: string; time: string; meta: string }[],
+    recentActivities: [] as {
+      id: number;
+      type: string;
+      text: string;
+      time: string;
+      meta: string;
+    }[],
   });
   const [loading, setLoading] = useState(true);
 
@@ -88,7 +94,9 @@ export default function AdminDashboardPage() {
           .filter((o) => o.status !== 'cancelled')
           .reduce((acc, o) => acc + Number(o.total || 0), 0);
 
-        const newRestaurantsCount = restaurantsList.filter((r) => new Date(r.created_at) >= startOfMonth).length;
+        const newRestaurantsCount = restaurantsList.filter(
+          (r) => new Date(r.created_at) >= startOfMonth
+        ).length;
 
         const revenueMap: Record<string, { name: string; ordini: number; ricavi: number }> = {};
         restaurantsList.forEach((r) => {
@@ -158,7 +166,8 @@ export default function AdminDashboardPage() {
             type: 'order',
             text: `Nuovo ordine registrato per "${rest?.name || 'Ristorante'}" di € ${Number(o.total).toFixed(2)}.`,
             time: getRelativeTime(createdDate),
-            meta: o.type === 'domicilio' ? 'Domicilio' : (o.type === 'asporto' ? 'Asporto' : 'Tavolo'),
+            meta:
+              o.type === 'domicilio' ? 'Domicilio' : o.type === 'asporto' ? 'Asporto' : 'Tavolo',
             date: createdDate,
           });
         });
@@ -183,7 +192,6 @@ export default function AdminDashboardPage() {
           orderTrendData: mappedTrend,
           recentActivities: sortedActivities,
         });
-
       } catch (e) {
         console.error('Error loading admin dashboard stats:', e);
       } finally {
@@ -259,7 +267,9 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Ristoranti Attivi</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{loading ? '...' : stats.activeRestaurants}</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {loading ? '...' : stats.activeRestaurants}
+                  </p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
                     Aggiornato live
@@ -274,7 +284,9 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Ordini di Oggi</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{loading ? '...' : stats.todayOrders}</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {loading ? '...' : stats.todayOrders}
+                  </p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
                     Ricevuti oggi
@@ -289,7 +301,15 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Ricavi di Oggi</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">€ {loading ? '...' : stats.todayRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    €{' '}
+                    {loading
+                      ? '...'
+                      : stats.todayRevenue.toLocaleString('it-IT', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                  </p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
                     Stima fatturato
@@ -304,7 +324,9 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-4 shadow-card flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">Nuovi Ristoranti</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{loading ? '...' : stats.newRestaurants}</p>
+                  <p className="text-2xl font-bold text-foreground mt-1">
+                    {loading ? '...' : stats.newRestaurants}
+                  </p>
                   <span className="text-xs text-muted-foreground font-medium mt-1 block">
                     Questo mese
                   </span>
@@ -385,15 +407,15 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-5 shadow-card space-y-4">
                 <div>
                   <h2 className="text-base font-bold text-foreground">Top Ristoranti</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Per fatturato totale
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Per fatturato totale</p>
                 </div>
                 <div className="space-y-4">
                   {loading ? (
                     <p className="text-xs text-muted-foreground py-4 text-center">Caricamento...</p>
                   ) : stats.topRestaurants.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-4 text-center">Nessun dato di vendita disponibile</p>
+                    <p className="text-xs text-muted-foreground py-4 text-center">
+                      Nessun dato di vendita disponibile
+                    </p>
                   ) : (
                     stats.topRestaurants.map((restaurant, idx) => (
                       <div key={restaurant.name} className="flex items-center justify-between">
@@ -402,13 +424,17 @@ export default function AdminDashboardPage() {
                             {idx + 1}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
+                            <p className="text-sm font-semibold text-foreground">
+                              {restaurant.name}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {restaurant.ordini} ordini
                             </p>
                           </div>
                         </div>
-                        <p className="text-sm font-bold text-foreground">€ {restaurant.ricavi.toFixed(2)}</p>
+                        <p className="text-sm font-bold text-foreground">
+                          € {restaurant.ricavi.toFixed(2)}
+                        </p>
                       </div>
                     ))
                   )}
@@ -430,7 +456,9 @@ export default function AdminDashboardPage() {
                   {loading ? (
                     <p className="text-xs text-muted-foreground py-4 text-center">Caricamento...</p>
                   ) : stats.recentActivities.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-4 text-center">Nessuna attività registrata</p>
+                    <p className="text-xs text-muted-foreground py-4 text-center">
+                      Nessuna attività registrata
+                    </p>
                   ) : (
                     stats.recentActivities.map((act) => (
                       <div

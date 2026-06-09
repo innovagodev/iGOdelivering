@@ -61,7 +61,10 @@ export default function PagamentiPage() {
           .single();
 
         if (error) {
-          console.warn('Error loading settings from Supabase (schema mismatch):', error.message || error);
+          console.warn(
+            'Error loading settings from Supabase (schema mismatch):',
+            error.message || error
+          );
         }
         if (data) {
           setCardDelivery(!!data.card_delivery);
@@ -125,7 +128,6 @@ export default function PagamentiPage() {
       console.warn('Error saving settings to Supabase:', e.message || e);
       alert('Errore durante il salvataggio delle impostazioni di pagamento.');
     }
-
   };
 
   if (loading) {
@@ -142,7 +144,7 @@ export default function PagamentiPage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
         activeSection="nav-pagamenti"
-        onSectionChange={() => { }}
+        onSectionChange={() => {}}
         role="ristoratore"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -165,10 +167,7 @@ export default function PagamentiPage() {
         />
 
         <main className="flex-1 min-h-0 overflow-y-auto">
-          <form
-            onSubmit={handleSave}
-            className="max-w-4xl mx-auto px-6 lg:px-8 py-6 space-y-6"
-          >
+          <form onSubmit={handleSave} className="max-w-4xl mx-auto px-6 lg:px-8 py-6 space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -204,7 +203,8 @@ export default function PagamentiPage() {
                     Opzioni di Pagamento
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Configura i canali di pagamento per la consegna, l&apos;asporto e i pagamenti online.
+                    Configura i canali di pagamento per la consegna, l&apos;asporto e i pagamenti
+                    online.
                   </p>
                 </div>
 
@@ -218,21 +218,27 @@ export default function PagamentiPage() {
                       <div className="flex items-center justify-between text-sm p-3 bg-muted/20 border border-border rounded-xl">
                         <div>
                           <p className="font-semibold text-foreground">POS alla Consegna</p>
-                          <p className="text-[10px] text-muted-foreground">POS portatile del corriere</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            POS portatile del corriere
+                          </p>
                         </div>
                         <Toggle checked={cardDelivery} onChange={setCardDelivery} size="sm" />
                       </div>
                       <div className="flex items-center justify-between text-sm p-3 bg-muted/20 border border-border rounded-xl">
                         <div>
                           <p className="font-semibold text-foreground">POS al Ritiro</p>
-                          <p className="text-[10px] text-muted-foreground">POS in cassa per asporto</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            POS in cassa per asporto
+                          </p>
                         </div>
                         <Toggle checked={cardPickup} onChange={setCardPickup} size="sm" />
                       </div>
                       <div className="flex items-center justify-between text-sm p-3 bg-muted/20 border border-border rounded-xl">
                         <div>
                           <p className="font-semibold text-foreground">Contanti alla Consegna</p>
-                          <p className="text-[10px] text-muted-foreground">Pagamento al fattorino</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Pagamento al fattorino
+                          </p>
                         </div>
                         <Toggle checked={cashDelivery} onChange={setCashDelivery} size="sm" />
                       </div>
@@ -249,10 +255,13 @@ export default function PagamentiPage() {
                   <div className="border-t border-border/60 my-6" />
 
                   {/* ── STRIPE CONNECT ─────────────────────────── */}
-                  <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${stripeConnected
-                      ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20'
-                      : 'border-border bg-card'
-                    }`}>
+                  <div
+                    className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                      stripeConnected
+                        ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20'
+                        : 'border-border bg-card'
+                    }`}
+                  >
                     <div className="flex items-center justify-between gap-4 p-4">
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Stripe Logo Icon */}
@@ -270,9 +279,13 @@ export default function PagamentiPage() {
                             )}
                           </div>
                           {stripeConnected && stripeAccountLabel ? (
-                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">{stripeAccountLabel}</p>
+                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                              {stripeAccountLabel}
+                            </p>
                           ) : (
-                            <p className="text-[11px] text-muted-foreground">Accetta pagamenti con carta di credito online</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Accetta pagamenti con carta di credito online
+                            </p>
                           )}
                         </div>
                       </div>
@@ -283,7 +296,11 @@ export default function PagamentiPage() {
                             <button
                               type="button"
                               onClick={() => {
-                                if (confirm('Vuoi disconnettere il tuo account Stripe? Il pagamento con carta online verrà disabilitato.')) {
+                                if (
+                                  confirm(
+                                    'Vuoi disconnettere il tuo account Stripe? Il pagamento con carta online verrà disabilitato.'
+                                  )
+                                ) {
                                   setStripeConnected(false);
                                   setStripeAccountLabel('');
                                   setStripeEnabled(false);
@@ -308,10 +325,13 @@ export default function PagamentiPage() {
                   </div>
 
                   {/* ── PAYPAL CONNECT ──────────────────────────── */}
-                  <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${paypalConnected
-                      ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20'
-                      : 'border-border bg-card'
-                    }`}>
+                  <div
+                    className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                      paypalConnected
+                        ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20'
+                        : 'border-border bg-card'
+                    }`}
+                  >
                     <div className="flex items-center justify-between gap-4 p-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center flex-shrink-0">
@@ -328,9 +348,13 @@ export default function PagamentiPage() {
                             )}
                           </div>
                           {paypalConnected && paypalEmail ? (
-                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">{paypalEmail}</p>
+                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                              {paypalEmail}
+                            </p>
                           ) : (
-                            <p className="text-[11px] text-muted-foreground">Accetta pagamenti PayPal e carte online</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Accetta pagamenti PayPal e carte online
+                            </p>
                           )}
                         </div>
                       </div>
@@ -380,8 +404,12 @@ export default function PagamentiPage() {
                 <CreditCard size={24} className="text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Connetti il tuo account Stripe</h3>
-                <p className="text-xs text-muted-foreground">Pochi click, nessuna chiave da copiare</p>
+                <h3 className="text-base font-bold text-foreground">
+                  Connetti il tuo account Stripe
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Pochi click, nessuna chiave da copiare
+                </p>
               </div>
             </div>
 
@@ -393,7 +421,9 @@ export default function PagamentiPage() {
                 { n: '4', text: 'Torni qui con il tuo account Stripe collegato ✓' },
               ].map((s) => (
                 <div key={s.n} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{s.n}</span>
+                  <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                    {s.n}
+                  </span>
                   <p className="text-sm text-foreground/80">{s.text}</p>
                 </div>
               ))}
@@ -401,12 +431,15 @@ export default function PagamentiPage() {
 
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl mb-5">
               <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                <strong>Nota:</strong> La connessione OAuth con Stripe sarà attiva dopo la migrazione al database. Per ora, simuliamo la connessione per testare il flusso.
+                <strong>Nota:</strong> La connessione OAuth con Stripe sarà attiva dopo la
+                migrazione al database. Per ora, simuliamo la connessione per testare il flusso.
               </p>
             </div>
 
             <div className="space-y-1 mb-4">
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email del tuo account Stripe (demo)</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Email del tuo account Stripe (demo)
+              </label>
               <input
                 type="email"
                 placeholder="tuaemail@esempio.it"
@@ -426,7 +459,9 @@ export default function PagamentiPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const emailInput = document.getElementById('stripe-connect-email-input') as HTMLInputElement;
+                  const emailInput = document.getElementById(
+                    'stripe-connect-email-input'
+                  ) as HTMLInputElement;
                   const emailVal = emailInput?.value?.trim() || 'account@stripe.com';
                   setStripeConnected(true);
                   setStripeEnabled(true);
@@ -451,8 +486,12 @@ export default function PagamentiPage() {
                 <CreditCard size={24} className="text-yellow-600 dark:text-yellow-500" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Connetti il tuo account PayPal</h3>
-                <p className="text-xs text-muted-foreground">Autorizza iGOdelivering a ricevere pagamenti per te</p>
+                <h3 className="text-base font-bold text-foreground">
+                  Connetti il tuo account PayPal
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Autorizza iGOdelivering a ricevere pagamenti per te
+                </p>
               </div>
             </div>
 
@@ -461,10 +500,15 @@ export default function PagamentiPage() {
                 { n: '1', text: 'Verrai reindirizzato a PayPal per autorizzare la connessione' },
                 { n: '2', text: 'Accedi con il tuo account PayPal Business' },
                 { n: '3', text: 'Conferma le autorizzazioni per iGOdelivering' },
-                { n: '4', text: 'Il tuo account è collegato, i clienti potranno pagarti con PayPal ✓' },
+                {
+                  n: '4',
+                  text: 'Il tuo account è collegato, i clienti potranno pagarti con PayPal ✓',
+                },
               ].map((s) => (
                 <div key={s.n} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{s.n}</span>
+                  <span className="w-6 h-6 rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                    {s.n}
+                  </span>
                   <p className="text-sm text-foreground/80">{s.text}</p>
                 </div>
               ))}
@@ -472,12 +516,15 @@ export default function PagamentiPage() {
 
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl mb-5">
               <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                <strong>Nota:</strong> L&apos;integrazione OAuth con PayPal sarà attiva dopo la migrazione al database. Per ora, simuliamo la connessione per testare il flusso.
+                <strong>Nota:</strong> L&apos;integrazione OAuth con PayPal sarà attiva dopo la
+                migrazione al database. Per ora, simuliamo la connessione per testare il flusso.
               </p>
             </div>
 
             <div className="space-y-1 mb-4">
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email account PayPal Business (demo)</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Email account PayPal Business (demo)
+              </label>
               <input
                 type="email"
                 placeholder="tuaemail@paypal.com"
@@ -497,7 +544,9 @@ export default function PagamentiPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const emailInput = document.getElementById('paypal-connect-email-input') as HTMLInputElement;
+                  const emailInput = document.getElementById(
+                    'paypal-connect-email-input'
+                  ) as HTMLInputElement;
                   const emailVal = emailInput?.value?.trim() || 'account@paypal.com';
                   setPaypalConnected(true);
                   setPaypalEnabled(true);

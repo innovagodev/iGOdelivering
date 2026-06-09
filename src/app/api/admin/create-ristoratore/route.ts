@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       }
     );
 
-    const { data: { user } } = await supabaseServer.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseServer.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
@@ -45,19 +47,18 @@ export async function POST(request: Request) {
     // 2. Initialize admin client with Service Role Key
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!serviceRoleKey || serviceRoleKey === 'YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE') {
-      return NextResponse.json({ error: 'Configurazione server mancante (SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Configurazione server mancante (SUPABASE_SERVICE_ROLE_KEY)' },
+        { status: 500 }
+      );
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // 3. Create Auth user
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -68,30 +69,34 @@ export async function POST(request: Request) {
     });
 
     if (authError || !authUser.user) {
-      return NextResponse.json({ error: authError?.message || 'Errore creazione utente auth' }, { status: 400 });
+      return NextResponse.json(
+        { error: authError?.message || 'Errore creazione utente auth' },
+        { status: 400 }
+      );
     }
 
-        // 4. Create profile entry
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: authUser.user.id,
-        role: 'ristoratore',
-        name,
-      });
+    // 4. Create profile entry
+    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+      id: authUser.user.id,
+      role: 'ristoratore',
+      name,
+    });
 
     if (profileError) {
       // Clean up user
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-      return NextResponse.json({ error: profileError.message || 'Errore creazione profilo' }, { status: 400 });
+      return NextResponse.json(
+        { error: profileError.message || 'Errore creazione profilo' },
+        { status: 400 }
+      );
     }
 
     // 5. Create restaurant entry
     // Generate clean unique slug
-    let baseSlug = slugify(restaurantName);
+    const baseSlug = slugify(restaurantName);
     let slug = baseSlug;
     let counter = 1;
-    
+
     // Check slug uniqueness
     while (true) {
       const { data: existing } = await supabaseAdmin
@@ -120,7 +125,10 @@ export async function POST(request: Request) {
       // Clean up profile and user
       await supabaseAdmin.from('profiles').delete().eq('id', authUser.user.id);
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-      return NextResponse.json({ error: restError.message || 'Errore creazione ristorante' }, { status: 400 });
+      return NextResponse.json(
+        { error: restError.message || 'Errore creazione ristorante' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
@@ -136,6 +144,9 @@ export async function POST(request: Request) {
     });
   } catch (err: any) {
     console.error('Error in create-ristoratore API:', err);
-    return NextResponse.json({ error: err.message || 'Errore interno del server' }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || 'Errore interno del server' },
+      { status: 500 }
+    );
   }
 }

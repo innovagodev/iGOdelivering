@@ -26,7 +26,9 @@ export async function POST(request: Request) {
       }
     );
 
-    const { data: { user } } = await supabaseServer.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseServer.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
     }
@@ -44,19 +46,18 @@ export async function POST(request: Request) {
     // 2. Initialize admin client with Service Role Key to fetch restaurant info
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!serviceRoleKey || serviceRoleKey === 'YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE') {
-      return NextResponse.json({ error: 'Configurazione server mancante (SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Configurazione server mancante (SUPABASE_SERVICE_ROLE_KEY)' },
+        { status: 500 }
+      );
     }
 
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     // Fetch restaurant details
     const { data: restaurant, error: restError } = await supabaseAdmin
@@ -229,7 +230,7 @@ export async function POST(request: Request) {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
+        Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -244,9 +245,12 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       console.error('Error dispatching via Resend:', resData);
-      return NextResponse.json({
-        error: resData.message || 'Errore durante l\'invio dell\'email via Resend',
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: resData.message || "Errore durante l'invio dell'email via Resend",
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -256,6 +260,9 @@ export async function POST(request: Request) {
     });
   } catch (err: any) {
     console.error('Error in send-activation-email API:', err);
-    return NextResponse.json({ error: err.message || 'Errore interno del server' }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || 'Errore interno del server' },
+      { status: 500 }
+    );
   }
 }

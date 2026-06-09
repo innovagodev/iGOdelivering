@@ -8,11 +8,16 @@ interface PublishedSuccessProps {
   restaurantId?: string;
 }
 
-export default function PublishedSuccess({ restaurantName, email, restaurantId }: PublishedSuccessProps) {
+export default function PublishedSuccess({
+  restaurantName,
+  email,
+  restaurantId,
+}: PublishedSuccessProps) {
   const [copied, setCopied] = useState(false);
-  const activationLink = typeof window !== 'undefined'
-    ? `${window.location.origin}/register?email=${encodeURIComponent(email)}&restaurant_id=${restaurantId || ''}`
-    : '';
+  const activationLink =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/register?email=${encodeURIComponent(email)}&restaurant_id=${restaurantId || ''}`
+      : '';
 
   const handleCopy = () => {
     if (!activationLink) return;
@@ -29,7 +34,8 @@ export default function PublishedSuccess({ restaurantName, email, restaurantId }
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Ristorante Pubblicato!</h2>
         <p className="text-muted-foreground mb-8">
-          <strong>{restaurantName || 'Il ristorante'}</strong> è ora online. Di seguito trovi il link di attivazione generato per il proprietario.
+          <strong>{restaurantName || 'Il ristorante'}</strong> è ora online. Di seguito trovi il
+          link di attivazione generato per il proprietario.
         </p>
         <div className="bg-card border border-border rounded-xl p-5 mb-6 text-left space-y-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
@@ -60,7 +66,8 @@ export default function PublishedSuccess({ restaurantName, email, restaurantId }
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-              Il proprietario dovrà cliccare su questo link per impostare la propria password e attivare l'utenza.
+              Il proprietario dovrà cliccare su questo link per impostare la propria password e
+              attivare l&apos;utenza.
             </p>
           </div>
         </div>

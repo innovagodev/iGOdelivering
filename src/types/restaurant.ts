@@ -11,7 +11,7 @@ export interface OptionChoice {
 export interface OptionGroup {
   id: string;
   name: string;
-  minSelections: number;   // 0 = optional, 1+ = required
+  minSelections: number; // 0 = optional, 1+ = required
   maxSelections: number | null; // null = unlimited, 1 = single choice
   choices: OptionChoice[];
 }

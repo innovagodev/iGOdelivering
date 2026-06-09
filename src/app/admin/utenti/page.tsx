@@ -72,7 +72,12 @@ export default function AdminUtentiPage() {
     setCreateError('');
     setCreateSuccess(false);
 
-    if (!newOwnerName.trim() || !newRestaurantName.trim() || !newEmail.trim() || !newTempPassword.trim()) {
+    if (
+      !newOwnerName.trim() ||
+      !newRestaurantName.trim() ||
+      !newEmail.trim() ||
+      !newTempPassword.trim()
+    ) {
       setCreateError('Tutti i campi sono obbligatori.');
       return;
     }
@@ -138,7 +143,12 @@ export default function AdminUtentiPage() {
           name: p.name || 'Gestore',
           email: r.email || '',
           restaurantName: r.name || 'Nessun ristorante',
-          status: r.status === 'suspended' ? 'suspended' : r.status === 'published' ? 'active' : 'pending',
+          status:
+            r.status === 'suspended'
+              ? 'suspended'
+              : r.status === 'published'
+                ? 'active'
+                : 'pending',
           lastLogin: 'Mai',
         };
       });
@@ -165,7 +175,7 @@ export default function AdminUtentiPage() {
     for (let i = 0; i < 10; i++) {
       pass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    
+
     try {
       const res = await fetch('/api/admin/reset-password', {
         method: 'POST',
@@ -196,7 +206,7 @@ export default function AdminUtentiPage() {
 
   const handleToggleStatus = async (id: string, newStatus: 'active' | 'suspended') => {
     const targetStatus = newStatus === 'active' ? 'published' : 'suspended';
-    
+
     try {
       const { error } = await supabase
         .from('restaurants')

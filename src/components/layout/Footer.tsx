@@ -56,7 +56,9 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
 
   if (variant === 'compact') {
     return (
-      <div className={`flex flex-col gap-1 text-[10px] text-muted-foreground select-none ${className}`}>
+      <div
+        className={`flex flex-col gap-1 text-[10px] text-muted-foreground select-none ${className}`}
+      >
         <div className="flex items-center justify-between gap-2">
           <span>© {year} iGOdelivering</span>
           <span className="font-semibold text-foreground">v{versionData.version}</span>

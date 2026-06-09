@@ -32,7 +32,7 @@ export default function RistoratoreTavoliPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  
+
   // Table configuration states
   const [tableCount, setTableCount] = useState(0);
   const [tempTableCount, setTempTableCount] = useState(0);
@@ -44,7 +44,10 @@ export default function RistoratoreTavoliPage() {
   const [copiedVetrina, setCopiedVetrina] = useState(false);
   const [copiedGenerico, setCopiedGenerico] = useState(false);
 
-  const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
+  const origin =
+    isHydrated && typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://igodelivering.it';
   const showcaseUrl = `${origin}/menu/${restaurantSlug}`;
   const genericTableUrl = `${origin}/menu/${restaurantSlug}?tavolo=generico`;
 
@@ -64,7 +67,7 @@ export default function RistoratoreTavoliPage() {
     const canvas = document.getElementById('vetrina-qr-canvas') as HTMLCanvasElement;
     if (canvas) {
       try {
-        const url = canvas.toDataURL("image/png");
+        const url = canvas.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = url;
         a.download = `qr-vetrina-${restaurantSlug}.png`;
@@ -72,7 +75,7 @@ export default function RistoratoreTavoliPage() {
         a.click();
         a.remove();
       } catch (e) {
-        console.error("Canvas export failed", e);
+        console.error('Canvas export failed', e);
       }
     }
   };
@@ -81,7 +84,7 @@ export default function RistoratoreTavoliPage() {
     const canvas = document.getElementById('generico-qr-canvas') as HTMLCanvasElement;
     if (canvas) {
       try {
-        const url = canvas.toDataURL("image/png");
+        const url = canvas.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = url;
         a.download = `qr-tavolo-generico-${restaurantSlug}.png`;
@@ -89,7 +92,7 @@ export default function RistoratoreTavoliPage() {
         a.click();
         a.remove();
       } catch (e) {
-        console.error("Canvas export failed", e);
+        console.error('Canvas export failed', e);
       }
     }
   };
@@ -98,7 +101,11 @@ export default function RistoratoreTavoliPage() {
     const canvas = document.getElementById('vetrina-qr-canvas') as HTMLCanvasElement;
     let qrDataUrl = '';
     if (canvas) {
-      try { qrDataUrl = canvas.toDataURL("image/png"); } catch(e) {}
+      try {
+        qrDataUrl = canvas.toDataURL('image/png');
+      } catch (e) {
+        /* ignore */
+      }
     }
     if (!qrDataUrl) {
       qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(showcaseUrl)}&ecc=H`;
@@ -206,7 +213,11 @@ export default function RistoratoreTavoliPage() {
     const canvas = document.getElementById('generico-qr-canvas') as HTMLCanvasElement;
     let qrDataUrl = '';
     if (canvas) {
-      try { qrDataUrl = canvas.toDataURL("image/png"); } catch(e) {}
+      try {
+        qrDataUrl = canvas.toDataURL('image/png');
+      } catch (e) {
+        /* ignore */
+      }
     }
     if (!qrDataUrl) {
       qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(genericTableUrl)}&ecc=H`;
@@ -312,7 +323,7 @@ export default function RistoratoreTavoliPage() {
 
   useEffect(() => {
     setIsHydrated(true);
-    
+
     // Restore sidebar state
     const storedSidebar = localStorage.getItem('iGO_sidebar_collapsed');
     if (storedSidebar !== null) {
@@ -416,7 +427,10 @@ export default function RistoratoreTavoliPage() {
   };
 
   const getTableUrl = (num: number) => {
-    const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
+    const origin =
+      isHydrated && typeof window !== 'undefined'
+        ? window.location.origin
+        : 'https://igodelivering.it';
     return `${origin}/menu/${restaurantSlug}?tavolo=${num}`;
   };
 
@@ -429,7 +443,7 @@ export default function RistoratoreTavoliPage() {
     const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
     if (canvas) {
       try {
-        const url = canvas.toDataURL("image/png");
+        const url = canvas.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = url;
         a.download = `qr-tavolo-${num}-${restaurantSlug}.png`;
@@ -438,7 +452,7 @@ export default function RistoratoreTavoliPage() {
         a.remove();
         return;
       } catch (e) {
-        console.error("Canvas export failed", e);
+        console.error('Canvas export failed', e);
       }
     }
 
@@ -463,7 +477,11 @@ export default function RistoratoreTavoliPage() {
   const getCanvasDataUrl = (num: number) => {
     const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
     if (canvas) {
-      try { return canvas.toDataURL("image/png"); } catch(e) {}
+      try {
+        return canvas.toDataURL('image/png');
+      } catch (e) {
+        /* ignore */
+      }
     }
     return getQrCodeUrl(num);
   };
@@ -733,7 +751,8 @@ export default function RistoratoreTavoliPage() {
                   QR Code Tavoli
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Configura i tuoi tavoli e stampa i QR Code segnatavolo per le ordinazioni digitali interne.
+                  Configura i tuoi tavoli e stampa i QR Code segnatavolo per le ordinazioni digitali
+                  interne.
                 </p>
               </div>
 
@@ -751,22 +770,22 @@ export default function RistoratoreTavoliPage() {
             {/* KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Tavoli Configurati</p>
-                <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">
-                  {tableCount}
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                  Tavoli Configurati
                 </p>
+                <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{tableCount}</p>
               </div>
               <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Ordini al Tavolo Oggi</p>
-                <p className="text-2xl font-bold text-[var(--success)] mt-1 tabular-nums">
-                  0
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                  Ordini al Tavolo Oggi
                 </p>
+                <p className="text-2xl font-bold text-[var(--success)] mt-1 tabular-nums">0</p>
               </div>
               <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Scansioni Totali Oggi</p>
-                <p className="text-2xl font-bold text-primary mt-1 tabular-nums">
-                  0
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                  Scansioni Totali Oggi
                 </p>
+                <p className="text-2xl font-bold text-primary mt-1 tabular-nums">0</p>
               </div>
             </div>
 
@@ -780,7 +799,8 @@ export default function RistoratoreTavoliPage() {
                 </h3>
 
                 <p className="text-xs text-muted-foreground">
-                  Condividi il link della tua vetrina digitale o scarica il QR Code da stampare per asporto e consegne.
+                  Condividi il link della tua vetrina digitale o scarica il QR Code da stampare per
+                  asporto e consegne.
                 </p>
 
                 <div className="space-y-3 pt-2">
@@ -800,7 +820,11 @@ export default function RistoratoreTavoliPage() {
                         onClick={handleCopyVetrina}
                         className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                       >
-                        {copiedVetrina ? <CheckCircle size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        {copiedVetrina ? (
+                          <CheckCircle size={14} className="text-[var(--success)]" />
+                        ) : (
+                          <Copy size={14} />
+                        )}
                         {copiedVetrina ? 'Copiato' : 'Copia'}
                       </button>
                     </div>
@@ -813,7 +837,7 @@ export default function RistoratoreTavoliPage() {
                       size={512}
                       level="H"
                       includeMargin={true}
-                      style={{ width: "120px", height: "120px" }}
+                      style={{ width: '120px', height: '120px' }}
                     />
                   </div>
 
@@ -846,7 +870,8 @@ export default function RistoratoreTavoliPage() {
                 </h3>
 
                 <p className="text-xs text-muted-foreground">
-                  Usa questo link per far ordinare i clienti da un tavolo qualsiasi. Dovranno inserire manualmente il numero del tavolo.
+                  Usa questo link per far ordinare i clienti da un tavolo qualsiasi. Dovranno
+                  inserire manualmente il numero del tavolo.
                 </p>
 
                 <div className="space-y-3 pt-2">
@@ -866,7 +891,11 @@ export default function RistoratoreTavoliPage() {
                         onClick={handleCopyGenerico}
                         className="px-3 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                       >
-                        {copiedGenerico ? <CheckCircle size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
+                        {copiedGenerico ? (
+                          <CheckCircle size={14} className="text-[var(--success)]" />
+                        ) : (
+                          <Copy size={14} />
+                        )}
                         {copiedGenerico ? 'Copiato' : 'Copia'}
                       </button>
                     </div>
@@ -879,7 +908,7 @@ export default function RistoratoreTavoliPage() {
                       size={512}
                       level="H"
                       includeMargin={true}
-                      style={{ width: "120px", height: "120px" }}
+                      style={{ width: '120px', height: '120px' }}
                     />
                   </div>
 
@@ -913,10 +942,12 @@ export default function RistoratoreTavoliPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-foreground">Configurazione Sala</p>
-                  <p className="text-[10px] text-muted-foreground">Imposta il numero di tavoli attivi nel locale</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Imposta il numero di tavoli attivi nel locale
+                  </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                 <div className="flex items-center border border-border rounded-lg bg-muted overflow-hidden">
                   <button
@@ -969,7 +1000,7 @@ export default function RistoratoreTavoliPage() {
                 <Grid size={16} className="text-primary" />
                 Segnatavolo Generati
               </h3>
-              
+
               {tableCount === 0 ? (
                 <div className="flex flex-col items-center justify-center p-12 bg-card rounded-2xl border border-dashed border-border text-center space-y-3">
                   <div className="p-3 bg-muted rounded-full text-muted-foreground">
@@ -984,49 +1015,52 @@ export default function RistoratoreTavoliPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {Array.from({ length: tableCount }, (_, i) => i + 1).map((num) => {
-                  return (
-                    <div
-                      key={`table-qr-${num}`}
-                      className="bg-card rounded-xl border border-border shadow-card p-4 flex flex-col items-center justify-between text-center space-y-4 group hover:border-primary/30 transition-colors"
-                    >
-                      <div className="space-y-1">
-                        <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
-                        <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]" title={getTableUrl(num)}>
-                          {getTableUrl(num)}
-                        </p>
-                      </div>
+                  {Array.from({ length: tableCount }, (_, i) => i + 1).map((num) => {
+                    return (
+                      <div
+                        key={`table-qr-${num}`}
+                        className="bg-card rounded-xl border border-border shadow-card p-4 flex flex-col items-center justify-between text-center space-y-4 group hover:border-primary/30 transition-colors"
+                      >
+                        <div className="space-y-1">
+                          <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
+                          <p
+                            className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]"
+                            title={getTableUrl(num)}
+                          >
+                            {getTableUrl(num)}
+                          </p>
+                        </div>
 
-                      <div className="p-3 bg-muted rounded-xl border border-border/60 relative flex items-center justify-center min-h-[148px]">
-                        <QRCodeCanvas
-                          id={`qr-canvas-${num}`}
-                          value={getTableUrl(num)}
-                          size={512}
-                          level="H"
-                          includeMargin={true}
-                          style={{ width: "132px", height: "132px" }}
-                        />
-                      </div>
+                        <div className="p-3 bg-muted rounded-xl border border-border/60 relative flex items-center justify-center min-h-[148px]">
+                          <QRCodeCanvas
+                            id={`qr-canvas-${num}`}
+                            value={getTableUrl(num)}
+                            size={512}
+                            level="H"
+                            includeMargin={true}
+                            style={{ width: '132px', height: '132px' }}
+                          />
+                        </div>
 
-                      <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-border/40">
-                        <button
-                          onClick={() => handleDownload(num)}
-                          className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
-                        >
-                          <Download size={12} className="text-muted-foreground" />
-                          Scarica
-                        </button>
-                        <button
-                          onClick={() => handlePrintSingle(num)}
-                          className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
-                        >
-                          <Printer size={12} className="text-muted-foreground" />
-                          Stampa
-                        </button>
+                        <div className="w-full grid grid-cols-2 gap-2 pt-2 border-t border-border/40">
+                          <button
+                            onClick={() => handleDownload(num)}
+                            className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
+                          >
+                            <Download size={12} className="text-muted-foreground" />
+                            Scarica
+                          </button>
+                          <button
+                            onClick={() => handlePrintSingle(num)}
+                            className="flex items-center justify-center gap-1 py-1.5 px-2 bg-secondary text-foreground hover:bg-muted rounded-lg text-xs font-semibold transition-colors border border-border"
+                          >
+                            <Printer size={12} className="text-muted-foreground" />
+                            Stampa
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
               )}
             </div>

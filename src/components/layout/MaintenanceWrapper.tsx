@@ -111,7 +111,8 @@ export default function MaintenanceWrapper({ children }: { children: React.React
               Lavori in Corso
             </h1>
             <p className="text-zinc-400 text-sm leading-relaxed">
-              La piattaforma è momentaneamente offline per interventi di manutenzione ordinaria. Saremo di ritorno il prima possibile. Grazie per la pazienza!
+              La piattaforma è momentaneamente offline per interventi di manutenzione ordinaria.
+              Saremo di ritorno il prima possibile. Grazie per la pazienza!
             </p>
           </div>
 

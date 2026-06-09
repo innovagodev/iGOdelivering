@@ -20,5 +20,6 @@ export const STORAGE_KEYS = {
   tables: (restaurantId: string) => `iGO_tables_${restaurantId}`,
   serviceHours: (restaurantId: string) => `iGO_service_hours_${restaurantId}`,
   guestInfo: (restaurantId: string) => `iGO_guest_${restaurantId}`,
-  customerOrders: (restaurantId: string, emailHash: string) => `iGO_customer_orders_${restaurantId}_${emailHash}`,
+  customerOrders: (restaurantId: string, emailHash: string) =>
+    `iGO_customer_orders_${restaurantId}_${emailHash}`,
 };

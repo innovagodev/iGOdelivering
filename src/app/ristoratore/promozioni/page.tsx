@@ -8,7 +8,20 @@ import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { PromoCode, PromoType } from '@/types';
-import { Tag, Plus, Edit2, Trash2, Percent, Euro, Calendar, Info, AlertCircle, TrendingUp, UserCheck, Store } from 'lucide-react';
+import {
+  Tag,
+  Plus,
+  Edit2,
+  Trash2,
+  Percent,
+  Euro,
+  Calendar,
+  Info,
+  AlertCircle,
+  TrendingUp,
+  UserCheck,
+  Store,
+} from 'lucide-react';
 
 const defaultPromos: PromoCode[] = [
   {
@@ -57,7 +70,9 @@ export default function PromozioniPage() {
   const [description, setDescription] = useState('');
   const [maxUses, setMaxUses] = useState('');
   const [customBannerText, setCustomBannerText] = useState('');
-  const [applicableDeliveryModes, setApplicableDeliveryModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>(['domicilio', 'asporto', 'tavolo']);
+  const [applicableDeliveryModes, setApplicableDeliveryModes] = useState<
+    ('domicilio' | 'asporto' | 'tavolo')[]
+  >(['domicilio', 'asporto', 'tavolo']);
 
   const [loading, setLoading] = useState(true);
 
@@ -99,7 +114,11 @@ export default function PromozioniPage() {
             maxUses: p.max_uses || undefined,
             usedCount: p.used_count || 0,
             customBannerText: p.custom_banner_text || undefined,
-            applicableDeliveryModes: p.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
+            applicableDeliveryModes: p.applicable_delivery_modes || [
+              'domicilio',
+              'asporto',
+              'tavolo',
+            ],
           }));
           setPromos(mappedPromos);
         }
@@ -118,22 +137,15 @@ export default function PromozioniPage() {
     if (!promo) return;
 
     const newStatus = !promo.active;
-    setPromos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, active: newStatus } : p))
-    );
+    setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, active: newStatus } : p)));
 
     try {
-      const { error } = await supabase
-        .from('promos')
-        .update({ active: newStatus })
-        .eq('id', id);
+      const { error } = await supabase.from('promos').update({ active: newStatus }).eq('id', id);
 
       if (error) throw error;
     } catch (e) {
       console.error('Error toggling promo:', e);
-      setPromos((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, active: !newStatus } : p))
-      );
+      setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, active: !newStatus } : p)));
       alert('Impossibile aggiornare lo stato del codice sconto.');
     }
   };
@@ -176,10 +188,7 @@ export default function PromozioniPage() {
       setPromos((prev) => prev.filter((p) => p.id !== id));
 
       try {
-        const { error } = await supabase
-          .from('promos')
-          .delete()
-          .eq('id', id);
+        const { error } = await supabase.from('promos').delete().eq('id', id);
 
         if (error) throw error;
       } catch (e) {
@@ -209,7 +218,8 @@ export default function PromozioniPage() {
       description: description.trim() ? description.trim() : null,
       max_uses: maxUses ? parseInt(maxUses, 10) : null,
       custom_banner_text: customBannerText.trim() ? customBannerText.trim() : null,
-      applicable_delivery_modes: applicableDeliveryModes.length > 0 ? applicableDeliveryModes : null,
+      applicable_delivery_modes:
+        applicableDeliveryModes.length > 0 ? applicableDeliveryModes : null,
     };
 
     try {
@@ -237,16 +247,16 @@ export default function PromozioniPage() {
             maxUses: data.max_uses || undefined,
             usedCount: data.used_count || 0,
             customBannerText: data.custom_banner_text || undefined,
-            applicableDeliveryModes: data.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
+            applicableDeliveryModes: data.applicable_delivery_modes || [
+              'domicilio',
+              'asporto',
+              'tavolo',
+            ],
           };
           setPromos((prev) => prev.map((p) => (p.id === editingPromo.id ? updatedPromo : p)));
         }
       } else {
-        const { data, error } = await supabase
-          .from('promos')
-          .insert([promoData])
-          .select()
-          .single();
+        const { data, error } = await supabase.from('promos').insert([promoData]).select().single();
 
         if (error) throw error;
 
@@ -264,7 +274,11 @@ export default function PromozioniPage() {
             maxUses: data.max_uses || undefined,
             usedCount: data.used_count || 0,
             customBannerText: data.custom_banner_text || undefined,
-            applicableDeliveryModes: data.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
+            applicableDeliveryModes: data.applicable_delivery_modes || [
+              'domicilio',
+              'asporto',
+              'tavolo',
+            ],
           };
           setPromos((prev) => [newPromo, ...prev]);
         }
@@ -329,8 +343,9 @@ export default function PromozioniPage() {
               <div className="text-sm">
                 <h4 className="font-semibold text-foreground">Promuovi il tuo business!</h4>
                 <p className="text-muted-foreground mt-1 leading-relaxed">
-                  Crea codici promozionali a percentuale, a importo fisso, a soglia minima, o per il primo ordine dei clienti. I clienti potranno
-                  inserirli nel carrello prima di confermare l&apos;ordine per applicare lo sconto.
+                  Crea codici promozionali a percentuale, a importo fisso, a soglia minima, o per il
+                  primo ordine dei clienti. I clienti potranno inserirli nel carrello prima di
+                  confermare l&apos;ordine per applicare lo sconto.
                 </p>
               </div>
             </div>
@@ -437,11 +452,12 @@ export default function PromozioniPage() {
                                     Uso: {promo.usedCount || 0}/{promo.maxUses}
                                   </span>
                                 )}
-                                {promo.applicableDeliveryModes && promo.applicableDeliveryModes.length > 0 && (
-                                  <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
-                                    Canali: {promo.applicableDeliveryModes.join(', ')}
-                                  </span>
-                                )}
+                                {promo.applicableDeliveryModes &&
+                                  promo.applicableDeliveryModes.length > 0 && (
+                                    <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+                                      Canali: {promo.applicableDeliveryModes.join(', ')}
+                                    </span>
+                                  )}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -563,11 +579,12 @@ export default function PromozioniPage() {
                                 Uso: {promo.usedCount || 0}/{promo.maxUses}
                               </span>
                             )}
-                            {promo.applicableDeliveryModes && promo.applicableDeliveryModes.length > 0 && (
-                              <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
-                                Canali: {promo.applicableDeliveryModes.join(', ')}
-                              </span>
-                            )}
+                            {promo.applicableDeliveryModes &&
+                              promo.applicableDeliveryModes.length > 0 && (
+                                <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+                                  Canali: {promo.applicableDeliveryModes.join(', ')}
+                                </span>
+                              )}
                           </div>
                         </div>
 
@@ -683,7 +700,11 @@ export default function PromozioniPage() {
                 required={type === 'threshold_based'}
                 value={minOrderSubtotal}
                 onChange={(e) => setMinOrderSubtotal(e.target.value)}
-                placeholder={type === 'threshold_based' ? 'Inserisci spesa minima' : '0 per nessuna spesa minima'}
+                placeholder={
+                  type === 'threshold_based'
+                    ? 'Inserisci spesa minima'
+                    : '0 per nessuna spesa minima'
+                }
                 className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
               />
             </div>
@@ -741,7 +762,7 @@ export default function PromozioniPage() {
 
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              Canali d'ordine abilitati
+              {"Canali d'ordine abilitati"}
             </label>
             <div className="flex flex-wrap gap-4 mt-2 bg-muted/30 border border-border/50 p-3.5 rounded-xl">
               {[
@@ -751,13 +772,18 @@ export default function PromozioniPage() {
               ].map((mode) => {
                 const isSelected = applicableDeliveryModes.includes(mode.id as any);
                 return (
-                  <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
+                  <label
+                    key={mode.id}
+                    className="flex items-center gap-2 cursor-pointer select-none"
+                  >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => {
                         if (isSelected) {
-                          setApplicableDeliveryModes(applicableDeliveryModes.filter((m) => m !== mode.id));
+                          setApplicableDeliveryModes(
+                            applicableDeliveryModes.filter((m) => m !== mode.id)
+                          );
                         } else {
                           setApplicableDeliveryModes([...applicableDeliveryModes, mode.id as any]);
                         }

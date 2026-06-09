@@ -29,7 +29,7 @@ import {
   UserCheck,
   TrendingUp,
   Info,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
@@ -43,26 +43,22 @@ const DeliveryZonesStep = dynamic(
   () => import('@/components/admin/restaurant-wizard/DeliveryZonesStep'),
   { ssr: false }
 );
-const HoursStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/HoursStep'),
-  { ssr: false }
-);
+const HoursStep = dynamic(() => import('@/components/admin/restaurant-wizard/HoursStep'), {
+  ssr: false,
+});
 const ScheduledOrdersStep = dynamic(
   () => import('@/components/admin/restaurant-wizard/ScheduledOrdersStep'),
   { ssr: false }
 );
-const PaymentStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/PaymentStep'),
-  { ssr: false }
-);
-const MenuStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/MenuStep'),
-  { ssr: false }
-);
-const ReviewStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/ReviewStep'),
-  { ssr: false }
-);
+const PaymentStep = dynamic(() => import('@/components/admin/restaurant-wizard/PaymentStep'), {
+  ssr: false,
+});
+const MenuStep = dynamic(() => import('@/components/admin/restaurant-wizard/MenuStep'), {
+  ssr: false,
+});
+const ReviewStep = dynamic(() => import('@/components/admin/restaurant-wizard/ReviewStep'), {
+  ssr: false,
+});
 
 import {
   MenuItemWizardDraft,
@@ -78,7 +74,7 @@ import {
   OptionGroup,
   MenuItem,
   PromoCode,
-  PromoType
+  PromoType,
 } from '@/types';
 
 import {
@@ -86,14 +82,23 @@ import {
   ALLERGENS_LIST,
   DEFAULT_CATEGORIES,
   TIME_UNITS,
-  TIME_WINDOWS
+  TIME_WINDOWS,
 } from '@/lib/constants';
 
 import Toggle from '@/components/ui/Toggle';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
-type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'payment' | 'menu' | 'tavoli' | 'promozioni' | 'review';
+type WizardStep =
+  | 'info'
+  | 'delivery'
+  | 'hours'
+  | 'scheduled'
+  | 'payment'
+  | 'menu'
+  | 'tavoli'
+  | 'promozioni'
+  | 'review';
 
 const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'info', label: 'Informazioni', description: 'Dati anagrafici e contatti' },
@@ -205,7 +210,11 @@ export default function RestaurantConfigurePage() {
   const [promoDesc, setPromoDesc] = useState('');
   const [promoMaxUses, setPromoMaxUses] = useState('');
   const [promoCustomBanner, setPromoCustomBanner] = useState('');
-  const [promoModes, setPromoModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>(['domicilio', 'asporto', 'tavolo']);
+  const [promoModes, setPromoModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>([
+    'domicilio',
+    'asporto',
+    'tavolo',
+  ]);
 
   const handleTogglePromo = (id: string) => {
     setPromos(promos.map((p) => (p.id === id ? { ...p, active: !p.active } : p)));
@@ -266,7 +275,7 @@ export default function RestaurantConfigurePage() {
       endDate: promoEnd ? promoEnd : undefined,
       description: promoDesc.trim() ? promoDesc.trim() : undefined,
       maxUses: promoMaxUses ? parseInt(promoMaxUses, 10) : undefined,
-      usedCount: editingPromo ? (editingPromo.usedCount || 0) : 0,
+      usedCount: editingPromo ? editingPromo.usedCount || 0 : 0,
       customBannerText: promoCustomBanner.trim() ? promoCustomBanner.trim() : undefined,
       applicableDeliveryModes: promoModes.length > 0 ? promoModes : undefined,
     };
@@ -425,11 +434,10 @@ export default function RestaurantConfigurePage() {
 
   const restaurantSlug = info.name
     ? info.name
-      .toLowerCase()
-      .replace(/ /g, '-')
-      .replace(/[^\w-]+/g, '')
+        .toLowerCase()
+        .replace(/ /g, '-')
+        .replace(/[^\w-]+/g, '')
     : 'pizzeria-bella-napoli';
-
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
@@ -468,16 +476,31 @@ export default function RestaurantConfigurePage() {
   const getCanvasDataUrl = (num: number) => {
     const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
     if (canvas) {
-      try { return canvas.toDataURL("image/png"); } catch (e) { }
+      try {
+        return canvas.toDataURL('image/png');
+      } catch (e) {
+        /* ignore */
+      }
     }
-    const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
+    const origin =
+      isHydrated && typeof window !== 'undefined'
+        ? window.location.origin
+        : 'https://igodelivering.it';
     const tableUrl = `${origin}/menu/${restaurantSlug}?tavolo=${num}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tableUrl)}&ecc=H`;
   };
 
   // --- HELPERS ---
   const stepOrder: WizardStep[] = [
-    'info', 'delivery', 'hours', 'scheduled', 'payment', 'menu', 'tavoli', 'promozioni', 'review',
+    'info',
+    'delivery',
+    'hours',
+    'scheduled',
+    'payment',
+    'menu',
+    'tavoli',
+    'promozioni',
+    'review',
   ];
   const currentIndex = stepOrder.indexOf(currentStep);
   const progressPercent = Math.round((currentIndex / (stepOrder.length - 1)) * 100);
@@ -567,16 +590,18 @@ export default function RestaurantConfigurePage() {
           advanceBookingDays: 30,
           serviceEnabled: true,
         };
-        
+
         // Try reading extra tableBooking settings from localStorage or defaults
         try {
           const rawSlug = infoData.name
             ? infoData.name
-              .toLowerCase()
-              .replace(/ /g, '-')
-              .replace(/[^\w-]+/g, '')
+                .toLowerCase()
+                .replace(/ /g, '-')
+                .replace(/[^\w-]+/g, '')
             : 'pizzeria-bella-napoli';
-          const storedSettingsStr = localStorage.getItem(`iGO_settings_${restaurantId}`) || localStorage.getItem(`iGO_settings_${rawSlug}`);
+          const storedSettingsStr =
+            localStorage.getItem(`iGO_settings_${restaurantId}`) ||
+            localStorage.getItem(`iGO_settings_${rawSlug}`);
           if (storedSettingsStr) {
             const stored = JSON.parse(storedSettingsStr);
             const tb = stored.tableBooking;
@@ -587,14 +612,21 @@ export default function RestaurantConfigurePage() {
               tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          /* ignore */
+        }
         setTableBooking(tableBookingData);
 
         // Restore Scheduled orders config
         const scheduledOrdersData: ScheduledOrdersConfig = {
           enabled: true,
           pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
-          delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
+          delivery: {
+            minNoticeValue: 1,
+            minNoticeUnit: 'ore',
+            maxNoticeDays: 4,
+            timeWindowMinutes: 15,
+          },
           onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
           hideAsap: false,
           pickupExpanded: true,
@@ -605,9 +637,12 @@ export default function RestaurantConfigurePage() {
         if (restaurant.scheduled_orders) {
           const so = restaurant.scheduled_orders as any;
           scheduledOrdersData.enabled = so.enabled ?? true;
-          if (so.pickup) scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
-          if (so.delivery) scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
-          if (so.onPremise) scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
+          if (so.pickup)
+            scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
+          if (so.delivery)
+            scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
+          if (so.onPremise)
+            scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
           scheduledOrdersData.hideAsap = so.hideAsap ?? false;
         }
         setScheduledOrders(scheduledOrdersData);
@@ -650,8 +685,12 @@ export default function RestaurantConfigurePage() {
               if (dayData) {
                 h[d] = {
                   open: dayData.enabled ?? dayData.open ?? true,
-                  lunch: dayData.lunch ? { from: dayData.lunch.from || '12:00', to: dayData.lunch.to || '14:30' } : { from: '12:00', to: '14:30' },
-                  dinner: dayData.dinner ? { from: dayData.dinner.from || '19:00', to: dayData.dinner.to || '22:30' } : { from: '19:00', to: '22:30' },
+                  lunch: dayData.lunch
+                    ? { from: dayData.lunch.from || '12:00', to: dayData.lunch.to || '14:30' }
+                    : { from: '12:00', to: '14:30' },
+                  dinner: dayData.dinner
+                    ? { from: dayData.dinner.from || '19:00', to: dayData.dinner.to || '22:30' }
+                    : { from: '19:00', to: '22:30' },
                   lunchEnabled: dayData.lunchEnabled !== false,
                   dinnerEnabled: dayData.dinnerEnabled !== false,
                 };
@@ -738,9 +777,8 @@ export default function RestaurantConfigurePage() {
 
         if (catsErr) throw catsErr;
 
-        const categoriesData = dbCats && dbCats.length > 0
-          ? dbCats.map((c: any) => c.name)
-          : [...DEFAULT_CATEGORIES];
+        const categoriesData =
+          dbCats && dbCats.length > 0 ? dbCats.map((c: any) => c.name) : [...DEFAULT_CATEGORIES];
         setMenuCategories(categoriesData);
 
         // Restore Menu Items
@@ -765,11 +803,13 @@ export default function RestaurantConfigurePage() {
                 name: group.name,
                 minSelections: group.minSelections ?? 0,
                 maxSelections: group.maxSelections !== undefined ? group.maxSelections : null,
-                choices: group.choices ? group.choices.map((c: any) => ({
-                  id: c.id,
-                  name: c.name,
-                  price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
-                })) : [],
+                choices: group.choices
+                  ? group.choices.map((c: any) => ({
+                      id: c.id,
+                      name: c.name,
+                      price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
+                    }))
+                  : [],
                 appliedTo: [],
               });
             }
@@ -785,7 +825,7 @@ export default function RestaurantConfigurePage() {
 
         const mappedWizardItems: MenuItemWizardDraft[] = menuItemsData.map((item: any) => {
           const mode: 'always' | 'hidden' | 'time_range' | 'date_range' =
-            item.visibility === 'scheduled' ? 'time_range' : (item.visibility || 'always');
+            item.visibility === 'scheduled' ? 'time_range' : item.visibility || 'always';
           const timeFrom = item.visibility_from || '10:00';
           const timeTo = item.visibility_to || '15:00';
 
@@ -801,19 +841,32 @@ export default function RestaurantConfigurePage() {
           };
 
           const optionGroupsList = item.option_groups || [];
-          const singleSuppGroup = optionGroupsList.find((g: any) => g.name === 'Supplementi' || g.name === 'Supplementi Singoli' || g.id === 'supplementi-singoli');
+          const singleSuppGroup = optionGroupsList.find(
+            (g: any) =>
+              g.name === 'Supplementi' ||
+              g.name === 'Supplementi Singoli' ||
+              g.id === 'supplementi-singoli'
+          );
           const singleSupplements = singleSuppGroup
             ? singleSuppGroup.choices.map((c: any) => ({
                 id: c.id,
                 name: c.name,
-                price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price
+                price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
               }))
             : [];
           const itemOptionGroupIds = optionGroupsList
-            .filter((g: any) => g.name !== 'Supplementi' && g.name !== 'Supplementi Singoli' && g.id !== 'supplementi-singoli')
+            .filter(
+              (g: any) =>
+                g.name !== 'Supplementi' &&
+                g.name !== 'Supplementi Singoli' &&
+                g.id !== 'supplementi-singoli'
+            )
             .map((g: any) => g.id);
 
-          const hasPromo = item.original_price !== undefined && item.original_price !== null && Number(item.original_price) > 0;
+          const hasPromo =
+            item.original_price !== undefined &&
+            item.original_price !== null &&
+            Number(item.original_price) > 0;
           const draftPrice = hasPromo ? item.original_price.toString() : item.price.toString();
           const draftOriginalPrice = hasPromo ? item.price.toString() : '';
 
@@ -833,7 +886,8 @@ export default function RestaurantConfigurePage() {
             optionGroups: itemOptionGroupIds,
             singleSupplements,
             visibility,
-            customizationEnabled: item.customization_enabled !== undefined ? !!item.customization_enabled : true,
+            customizationEnabled:
+              item.customization_enabled !== undefined ? !!item.customization_enabled : true,
             notesEnabled: item.notes_enabled !== undefined ? !!item.notes_enabled : true,
           };
         });
@@ -859,10 +913,15 @@ export default function RestaurantConfigurePage() {
             startDate: p.start_date || undefined,
             endDate: p.end_date || undefined,
             description: p.description || undefined,
-            maxUses: p.max_uses !== null && p.max_uses !== undefined ? parseInt(p.max_uses) : undefined,
+            maxUses:
+              p.max_uses !== null && p.max_uses !== undefined ? parseInt(p.max_uses) : undefined,
             usedCount: p.used_count || 0,
             customBannerText: p.custom_banner_text || undefined,
-            applicableDeliveryModes: p.applicable_delivery_modes || ['domicilio', 'asporto', 'tavolo'],
+            applicableDeliveryModes: p.applicable_delivery_modes || [
+              'domicilio',
+              'asporto',
+              'tavolo',
+            ],
           }));
           setPromos(mappedPromos);
         } else {
@@ -888,8 +947,8 @@ export default function RestaurantConfigurePage() {
           .toLowerCase()
           .trim()
           .replace(/\s+/g, '-')
-          .replace(/[^\w\-]+/g, '')
-          .replace(/\-\-+/g, '-');
+          .replace(/[^\w-]+/g, '')
+          .replace(/--+/g, '-');
       };
       const slug = slugify(info.name);
 
@@ -908,21 +967,25 @@ export default function RestaurantConfigurePage() {
           };
         }
 
-        const mappedOptionGroups: OptionGroup[] = item.optionGroups.map((groupId) => {
-          const matchedGroup = optionGroups.find((g) => g.id === groupId);
-          if (!matchedGroup) return null;
-          return {
-            id: matchedGroup.id,
-            name: matchedGroup.name,
-            minSelections: matchedGroup.minSelections !== undefined ? matchedGroup.minSelections : 0,
-            maxSelections: matchedGroup.maxSelections !== undefined ? matchedGroup.maxSelections : null,
-            choices: matchedGroup.choices.map((c) => ({
-              id: c.id,
-              name: c.name,
-              price: c.price.toString(),
-            })),
-          };
-        }).filter((g): g is OptionGroup => g !== null);
+        const mappedOptionGroups: OptionGroup[] = item.optionGroups
+          .map((groupId) => {
+            const matchedGroup = optionGroups.find((g) => g.id === groupId);
+            if (!matchedGroup) return null;
+            return {
+              id: matchedGroup.id,
+              name: matchedGroup.name,
+              minSelections:
+                matchedGroup.minSelections !== undefined ? matchedGroup.minSelections : 0,
+              maxSelections:
+                matchedGroup.maxSelections !== undefined ? matchedGroup.maxSelections : null,
+              choices: matchedGroup.choices.map((c) => ({
+                id: c.id,
+                name: c.name,
+                price: c.price.toString(),
+              })),
+            };
+          })
+          .filter((g): g is OptionGroup => g !== null);
 
         if (item.singleSupplements && item.singleSupplements.length > 0) {
           mappedOptionGroups.push({
@@ -959,7 +1022,8 @@ export default function RestaurantConfigurePage() {
           visibility,
           visibilitySchedule,
           optionGroups: mappedOptionGroups,
-          customizationEnabled: item.customizationEnabled !== undefined ? !!item.customizationEnabled : true,
+          customizationEnabled:
+            item.customizationEnabled !== undefined ? !!item.customizationEnabled : true,
           notesEnabled: item.notesEnabled !== undefined ? !!item.notesEnabled : true,
         };
       });
@@ -992,7 +1056,9 @@ export default function RestaurantConfigurePage() {
       try {
         const stored = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
         if (stored) existingHoursData = JSON.parse(stored);
-      } catch (e) { }
+      } catch (e) {
+        /* ignore */
+      }
 
       const serviceHoursDataToSave = {
         ...existingHoursData,
@@ -1056,7 +1122,9 @@ export default function RestaurantConfigurePage() {
 
       if (rUpdateErr) {
         console.error('Error updating restaurant details in Supabase:', rUpdateErr);
-        throw new Error('Errore durante l\'aggiornamento del ristorante su DB: ' + rUpdateErr.message);
+        throw new Error(
+          "Errore durante l'aggiornamento del ristorante su DB: " + rUpdateErr.message
+        );
       }
 
       // 2. Sync delivery zones
@@ -1109,21 +1177,30 @@ export default function RestaurantConfigurePage() {
             let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
             if (item.visibility.mode === 'hidden') {
               visibility = 'hidden';
-            } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
+            } else if (
+              item.visibility.mode === 'time_range' ||
+              item.visibility.mode === 'date_range'
+            ) {
               visibility = 'scheduled';
             }
 
-            const mappedOptionGroups = item.optionGroups.map((groupId: string) => {
-              const matchedGroup = optionGroups.find((g) => g.id === groupId);
-              if (!matchedGroup) return null;
-              return {
-                id: matchedGroup.id,
-                name: matchedGroup.name,
-                minSelections: matchedGroup.minSelections ?? 0,
-                maxSelections: matchedGroup.maxSelections ?? null,
-                choices: matchedGroup.choices.map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
-              };
-            }).filter(Boolean);
+            const mappedOptionGroups = item.optionGroups
+              .map((groupId: string) => {
+                const matchedGroup = optionGroups.find((g) => g.id === groupId);
+                if (!matchedGroup) return null;
+                return {
+                  id: matchedGroup.id,
+                  name: matchedGroup.name,
+                  minSelections: matchedGroup.minSelections ?? 0,
+                  maxSelections: matchedGroup.maxSelections ?? null,
+                  choices: matchedGroup.choices.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    price: c.price.toString(),
+                  })),
+                };
+              })
+              .filter(Boolean);
 
             if (item.singleSupplements && item.singleSupplements.length > 0) {
               mappedOptionGroups.push({
@@ -1131,11 +1208,17 @@ export default function RestaurantConfigurePage() {
                 name: 'Supplementi Singoli',
                 minSelections: 0,
                 maxSelections: null,
-                choices: (item.singleSupplements as any[]).map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
+                choices: (item.singleSupplements as any[]).map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  price: c.price.toString(),
+                })),
               });
             }
 
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id);
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              item.id
+            );
 
             const payloadItem: any = {
               restaurant_id: restaurantId,
@@ -1179,7 +1262,9 @@ export default function RestaurantConfigurePage() {
       await supabase.from('promos').delete().eq('restaurant_id', restaurantId);
       if (promos.length > 0) {
         const promosPayload = promos.map((p) => {
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id);
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            p.id
+          );
           const payloadItem: any = {
             restaurant_id: restaurantId,
             code: p.code,
@@ -1192,7 +1277,11 @@ export default function RestaurantConfigurePage() {
             description: p.description || null,
             max_uses: p.maxUses || null,
             used_count: p.usedCount || 0,
-            applicable_delivery_modes: p.applicableDeliveryModes || ['domicilio', 'asporto', 'tavolo'],
+            applicable_delivery_modes: p.applicableDeliveryModes || [
+              'domicilio',
+              'asporto',
+              'tavolo',
+            ],
           };
 
           if (isUuid) {
@@ -1210,9 +1299,12 @@ export default function RestaurantConfigurePage() {
       }
 
       // --- LOCAL STORAGE BACKUPS (For compatibility) ---
-      localStorage.setItem(`iGO_service_hours_${restaurantId}`, JSON.stringify(serviceHoursDataToSave));
+      localStorage.setItem(
+        `iGO_service_hours_${restaurantId}`,
+        JSON.stringify(serviceHoursDataToSave)
+      );
       localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(zones));
-      
+
       const settingsObj = {
         profile: {
           name: info.name,
@@ -1278,7 +1370,10 @@ export default function RestaurantConfigurePage() {
             owner: info.name + ' Owner',
             email: info.email,
             phone: info.phone,
-            createdAt: idx >= 0 ? (list[idx].createdAt || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+            createdAt:
+              idx >= 0
+                ? list[idx].createdAt || new Date().toISOString().split('T')[0]
+                : new Date().toISOString().split('T')[0],
             menuItems: domainMenuItems.length,
             category: info.category,
             hours: hours,
@@ -1302,7 +1397,9 @@ export default function RestaurantConfigurePage() {
             list.push(updatedRestaurant);
           }
           localStorage.setItem(key, JSON.stringify(list));
-        } catch (e) { }
+        } catch (e) {
+          /* ignore */
+        }
       };
       saveRestaurantInList('iGOdelivering_restaurants');
 
@@ -1333,8 +1430,14 @@ export default function RestaurantConfigurePage() {
 
       // Dispatch change notifications
       window.dispatchEvent(new CustomEvent('iGO_settings_updated'));
-      window.dispatchEvent(new CustomEvent('iGO_service_hours_updated', { detail: serviceHoursDataToSave }));
-      window.dispatchEvent(new CustomEvent(`iGO_service_hours_${restaurantId}_updated`, { detail: serviceHoursDataToSave }));
+      window.dispatchEvent(
+        new CustomEvent('iGO_service_hours_updated', { detail: serviceHoursDataToSave })
+      );
+      window.dispatchEvent(
+        new CustomEvent(`iGO_service_hours_${restaurantId}_updated`, {
+          detail: serviceHoursDataToSave,
+        })
+      );
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -1420,7 +1523,7 @@ export default function RestaurantConfigurePage() {
   };
   const addMenuItem = () => {
     if (!newItem.name || !newItem.price) return;
-    
+
     setMenuItems((p) => {
       const exists = p.some((item) => item.id === newItem.id);
       if (exists) {
@@ -1512,7 +1615,7 @@ export default function RestaurantConfigurePage() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         activeSection="nav-ristoranti"
-        onSectionChange={() => { }}
+        onSectionChange={() => {}}
         role="admin"
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
@@ -1538,7 +1641,9 @@ export default function RestaurantConfigurePage() {
                 {info.name || 'Configura'}
               </span>
               <span className="text-muted-foreground flex-shrink-0 hidden sm:inline">/</span>
-              <span className="text-sm text-muted-foreground hidden sm:inline flex-shrink-0">Configura</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline flex-shrink-0">
+                Configura
+              </span>
             </div>
           }
           rightExtra={
@@ -1553,16 +1658,15 @@ export default function RestaurantConfigurePage() {
               </Link>
               <button
                 onClick={handleSave}
-                className={`flex items-center gap-2 p-2 sm:px-4 sm:py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg flex-shrink-0 ${saved
-                  ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30 shadow-none'
-                  : 'bg-primary text-white hover:bg-primary-hover shadow-primary/20'
-                  }`}
+                className={`flex items-center gap-2 p-2 sm:px-4 sm:py-2 rounded-xl text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-lg flex-shrink-0 ${
+                  saved
+                    ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/30 shadow-none'
+                    : 'bg-primary text-white hover:bg-primary-hover shadow-primary/20'
+                }`}
                 title="Salva modifiche"
               >
                 {saved ? <Check size={15} /> : <Save size={15} />}
-                <span className="hidden sm:inline">
-                  {saved ? 'Salvato!' : 'Salva modifiche'}
-                </span>
+                <span className="hidden sm:inline">{saved ? 'Salvato!' : 'Salva modifiche'}</span>
               </button>
             </div>
           }
@@ -1600,26 +1704,25 @@ export default function RestaurantConfigurePage() {
                   <React.Fragment key={step.id}>
                     <button
                       onClick={() => setCurrentStep(step.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${isCurrent
-                        ? 'bg-primary text-white shadow-sm shadow-primary/30'
-                        : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer'
-                        }`}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
+                        isCurrent
+                          ? 'bg-primary text-white shadow-sm shadow-primary/30'
+                          : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer'
+                      }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${isCurrent
-                          ? 'bg-white/25'
-                          : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
-                          }`}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                          isCurrent
+                            ? 'bg-white/25'
+                            : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
+                        }`}
                       >
                         {isCompleted ? <Check size={11} /> : idx + 1}
                       </span>
                       {step.label}
                     </button>
                     {idx < steps.length - 1 && (
-                      <ChevronRight
-                        size={14}
-                        className="flex-shrink-0 mx-0.5 text-border"
-                      />
+                      <ChevronRight size={14} className="flex-shrink-0 mx-0.5 text-border" />
                     )}
                   </React.Fragment>
                 );
@@ -1636,8 +1739,9 @@ export default function RestaurantConfigurePage() {
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-sm text-muted-foreground">{info.name || 'Ristorante'}</span>
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusBadgeClass[restaurantStatus] || statusBadgeClass['draft']
-                      }`}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      statusBadgeClass[restaurantStatus] || statusBadgeClass['draft']
+                    }`}
                   >
                     {statusLabel[restaurantStatus] || restaurantStatus}
                   </span>
@@ -1809,7 +1913,8 @@ export default function RestaurantConfigurePage() {
                         Configurazione Tavoli & QR Code
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Definisci il numero di tavoli per {info.name || 'questo ristorante'} e genera i relativi codici QR.
+                        Definisci il numero di tavoli per {info.name || 'questo ristorante'} e
+                        genera i relativi codici QR.
                       </p>
                     </div>
                     <button
@@ -1980,7 +2085,10 @@ export default function RestaurantConfigurePage() {
                         type="button"
                         onClick={() => {
                           setTableCount(tempTableCount);
-                          localStorage.setItem(`iGO_tables_${restaurantSlug}`, tempTableCount.toString());
+                          localStorage.setItem(
+                            `iGO_tables_${restaurantSlug}`,
+                            tempTableCount.toString()
+                          );
                           setSaveSuccess(true);
                           setTimeout(() => setSaveSuccess(false), 2000);
                         }}
@@ -2013,7 +2121,10 @@ export default function RestaurantConfigurePage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {Array.from({ length: tableCount }, (_, i) => i + 1).map((num) => {
-                      const origin = isHydrated && typeof window !== 'undefined' ? window.location.origin : 'https://igodelivering.it';
+                      const origin =
+                        isHydrated && typeof window !== 'undefined'
+                          ? window.location.origin
+                          : 'https://igodelivering.it';
                       const tableUrl = `${origin}/menu/${restaurantSlug}?tavolo=${num}`;
                       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(tableUrl)}&ecc=H`;
                       return (
@@ -2023,7 +2134,10 @@ export default function RestaurantConfigurePage() {
                         >
                           <div className="space-y-1">
                             <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
-                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]" title={tableUrl}>
+                            <p
+                              className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]"
+                              title={tableUrl}
+                            >
                               {tableUrl}
                             </p>
                           </div>
@@ -2035,7 +2149,7 @@ export default function RestaurantConfigurePage() {
                               size={512}
                               level="H"
                               includeMargin={true}
-                              style={{ width: "132px", height: "132px" }}
+                              style={{ width: '132px', height: '132px' }}
                             />
                           </div>
 
@@ -2043,10 +2157,12 @@ export default function RestaurantConfigurePage() {
                             <button
                               type="button"
                               onClick={() => {
-                                const canvas = document.getElementById(`qr-canvas-${num}`) as HTMLCanvasElement;
+                                const canvas = document.getElementById(
+                                  `qr-canvas-${num}`
+                                ) as HTMLCanvasElement;
                                 if (canvas) {
                                   try {
-                                    const url = canvas.toDataURL("image/png");
+                                    const url = canvas.toDataURL('image/png');
                                     const a = document.createElement('a');
                                     a.href = url;
                                     a.download = `qr-tavolo-${num}-${restaurantSlug}.png`;
@@ -2055,7 +2171,7 @@ export default function RestaurantConfigurePage() {
                                     a.remove();
                                     return;
                                   } catch (e) {
-                                    console.error("Canvas export failed", e);
+                                    console.error('Canvas export failed', e);
                                   }
                                 }
                                 fetch(qrUrl)
@@ -2194,9 +2310,12 @@ export default function RestaurantConfigurePage() {
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-foreground font-sans">Gestione Promozioni & Codici Sconto</h2>
+                    <h2 className="text-xl font-bold text-foreground font-sans">
+                      Gestione Promozioni & Codici Sconto
+                    </h2>
                     <p className="text-xs text-muted-foreground mt-1 font-medium">
-                      Definisci i codici promozionali, le soglie d'ordine e le offerte di spedizione gratuita per questo ristorante.
+                      Definisci i codici promozionali, le {"soglie d'ordine"} e le offerte di
+                      spedizione gratuita per questo ristorante.
                     </p>
                   </div>
                   <button
@@ -2213,7 +2332,9 @@ export default function RestaurantConfigurePage() {
                   <div className="text-xs">
                     <h4 className="font-semibold text-foreground">Campagne Promo professionali!</h4>
                     <p className="text-muted-foreground mt-1 leading-relaxed">
-                      I codici sconto possono essere a percentuale, importo fisso, primo ordine o consegna gratuita. Puoi configurare scadenze temporali, limiti massimi di utilizzo e canali d'ordine specifici (es. solo domicilio).
+                      I codici sconto possono essere a percentuale, importo fisso, primo ordine o
+                      consegna gratuita. Puoi configurare scadenze temporali, limiti massimi di
+                      utilizzo e {"canali d'ordine"} specifici (es. solo domicilio).
                     </p>
                   </div>
                 </div>
@@ -2313,11 +2434,12 @@ export default function RestaurantConfigurePage() {
                                       Uso: {promo.usedCount || 0}/{promo.maxUses}
                                     </span>
                                   )}
-                                  {promo.applicableDeliveryModes && promo.applicableDeliveryModes.length > 0 && (
-                                    <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                      Canali: {promo.applicableDeliveryModes.join(', ')}
-                                    </span>
-                                  )}
+                                  {promo.applicableDeliveryModes &&
+                                    promo.applicableDeliveryModes.length > 0 && (
+                                      <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                        Canali: {promo.applicableDeliveryModes.join(', ')}
+                                      </span>
+                                    )}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -2385,10 +2507,11 @@ export default function RestaurantConfigurePage() {
               ) : (
                 <button
                   onClick={handleSave}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all active:scale-95 ${saved
-                    ? 'bg-[var(--success-bg)] text-[var(--success)]'
-                    : 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
-                    }`}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all active:scale-95 ${
+                    saved
+                      ? 'bg-[var(--success-bg)] text-[var(--success)]'
+                      : 'bg-primary text-white hover:bg-primary/90 shadow-primary/20'
+                  }`}
                 >
                   {saved ? <Check size={16} /> : <Save size={16} />}
                   {saved ? 'Modifiche Salvate!' : 'Salva Modifiche'}
@@ -2454,7 +2577,9 @@ export default function RestaurantConfigurePage() {
                       <input
                         type="number"
                         min="0.1"
-                        step={promoType === 'percentage' || promoType === 'first_order' ? '1' : '0.5'}
+                        step={
+                          promoType === 'percentage' || promoType === 'first_order' ? '1' : '0.5'
+                        }
                         required
                         value={promoValue}
                         onChange={(e) => setPromoValue(e.target.value)}
@@ -2480,7 +2605,11 @@ export default function RestaurantConfigurePage() {
                       required={promoType === 'threshold_based'}
                       value={promoMinOrder}
                       onChange={(e) => setPromoMinOrder(e.target.value)}
-                      placeholder={promoType === 'threshold_based' ? 'Inserisci spesa minima' : '0 per nessuna spesa minima'}
+                      placeholder={
+                        promoType === 'threshold_based'
+                          ? 'Inserisci spesa minima'
+                          : '0 per nessuna spesa minima'
+                      }
                       className="w-full pl-9 pr-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring tabular-nums"
                     />
                   </div>
@@ -2538,7 +2667,7 @@ export default function RestaurantConfigurePage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                    Canali d'ordine abilitati
+                    {"Canali d'ordine abilitati"}
                   </label>
                   <div className="flex flex-wrap gap-4 mt-2 bg-muted/30 border border-border/50 p-3.5 rounded-xl">
                     {[
@@ -2548,7 +2677,10 @@ export default function RestaurantConfigurePage() {
                     ].map((mode) => {
                       const isSelected = promoModes.includes(mode.id as any);
                       return (
-                        <label key={mode.id} className="flex items-center gap-2 cursor-pointer select-none">
+                        <label
+                          key={mode.id}
+                          className="flex items-center gap-2 cursor-pointer select-none"
+                        >
                           <input
                             type="checkbox"
                             checked={isSelected}

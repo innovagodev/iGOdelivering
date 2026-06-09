@@ -79,11 +79,15 @@ function KPICard({ label, value, sub, trend, icon, variant, hero }: KPICardProps
   );
 }
 
-export default function KPIBentoGrid({ orders = [], loading = false }: { orders?: any[]; loading?: boolean }) {
+export default function KPIBentoGrid({
+  orders = [],
+  loading = false,
+}: {
+  orders?: any[];
+  loading?: boolean;
+}) {
   const pendingCount = React.useMemo(() => {
-    return orders.filter(
-      (o: any) => o.status === 'new' || o.status === 'pending'
-    ).length;
+    return orders.filter((o: any) => o.status === 'new' || o.status === 'pending').length;
   }, [orders]);
 
   const totalOrders = orders.length;

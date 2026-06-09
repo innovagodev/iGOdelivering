@@ -56,17 +56,12 @@ export function useOrders(restaurantId: string) {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status })
-        .eq('id', orderId);
+      const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
 
       if (error) throw error;
-      
+
       // Update local state immediately for fast response
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-      );
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
     } catch (e) {
       console.error(`Error updating order status to ${status}:`, e);
       throw e;

@@ -81,9 +81,11 @@ export function useRestaurantSettings(slugOrId: string) {
     setLoading(true);
 
     try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        slugOrId
+      );
       const query = supabase.from('restaurants').select('*, restaurant_hours(*)');
-      
+
       const { data: restaurant, error } = isUuid
         ? await query.eq('id', slugOrId).maybeSingle()
         : await query.eq('slug', slugOrId).maybeSingle();
@@ -109,9 +111,10 @@ export function useRestaurantSettings(slugOrId: string) {
               slotsMap.set(`${start}-${end}`, { start, end });
             }
           });
-          openingHours = slotsMap.size > 0
-            ? Array.from(slotsMap.values()).sort((a, b) => a.start.localeCompare(b.start))
-            : [];
+          openingHours =
+            slotsMap.size > 0
+              ? Array.from(slotsMap.values()).sort((a, b) => a.start.localeCompare(b.start))
+              : [];
         }
 
         const unified: UnifiedSettings = {
@@ -130,7 +133,9 @@ export function useRestaurantSettings(slugOrId: string) {
           minOrder: restaurant.min_order ? parseFloat(restaurant.min_order) : 0,
           deliveryFee: restaurant.delivery_fee ? parseFloat(restaurant.delivery_fee) : 0,
           freeDeliveryActive: !!restaurant.free_delivery_active,
-          freeDeliveryThreshold: restaurant.free_delivery_threshold ? parseFloat(restaurant.free_delivery_threshold) : 0,
+          freeDeliveryThreshold: restaurant.free_delivery_threshold
+            ? parseFloat(restaurant.free_delivery_threshold)
+            : 0,
           orderModes: {
             delivery: !!restaurant.delivery_enabled,
             pickup: !!restaurant.pickup_enabled,

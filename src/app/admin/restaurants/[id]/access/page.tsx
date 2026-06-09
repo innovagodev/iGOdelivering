@@ -177,7 +177,9 @@ export default function RestaurantAccessPage() {
                 Pizzeria Bella Napoli
               </span>
               <span className="text-muted-foreground flex-shrink-0 hidden sm:inline">/</span>
-              <span className="text-sm text-muted-foreground hidden sm:inline flex-shrink-0">Accessi</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline flex-shrink-0">
+                Accessi
+              </span>
             </div>
           }
         />

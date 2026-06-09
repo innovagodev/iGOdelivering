@@ -3,14 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { supabase } from '@/lib/supabase';
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  ArrowRight,
-  CheckCircle,
-  AlertTriangle,
-} from 'lucide-react';
+import { Eye, EyeOff, Lock, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface ResetPasswordForm {
   password: string;
@@ -77,11 +70,15 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     async function checkSession() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (session) {
           setHasSession(true);
         } else {
-          setError('Sessione di recupero password scaduta, non valida o non trovata. Richiedi un nuovo link.');
+          setError(
+            'Sessione di recupero password scaduta, non valida o non trovata. Richiedi un nuovo link.'
+          );
         }
       } catch (err) {
         console.error(err);
@@ -110,7 +107,9 @@ export default function ResetPasswordPage() {
       }
 
       // Fetch user profile to set igodelivering_role cookie and redirect
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -122,19 +121,20 @@ export default function ResetPasswordPage() {
           document.cookie = `igodelivering_role=${profile.role}; path=/; max-age=86400; SameSite=Lax`;
           setSuccess(true);
           setTimeout(() => {
-            window.location.href = profile.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
+            window.location.href =
+              profile.role === 'admin' ? '/admin/dashboard' : '/ristoratore/dashboard';
           }, 2000);
         } else {
           setError('Profilo utente non trovato.');
           setLoading(false);
         }
       } else {
-        setError('Impossibile verificare l\'utente autenticato.');
+        setError("Impossibile verificare l'utente autenticato.");
         setLoading(false);
       }
     } catch (err: any) {
       console.error(err);
-      setError('Errore durante l\'aggiornamento della password.');
+      setError("Errore durante l'aggiornamento della password.");
       setLoading(false);
     }
   });
@@ -144,7 +144,9 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-3">
           <span className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin inline-block" />
-          <p className="text-sm text-muted-foreground font-semibold">Verifica sessione in corso...</p>
+          <p className="text-sm text-muted-foreground font-semibold">
+            Verifica sessione in corso...
+          </p>
         </div>
       </div>
     );
@@ -169,7 +171,7 @@ export default function ResetPasswordPage() {
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold text-foreground mb-1.5">Reimposta Password</h1>
               <p className="text-muted-foreground text-sm">
-                Inserisci la tua nuova password personale per ripristinare l'accesso.
+                Inserisci la tua nuova password personale per ripristinare l&apos;accesso.
               </p>
             </div>
 
@@ -177,7 +179,10 @@ export default function ResetPasswordPage() {
               <form onSubmit={handleReset} className="space-y-4">
                 {/* Password */}
                 <div>
-                  <label htmlFor="reset-password-input" className="block text-sm font-semibold text-foreground mb-1.5">
+                  <label
+                    htmlFor="reset-password-input"
+                    className="block text-sm font-semibold text-foreground mb-1.5"
+                  >
                     Nuova Password
                   </label>
                   <PasswordInput
@@ -196,7 +201,10 @@ export default function ResetPasswordPage() {
 
                 {/* Confirm Password */}
                 <div>
-                  <label htmlFor="reset-confirm-input" className="block text-sm font-semibold text-foreground mb-1.5">
+                  <label
+                    htmlFor="reset-confirm-input"
+                    className="block text-sm font-semibold text-foreground mb-1.5"
+                  >
                     Conferma Nuova Password
                   </label>
                   <PasswordInput
@@ -210,7 +218,9 @@ export default function ResetPasswordPage() {
                     })}
                   />
                   {errors.confirmPassword && (
-                    <p className="mt-1.5 text-xs text-[var(--danger)]">{errors.confirmPassword.message}</p>
+                    <p className="mt-1.5 text-xs text-[var(--danger)]">
+                      {errors.confirmPassword.message}
+                    </p>
                   )}
                 </div>
 
@@ -262,7 +272,8 @@ export default function ResetPasswordPage() {
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-3">Password Aggiornata!</h1>
             <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-              La tua password è stata salvata correttamente. Verrai reindirizzato al pannello di gestione in pochi istanti...
+              La tua password è stata salvata correttamente. Verrai reindirizzato al pannello di
+              gestione in pochi istanti...
             </p>
           </div>
         )}

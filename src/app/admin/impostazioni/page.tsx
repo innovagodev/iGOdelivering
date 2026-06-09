@@ -5,20 +5,11 @@ import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import {
-  Save,
-  Check,
-  AlertTriangle,
-  Settings2,
-  User,
-  Lock,
-  Mail,
-  Shield,
-} from 'lucide-react';
+import { Save, Check, AlertTriangle, Settings2, User, Lock, Mail, Shield } from 'lucide-react';
 
 export default function AdminImpostazioniPage() {
   const { user } = useAuth();
-  
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -105,12 +96,10 @@ export default function AdminImpostazioniPage() {
     setMaintenanceError('');
 
     try {
-      const { error } = await supabase
-        .from('platform_settings')
-        .upsert({
-          key: 'maintenance_mode',
-          value: { active: maintenanceMode },
-        });
+      const { error } = await supabase.from('platform_settings').upsert({
+        key: 'maintenance_mode',
+        value: { active: maintenanceMode },
+      });
 
       if (error) throw error;
       setMaintenanceSuccess(true);
@@ -225,7 +214,8 @@ export default function AdminImpostazioniPage() {
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Impostazioni Piattaforma</h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Gestisci lo stato globale della piattaforma e la sicurezza del tuo account amministratore.
+                  Gestisci lo stato globale della piattaforma e la sicurezza del tuo account
+                  amministratore.
                 </p>
               </div>
             </div>
@@ -238,11 +228,16 @@ export default function AdminImpostazioniPage() {
             ) : (
               <div className="space-y-8">
                 {/* 1. System Maintenance Card */}
-                <form onSubmit={handleSaveMaintenance} className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4">
+                <form
+                  onSubmit={handleSaveMaintenance}
+                  className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4"
+                >
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <div className="flex items-center gap-2.5">
                       <Shield className="text-primary" size={18} />
-                      <h3 className="text-base font-bold text-foreground">Stato della Piattaforma</h3>
+                      <h3 className="text-base font-bold text-foreground">
+                        Stato della Piattaforma
+                      </h3>
                     </div>
                     {maintenanceSuccess && (
                       <span className="text-xs font-semibold text-[var(--success)] flex items-center gap-1 animate-fade-in">
@@ -262,7 +257,8 @@ export default function AdminImpostazioniPage() {
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Mette offline la piattaforma per gli utenti finali. Gli admin mantengono l&apos;accesso per gestione.
+                        Mette offline la piattaforma per gli utenti finali. Gli admin mantengono
+                        l&apos;accesso per gestione.
                       </p>
                     </div>
                     <button
@@ -284,9 +280,12 @@ export default function AdminImpostazioniPage() {
                     <div className="bg-amber-500/10 border border-amber-500/25 text-amber-500 px-4 py-3 rounded-xl flex items-start gap-2.5">
                       <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                       <div className="text-xs leading-relaxed">
-                        <p className="font-bold">Attenzione: la piattaforma è offline per gli utenti</p>
+                        <p className="font-bold">
+                          Attenzione: la piattaforma è offline per gli utenti
+                        </p>
                         <p className="mt-0.5 text-amber-500/80">
-                          I clienti e i ristoratori visualizzeranno una schermata di cortesia &quot;Lavori in corso&quot;.
+                          I clienti e i ristoratori visualizzeranno una schermata di cortesia
+                          &quot;Lavori in corso&quot;.
                         </p>
                       </div>
                     </div>
@@ -309,11 +308,16 @@ export default function AdminImpostazioniPage() {
                 </form>
 
                 {/* 2. Admin Profile Details Card */}
-                <form onSubmit={handleUpdateProfile} className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4">
+                <form
+                  onSubmit={handleUpdateProfile}
+                  className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4"
+                >
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <div className="flex items-center gap-2.5">
                       <User className="text-primary" size={18} />
-                      <h3 className="text-base font-bold text-foreground">Profilo Amministratore</h3>
+                      <h3 className="text-base font-bold text-foreground">
+                        Profilo Amministratore
+                      </h3>
                     </div>
                     {profileSuccess && (
                       <span className="text-xs font-semibold text-[var(--success)] flex items-center gap-1 animate-fade-in">
@@ -369,7 +373,10 @@ export default function AdminImpostazioniPage() {
                 </form>
 
                 {/* 3. Admin Password Security Card */}
-                <form onSubmit={handleUpdatePassword} className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4">
+                <form
+                  onSubmit={handleUpdatePassword}
+                  className="bg-card rounded-2xl border border-border p-6 shadow-card space-y-4"
+                >
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <div className="flex items-center gap-2.5">
                       <Lock className="text-primary" size={18} />
@@ -384,9 +391,7 @@ export default function AdminImpostazioniPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-300">
-                        Nuova Password
-                      </label>
+                      <label className="text-xs font-semibold text-zinc-300">Nuova Password</label>
                       <input
                         type="password"
                         value={newPassword}

@@ -4,7 +4,14 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
-import { ArrowLeft, ChevronRight, Check, ChevronLeft as ChevronLeftIcon, Zap, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  Check,
+  ChevronLeft as ChevronLeftIcon,
+  Zap,
+  AlertCircle,
+} from 'lucide-react';
 import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
 import { supabase } from '@/lib/supabase';
 
@@ -17,26 +24,22 @@ const DeliveryZonesStep = dynamic(
   () => import('@/components/admin/restaurant-wizard/DeliveryZonesStep'),
   { ssr: false }
 );
-const HoursStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/HoursStep'),
-  { ssr: false }
-);
+const HoursStep = dynamic(() => import('@/components/admin/restaurant-wizard/HoursStep'), {
+  ssr: false,
+});
 const ScheduledOrdersStep = dynamic(
   () => import('@/components/admin/restaurant-wizard/ScheduledOrdersStep'),
   { ssr: false }
 );
-const PaymentStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/PaymentStep'),
-  { ssr: false }
-);
-const MenuStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/MenuStep'),
-  { ssr: false }
-);
-const ReviewStep = dynamic(
-  () => import('@/components/admin/restaurant-wizard/ReviewStep'),
-  { ssr: false }
-);
+const PaymentStep = dynamic(() => import('@/components/admin/restaurant-wizard/PaymentStep'), {
+  ssr: false,
+});
+const MenuStep = dynamic(() => import('@/components/admin/restaurant-wizard/MenuStep'), {
+  ssr: false,
+});
+const ReviewStep = dynamic(() => import('@/components/admin/restaurant-wizard/ReviewStep'), {
+  ssr: false,
+});
 const PublishedSuccess = dynamic(
   () => import('@/components/admin/restaurant-wizard/PublishedSuccess'),
   { ssr: false }
@@ -95,7 +98,9 @@ export default function NewRestaurantPage() {
   const [published, setPublished] = useState(false);
 
   // --- STATE ---
-  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(
+    null
+  );
   const [savedRestaurantId, setSavedRestaurantId] = useState<string | null>(null);
   const [isSavedDraft, setIsSavedDraft] = useState(false);
   const [restaurantStatus, setRestaurantStatus] = useState<'draft' | 'published'>('draft');
@@ -240,7 +245,13 @@ export default function NewRestaurantPage() {
 
   // --- HELPERS ---
   const stepOrder: WizardStep[] = [
-    'info', 'delivery', 'hours', 'scheduled', 'payment', 'menu', 'review',
+    'info',
+    'delivery',
+    'hours',
+    'scheduled',
+    'payment',
+    'menu',
+    'review',
   ];
   const currentIndex = stepOrder.indexOf(currentStep);
   const progressPercent = Math.round((currentIndex / (stepOrder.length - 1)) * 100);
@@ -394,8 +405,8 @@ export default function NewRestaurantPage() {
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, '')
-      .replace(/\-\-+/g, '-');
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-');
   };
 
   const sendPublicationEmail = async (restaurantId: string) => {
@@ -560,10 +571,12 @@ export default function NewRestaurantPage() {
       }
     } catch (e: any) {
       console.error('Error saving restaurant to Supabase:', e);
-      showFeedback('Errore durante il salvataggio su database: ' + (e.message || JSON.stringify(e)), 'error');
+      showFeedback(
+        'Errore durante il salvataggio su database: ' + (e.message || JSON.stringify(e)),
+        'error'
+      );
       return;
     }
-
 
     // ── Sync to Supabase: delivery_zones, menu_categories, menu_items ──
     if (dbRestaurantId) {
@@ -617,21 +630,30 @@ export default function NewRestaurantPage() {
               let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
               if (item.visibility.mode === 'hidden') {
                 visibility = 'hidden';
-              } else if (item.visibility.mode === 'time_range' || item.visibility.mode === 'date_range') {
+              } else if (
+                item.visibility.mode === 'time_range' ||
+                item.visibility.mode === 'date_range'
+              ) {
                 visibility = 'scheduled';
               }
 
-              const mappedOptionGroups = item.optionGroups.map((groupId: string) => {
-                const matchedGroup = optionGroups.find((g) => g.id === groupId);
-                if (!matchedGroup) return null;
-                return {
-                  id: matchedGroup.id,
-                  name: matchedGroup.name,
-                  minSelections: matchedGroup.minSelections ?? 0,
-                  maxSelections: matchedGroup.maxSelections ?? null,
-                  choices: matchedGroup.choices.map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
-                };
-              }).filter(Boolean);
+              const mappedOptionGroups = item.optionGroups
+                .map((groupId: string) => {
+                  const matchedGroup = optionGroups.find((g) => g.id === groupId);
+                  if (!matchedGroup) return null;
+                  return {
+                    id: matchedGroup.id,
+                    name: matchedGroup.name,
+                    minSelections: matchedGroup.minSelections ?? 0,
+                    maxSelections: matchedGroup.maxSelections ?? null,
+                    choices: matchedGroup.choices.map((c) => ({
+                      id: c.id,
+                      name: c.name,
+                      price: c.price.toString(),
+                    })),
+                  };
+                })
+                .filter(Boolean);
 
               if (item.singleSupplements && item.singleSupplements.length > 0) {
                 mappedOptionGroups.push({
@@ -639,7 +661,11 @@ export default function NewRestaurantPage() {
                   name: 'Supplementi Singoli',
                   minSelections: 0,
                   maxSelections: null,
-                  choices: (item.singleSupplements as any[]).map((c) => ({ id: c.id, name: c.name, price: c.price.toString() })),
+                  choices: (item.singleSupplements as any[]).map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    price: c.price.toString(),
+                  })),
                 });
               }
 
@@ -706,7 +732,11 @@ export default function NewRestaurantPage() {
           isMobileOpen={isMobileOpen}
           onCloseMobile={() => setIsMobileOpen(false)}
         />
-        <PublishedSuccess restaurantName={info.name} email={info.email} restaurantId={savedRestaurantId || ''} />
+        <PublishedSuccess
+          restaurantName={info.name}
+          email={info.email}
+          restaurantId={savedRestaurantId || ''}
+        />
       </div>
     );
   }
@@ -747,11 +777,13 @@ export default function NewRestaurantPage() {
 
         <main className="flex-1 overflow-y-auto overscroll-contain relative">
           {feedback && (
-            <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
-              feedback.type === 'error'
-                ? 'bg-red-600 text-white'
-                : 'bg-foreground text-background'
-            }`}>
+            <div
+              className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
+                feedback.type === 'error'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-foreground text-background'
+              }`}
+            >
               {feedback.type === 'error' ? <AlertCircle size={14} /> : <Zap size={14} />}
               {feedback.message}
             </div>

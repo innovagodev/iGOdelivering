@@ -1,6 +1,15 @@
 'use client';
 import React from 'react';
-import { Settings, Save, AlertTriangle, Check, PauseCircle, PlayCircle, Clock, Calendar } from 'lucide-react';
+import {
+  Settings,
+  Save,
+  AlertTriangle,
+  Check,
+  PauseCircle,
+  PlayCircle,
+  Clock,
+  Calendar,
+} from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import ScheduledOrdersStep from '@/components/admin/restaurant-wizard/ScheduledOrdersStep';
 import { TIME_UNITS, TIME_WINDOWS } from '@/lib/constants';
@@ -49,12 +58,14 @@ interface ServiceHoursTabProps {
     to: string;
     message: string;
   };
-  setTemporaryClosure?: React.Dispatch<React.SetStateAction<{
-    enabled: boolean;
-    from: string;
-    to: string;
-    message: string;
-  }>>;
+  setTemporaryClosure?: React.Dispatch<
+    React.SetStateAction<{
+      enabled: boolean;
+      from: string;
+      to: string;
+      message: string;
+    }>
+  >;
   scheduledOrders?: any;
   setScheduledOrders?: any;
 }
@@ -76,7 +87,6 @@ export default function ServiceHoursTab({
   scheduledOrders,
   setScheduledOrders,
 }: ServiceHoursTabProps) {
-
   const renderTemporaryClosureSection = () => {
     if (!temporaryClosure || !setTemporaryClosure) return null;
 
@@ -90,15 +100,14 @@ export default function ServiceHoursTab({
             <div>
               <h3 className="text-base font-bold text-foreground">Chiusura Temporanea / Ferie</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Imposta un periodo in cui il locale sarà chiuso (es. per ferie) e mostra un messaggio ai clienti
+                Imposta un periodo in cui il locale sarà chiuso (es. per ferie) e mostra un
+                messaggio ai clienti
               </p>
             </div>
           </div>
           <Toggle
             checked={temporaryClosure.enabled}
-            onChange={() =>
-              setTemporaryClosure((prev) => ({ ...prev, enabled: !prev.enabled }))
-            }
+            onChange={() => setTemporaryClosure((prev) => ({ ...prev, enabled: !prev.enabled }))}
             size="sm"
           />
         </div>
@@ -121,14 +130,14 @@ export default function ServiceHoursTab({
                 <input
                   type="date"
                   value={temporaryClosure.to}
-                  onChange={(e) =>
-                    setTemporaryClosure((prev) => ({ ...prev, to: e.target.value }))
-                  }
+                  onChange={(e) => setTemporaryClosure((prev) => ({ ...prev, to: e.target.value }))}
                   className="px-3 py-2 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm text-foreground"
                 />
               </div>
               <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-xs font-bold text-foreground">Messaggio nel banner rosso</label>
+                <label className="text-xs font-bold text-foreground">
+                  Messaggio nel banner rosso
+                </label>
                 <textarea
                   rows={2}
                   value={temporaryClosure.message}
@@ -142,7 +151,8 @@ export default function ServiceHoursTab({
             </div>
           ) : (
             <p className="text-xs text-muted-foreground italic">
-              Nessuna chiusura temporanea attiva. Abilita il servizio per impostare le date e il messaggio per i clienti.
+              Nessuna chiusura temporanea attiva. Abilita il servizio per impostare le date e il
+              messaggio per i clienti.
             </p>
           )}
         </div>
@@ -215,18 +225,28 @@ export default function ServiceHoursTab({
                           type="time"
                           disabled={activeHoursSource[day].lunchEnabled === false}
                           value={activeHoursSource[day].lunch.from}
-                          onChange={(e) => updateServiceHour(svc, day, 'lunch', 'from', e.target.value)}
-                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].lunchEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                            }`}
+                          onChange={(e) =>
+                            updateServiceHour(svc, day, 'lunch', 'from', e.target.value)
+                          }
+                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                            activeHoursSource[day].lunchEnabled === false
+                              ? 'opacity-40 cursor-not-allowed bg-muted'
+                              : ''
+                          }`}
                         />
                         <span className="text-xs text-muted-foreground">–</span>
                         <input
                           type="time"
                           disabled={activeHoursSource[day].lunchEnabled === false}
                           value={activeHoursSource[day].lunch.to}
-                          onChange={(e) => updateServiceHour(svc, day, 'lunch', 'to', e.target.value)}
-                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].lunchEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                            }`}
+                          onChange={(e) =>
+                            updateServiceHour(svc, day, 'lunch', 'to', e.target.value)
+                          }
+                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                            activeHoursSource[day].lunchEnabled === false
+                              ? 'opacity-40 cursor-not-allowed bg-muted'
+                              : ''
+                          }`}
                         />
                         {activeHoursSource[day].lunchEnabled === false && (
                           <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
@@ -252,18 +272,28 @@ export default function ServiceHoursTab({
                           type="time"
                           disabled={activeHoursSource[day].dinnerEnabled === false}
                           value={activeHoursSource[day].dinner.from}
-                          onChange={(e) => updateServiceHour(svc, day, 'dinner', 'from', e.target.value)}
-                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].dinnerEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                            }`}
+                          onChange={(e) =>
+                            updateServiceHour(svc, day, 'dinner', 'from', e.target.value)
+                          }
+                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                            activeHoursSource[day].dinnerEnabled === false
+                              ? 'opacity-40 cursor-not-allowed bg-muted'
+                              : ''
+                          }`}
                         />
                         <span className="text-xs text-muted-foreground">–</span>
                         <input
                           type="time"
                           disabled={activeHoursSource[day].dinnerEnabled === false}
                           value={activeHoursSource[day].dinner.to}
-                          onChange={(e) => updateServiceHour(svc, day, 'dinner', 'to', e.target.value)}
-                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].dinnerEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                            }`}
+                          onChange={(e) =>
+                            updateServiceHour(svc, day, 'dinner', 'to', e.target.value)
+                          }
+                          className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                            activeHoursSource[day].dinnerEnabled === false
+                              ? 'opacity-40 cursor-not-allowed bg-muted'
+                              : ''
+                          }`}
                         />
                         {activeHoursSource[day].dinnerEnabled === false && (
                           <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
@@ -316,20 +346,22 @@ export default function ServiceHoursTab({
               <button
                 type="button"
                 onClick={() => !isInherited && toggleUseGeneral(svc)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isInherited
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  isInherited
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
                 Apertura
               </button>
               <button
                 type="button"
                 onClick={() => isInherited && toggleUseGeneral(svc)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!isInherited
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  !isInherited
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
                 Personalizza
               </button>
@@ -338,10 +370,11 @@ export default function ServiceHoursTab({
             <button
               type="button"
               onClick={() => toggleServiceSuspension(svc)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${isSuspended
-                ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/20 dark:text-red-400'
-                : 'bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-950/20 dark:text-amber-400'
-                }`}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                isSuspended
+                  ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/20 dark:text-red-400'
+                  : 'bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-950/20 dark:text-amber-400'
+              }`}
             >
               {isSuspended ? <PlayCircle size={14} /> : <PauseCircle size={14} />}
               {isSuspended ? 'Riattiva' : 'Sospendi'}
@@ -355,7 +388,8 @@ export default function ServiceHoursTab({
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/10 border border-red-200/50 dark:border-red-900/30 rounded-xl flex items-center gap-3">
               <AlertTriangle size={18} className="text-red-500" />
               <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                Il servizio è temporaneamente sospeso. I clienti non potranno effettuare ordini o prenotazioni di tipo {label.toLowerCase()}.
+                Il servizio è temporaneamente sospeso. I clienti non potranno effettuare ordini o
+                prenotazioni di tipo {label.toLowerCase()}.
               </p>
             </div>
           )}
@@ -364,7 +398,8 @@ export default function ServiceHoursTab({
             <div className="space-y-4">
               <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl flex flex-col gap-2">
                 <p className="text-xs text-muted-foreground">
-                  Questo servizio è attivo negli stessi orari di apertura del locale. Seleziona &quot;Personalizza&quot; se desideri impostare orari diversi per questo servizio.
+                  Questo servizio è attivo negli stessi orari di apertura del locale. Seleziona
+                  &quot;Personalizza&quot; se desideri impostare orari diversi per questo servizio.
                 </p>
 
                 {/* Visual grid of open days */}
@@ -372,10 +407,19 @@ export default function ServiceHoursTab({
                   {days.map((day) => {
                     const dayData = serviceHours.general[day];
                     if (!dayData.enabled) return null;
-                    const lunch = dayData.lunchEnabled !== false ? `${dayData.lunch.from}-${dayData.lunch.to}` : '';
-                    const dinner = dayData.dinnerEnabled !== false ? `${dayData.dinner.from}-${dayData.dinner.to}` : '';
+                    const lunch =
+                      dayData.lunchEnabled !== false
+                        ? `${dayData.lunch.from}-${dayData.lunch.to}`
+                        : '';
+                    const dinner =
+                      dayData.dinnerEnabled !== false
+                        ? `${dayData.dinner.from}-${dayData.dinner.to}`
+                        : '';
                     return (
-                      <div key={day} className="bg-card border border-border px-3.5 py-2.5 rounded-xl flex flex-col gap-0.5 shadow-sm">
+                      <div
+                        key={day}
+                        className="bg-card border border-border px-3.5 py-2.5 rounded-xl flex flex-col gap-0.5 shadow-sm"
+                      >
                         <span className="font-bold text-xs text-muted-foreground">{day}</span>
                         <span className="text-xs font-semibold text-foreground">
                           {[lunch, dinner].filter(Boolean).join(', ') || 'Chiuso'}
@@ -383,8 +427,10 @@ export default function ServiceHoursTab({
                       </div>
                     );
                   })}
-                  {days.every(d => !serviceHours.general[d].enabled) && (
-                    <span className="text-xs text-red-500 font-semibold">Attenzione: Il locale risulta chiuso tutti i giorni negli orari generali.</span>
+                  {days.every((d) => !serviceHours.general[d].enabled) && (
+                    <span className="text-xs text-red-500 font-semibold">
+                      Attenzione: Il locale risulta chiuso tutti i giorni negli orari generali.
+                    </span>
                   )}
                 </div>
               </div>
@@ -435,18 +481,28 @@ export default function ServiceHoursTab({
                             type="time"
                             disabled={activeHoursSource[day].lunchEnabled === false}
                             value={activeHoursSource[day].lunch.from}
-                            onChange={(e) => updateServiceHour(svc, day, 'lunch', 'from', e.target.value)}
-                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].lunchEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                              }`}
+                            onChange={(e) =>
+                              updateServiceHour(svc, day, 'lunch', 'from', e.target.value)
+                            }
+                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                              activeHoursSource[day].lunchEnabled === false
+                                ? 'opacity-40 cursor-not-allowed bg-muted'
+                                : ''
+                            }`}
                           />
                           <span className="text-xs text-muted-foreground">–</span>
                           <input
                             type="time"
                             disabled={activeHoursSource[day].lunchEnabled === false}
                             value={activeHoursSource[day].lunch.to}
-                            onChange={(e) => updateServiceHour(svc, day, 'lunch', 'to', e.target.value)}
-                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].lunchEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                              }`}
+                            onChange={(e) =>
+                              updateServiceHour(svc, day, 'lunch', 'to', e.target.value)
+                            }
+                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                              activeHoursSource[day].lunchEnabled === false
+                                ? 'opacity-40 cursor-not-allowed bg-muted'
+                                : ''
+                            }`}
                           />
                           {activeHoursSource[day].lunchEnabled === false && (
                             <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
@@ -472,18 +528,28 @@ export default function ServiceHoursTab({
                             type="time"
                             disabled={activeHoursSource[day].dinnerEnabled === false}
                             value={activeHoursSource[day].dinner.from}
-                            onChange={(e) => updateServiceHour(svc, day, 'dinner', 'from', e.target.value)}
-                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].dinnerEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                              }`}
+                            onChange={(e) =>
+                              updateServiceHour(svc, day, 'dinner', 'from', e.target.value)
+                            }
+                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                              activeHoursSource[day].dinnerEnabled === false
+                                ? 'opacity-40 cursor-not-allowed bg-muted'
+                                : ''
+                            }`}
                           />
                           <span className="text-xs text-muted-foreground">–</span>
                           <input
                             type="time"
                             disabled={activeHoursSource[day].dinnerEnabled === false}
                             value={activeHoursSource[day].dinner.to}
-                            onChange={(e) => updateServiceHour(svc, day, 'dinner', 'to', e.target.value)}
-                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${activeHoursSource[day].dinnerEnabled === false ? 'opacity-40 cursor-not-allowed bg-muted' : ''
-                              }`}
+                            onChange={(e) =>
+                              updateServiceHour(svc, day, 'dinner', 'to', e.target.value)
+                            }
+                            className={`px-2 py-1.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 min-w-0 w-[108px] appearance-none tabular-nums ${
+                              activeHoursSource[day].dinnerEnabled === false
+                                ? 'opacity-40 cursor-not-allowed bg-muted'
+                                : ''
+                            }`}
                           />
                           {activeHoursSource[day].dinnerEnabled === false && (
                             <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
@@ -531,7 +597,7 @@ export default function ServiceHoursTab({
         {renderServiceSection('pickup', 'Asporto / Ritiro', <Clock size={20} />)}
         {renderServiceSection('delivery', 'Consegna a Domicilio', <Settings size={20} />)}
         {renderServiceSection('reservation', 'Prenotazione Tavoli', <Settings size={20} />)}
-        
+
         {scheduledOrders && setScheduledOrders && (
           <div className="bg-card rounded-xl border border-border shadow-card p-6">
             <ScheduledOrdersStep

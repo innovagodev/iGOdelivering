@@ -216,15 +216,17 @@ export default function Sidebar({
                 <img
                   src={user.restaurantLogo}
                   alt={user.restaurantName || 'Logo'}
-                  className={`object-contain transition-all duration-300 ${collapsed ? 'w-7 h-7' : 'h-10 max-w-[140px]'
-                    }`}
+                  className={`object-contain transition-all duration-300 ${
+                    collapsed ? 'w-7 h-7' : 'h-10 max-w-[140px]'
+                  }`}
                 />
               ) : (
                 <div
                   className={`bg-gradient-to-br ${getGradientColor(
                     user?.restaurantName
-                  )} text-white flex items-center justify-center font-extrabold shadow-xs transition-all duration-300 ${collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
-                    }`}
+                  )} text-white flex items-center justify-center font-extrabold shadow-xs transition-all duration-300 ${
+                    collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
+                  }`}
                 >
                   {getInitials(user?.restaurantName)}
                 </div>
@@ -258,11 +260,13 @@ export default function Sidebar({
                 if (onCloseMobile) onCloseMobile();
               }}
               title={collapsed ? item.label : undefined}
-              className={`w-full flex items-center rounded-xl text-sm font-medium transition-all duration-150 group relative ${collapsed ? 'lg:justify-center lg:px-0 py-2.5' : 'gap-3 px-3 py-2.5'
-                } ${isActive
+              className={`w-full flex items-center rounded-xl text-sm font-medium transition-all duration-150 group relative ${
+                collapsed ? 'lg:justify-center lg:px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+              } ${
+                isActive
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                }`}
+              }`}
             >
               <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
                 {item.icon}

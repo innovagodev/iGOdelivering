@@ -3,7 +3,14 @@ import React, { useState } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 
-type OrderHistStatus = 'Consegnato' | 'Annullato' | 'In Consegna' | 'In Preparazione' | 'Pronto' | 'In Attesa' | 'Nuovo';
+type OrderHistStatus =
+  | 'Consegnato'
+  | 'Annullato'
+  | 'In Consegna'
+  | 'In Preparazione'
+  | 'Pronto'
+  | 'In Attesa'
+  | 'Nuovo';
 
 interface HistOrder {
   id: string;
@@ -19,7 +26,10 @@ interface HistOrder {
   zone: string;
 }
 
-const statusBadgeVariant: Record<OrderHistStatus, 'success' | 'danger' | 'info' | 'warning' | 'primary' | 'neutral'> = {
+const statusBadgeVariant: Record<
+  OrderHistStatus,
+  'success' | 'danger' | 'info' | 'warning' | 'primary' | 'neutral'
+> = {
   Consegnato: 'success',
   Annullato: 'danger',
   'In Consegna': 'info',
@@ -29,7 +39,15 @@ const statusBadgeVariant: Record<OrderHistStatus, 'success' | 'danger' | 'info' 
   Nuovo: 'primary',
 };
 
-export default function OrderHistoryTable({ orders = [], loading = false, limit }: { orders?: any[]; loading?: boolean; limit?: number }) {
+export default function OrderHistoryTable({
+  orders = [],
+  loading = false,
+  limit,
+}: {
+  orders?: any[];
+  loading?: boolean;
+  limit?: number;
+}) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<keyof HistOrder>('id');
@@ -40,7 +58,7 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
     return orders.map((o: any) => {
       const orderItems = o.order_items || [];
       const itemsStr = orderItems.map((i: any) => `${i.name} ×${i.qty}`).join(', ');
-      
+
       let mappedStatus: OrderHistStatus = 'Nuovo';
       if (o.status === 'delivered') mappedStatus = 'Consegnato';
       else if (o.status === 'cancelled') mappedStatus = 'Annullato';
@@ -51,7 +69,10 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
 
       const createdDate = new Date(o.created_at);
       const formattedDate = createdDate.toLocaleDateString('it-IT');
-      const formattedTime = createdDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      const formattedTime = createdDate.toLocaleTimeString('it-IT', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
       return {
         id: o.id,
@@ -59,7 +80,7 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
         customer: o.customer_name || 'Cliente',
         items: itemsStr || 'Nessun articolo',
         total: Number(o.total || 0),
-        type: o.type === 'domicilio' ? 'Consegna' : (o.type === 'asporto' ? 'Asporto' : 'Tavolo'),
+        type: o.type === 'domicilio' ? 'Consegna' : o.type === 'asporto' ? 'Asporto' : 'Tavolo',
         payment: 'Contanti', // Default fallback
         status: mappedStatus,
         date: formattedDate,
@@ -200,7 +221,9 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
                     {order.type}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{order.payment}</td>
+                <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
+                  {order.payment}
+                </td>
                 <td className="px-4 py-3">
                   <Badge variant={statusBadgeVariant[order.status]} dot>
                     {order.status}
@@ -209,7 +232,9 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
                 <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums hidden xl:table-cell">
                   {order.date} {order.time}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{order.zone}</td>
+                <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
+                  {order.zone}
+                </td>
                 <td className="px-4 py-3 text-right">
                   <button
                     className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -238,9 +263,7 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
           >
             {/* Header: Order Num & Status */}
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-semibold text-primary">
-                {order.num}
-              </span>
+              <span className="font-mono text-xs font-semibold text-primary">{order.num}</span>
               <Badge variant={statusBadgeVariant[order.status]} dot>
                 {order.status}
               </Badge>
@@ -248,18 +271,12 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
 
             {/* Customer & Type */}
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-foreground">
-                {order.customer}
-              </span>
-              <Badge variant={order.type === 'Consegna' ? 'info' : 'neutral'}>
-                {order.type}
-              </Badge>
+              <span className="font-medium text-foreground">{order.customer}</span>
+              <Badge variant={order.type === 'Consegna' ? 'info' : 'neutral'}>{order.type}</Badge>
             </div>
 
             {/* Items */}
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {order.items}
-            </p>
+            <p className="text-xs text-muted-foreground line-clamp-2">{order.items}</p>
 
             {/* Details Grid */}
             <div className="grid grid-cols-2 gap-2 text-xs pt-1">
@@ -275,9 +292,7 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
                 <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
                   Pagamento
                 </span>
-                <span className="text-muted-foreground">
-                  {order.payment}
-                </span>
+                <span className="text-muted-foreground">{order.payment}</span>
               </div>
               <div>
                 <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
@@ -291,9 +306,7 @@ export default function OrderHistoryTable({ orders = [], loading = false, limit 
                 <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
                   Zona
                 </span>
-                <span className="text-muted-foreground">
-                  {order.zone}
-                </span>
+                <span className="text-muted-foreground">{order.zone}</span>
               </div>
             </div>
           </div>
