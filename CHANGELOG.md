@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.18.0](https://github.com/innovagodev/iGOdelivering/compare/v1.16.0...v1.18.0) (2026-06-10)
+
+
+### Features
+
+* implementato database clienti (CRM) per ristoratori con filtri temporali avanzati ([5ee5fd8](https://github.com/innovagodev/iGOdelivering/commit/5ee5fd889e981ca2a8bd09ccf6ffc86eb07229ae))
+
 ## [1.16.0](https://github.com/innovagodev/iGOdelivering/compare/v1.15.0...v1.16.0) (2026-06-09)
 
 
