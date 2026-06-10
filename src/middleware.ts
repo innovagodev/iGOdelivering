@@ -93,6 +93,7 @@ export async function middleware(request: NextRequest) {
       '/ristoratore/promozioni',
       '/ristoratore/zone',
       '/ristoratore/tavoli',
+      '/ristoratore/clienti',
     ];
     if (!validRistoratoreRoutes.includes(pathname)) {
       return NextResponse.redirect(new URL('/ristoratore/dashboard', request.url));

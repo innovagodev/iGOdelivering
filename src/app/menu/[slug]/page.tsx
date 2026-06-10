@@ -33,6 +33,7 @@ import {
   Share2,
   Printer,
   History,
+  ArrowLeft,
   UtensilsCrossed,
   ChevronRight,
   Users,
@@ -291,31 +292,31 @@ function CartSidebar({
                   {((item.addedIngredients && item.addedIngredients.length > 0) ||
                     (item.removedIngredients && item.removedIngredients.length > 0) ||
                     item.note) && (
-                    <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
-                      {item.addedIngredients?.map((ext) => (
-                        <div
-                          key={ext.name}
-                          className="text-primary font-semibold flex justify-between"
-                        >
-                          <span>+ {ext.name}</span>
-                          <span className="text-[9px] text-muted-foreground font-normal">
-                            € {ext.price.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                      {item.removedIngredients?.map((rem) => (
-                        <div key={rem} className="text-red-500 font-semibold flex justify-between">
-                          <span>- Senza {rem}</span>
-                          <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
-                        </div>
-                      ))}
-                      {item.note && (
-                        <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
-                          Note: &quot;{item.note}&quot;
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
+                        {item.addedIngredients?.map((ext) => (
+                          <div
+                            key={ext.name}
+                            className="text-primary font-semibold flex justify-between"
+                          >
+                            <span>+ {ext.name}</span>
+                            <span className="text-[9px] text-muted-foreground font-normal">
+                              € {ext.price.toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                        {item.removedIngredients?.map((rem) => (
+                          <div key={rem} className="text-red-500 font-semibold flex justify-between">
+                            <span>- Senza {rem}</span>
+                            <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
+                          </div>
+                        ))}
+                        {item.note && (
+                          <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
+                            Note: &quot;{item.note}&quot;
+                          </div>
+                        )}
+                      </div>
+                    )}
                   <p className="text-xs font-bold text-foreground mt-1 tabular-nums">
                     € {(item.price * item.qty).toFixed(2)}
                   </p>
@@ -944,11 +945,11 @@ function CheckoutModal({
         const customNotes =
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
-              item.addedIngredients
-                ?.map((i: any) => '+' + i.name)
-                .concat(item.removedIngredients?.map((i: string) => '-' + i))
-                .join(', ') +
-              '</div>'
+            item.addedIngredients
+              ?.map((i: any) => '+' + i.name)
+              .concat(item.removedIngredients?.map((i: string) => '-' + i))
+              .join(', ') +
+            '</div>'
             : '';
         const itemPrice =
           (item.price +
@@ -976,28 +977,28 @@ function CheckoutModal({
       order.type === 'tavolo'
         ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
         : '<div class="row"><strong>Cliente:</strong> <span>' +
-          (order.customer?.name || order.customerName) +
-          '</span></div>' +
-          '<div class="row"><strong>Telefono:</strong> <span>' +
-          order.customer?.phone +
-          '</span></div>' +
-          (order.type === 'domicilio'
-            ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
-              order.customer?.address +
-              '</span></div>'
-            : '');
+        (order.customer?.name || order.customerName) +
+        '</span></div>' +
+        '<div class="row"><strong>Telefono:</strong> <span>' +
+        order.customer?.phone +
+        '</span></div>' +
+        (order.type === 'domicilio'
+          ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
+          order.customer?.address +
+          '</span></div>'
+          : '');
 
     const deliveryFeeRow =
       (order.deliveryFee || 0) > 0
         ? '<div class="row"><span>Consegna:</span> <span>&euro; ' +
-          (order.deliveryFee || 0).toFixed(2) +
-          '</span></div>'
+        (order.deliveryFee || 0).toFixed(2) +
+        '</span></div>'
         : '';
     const discountRow =
       (order.discount || 0) > 0
         ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' +
-          (order.discount || 0).toFixed(2) +
-          '</span></div>'
+        (order.discount || 0).toFixed(2) +
+        '</span></div>'
         : '';
 
     printWindow.document.write(`
@@ -1677,12 +1678,12 @@ function CheckoutModal({
     : deliveryType === 'tavolo'
       ? !!name && !!tableNumber
       : !!name &&
-        !!phone &&
-        !!email &&
-        isEmailValid &&
-        !!deliveryTime &&
-        (deliveryType === 'asporto' ||
-          (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
+      !!phone &&
+      !!email &&
+      isEmailValid &&
+      !!deliveryTime &&
+      (deliveryType === 'asporto' ||
+        (!!address && cap.length === 5 && !!matchedZone && itemsTotal >= matchedZone.minOrder));
 
   return (
     <Modal
@@ -1773,19 +1774,19 @@ function CheckoutModal({
                         {((item.addedIngredients && item.addedIngredients.length > 0) ||
                           (item.removedIngredients && item.removedIngredients.length > 0) ||
                           item.note) && (
-                          <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
-                            {item.addedIngredients?.map((ext) => (
-                              <div key={ext.name} className="text-primary font-medium">
-                                + {ext.name}
-                              </div>
-                            ))}
-                            {item.removedIngredients?.map((rem) => (
-                              <div key={rem} className="text-red-500">
-                                - Senza {rem}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                            <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
+                              {item.addedIngredients?.map((ext) => (
+                                <div key={ext.name} className="text-primary font-medium">
+                                  + {ext.name}
+                                </div>
+                              ))}
+                              {item.removedIngredients?.map((rem) => (
+                                <div key={rem} className="text-red-500">
+                                  - Senza {rem}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
                       <span className="font-bold text-foreground tabular-nums">
                         € {(item.price * item.qty).toFixed(2)}
@@ -1820,9 +1821,8 @@ function CheckoutModal({
                       }
                       readOnly={!isTableEditable}
                       placeholder="Es. 5"
-                      className={`w-full pl-9 pr-3 py-2.5 text-sm border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground ${
-                        !isTableEditable ? 'bg-muted cursor-not-allowed' : 'bg-input'
-                      }`}
+                      className={`w-full pl-9 pr-3 py-2.5 text-sm border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground ${!isTableEditable ? 'bg-muted cursor-not-allowed' : 'bg-input'
+                        }`}
                     />
                   </div>
                 </div>
@@ -1920,24 +1920,22 @@ function CheckoutModal({
                     type="button"
                     disabled={currentTimeStr === '12:15'}
                     onClick={() => setDeliveryType('domicilio')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                      currentTimeStr === '12:15'
-                        ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
-                        : deliveryType === 'domicilio'
-                          ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                          : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                    }`}
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${currentTimeStr === '12:15'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
+                      : deliveryType === 'domicilio'
+                        ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                        : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                      }`}
                   >
                     Consegna a domicilio
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeliveryType('asporto')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                      deliveryType === 'asporto'
-                        ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                        : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                    }`}
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'asporto'
+                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                      : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                      }`}
                   >
                     Asporto
                   </button>
@@ -2091,11 +2089,10 @@ function CheckoutModal({
                           key={opt.value}
                           type="button"
                           onClick={() => setSelectedDate(opt.value)}
-                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
-                            isSelected
-                              ? 'bg-primary text-white border-primary shadow-sm'
-                              : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
-                          }`}
+                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isSelected
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
+                            }`}
                         >
                           {opt.label}
                         </button>
@@ -2186,7 +2183,7 @@ function CheckoutModal({
             disabled={!detailsValid || loading}
             className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
           >
-            Invia Ordine
+            Vai al Pagamento
           </button>
         </div>
       )}
@@ -2292,11 +2289,10 @@ function CheckoutModal({
                         key={`pay-${opt.id}`}
                         type="button"
                         onClick={() => setPayMethod(opt.id as any)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
-                          active
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                            : 'border-border/60 hover:border-muted-foreground/30 bg-card'
-                        }`}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all ${active
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                          : 'border-border/60 hover:border-muted-foreground/30 bg-card'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -2311,9 +2307,8 @@ function CheckoutModal({
                         </div>
 
                         <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                            active ? 'border-primary' : 'border-border'
-                          }`}
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${active ? 'border-primary' : 'border-border'
+                            }`}
                         >
                           {active && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                         </div>
@@ -2348,13 +2343,13 @@ function CheckoutModal({
 
           {payMethod === 'cash' && (
             <div className="space-y-3">
-              <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
-                {bookingContext
-                  ? "Invia la prenotazione e l'ordine. Pagherai comodamente in cassa a fine pasto (dopo che il ristorante avrà accettato e confermato)."
-                  : deliveryType === 'tavolo'
-                    ? "Invia l'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto."
-                    : `Assicurati di avere il contante pronto ${deliveryType === 'asporto' ? 'al ritiro' : 'alla consegna'}.`}
-              </div>
+              {(bookingContext || deliveryType === 'tavolo') && (
+                <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
+                  {bookingContext
+                    ? "Invia la prenotazione e l'ordine. Pagherai comodamente in cassa a fine pasto (dopo che il ristorante avrà accettato e confermato)."
+                    : "Invia l'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto."}
+                </div>
+              )}
               {deliveryType === 'domicilio' && (
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-muted-foreground">
@@ -2362,7 +2357,7 @@ function CheckoutModal({
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { label: 'No, precisi', value: 'no' },
+                      { label: 'No', value: 'no' },
                       { label: 'Sì, da €20', value: '20' },
                       { label: 'Sì, da €50', value: '50' },
                     ].map((opt) => (
@@ -2378,12 +2373,11 @@ function CheckoutModal({
                             setNeedRest(false);
                           }
                         }}
-                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${
-                          (opt.value === 'no' && needRest === false) ||
+                        className={`py-2 rounded-lg border text-xs font-semibold transition-all ${(opt.value === 'no' && needRest === false) ||
                           (opt.value !== 'no' && needRest === true && restAmount === opt.value)
-                            ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
-                            : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
-                        }`}
+                          ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
+                          : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -2411,7 +2405,7 @@ function CheckoutModal({
             </div>
           )}
 
-          {payMethod === 'pos' && (
+          {payMethod === 'pos' && (bookingContext || deliveryType === 'tavolo') && (
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
@@ -2421,9 +2415,7 @@ function CheckoutModal({
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 {bookingContext
                   ? 'Pagherai comodamente al ristorante tramite carta di credito/debito.'
-                  : deliveryType === 'tavolo'
-                    ? "Invia l'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto."
-                    : `Il corriere avrà con sé il terminale POS portatile per il pagamento con carta ${deliveryType === 'asporto' ? 'in cassa al ritiro' : 'alla consegna'}.`}
+                  : "Invia l'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto."}
               </p>
             </div>
           )}
@@ -2998,11 +2990,10 @@ function CustomizationView({
                     key={`remove-${rem}`}
                     type="button"
                     onClick={() => toggleRemove(rem)}
-                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${
-                      isRemoved
-                        ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
-                        : 'border-border bg-card text-foreground hover:bg-muted'
-                    }`}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-150 ${isRemoved
+                      ? 'border-red-100 bg-red-50/20 text-muted-foreground/75'
+                      : 'border-border bg-card text-foreground hover:bg-muted'
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -3066,11 +3057,10 @@ function CustomizationView({
                               key={`extra-${ext.name}`}
                               type="button"
                               onClick={() => toggleExtra(ext)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
-                                isAdded
-                                  ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                                  : 'border-border bg-card text-foreground hover:bg-muted'
-                              }`}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${isAdded
+                                ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                                : 'border-border bg-card text-foreground hover:bg-muted'
+                                }`}
                             >
                               <div className="flex flex-col items-start">
                                 <span>{ext.name}</span>
@@ -3099,39 +3089,38 @@ function CustomizationView({
         {(item.category.toLowerCase().includes('pizz') ||
           item.category.toLowerCase().includes('panin') ||
           item.category.toLowerCase().includes('burger')) && (
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Impasti & Cotture
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'classico', label: 'Classico', price: 0.0 },
-                { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
-                { id: 'calzone', label: 'A Calzone', price: 0.0 },
-                { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
-              ].map((style) => {
-                const isSelected = cookingStyle === style.id;
-                return (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => setCookingStyle(style.id as any)}
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${
-                      isSelected
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Impasti & Cotture
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'classico', label: 'Classico', price: 0.0 },
+                  { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
+                  { id: 'calzone', label: 'A Calzone', price: 0.0 },
+                  { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
+                ].map((style) => {
+                  const isSelected = cookingStyle === style.id;
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setCookingStyle(style.id as any)}
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all duration-150 ${isSelected
                         ? 'border-primary bg-primary/5 text-primary shadow-sm'
                         : 'border-border bg-card text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <span>{style.label}</span>
-                    <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
-                      {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
-                    </span>
-                  </button>
-                );
-              })}
+                        }`}
+                    >
+                      <span>{style.label}</span>
+                      <span className="text-[9px] text-muted-foreground font-normal mt-0.5">
+                        {style.price > 0 ? `+ € ${style.price.toFixed(2)}` : 'Incluso'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* 4. Notes */}
         <div className="space-y-2">
@@ -3439,6 +3428,10 @@ export default function CustomerStorefront() {
         timestamp: o.created_at,
         type: o.type,
         status: o.status,
+        customerName: o.customer_name,
+        customerPhone: o.customer_phone,
+        customerAddress: o.customer_address,
+        scheduledAt: o.scheduled_at,
         subtotal: parseFloat(o.subtotal),
         deliveryFee: parseFloat(o.delivery_fee),
         discount: parseFloat(o.discount),
@@ -3487,11 +3480,11 @@ export default function CustomerStorefront() {
         const customNotes =
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
-              item.addedIngredients
-                ?.map((i: any) => '+' + i.name)
-                .concat(item.removedIngredients?.map((i: string) => '-' + i))
-                .join(', ') +
-              '</div>'
+            item.addedIngredients
+              ?.map((i: any) => '+' + i.name)
+              .concat(item.removedIngredients?.map((i: string) => '-' + i))
+              .join(', ') +
+            '</div>'
             : '';
         const itemPrice =
           (item.price +
@@ -3519,28 +3512,28 @@ export default function CustomerStorefront() {
       order.type === 'tavolo'
         ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
         : '<div class="row"><strong>Cliente:</strong> <span>' +
-          (order.customer?.name || order.customerName) +
-          '</span></div>' +
-          '<div class="row"><strong>Telefono:</strong> <span>' +
-          order.customer?.phone +
-          '</span></div>' +
-          (order.type === 'domicilio'
-            ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
-              order.customer?.address +
-              '</span></div>'
-            : '');
+        (order.customer?.name || order.customerName) +
+        '</span></div>' +
+        '<div class="row"><strong>Telefono:</strong> <span>' +
+        order.customer?.phone +
+        '</span></div>' +
+        (order.type === 'domicilio'
+          ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
+          order.customer?.address +
+          '</span></div>'
+          : '');
 
     const deliveryFeeRow =
       order.deliveryFee > 0
         ? '<div class="row"><span>Consegna:</span> <span>&euro; ' +
-          order.deliveryFee.toFixed(2) +
-          '</span></div>'
+        order.deliveryFee.toFixed(2) +
+        '</span></div>'
         : '';
     const discountRow =
       order.discount > 0
         ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' +
-          order.discount.toFixed(2) +
-          '</span></div>'
+        order.discount.toFixed(2) +
+        '</span></div>'
         : '';
 
     printWindow.document.write(`
@@ -3907,11 +3900,11 @@ export default function CustomerStorefront() {
       if (existing) {
         return prev.map((c) =>
           c.id === item.id &&
-          JSON.stringify({
-            addedIngredients: c.addedIngredients || [],
-            removedIngredients: c.removedIngredients || [],
-            note: c.note || '',
-          }) === customizationsKey
+            JSON.stringify({
+              addedIngredients: c.addedIngredients || [],
+              removedIngredients: c.removedIngredients || [],
+              note: c.note || '',
+            }) === customizationsKey
             ? { ...c, qty: c.qty + qty }
             : c
         );
@@ -4473,11 +4466,11 @@ export default function CustomerStorefront() {
       if (existing) {
         return prev.map((c) =>
           c.id === item.id &&
-          JSON.stringify({
-            addedIngredients: c.addedIngredients || [],
-            removedIngredients: c.removedIngredients || [],
-            note: c.note || '',
-          }) === customizationsKey
+            JSON.stringify({
+              addedIngredients: c.addedIngredients || [],
+              removedIngredients: c.removedIngredients || [],
+              note: c.note || '',
+            }) === customizationsKey
             ? { ...c, qty: c.qty + qty }
             : c
         );
@@ -4551,9 +4544,9 @@ export default function CustomerStorefront() {
         if (existing) {
           return prev.map((c) =>
             c.id === item.id &&
-            (!c.addedIngredients || c.addedIngredients.length === 0) &&
-            (!c.removedIngredients || c.removedIngredients.length === 0) &&
-            !c.note
+              (!c.addedIngredients || c.addedIngredients.length === 0) &&
+              (!c.removedIngredients || c.removedIngredients.length === 0) &&
+              !c.note
               ? { ...c, qty: c.qty + 1 }
               : c
           );
@@ -5009,11 +5002,10 @@ export default function CustomerStorefront() {
                 placeholder="Cerca nel menu..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${
-                  !isScrolled
-                    ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
-                    : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
-                }`}
+                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
+                  ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
+                  : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
+                  }`}
               />
             </div>
           </div>
@@ -5024,11 +5016,10 @@ export default function CustomerStorefront() {
             <button
               onClick={handleShare}
               title="Condividi Vetrina"
-              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${
-                !isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
-              }`}
+              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
+                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                }`}
             >
               <Share2 size={16} />
             </button>
@@ -5045,11 +5036,10 @@ export default function CustomerStorefront() {
                   }
                 }}
                 title="I miei ordini"
-                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${
-                  !isScrolled
-                    ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                    : 'bg-secondary text-foreground hover:bg-muted border border-border'
-                }`}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                  }`}
               >
                 <History size={16} />
               </button>
@@ -5059,11 +5049,10 @@ export default function CustomerStorefront() {
             {deliveryType !== 'tavolo' && (
               <button
                 onClick={() => setShowBookingModal(true)}
-                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
-                  !isScrolled
-                    ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
-                    : 'bg-[var(--success)] text-white hover:bg-green-700'
-                }`}
+                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
+                  ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
+                  : 'bg-[var(--success)] text-white hover:bg-green-700'
+                  }`}
               >
                 <CalendarCheck size={14} />
                 PRENOTA TAVOLO
@@ -5074,11 +5063,10 @@ export default function CustomerStorefront() {
             <button
               id="header-cart-button"
               onClick={() => setCartOpen((o) => !o)}
-              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${
-                !isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-primary text-white hover:bg-primary-hover'
-              }`}
+              className={`relative flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
+                ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                : 'bg-primary text-white hover:bg-primary-hover'
+                }`}
             >
               <ShoppingCart size={14} />
               <span className="hidden sm:inline">Carrello</span>
@@ -5245,11 +5233,10 @@ export default function CustomerStorefront() {
                 <button
                   key={`cat-nav-${cat}`}
                   onClick={() => handleCategoryClick(cat)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${
-                    isActive
-                      ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
-                      : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
-                  }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
+                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
+                    : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
+                    }`}
                 >
                   <span>{cat}</span>
                 </button>
@@ -5505,13 +5492,12 @@ export default function CustomerStorefront() {
       >
         <div className="space-y-4 text-center py-1">
           <div
-            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
-              availabilityError === 'closed'
-                ? isPreOrderAllowed
-                  ? 'bg-amber-500/10 text-amber-500'
-                  : 'bg-red-500/10 text-red-500'
-                : 'bg-amber-500/10 text-amber-500'
-            }`}
+            className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${availabilityError === 'closed'
+              ? isPreOrderAllowed
+                ? 'bg-amber-500/10 text-amber-500'
+                : 'bg-red-500/10 text-red-500'
+              : 'bg-amber-500/10 text-amber-500'
+              }`}
           >
             {availabilityError === 'closed' ? <Clock size={22} /> : <Bike size={22} />}
           </div>
@@ -5909,153 +5895,247 @@ export default function CustomerStorefront() {
           setSelectedHistoryOrder(null);
         }}
         size="md"
-        title={selectedHistoryOrder ? 'Dettaglio Ordine' : 'I Miei Ordini'}
+        hideClose={true}
       >
-        {selectedHistoryOrder ? (
-          <div className="space-y-4">
-            <button
-              onClick={() => setSelectedHistoryOrder(null)}
-              className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2 animate-fade-in"
-            >
-              ← Torna alla lista
-            </button>
-            <DigitalReceipt
-              order={selectedHistoryOrder}
-              onPrint={() => handlePrintReceipt(selectedHistoryOrder)}
-            />
-          </div>
-        ) : !myOrdersEmail ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-              if (!historyEmailInput.trim()) {
-                setHistoryEmailError("L'email è obbligatoria.");
-                return;
-              }
-              if (!emailRegex.test(historyEmailInput.trim())) {
-                setHistoryEmailError('Inserisci un indirizzo email valido.');
-                return;
-              }
-              setHistoryEmailError(null);
-              const cleanedEmail = historyEmailInput.trim().toLowerCase();
-              setMyOrdersEmail(cleanedEmail);
-              loadHistoryOrders(cleanedEmail);
-            }}
-            className="space-y-4 py-4 text-center"
-          >
-            <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
-              <History size={24} />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-foreground">Visualizza i tuoi ordini</h3>
-              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                Inserisci l&apos;email utilizzata per gli ordini per recuperare lo storico dei tuoi
-                ultimi 10 acquisti.
-              </p>
-            </div>
-            <div className="max-w-xs mx-auto space-y-3">
-              <input
-                type="email"
-                required
-                value={historyEmailInput}
-                onChange={(e) => {
-                  setHistoryEmailInput(e.target.value);
-                  if (historyEmailError) setHistoryEmailError(null);
-                }}
-                placeholder="La tua email..."
-                className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground/50"
+        <div className="flex flex-col h-full">
+          {/* Simple Header with logo and close button X on the right */}
+          <div className="flex justify-between items-center pb-4 mb-4 border-b border-border/40">
+            {/* Left spacer to center-align the logo */}
+            <div className="w-8" />
+
+            {restaurantSettings.logoUrl ? (
+              <img
+                src={restaurantSettings.logoUrl}
+                alt={restaurantSettings.name}
+                className="h-10 w-auto object-contain max-w-[130px]"
               />
-              {historyEmailError && (
-                <p className="text-xs text-red-500 font-semibold mt-1 text-left px-1">
-                  {historyEmailError}
-                </p>
-              )}
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
-              >
-                Cerca Ordini
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-4 py-2">
-            <div className="flex justify-between items-center pb-2 border-b border-border/40">
-              <span className="text-xs text-muted-foreground">
-                Ordini per: <strong className="text-foreground">{myOrdersEmail}</strong>
-              </span>
-              <button
-                onClick={() => {
-                  setMyOrdersEmail('');
-                  setHistoryEmailInput('');
-                  setHistoryOrders([]);
-                }}
-                className="text-[10px] text-red-500 font-bold hover:underline"
-              >
-                Cambia Email
-              </button>
-            </div>
-
-            {historyOrders.length === 0 ? (
-              <div className="text-center py-8 space-y-2 text-muted-foreground">
-                <p className="text-sm">Nessun ordine trovato per questa email.</p>
-                <p className="text-xs">Gli ordini effettuati compariranno qui.</p>
-              </div>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                {historyOrders.map((order: any) => {
-                  // Status comes directly from Supabase via loadHistoryOrders
-                  const liveStatus = order.status;
+              <span className="text-base font-bold text-foreground">
+                {restaurantSettings.name}
+              </span>
+            )}
 
-                  const getStatusBadge = (st: string) => {
-                    switch (st) {
-                      case 'new':
-                        return <Badge variant="info">Ricevuto</Badge>;
-                      case 'accepted':
-                        return <Badge variant="warning">In Cucina</Badge>;
-                      case 'preparing':
-                        return <Badge variant="warning">In Preparazione</Badge>;
-                      case 'delivering':
-                        return <Badge variant="primary">In Consegna</Badge>;
-                      case 'completed':
-                        return <Badge variant="success">Consegnato</Badge>;
-                      default:
-                        return <Badge>{st}</Badge>;
-                    }
-                  };
+            <button
+              onClick={() => {
+                setShowMyOrdersModal(false);
+                setSelectedHistoryOrder(null);
+              }}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Chiudi"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-                  return (
-                    <div
-                      key={order.id}
-                      onClick={() => setSelectedHistoryOrder({ ...order, status: liveStatus })}
-                      className="border border-border hover:border-primary/30 rounded-xl p-3 bg-card flex justify-between items-center cursor-pointer transition-colors"
-                    >
-                      <div className="space-y-1 text-left">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold font-mono text-foreground">
-                            {order.id}
-                          </span>
-                          {getStatusBadge(liveStatus)}
+          {/* Modal Body */}
+          <div>
+            {selectedHistoryOrder ? (
+              <div className="space-y-4">
+                <div className="flex justify-start items-center">
+                  <button
+                    onClick={() => setSelectedHistoryOrder(null)}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2 animate-fade-in"
+                  >
+                    ← Torna alla lista
+                  </button>
+                </div>
+                <DigitalReceipt
+                  order={selectedHistoryOrder}
+                  onPrint={() => handlePrintReceipt(selectedHistoryOrder)}
+                />
+              </div>
+            ) : !myOrdersEmail ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!historyEmailInput.trim()) {
+                    setHistoryEmailError("L'email è obbligatoria.");
+                    return;
+                  }
+                  if (!emailRegex.test(historyEmailInput.trim())) {
+                    setHistoryEmailError('Inserisci un indirizzo email valido.');
+                    return;
+                  }
+                  setHistoryEmailError(null);
+                  const cleanedEmail = historyEmailInput.trim().toLowerCase();
+                  setMyOrdersEmail(cleanedEmail);
+                  loadHistoryOrders(cleanedEmail);
+                }}
+                className="space-y-4 py-4 text-center"
+              >
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
+                  <History size={24} />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-foreground">Visualizza i tuoi ordini</h3>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                    Inserisci l&apos;email utilizzata per gli ordini per recuperare lo storico dei tuoi
+                    ultimi 10 acquisti.
+                  </p>
+                </div>
+                <div className="max-w-xs mx-auto space-y-3">
+                  <input
+                    type="email"
+                    required
+                    value={historyEmailInput}
+                    onChange={(e) => {
+                      setHistoryEmailInput(e.target.value);
+                      if (historyEmailError) setHistoryEmailError(null);
+                    }}
+                    placeholder="La tua email..."
+                    className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground/50"
+                  />
+                  {historyEmailError && (
+                    <p className="text-xs text-red-500 font-semibold mt-1 text-left px-1">
+                      {historyEmailError}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
+                  >
+                    Cerca Ordini
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4 py-1">
+                <div className="flex justify-between items-center px-4 py-2 bg-muted/40 border border-border/40 rounded-xl text-xs">
+                  <span className="text-muted-foreground font-medium">
+                    Ordini per: <strong className="text-foreground">{myOrdersEmail}</strong>
+                  </span>
+                  <button
+                    onClick={() => {
+                      setMyOrdersEmail('');
+                      setHistoryEmailInput('');
+                      setHistoryOrders([]);
+                    }}
+                    className="text-xs text-red-500 font-extrabold hover:underline"
+                  >
+                    Modifica
+                  </button>
+                </div>
+
+                {historyOrders.length === 0 ? (
+                  <div className="text-center py-8 space-y-2 text-muted-foreground">
+                    <p className="text-sm font-semibold">Nessun ordine trovato per questa email.</p>
+                    <p className="text-xs text-muted-foreground/70">Gli ordini effettuati compariranno qui.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1 scrollbar-thin">
+                    {historyOrders.map((order: any) => {
+                      const liveStatus = order.status;
+
+                      const getStatusBadge = (st: string) => {
+                        switch (st) {
+                          case 'new':
+                            return <Badge variant="info">Ricevuto</Badge>;
+                          case 'accepted':
+                            return <Badge variant="warning">In Cucina</Badge>;
+                          case 'preparing':
+                            return <Badge variant="warning">In Preparazione</Badge>;
+                          case 'delivering':
+                            return <Badge variant="primary">In Consegna</Badge>;
+                          case 'completed':
+                            return <Badge variant="success">Consegnato</Badge>;
+                          default:
+                            return <Badge>{st}</Badge>;
+                        }
+                      };
+
+                      const formatItalianDateTime = (dateStr: string | null | undefined) => {
+                        if (!dateStr) return '';
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return dateStr;
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                      };
+
+                      const getOrderTypeName = (type: string) => {
+                        switch (type) {
+                          case 'domicilio':
+                            return 'Consegna a domicilio';
+                          case 'asporto':
+                            return 'Asporto';
+                          case 'tavolo':
+                            return 'Ordine al Tavolo';
+                          case 'prenotazione_tavolo':
+                            return 'Prenotazione';
+                          default:
+                            return type;
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={order.db_id || order.id}
+                          onClick={() => setSelectedHistoryOrder({ ...order, status: liveStatus })}
+                          className="border border-border/70 hover:border-primary/45 rounded-2xl p-4 bg-card shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-[1px]"
+                        >
+                          {/* Row 1: Left: Order Type, Right: Date and Time in Italian format */}
+                          <div className="flex justify-between items-center text-xs mb-3">
+                            <div className="text-left space-y-0.5">
+                              <span className="block text-[10px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
+                                Tipologia
+                              </span>
+                              <span className="text-xs sm:text-[13px] font-black text-foreground">
+                                {getOrderTypeName(order.type)}
+                              </span>
+                            </div>
+                            <div className="text-right space-y-0.5 flex flex-col items-end">
+                              <span className="block text-[10px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
+                                Data Ordine
+                              </span>
+                              <span className="text-xs sm:text-[13px] font-extrabold text-foreground/80">
+                                {formatItalianDateTime(order.timestamp)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Row 2+: Grid details */}
+                          <div className="space-y-2 pt-2.5 border-t border-border/50">
+                            <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
+                              <span className="text-muted-foreground/80 font-medium">Nominativo</span>
+                              <span className="font-extrabold text-foreground text-right">
+                                {order.customerName || 'N/A'}
+                              </span>
+                            </div>
+
+                            {order.type === 'domicilio' && order.customerAddress && (
+                              <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
+                                <span className="text-muted-foreground/80 font-medium">Indirizzo</span>
+                                <span className="font-extrabold text-foreground text-right break-words max-w-[70%]">
+                                  {order.customerAddress}
+                                </span>
+                              </div>
+                            )}
+
+                            {order.type !== 'tavolo' && order.customerPhone && (
+                              <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
+                                <span className="text-muted-foreground/80 font-medium">Telefono</span>
+                                <span className="font-extrabold text-foreground text-right">
+                                  {order.customerPhone}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center gap-4 text-xs pt-1">
+                              <span className="text-muted-foreground/80 font-medium">Totale</span>
+                              <span className="text-sm sm:text-base font-black text-foreground tabular-nums">
+                                € {order.total.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(order.timestamp).toLocaleDateString('it-IT')} -{' '}
-                          {order.itemsCount} {order.itemsCount === 1 ? 'prodotto' : 'prodotti'}
-                        </p>
-                      </div>
-                      <div className="text-right space-y-1">
-                        <p className="text-xs font-extrabold text-foreground">
-                          € {order.total.toFixed(2)}
-                        </p>
-                        <p className="text-[9px] font-bold text-primary uppercase">{order.type}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
       </Modal>
 
       {/* Mobile Sticky Bottom Bar for Cart */}

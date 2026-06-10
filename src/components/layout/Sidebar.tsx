@@ -85,6 +85,12 @@ const ristoratoreNavItems: NavItem[] = [
     href: '/ristoratore/prenotazioni',
   },
   {
+    id: 'nav-clienti',
+    label: 'Clienti',
+    icon: <Users size={18} strokeWidth={1.75} />,
+    href: '/ristoratore/clienti',
+  },
+  {
     id: 'nav-orari',
     label: 'Orari',
     icon: <Clock size={18} strokeWidth={1.75} />,
