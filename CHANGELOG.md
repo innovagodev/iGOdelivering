@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.19.0](https://github.com/innovagodev/iGOdelivering/compare/v1.18.0...v1.19.0) (2026-06-11)
+
+
+### Features
+
+* **kanban,checkout:** ottimizzazione pannello live, gestione scaduti e allineamento interfaccia ([924c145](https://github.com/innovagodev/iGOdelivering/commit/924c145e567d44840a1eca5a2555498bf8b0c99d))
+
 ## [1.18.0](https://github.com/innovagodev/iGOdelivering/compare/v1.16.0...v1.18.0) (2026-06-10)
 
 
