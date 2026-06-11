@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.21.0](https://github.com/innovagodev/iGOdelivering/compare/v1.20.0...v1.21.0) (2026-06-11)
+
+
+### Features
+
+* redirect root homepage to WordPress landing page ([aae6e83](https://github.com/innovagodev/iGOdelivering/commit/aae6e8304e40c30ca9b47229d0c7cd59bf971678))
+
 ## [1.20.0](https://github.com/innovagodev/iGOdelivering/compare/v1.19.0...v1.20.0) (2026-06-11)
 
 
