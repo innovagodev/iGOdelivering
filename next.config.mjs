@@ -18,6 +18,15 @@ const nextConfig = {
     remotePatterns: imageHosts,
     minimumCacheTTL: 60,
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: 'https://igodelivering.it',
+        permanent: false,
+      },
+    ];
+  },
   webpack(config, { dev }) {
     if (dev) {
       const ignoredPaths = (process.env.WATCH_IGNORED_PATHS || '')
