@@ -24,55 +24,6 @@ import {
   Store,
 } from 'lucide-react';
 
-const defaultBookings: TableBooking[] = [
-  {
-    id: 'booking-1',
-    name: 'Alessandro Rossi',
-    phone: '+39 333 123 4567',
-    email: 'alessandro.rossi@email.it',
-    guests: 4,
-    date: '2026-05-22',
-    time: '20:30',
-    status: 'confirmed',
-    notes: "Tavolo all'aperto vicino alla finestra se possibile.",
-    createdAt: '2026-05-20T18:30:00Z',
-  },
-  {
-    id: 'booking-2',
-    name: 'Giulia Bianchi',
-    phone: '+39 345 765 4321',
-    email: 'giulia.bianchi@email.it',
-    guests: 2,
-    date: '2026-05-22',
-    time: '19:30',
-    status: 'pending',
-    notes: 'Festeggiamo un anniversario.',
-    createdAt: '2026-05-21T09:15:00Z',
-  },
-  {
-    id: 'booking-3',
-    name: 'Marco Esposito',
-    phone: '+39 320 987 6543',
-    email: 'marco.esposito@email.it',
-    guests: 6,
-    date: '2026-05-23',
-    time: '21:00',
-    status: 'confirmed',
-    notes: 'Un invitato celiaco.',
-    createdAt: '2026-05-21T10:00:00Z',
-  },
-  {
-    id: 'booking-4',
-    name: 'Sofia Neri',
-    phone: '+39 328 112 2334',
-    guests: 3,
-    date: '2026-05-23',
-    time: '13:00',
-    status: 'cancelled',
-    notes: 'Cancellato su richiesta del cliente.',
-    createdAt: '2026-05-19T14:20:00Z',
-  },
-];
 
 export default function PrenotazioniPage() {
   const { user } = useAuth();
@@ -389,7 +340,7 @@ export default function PrenotazioniPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
               <Store size={16} className="text-primary flex-shrink-0" />
               <span className="font-semibold text-foreground text-base truncate">
-                {user?.restaurantName || 'Pizzeria Bella Napoli'}
+                {user?.restaurantName || 'Il tuo ristorante'}
               </span>
             </div>
           }

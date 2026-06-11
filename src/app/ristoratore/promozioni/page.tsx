@@ -23,30 +23,6 @@ import {
   Store,
 } from 'lucide-react';
 
-const defaultPromos: PromoCode[] = [
-  {
-    id: 'promo-1',
-    code: 'WELCOME10',
-    type: 'first_order',
-    value: 10,
-    minOrderSubtotal: 15,
-    active: true,
-    startDate: '2026-01-01',
-    endDate: '2026-12-31',
-    description: 'Sconto del 10% per i nuovi clienti con spesa minima di 15€',
-  },
-  {
-    id: 'promo-2',
-    code: 'PIZZA5',
-    type: 'threshold_based',
-    value: 5,
-    minOrderSubtotal: 30,
-    active: true,
-    startDate: '2026-05-01',
-    endDate: '2026-08-31',
-    description: 'Sconto fisso di 5€ su ordini superiori a 30€',
-  },
-];
 
 export default function PromozioniPage() {
   const { user } = useAuth();
@@ -312,7 +288,7 @@ export default function PromozioniPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
               <Store size={16} className="text-primary flex-shrink-0" />
               <span className="font-semibold text-foreground text-base truncate">
-                {user?.restaurantName || 'Pizzeria Bella Napoli'}
+                {user?.restaurantName || 'Il tuo ristorante'}
               </span>
             </div>
           }

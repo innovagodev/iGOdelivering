@@ -39,7 +39,8 @@ export default function RistoratoreTavoliPage() {
   const [savedCount, setSavedCount] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [restaurantLogo, setRestaurantLogo] = useState<string>('');
-  const [restaurantSlug, setRestaurantSlug] = useState('pizzeria-bella-napoli');
+  const [restaurantSlug, setRestaurantSlug] = useState('');
+  const [tableOrdersTodayCount, setTableOrdersTodayCount] = useState(0);
 
   const [copiedVetrina, setCopiedVetrina] = useState(false);
   const [copiedGenerico, setCopiedGenerico] = useState(false);
@@ -373,6 +374,25 @@ export default function RistoratoreTavoliPage() {
     }
 
     loadTableCount();
+  }, [restaurantId]);
+
+  // Fetch table orders count for today
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString();
+
+    supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('restaurant_id', restaurantId)
+      .eq('type', 'tavolo')
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay)
+      .then(({ count }) => {
+        setTableOrdersTodayCount(count || 0);
+      });
   }, [restaurantId]);
 
   const [localLogoUrl, setLocalLogoUrl] = useState<string>('');
@@ -779,7 +799,7 @@ export default function RistoratoreTavoliPage() {
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                   Ordini al Tavolo Oggi
                 </p>
-                <p className="text-2xl font-bold text-[var(--success)] mt-1 tabular-nums">0</p>
+                <p className="text-2xl font-bold text-[var(--success)] mt-1 tabular-nums">{tableOrdersTodayCount}</p>
               </div>
               <div className="bg-card rounded-xl border border-border p-4 shadow-card">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">

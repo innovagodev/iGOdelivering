@@ -112,68 +112,6 @@ const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'review', label: 'Salva', description: 'Revisione e salvataggio' },
 ];
 
-const mockRestaurants = [
-  {
-    id: 'r-001',
-    name: 'Pizzeria Bella Napoli',
-    category: 'Pizzeria',
-    description: 'Autentica pizzeria napoletana nel cuore di Napoli.',
-    phone: '+39 081 123 4567',
-    email: 'giuseppe@bellanapoli.it',
-    website: 'https://www.bellanapoli.it',
-    address: 'Via Toledo 45',
-    city: 'Napoli',
-    province: 'NA',
-    cap: '80132',
-    vatNumber: 'IT12345678901',
-    status: 'published',
-  },
-  {
-    id: 'r-002',
-    name: 'Trattoria da Mario',
-    category: 'Trattoria',
-    description: 'Cucina tradizionale romana.',
-    phone: '+39 06 987 6543',
-    email: 'mario@trattoriamario.it',
-    website: 'https://www.trattoriamario.it',
-    address: 'Corso Umberto I 12',
-    city: 'Roma',
-    province: 'RM',
-    cap: '00100',
-    vatNumber: 'IT98765432101',
-    status: 'published',
-  },
-  {
-    id: 'r-003',
-    name: 'Sushi Zen',
-    category: 'Giapponese',
-    description: 'Sushi autentico giapponese.',
-    phone: '+39 02 555 7890',
-    email: 'kenji@sushizen.it',
-    website: 'https://www.sushizen.it',
-    address: 'Via Montenapoleone 8',
-    city: 'Milano',
-    province: 'MI',
-    cap: '20121',
-    vatNumber: 'IT11223344556',
-    status: 'draft',
-  },
-  {
-    id: 'r-004',
-    name: 'Osteria del Porto',
-    category: 'Osteria',
-    description: 'Pesce fresco e cucina marinara.',
-    phone: '+39 081 456 7890',
-    email: 'lucia@osteriaporto.it',
-    website: 'https://www.osteriaporto.it',
-    address: 'Lungomare Caracciolo 22',
-    city: 'Napoli',
-    province: 'NA',
-    cap: '80122',
-    vatNumber: 'IT66778899001',
-    status: 'suspended',
-  },
-];
 
 const defaultDayHours = (): Record<string, DayHours> => {
   const h: Record<string, DayHours> = {};
@@ -437,7 +375,7 @@ export default function RestaurantConfigurePage() {
         .toLowerCase()
         .replace(/ /g, '-')
         .replace(/[^\w-]+/g, '')
-    : 'pizzeria-bella-napoli';
+    : '';
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
@@ -598,7 +536,7 @@ export default function RestaurantConfigurePage() {
                 .toLowerCase()
                 .replace(/ /g, '-')
                 .replace(/[^\w-]+/g, '')
-            : 'pizzeria-bella-napoli';
+            : restaurantId;
           const storedSettingsStr =
             localStorage.getItem(`iGO_settings_${restaurantId}`) ||
             localStorage.getItem(`iGO_settings_${rawSlug}`);
