@@ -34,6 +34,7 @@ interface OrderItem {
 
 interface LiveOrder {
   id: string;
+  orderNumber?: string;
   customer: string;
   items: OrderItem[];
   total: number;
@@ -43,6 +44,7 @@ interface LiveOrder {
   address?: string;
   tableNumber?: string;
   isBookingPreOrder?: boolean;
+  status?: string;
 }
 
 const initialOrders: Record<OrderStatus, LiveOrder[]> = {
@@ -176,6 +178,7 @@ export default function LiveOrderKanban() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'delivery' | 'takeaway' | 'table'>(
     'all'
   );
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -190,48 +193,7 @@ export default function LiveOrderKanban() {
     return () => clearInterval(timer);
   }, []);
 
-  const renderKitchenTimer = (timestamp?: string) => {
-    const timeVal = timestamp || new Date().toISOString();
-    const mins = Math.max(0, Math.floor((Date.now() - new Date(timeVal).getTime()) / 60000));
 
-    let colorClass = '';
-    let pulseClass = '';
-    let label = '';
-
-    if (mins < 15) {
-      colorClass =
-        'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20';
-      pulseClass = 'bg-emerald-500';
-      label = `${mins}m in prep`;
-    } else if (mins <= 30) {
-      colorClass =
-        'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 animate-pulse';
-      pulseClass = 'bg-amber-500';
-      label = `${mins}m in cucina`;
-    } else {
-      colorClass =
-        'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/40 animate-pulse font-extrabold';
-      pulseClass = 'bg-rose-600';
-      label = `${mins}m RITARDO!`;
-    }
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold tracking-wide ${colorClass}`}
-      >
-        <span className="relative flex h-1.5 w-1.5">
-          {mins >= 15 && (
-            <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${pulseClass}`}
-            ></span>
-          )}
-          <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${pulseClass}`}></span>
-        </span>
-        <Clock size={10} className="flex-shrink-0" />
-        <span className="tabular-nums">{label}</span>
-      </span>
-    );
-  };
 
   const seenOrderIdsRef = React.useRef<Set<string>>(new Set());
   const isFirstLoadRef = React.useRef(true);
@@ -311,7 +273,7 @@ export default function LiveOrderKanban() {
           Notification.permission === 'granted'
         ) {
           new Notification('Nuovo Ordine Ricevuto!', {
-            body: `Nuovo ordine #${lastNewOrder.id.replace('ord-', '').toUpperCase()} da ${lastNewOrder.customerName || 'Cliente'} - € ${(lastNewOrder.total || 0).toFixed(2)}`,
+            body: `Nuovo ordine #${lastNewOrder.order_number || lastNewOrder.id.replace('ord-', '').toUpperCase()} da ${lastNewOrder.customerName || 'Cliente'} - € ${(lastNewOrder.total || 0).toFixed(2)}`,
             icon: '/favicon.ico',
           });
         }
@@ -342,6 +304,7 @@ export default function LiveOrderKanban() {
 
     return {
       id: o.id || 'ord-unknown',
+      orderNumber: o.order_number || o.id || 'ord-unknown',
       customer:
         o.customer_name ||
         o.customerName ||
@@ -356,6 +319,7 @@ export default function LiveOrderKanban() {
       address: o.customer_address || (o.customer && o.customer.address) || o.address || '',
       tableNumber: o.table_number || o.tableNumber,
       isBookingPreOrder: o.type === 'prenotazione_tavolo' || (o.id && o.id.startsWith('PRE-')),
+      status: ((o.status === 'new' || o.status === 'pending') && mins >= 3) ? 'expired' : o.status,
     };
   };
 
@@ -365,13 +329,27 @@ export default function LiveOrderKanban() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   };
 
+  const formatMinutesAgo = (mins: number) => {
+    if (mins < 1) return 'ora';
+    if (mins < 60) return `${mins}m fa`;
+    if (mins < 1440) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m > 0 ? `${h}h ${m}m fa` : `${h}h fa`;
+    }
+    const d = Math.floor(mins / 1440);
+    const h = Math.floor((mins % 1440) / 60);
+    return h > 0 ? `${d}g ${h}h fa` : `${d}g fa`;
+  };
+
   const acceptOrder = async (orderId: string) => {
     const found = orders.find((o) => o.id === orderId);
     if (!found) return;
     try {
       await updateOrderStatus(orderId, 'preparing');
+      const orderCode = found.order_number || found.id.replace('ord-', '').toUpperCase();
       showToast(
-        `Ordine ${orderId} di ${found.customer_name || found.customerName || 'Cliente'} accettato`,
+        `Ordine #${orderCode} di ${found.customer_name || found.customerName || 'Cliente'} accettato`,
         'success'
       );
     } catch (e) {
@@ -384,7 +362,8 @@ export default function LiveOrderKanban() {
     if (!found) return;
     try {
       await updateOrderStatus(orderId, 'delivered');
-      showToast(`Ordine ${orderId} completato`, 'success');
+      const orderCode = found.order_number || found.id.replace('ord-', '').toUpperCase();
+      showToast(`Ordine #${orderCode} completato`, 'success');
     } catch (e) {
       showToast(`Errore durante il completamento dell'ordine`, 'danger');
     }
@@ -395,7 +374,8 @@ export default function LiveOrderKanban() {
     if (!found) return;
     try {
       await updateOrderStatus(orderId, 'cancelled');
-      showToast(`Ordine ${orderId} rifiutato`, 'danger');
+      const orderCode = found.order_number || found.id.replace('ord-', '').toUpperCase();
+      showToast(`Ordine #${orderCode} rifiutato`, 'danger');
     } catch (e) {
       showToast(`Errore durante il rifiuto dell'ordine`, 'danger');
     }
@@ -405,7 +385,7 @@ export default function LiveOrderKanban() {
     return orders
       .filter((o) => {
         const orderStatus = o.status;
-        if (colKey === 'pending') return orderStatus === 'new' || orderStatus === 'pending';
+        if (colKey === 'pending') return orderStatus === 'new' || orderStatus === 'pending' || orderStatus === 'expired';
         if (colKey === 'accepted')
           return (
             orderStatus === 'accepted' ||
@@ -423,7 +403,15 @@ export default function LiveOrderKanban() {
           order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
           order.id.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesType = orderTypeFilter === 'all' || order.type === orderTypeFilter;
-        return matchesSearch && matchesType;
+        
+        let matchesStatus = true;
+        if (statusFilter === 'active') {
+          matchesStatus = order.status !== 'expired';
+        } else if (statusFilter === 'expired') {
+          matchesStatus = order.status === 'expired';
+        }
+
+        return matchesSearch && matchesType && matchesStatus;
       });
   };
 
@@ -502,7 +490,7 @@ export default function LiveOrderKanban() {
         <body>
           <h2>${restName}</h2>
           <h3>COMANDA CUCINA</h3>
-          <div style="text-align: center; font-size: 11px;">ID: ${rawOrder.id.replace('ord-', '').toUpperCase()}</div>
+          <div style="text-align: center; font-size: 11px;">ID: ${rawOrder.order_number || rawOrder.id.replace('ord-', '').toUpperCase()}</div>
           <div style="text-align: center; font-size: 11px;">Data: ${new Date(rawOrder.timestamp || rawOrder.createdAt).toLocaleString('it-IT')}</div>
           
           <div class="divider"></div>
@@ -619,7 +607,7 @@ export default function LiveOrderKanban() {
         <div style="page-break-after: always; padding: 10px 0;">
           <h2 style="text-align: center; margin: 5px 0;">${restName}</h2>
           <h3 style="text-align: center; margin: 5px 0;">COMANDA IN CORSO (#${index + 1}/${colOrders.length})</h3>
-          <div style="text-align: center; font-size: 11px;">ID: ${rawOrder.id.replace('ord-', '').toUpperCase()}</div>
+          <div style="text-align: center; font-size: 11px;">ID: ${rawOrder.order_number || rawOrder.id.replace('ord-', '').toUpperCase()}</div>
           <div style="text-align: center; font-size: 11px;">Data: ${new Date(rawOrder.timestamp || rawOrder.createdAt).toLocaleString('it-IT')}</div>
           
           <div class="divider" style="border-top: 2px dashed #000; margin: 10px 0;"></div>
@@ -683,6 +671,39 @@ export default function LiveOrderKanban() {
   };
 
   const renderActions = (colKey: OrderStatus, order: LiveOrder) => {
+    if (order.status === 'expired') {
+      return (
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              rejectOrder('pending', order.id);
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
+          >
+            <X size={12} />
+            Rifiuta
+          </button>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                await updateOrderStatus(order.id, 'completed');
+                const orderCode = order.orderNumber || order.id.replace('ord-', '').toUpperCase();
+                showToast(`Ordine #${orderCode} riattivato e completato`, 'success');
+              } catch (err) {
+                showToast(`Errore durante il completamento dell'ordine`, 'danger');
+              }
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors cursor-pointer"
+          >
+            <Check size={12} />
+            Completa
+          </button>
+        </div>
+      );
+    }
+
     if (colKey === 'pending') {
       return (
         <div className="mt-3 flex gap-2">
@@ -718,10 +739,10 @@ export default function LiveOrderKanban() {
               e.stopPropagation();
               rejectOrder('accepted', order.id);
             }}
-            className="flex items-center justify-center p-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-red-600 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-400 transition-colors cursor-pointer"
-            title="Annulla ordine"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
           >
-            <X size={13} />
+            <X size={12} />
+            Annulla
           </button>
           <button
             onClick={(e) => {
@@ -874,6 +895,17 @@ export default function LiveOrderKanban() {
             <option value="table">Tavolo</option>
           </select>
         </div>
+        <div className="w-full sm:w-44">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="w-full h-9 px-2 text-base rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="all">Tutti gli stati</option>
+            <option value="active">Solo Attivi</option>
+            <option value="expired">Solo Persi</option>
+          </select>
+        </div>
       </div>
 
       {/* Mobile Tab Bar */}
@@ -952,41 +984,54 @@ export default function LiveOrderKanban() {
                   <div
                     key={order.id}
                     onClick={() => setSelectedOrderId(order.id)}
-                    className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded p-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md transition-all flex flex-col gap-2 cursor-pointer hover:scale-[1.01] duration-150 group"
+                    className={`bg-white dark:bg-slate-950 border rounded-xl p-3.5 shadow-sm hover:shadow-md transition-all flex flex-col gap-3 cursor-pointer hover:scale-[1.01] duration-150 group ${
+                      order.status === 'expired'
+                        ? 'opacity-55 border-rose-500/80 bg-rose-500/5 dark:border-rose-500/30 dark:bg-rose-500/5 border-dashed border-2 hover:opacity-100 hover:border-rose-500'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
                   >
+                    {/* Header: ID, Customer Name and Badges */}
                     <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-900 pb-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
-                          #{order.id.replace('ord-', '').toUpperCase()}
-                        </span>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-slate-950 dark:group-hover:text-slate-50 transition-colors truncate">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          {order.status === 'expired' && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 border border-rose-500/20 uppercase flex-shrink-0 animate-pulse">
+                              Scaduto
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+                            #{order.orderNumber}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
                           {order.customer}
-                        </span>
+                        </h4>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePrintSingleOrder(order.id);
                           }}
-                          className="p-1 rounded text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
                           title="Stampa comanda"
                         >
-                          <Printer size={12} />
+                          <Printer size={13} />
                         </button>
                         {getOrderTypeBadge(order.type, order.tableNumber, order.isBookingPreOrder)}
                       </div>
                     </div>
 
+                    {/* Middle: Items List */}
                     <div className="py-0.5">
-                      <ul className="space-y-1">
+                      <ul className="space-y-1.5">
                         {order.items.map((item, idx) => (
                           <li
                             key={`${order.id}-item-${idx}`}
-                            className="text-xs text-slate-600 dark:text-slate-400 flex justify-between"
+                            className="text-xs text-slate-700 dark:text-slate-400 flex justify-between items-center"
                           >
-                            <span className="truncate">{item.name}</span>
-                            <span className="font-semibold text-slate-900 dark:text-slate-200 ml-2">
+                            <span className="truncate font-semibold">{item.name}</span>
+                            <span className="font-extrabold text-slate-900 dark:text-slate-200 ml-2 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] flex-shrink-0">
                               ×{item.qty}
                             </span>
                           </li>
@@ -994,39 +1039,37 @@ export default function LiveOrderKanban() {
                       </ul>
                     </div>
 
+                    {/* Service/Additional info */}
                     {order.isBookingPreOrder && (
-                      <div className="bg-purple-500/5 border border-purple-200/30 rounded px-2 py-1 flex items-center gap-1.5 text-[10px] text-purple-700 dark:text-purple-300 font-semibold mt-0.5">
+                      <div className="bg-purple-500/5 border border-purple-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[10px] text-purple-700 dark:text-purple-300 font-semibold mt-0.5">
                         <Calendar size={10} />
                         <span>Pre-ordine tavolo</span>
                       </div>
                     )}
 
                     {order.type === 'table' && !order.isBookingPreOrder && order.tableNumber && (
-                      <div className="bg-blue-500/5 border border-blue-200/30 rounded px-2 py-1 flex items-center gap-1.5 text-[10px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">
+                      <div className="bg-blue-500/5 border border-blue-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[10px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">
                         <Utensils size={10} />
                         <span>Servire al Tavolo {order.tableNumber}</span>
                       </div>
                     )}
 
                     {order.address && (
-                      <div className="flex items-start gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 bg-slate-50 dark:bg-slate-900/60 p-1.5 rounded border border-slate-100 dark:border-slate-900">
-                        <MapPin size={10} className="mt-0.5 flex-shrink-0 text-slate-400" />
-                        <span className="line-clamp-1">{order.address}</span>
+                      <div className="flex items-start gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-900">
+                        <MapPin size={11} className="mt-0.5 flex-shrink-0 text-slate-400" />
+                        <span className="line-clamp-1 font-medium">{order.address}</span>
                       </div>
                     )}
 
+                    {/* Footer: Elapsed Time and Total Price */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-900 mt-1">
                       <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
-                        {col.key === 'accepted' ? (
-                          renderKitchenTimer(order.timestamp)
-                        ) : (
-                          <>
-                            <Clock size={10} />
-                            <span className="tabular-nums">{order.minutesAgo}m fa</span>
-                          </>
-                        )}
+                        <div className="flex items-center gap-1 font-medium">
+                          <Clock size={11} />
+                          <span className="tabular-nums">{formatMinutesAgo(order.minutesAgo)}</span>
+                        </div>
                       </div>
-                      <span className="text-xs font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                      <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-100">
                         € {order.total.toFixed(2)}
                       </span>
                     </div>
@@ -1058,11 +1101,15 @@ export default function LiveOrderKanban() {
                 <div className="flex flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
-                      #{selectedOrder.id.replace('ord-', '').toUpperCase()}
+                      #{selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase()}
                     </span>
                     {selectedOrder.status === 'new' || selectedOrder.status === 'pending' ? (
                       <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/20">
                         Da Accettare
+                      </span>
+                    ) : selectedOrder.status === 'expired' ? (
+                      <span className="bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 text-[10px] font-extrabold px-2 py-0.5 rounded border border-rose-500/20 animate-pulse">
+                        Scaduto
                       </span>
                     ) : selectedOrder.status === 'accepted' ||
                       selectedOrder.status === 'preparing' ||
@@ -1349,7 +1396,7 @@ export default function LiveOrderKanban() {
                         COMANDA CUCINA
                       </div>
                       <div className="text-[8px] text-slate-500">
-                        ID: {selectedOrder.id.replace('ord-', '').toUpperCase()}
+                        ID: {selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase()}
                       </div>
                       <div className="text-[8px] text-slate-500">
                         {new Date(
@@ -1483,6 +1530,22 @@ export default function LiveOrderKanban() {
                       <Check size={14} /> Accetta
                     </button>
                   </>
+                ) : selectedOrder.status === 'expired' ? (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await updateOrderStatus(selectedOrder.id, 'completed');
+                        const orderCode = selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase();
+                        showToast(`Ordine #${orderCode} riattivato e completato`, 'success');
+                        setSelectedOrderId(null);
+                      } catch (err) {
+                        showToast(`Errore durante il completamento dell'ordine`, 'danger');
+                      }
+                    }}
+                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-550 text-white transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                  >
+                    <CheckCheck size={14} /> Riattiva e Completa
+                  </button>
                 ) : selectedOrder.status === 'accepted' ||
                   selectedOrder.status === 'preparing' ||
                   selectedOrder.status === 'delivering' ? (

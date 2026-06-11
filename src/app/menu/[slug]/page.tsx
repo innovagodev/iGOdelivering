@@ -1025,7 +1025,7 @@ function CheckoutModal({
             </div>
             
             <div class="section">
-              <div class="row"><strong>ID Ordine:</strong> <span>${order.id}</span></div>
+              <div class="row"><strong>ID Ordine:</strong> <span>${order.order_number || order.id}</span></div>
               <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
               <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
               ${tableRow}
@@ -1059,7 +1059,7 @@ function CheckoutModal({
     printWindow.document.close();
   };
 
-  const DigitalReceipt = ({ order, onPrint }: { order: any; onPrint?: () => void }) => {
+  const DigitalReceipt = ({ order }: { order: any }) => {
     if (!order) return null;
     return (
       <div
@@ -1071,7 +1071,7 @@ function CheckoutModal({
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
               ID ORDINE
             </p>
-            <p className="text-sm font-black font-mono text-foreground">{order.id}</p>
+            <p className="text-sm font-black font-mono text-foreground">{order.order_number || order.id}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
@@ -1109,35 +1109,11 @@ function CheckoutModal({
               </span>
             </div>
           )}
-          {order.type === 'tavolo' ? (
+          {order.type === 'tavolo' && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tavolo:</span>
               <span className="font-extrabold text-primary">{order.tableNumber}</span>
             </div>
-          ) : (
-            <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Cliente:</span>
-                <span className="font-semibold text-foreground">
-                  {order.customer?.name || order.customerName}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Telefono:</span>
-                <span className="font-semibold text-foreground">{order.customer?.phone}</span>
-              </div>
-              {order.type === 'domicilio' && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Indirizzo:</span>
-                  <span
-                    className="font-semibold text-foreground text-right max-w-[200px] truncate"
-                    title={order.customer?.address}
-                  >
-                    {order.customer?.address}
-                  </span>
-                </div>
-              )}
-            </>
           )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Pagamento:</span>
@@ -1210,16 +1186,277 @@ function CheckoutModal({
             <span className="text-primary tabular-nums">€ {(order.total || 0).toFixed(2)}</span>
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {onPrint && (
-          <button
-            onClick={onPrint}
-            className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-lg text-xs font-bold transition-all active:scale-95 shadow-xs"
-          >
-            <Printer size={12} />
-            Stampa Ricevuta
-          </button>
+  const OrderStatusTracker = ({
+    orderId,
+    orderStatus,
+    payMethod,
+    slug,
+    onClose,
+    restaurantName,
+    setLastCreatedOrder,
+    deliveryType,
+    tableNumber,
+    lastCreatedOrder,
+  }: {
+    orderId: string;
+    orderStatus: string;
+    payMethod: string;
+    slug: string;
+    onClose: () => void;
+    restaurantName: string;
+    setLastCreatedOrder: (order: any) => void;
+    deliveryType: string;
+    tableNumber?: string | null;
+    lastCreatedOrder: any;
+  }) => {
+    const [secondsLeft, setSecondsLeft] = useState(() => {
+      const createdAt = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
+      if (!createdAt) return 180;
+      const elapsedMs = Date.now() - new Date(createdAt).getTime();
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      return Math.max(0, 180 - elapsedSeconds);
+    });
+
+    const [phase, setPhase] = useState<'pending' | 'waiting_warn' | 'accepted' | 'rejected' | 'expired'>(() => {
+      if (orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'ready' || orderStatus === 'delivering') {
+        return 'accepted';
+      }
+      if (orderStatus === 'rejected' || orderStatus === 'cancelled') {
+        return 'rejected';
+      }
+      if (orderStatus === 'expired') {
+        return 'expired';
+      }
+      const initialSeconds = (() => {
+        const createdAt = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
+        if (!createdAt) return 180;
+        const elapsedMs = Date.now() - new Date(createdAt).getTime();
+        const elapsedSeconds = Math.floor(elapsedMs / 1000);
+        return Math.max(0, 180 - elapsedSeconds);
+      })();
+      if (initialSeconds === 0) return 'expired';
+      if (initialSeconds <= 90) return 'waiting_warn';
+      return 'pending';
+    });
+
+    useEffect(() => {
+      if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
+      if (secondsLeft <= 0) {
+        setPhase('expired');
+        const triggerExpired = async () => {
+          try {
+            await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
+            setLastCreatedOrder((prev: any) => {
+              const next = { ...prev, status: 'expired' };
+              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+              return next;
+            });
+          } catch (e) {
+            console.error(e);
+          }
+        };
+        triggerExpired();
+        return;
+      }
+
+      const interval = setInterval(() => {
+        setSecondsLeft((s) => {
+          const nextSec = s - 1;
+          if (nextSec <= 0) {
+            clearInterval(interval);
+            setPhase('expired');
+            const triggerExpired = async () => {
+              try {
+                await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
+                setLastCreatedOrder((prev: any) => {
+                  const next = { ...prev, status: 'expired' };
+                  sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+                  return next;
+                });
+              } catch (e) {
+                console.error(e);
+              }
+            };
+            triggerExpired();
+            return 0;
+          }
+          if (nextSec <= 90) {
+            setPhase('waiting_warn');
+          }
+          return nextSec;
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, [phase, orderId, secondsLeft, slug, setLastCreatedOrder]);
+
+    useEffect(() => {
+      if (orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'ready' || orderStatus === 'delivering') {
+        setPhase('accepted');
+      } else if (orderStatus === 'rejected' || orderStatus === 'cancelled') {
+        setPhase('rejected');
+      } else if (orderStatus === 'expired') {
+        setPhase('expired');
+      }
+    }, [orderStatus]);
+
+    const formatTime = (secs: number) => {
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const percentage = (secondsLeft / 180) * 100;
+
+    return (
+      <div className="space-y-6 py-4">
+        {/* Tracker Header Visual */}
+        <div className="text-center">
+          {phase === 'pending' && (
+            <div className="space-y-4">
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <Clock className="text-primary animate-pulse" size={40} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-foreground">In attesa di accettazione...</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  {lastCreatedOrder?.type === 'prenotazione_tavolo'
+                    ? 'La tua prenotazione è in attesa di essere approvata dal locale.'
+                    : deliveryType === 'tavolo'
+                      ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato alla cucina.`
+                      : `Il ristorante sta esaminando il tuo ordine.`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {phase === 'waiting_warn' && (
+            <div className="space-y-4">
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-amber-500/20 border-t-amber-500 animate-spin" />
+                <Clock className="text-amber-500 animate-pulse animate-duration-500" size={40} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-foreground">Ancora un momento...</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  Stiamo sollecitando il ristorante. Grazie per la tua pazienza!
+                </p>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-700 dark:text-amber-400 mt-4 text-center font-bold animate-pulse leading-relaxed">
+                  Ci scusiamo per l&apos;attesa, siamo pieni e accetteremo l&apos;ordine a breve
+                </div>
+              </div>
+            </div>
+          )}
+
+          {phase === 'accepted' && (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto border border-green-500/20 shadow-inner">
+                <CheckCircle size={44} className="text-green-600 animate-bounce" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-foreground">Ordine Confermato! 🎉</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  Il ristorante ha accettato il tuo ordine ed è già all&apos;opera in cucina.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {phase === 'rejected' && (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 shadow-inner">
+                <X size={44} className="text-rose-600 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-rose-600">Ordine non accettato ❌</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  Il ristorante non ha potuto accettare il tuo ordine in questo momento.
+                </p>
+                {/* Refund info */}
+                <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3 text-xs text-rose-700 dark:text-rose-400 mt-3 text-left leading-relaxed">
+                  {(payMethod === 'online' || payMethod === 'card') ? (
+                    <>
+                      <strong>💳 Rimborso:</strong> L&apos;importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente entro 3-5 giorni lavorativi.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Nessun addebito:</strong> Poiché avevi selezionato il pagamento alla consegna/cassa, non è stato effettuato alcun addebito.
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {phase === 'expired' && (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20 shadow-inner">
+                <Clock size={44} className="text-red-500" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-red-600">Nessuna risposta dal locale ⏰</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  Il ristorante non ha risposto alla tua richiesta in tempo. L&apos;ordine è scaduto.
+                </p>
+                {/* Refund/expired info */}
+                <div className="bg-red-500/5 border border-red-500/15 rounded-xl p-3 text-xs text-red-700 dark:text-red-400 mt-3 text-left leading-relaxed">
+                  {(payMethod === 'online' || payMethod === 'card') ? (
+                    <>
+                      <strong>💳 Rimborso:</strong> L&apos;importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente sul tuo conto entro 3-5 giorni lavorativi.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Nessun addebito:</strong> Nessun pagamento è stato prelevato. Puoi provare a reinviare l&apos;ordine o contattare telefonicamente il locale.
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Real-time progress loader (only during pending/waiting) */}
+        {(phase === 'pending' || phase === 'waiting_warn') && (
+          <div className="max-w-xs mx-auto space-y-2.5">
+            <div className="flex justify-between items-center text-xs font-bold text-muted-foreground select-none">
+              <span>Tempo rimasto per la risposta:</span>
+              <span className="font-mono text-foreground text-sm tracking-wider tabular-nums font-black">
+                {formatTime(secondsLeft)}
+              </span>
+            </div>
+            <div className="w-full bg-muted/60 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden border border-border/40 relative">
+              <div
+                className="bg-primary h-full rounded-full shadow-lg transition-all duration-1000 ease-linear"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
         )}
+
+        {/* Digital Receipt */}
+        {lastCreatedOrder && (
+          <div className="mt-6 pt-4 border-t border-border">
+            <DigitalReceipt
+              order={lastCreatedOrder}
+            />
+          </div>
+        )}
+
+        {/* CTA Button */}
+        <button
+          onClick={onClose}
+          disabled={phase === 'pending' || phase === 'waiting_warn'}
+          className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 text-xs shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {phase === 'pending' || phase === 'waiting_warn'
+            ? 'Attendi risposta...'
+            : 'Torna al menu'}
+        </button>
       </div>
     );
   };
@@ -1438,9 +1675,7 @@ function CheckoutModal({
     timeInterval,
   ]);
 
-  const showAsapOption =
-    !isCurrentlyClosed &&
-    (!selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value));
+  const showAsapOption = false;
 
   useEffect(() => {
     if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
@@ -2541,44 +2776,18 @@ function CheckoutModal({
       )}
 
       {step === 'success' && (
-        <div className="space-y-6 text-center py-4">
-          <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto shadow-inner border border-amber-500/20">
-            <Clock size={32} className="text-amber-500 animate-pulse" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-xl font-black text-foreground">
-              {lastCreatedOrder?.type === 'prenotazione_tavolo'
-                ? 'Prenotazione Inviata!'
-                : 'Ordine inviato!'}
-            </h3>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-              {lastCreatedOrder?.type === 'prenotazione_tavolo'
-                ? 'La tua prenotazione e pre-ordine del cibo sono stati inviati. Attendi la conferma direttamente da questa pagina del menu.'
-                : deliveryType === 'tavolo'
-                  ? `Il tuo ordine per il tavolo ${tableNumber} è in attesa di accettazione. Torna alla pagina del menu per ricevere aggiornamenti.`
-                  : 'Il tuo ordine è in attesa di essere accettato dal ristorante. Torna alla pagina del menu per ricevere la notifica di conferma.'}
-            </p>
-          </div>
-
-          {/* Digital Receipt */}
-          {lastCreatedOrder && (
-            <div className="mt-4 pt-4 border-t border-border">
-              <DigitalReceipt
-                order={lastCreatedOrder}
-                onPrint={() => handlePrintReceipt(lastCreatedOrder)}
-              />
-            </div>
-          )}
-
-          <button
-            onClick={() => {
-              onClose();
-            }}
-            className="w-full mt-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 text-xs shadow-md shadow-primary/20"
-          >
-            Torna al menu
-          </button>
-        </div>
+        <OrderStatusTracker
+          orderId={lastCreatedOrder?.id || ''}
+          orderStatus={lastCreatedOrder?.status || 'new'}
+          payMethod={lastCreatedOrder?.payMethod || payMethod}
+          slug={slug}
+          onClose={onClose}
+          restaurantName={restaurantSettings?.name || 'iGOdelivering'}
+          setLastCreatedOrder={setLastCreatedOrder}
+          deliveryType={deliveryType}
+          tableNumber={tableNumber}
+          lastCreatedOrder={lastCreatedOrder}
+        />
       )}
     </Modal>
   );
@@ -3311,6 +3520,11 @@ export default function CustomerStorefront() {
     setIsMounted(true);
   }, []);
 
+  const lastCreatedOrderRef = useRef(lastCreatedOrder);
+  useEffect(() => {
+    lastCreatedOrderRef.current = lastCreatedOrder;
+  }, [lastCreatedOrder]);
+
   // Listen to order updates via Supabase Realtime
   useEffect(() => {
     if (typeof window === 'undefined' || !lastCreatedOrder) return;
@@ -3344,12 +3558,15 @@ export default function CustomerStorefront() {
         },
         (payload) => {
           const updatedRecord = payload.new;
-          if (updatedRecord.status !== lastCreatedOrder.status) {
-            const oldStatus = lastCreatedOrder.status;
+          const currentOrder = lastCreatedOrderRef.current;
+          if (!currentOrder) return;
+
+          if (updatedRecord.status !== currentOrder.status) {
+            const oldStatus = currentOrder.status;
             const newStatus = updatedRecord.status;
             const restName = restaurantSettings?.name || 'iGOdelivering';
             const customerName =
-              lastCreatedOrder.customer_name || lastCreatedOrder.name || 'Cliente';
+              currentOrder.customer_name || currentOrder.name || 'Cliente';
 
             let variant: 'success' | 'warning' | 'danger' = 'success';
             let title = '';
@@ -3359,15 +3576,15 @@ export default function CustomerStorefront() {
               if (newStatus === 'cancelled') {
                 variant = 'danger';
                 title = `Prenotazione Rifiutata ❌`;
-                message = `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${lastCreatedOrder.date} non è stata accettata dal ristorante.`;
+                message = `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${currentOrder.date} non è stata accettata dal ristorante.`;
               } else if (newStatus === 'confirmed') {
                 variant = 'success';
                 title = `Tavolo Confermato! 📅`;
                 message = `Ottime notizie ${customerName}! La tua prenotazione per il tavolo è stata confermata da ${restName}.`;
               }
             } else {
-              const tableNum = lastCreatedOrder.table_number;
-              const isTable = lastCreatedOrder.type === 'tavolo';
+              const tableNum = currentOrder.table_number;
+              const isTable = currentOrder.type === 'tavolo';
 
               if (newStatus === 'rejected' || newStatus === 'cancelled') {
                 variant = 'danger';
@@ -3389,11 +3606,11 @@ export default function CustomerStorefront() {
             }
 
             setIncomingNotification({ variant, title, message, orderId });
-            setLastCreatedOrder((prev: any) => ({ ...prev, status: newStatus }));
-            sessionStorage.setItem(
-              `iGO_last_order_${slug}`,
-              JSON.stringify({ ...lastCreatedOrder, status: newStatus })
-            );
+            setLastCreatedOrder((prev: any) => {
+              const next = { ...prev, status: newStatus };
+              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+              return next;
+            });
           }
         }
       )
@@ -3402,7 +3619,7 @@ export default function CustomerStorefront() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [lastCreatedOrder, slug, restaurantSettings]);
+  }, [lastCreatedOrder?.id, slug, restaurantSettings]);
 
   const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
   const [myOrdersEmail, setMyOrdersEmail] = useState('');
@@ -3560,7 +3777,7 @@ export default function CustomerStorefront() {
             </div>
             
             <div class="section">
-              <div class="row"><strong>ID Ordine:</strong> <span>${order.id}</span></div>
+              <div class="row"><strong>ID Ordine:</strong> <span>${order.order_number || order.id}</span></div>
               <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
               <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
               ${tableRow}
@@ -3606,7 +3823,7 @@ export default function CustomerStorefront() {
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
               ID ORDINE
             </p>
-            <p className="text-sm font-black font-mono text-foreground">{order.id}</p>
+            <p className="text-sm font-black font-mono text-foreground">{order.order_number || order.id}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
