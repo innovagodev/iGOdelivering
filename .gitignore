@@ -48,3 +48,7 @@ docs/
 
 # Local Scratch folder
 scratch/
+
+# Supabase local files (removed from git)
+supabase/migrations/
+supabase/seed.sql
