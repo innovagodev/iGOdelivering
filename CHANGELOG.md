@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.22.0](https://github.com/innovagodev/iGOdelivering/compare/v1.21.0...v1.22.0) (2026-06-12)
+
+
+### Features
+
+* **i18n:** supporto bilingue IT/EN, rimozione codici hardcoded e toggle lingue minimal ([acae419](https://github.com/innovagodev/iGOdelivering/commit/acae41998d6f4c153fa7b882febc8e3e6fc355c8))
+
 ## [1.21.0](https://github.com/innovagodev/iGOdelivering/compare/v1.20.0...v1.21.0) (2026-06-11)
 
 
