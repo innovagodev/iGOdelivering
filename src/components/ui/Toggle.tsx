@@ -9,28 +9,13 @@ interface ToggleProps {
   size?: 'sm' | 'md';
 }
 
-export default function Toggle({
-  checked,
-  onChange,
-  label,
-  disabled = false,
-  size = 'md',
-}: ToggleProps) {
+export default function Toggle({ checked, onChange, label, disabled = false, size = 'md' }: ToggleProps) {
   const trackSize = size === 'sm' ? 'w-8 h-4' : 'w-11 h-6';
   const thumbSize = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
-  const thumbTranslate =
-    size === 'sm'
-      ? checked
-        ? 'translate-x-4'
-        : 'translate-x-0.5'
-      : checked
-        ? 'translate-x-6'
-        : 'translate-x-1';
+  const thumbTranslate = size === 'sm' ? (checked ? 'translate-x-4' : 'translate-x-0.5') : (checked ? 'translate-x-6' : 'translate-x-1');
 
   return (
-    <label
-      className={`inline-flex items-center gap-2 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-    >
+    <label className={`inline-flex items-center gap-2 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
       <button
         type="button"
         role="switch"

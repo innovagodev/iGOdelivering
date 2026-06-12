@@ -1,13 +1,6 @@
 # Node modules
 node_modules/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.example
+package-lock.json
 
 # Next.js build output
 .next/
@@ -42,13 +35,3 @@ jest-test-results.json
 
 # Optional: if using TurboRepo or monorepo
 turbo/
-
-# Documentation folder
-docs/
-
-# Local Scratch folder
-scratch/
-
-# Supabase local files (removed from git)
-supabase/migrations/
-supabase/seed.sql

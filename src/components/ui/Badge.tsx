@@ -7,8 +7,6 @@ interface BadgeProps {
   children: React.ReactNode;
   className?: string;
   dot?: boolean;
-  size?: 'xs' | 'sm' | 'md';
-  icon?: React.ReactNode;
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
@@ -29,27 +27,13 @@ const dotStyles: Record<BadgeVariant, string> = {
   primary: 'bg-primary',
 };
 
-const sizeStyles = {
-  xs: 'px-1.5 py-0.5 text-[9px] gap-1',
-  sm: 'px-2 py-0.5 text-xs gap-1.5',
-  md: 'px-2.5 py-1 text-sm gap-2',
-};
-
-export default function Badge({
-  variant = 'neutral',
-  children,
-  className = '',
-  dot = false,
-  size = 'sm',
-  icon,
-}: BadgeProps) {
+export default function Badge({ variant = 'neutral', children, className = '', dot = false }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full font-600 border ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-600 border ${variantStyles[variant]} ${className}`}
       style={{ fontWeight: 600 }}
     >
       {dot && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotStyles[variant]}`} />}
-      {icon && <span className="flex-shrink-0">{icon}</span>}
       {children}
     </span>
   );
