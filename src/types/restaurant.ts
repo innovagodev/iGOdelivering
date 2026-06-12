@@ -5,12 +5,14 @@ export type VisibilityType = 'always' | 'hidden' | 'scheduled';
 export interface OptionChoice {
   id: string;
   name: string;
+  name_en?: string;
   price: string;
 }
 
 export interface OptionGroup {
   id: string;
   name: string;
+  name_en?: string;
   minSelections: number; // 0 = optional, 1+ = required
   maxSelections: number | null; // null = unlimited, 1 = single choice
   choices: OptionChoice[];
@@ -19,16 +21,19 @@ export interface OptionGroup {
 export interface MenuItem {
   id: string;
   name: string;
+  name_en?: string;
   category: string;
   price: number;
   originalPrice?: number;
   description: string;
+  description_en?: string;
   available: boolean;
   image: string;
   imageAlt: string;
   allergens: string[];
   dishTags?: string[];
   ingredients?: string[];
+  ingredients_en?: string[];
   orders: number;
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
@@ -40,15 +45,18 @@ export interface MenuItem {
 export interface MenuItemDraft {
   id: string;
   name: string;
+  name_en?: string;
   category: string;
   price: string;
   originalPrice?: string;
   description: string;
+  description_en?: string;
   available: boolean;
   imageUrl: string;
   allergens: string[];
   dishTags?: string[];
   ingredients?: string[];
+  ingredients_en?: string[];
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];

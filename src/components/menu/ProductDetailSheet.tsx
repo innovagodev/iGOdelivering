@@ -19,16 +19,19 @@ import {
   Pizza,
 } from 'lucide-react';
 import AppImage from '@/components/ui/AppImage';
+import { useLang } from '@/context/LanguageContext';
 
 export interface OptionChoice {
   id: string;
   name: string;
+  name_en?: string;
   price: string | number;
 }
 
 export interface OptionGroup {
   id: string;
   name: string;
+  name_en?: string;
   minSelections: number;
   maxSelections: number | null;
   choices: OptionChoice[];
@@ -37,10 +40,12 @@ export interface OptionGroup {
 export interface MenuItemType {
   id: string;
   name: string;
+  name_en?: string;
   category: string;
   price: number;
   originalPrice?: number;
   description: string;
+  description_en?: string;
   image: string;
   imageAlt: string;
   popular?: boolean;
@@ -49,6 +54,7 @@ export interface MenuItemType {
   allergens: string[];
   dishTags?: string[];
   ingredients?: string[];
+  ingredients_en?: string[];
   optionGroups?: OptionGroup[];
   customizationEnabled?: boolean;
   notesEnabled?: boolean;
@@ -58,7 +64,7 @@ export interface CartItem extends MenuItemType {
   qty: number;
   note?: string;
   cartId?: string;
-  addedIngredients?: { name: string; price: number }[];
+  addedIngredients?: { name: string; name_en?: string; price: number }[];
   removedIngredients?: string[];
   selectedOptions?: any[];
 }
@@ -70,7 +76,7 @@ interface ProductDetailSheetProps {
   onClose: () => void;
   onConfirm: (
     qty: number,
-    addedIngredients: { name: string; price: number }[],
+    addedIngredients: { name: string; name_en?: string; price: number }[],
     removedIngredients: string[],
     note: string
   ) => void;
@@ -215,8 +221,9 @@ export default function ProductDetailSheet({
   onConfirm,
   disabled = false,
 }: ProductDetailSheetProps) {
+  const { t, lang } = useLang();
   const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState<{ name: string; price: number }[]>([]);
+  const [added, setAdded] = useState<{ name: string; name_en?: string; price: number }[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
@@ -240,6 +247,9 @@ export default function ProductDetailSheet({
 
   if (!isOpen || !item) return null;
 
+  const displayName = lang === 'en' && item.name_en ? item.name_en : item.name;
+  const displayDescription = lang === 'en' && item.description_en ? item.description_en : item.description;
+
   const toggleRemove = (rem: string) => {
     setRemoved((prev) => (prev.includes(rem) ? prev.filter((r) => r !== rem) : [...prev, rem]));
   };
@@ -261,7 +271,7 @@ export default function ProductDetailSheet({
           }
           return filtered;
         } else {
-          return [...filtered, { name: choice.name, price: priceVal }];
+          return [...filtered, { name: choice.name, name_en: choice.name_en, price: priceVal }];
         }
       });
     } else {
@@ -278,7 +288,7 @@ export default function ProductDetailSheet({
           if (group.maxSelections !== null && currentGroupSelectionsCount >= group.maxSelections) {
             return prev; // Block selection
           }
-          return [...prev, { name: choice.name, price: priceVal }];
+          return [...prev, { name: choice.name, name_en: choice.name_en, price: priceVal }];
         }
       });
     }
@@ -293,7 +303,7 @@ export default function ProductDetailSheet({
       if (!choice) return filtered;
       const priceVal =
         typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
-      return [...filtered, { name: choice.name, price: priceVal }];
+      return [...filtered, { name: choice.name, name_en: choice.name_en, price: priceVal }];
     });
   };
 
@@ -314,7 +324,8 @@ export default function ProductDetailSheet({
         const groupChoiceNames = group.choices.map((c) => c.name);
         const selectedCount = added.filter((e) => groupChoiceNames.includes(e.name)).length;
         if (selectedCount < min) {
-          return `Seleziona ${group.name} per continuare`;
+          const displayGroupName = lang === 'en' && group.name_en ? group.name_en : group.name;
+          return lang === 'en' ? `Select ${displayGroupName} to continue` : `Seleziona ${group.name} per continuare`;
         }
       }
     }
@@ -341,10 +352,10 @@ export default function ProductDetailSheet({
         <div className="flex items-center justify-between px-5 pb-4 pt-2 sm:pt-6 border-b border-border/40 flex-shrink-0">
           <div>
             <h3 className="font-extrabold text-foreground text-base sm:text-lg leading-tight truncate">
-              {cartItem ? 'Modifica piatto' : 'Personalizza piatto'}
+              {cartItem ? (lang === 'en' ? 'Edit item' : 'Modifica piatto') : t('detail_customize')}
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
-              Seleziona le opzioni desiderate
+              {lang === 'en' ? 'Select options' : 'Seleziona le opzioni desiderate'}
             </p>
           </div>
           <button
@@ -367,11 +378,11 @@ export default function ProductDetailSheet({
 
           {/* Details */}
           <div className="space-y-2">
-            <h4 className="text-xl font-extrabold text-foreground">{item.name}</h4>
+            <h4 className="text-xl font-extrabold text-foreground">{displayName}</h4>
             {item.ingredients && item.ingredients.length > 0 && (
               <p className="text-xs text-muted-foreground/90 font-medium leading-relaxed">
-                <span className="font-bold text-foreground/80">Ingredienti:</span>{' '}
-                {item.ingredients.join(', ')}
+                <span className="font-bold text-foreground/80">{t('detail_ingredients')}:</span>{' '}
+                {(lang === 'en' && item.ingredients_en && item.ingredients_en.length > 0 ? item.ingredients_en : item.ingredients).join(', ')}
               </p>
             )}
             {item.dishTags && item.dishTags.length > 0 && (
@@ -391,13 +402,13 @@ export default function ProductDetailSheet({
                 })}
               </div>
             )}
-            <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{displayDescription}</p>
 
             {/* Allergens */}
             {item.allergens && item.allergens.length > 0 && (
               <div className="pt-1 flex flex-wrap gap-1.5 items-center">
                 <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">
-                  Allergeni:
+                  {lang === 'en' ? 'Allergens:' : 'Allergeni:'}
                 </span>
                 {item.allergens.map((a) => (
                   <span
@@ -417,11 +428,14 @@ export default function ProductDetailSheet({
             item.ingredients.length > 0 && (
               <div className="space-y-3">
                 <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Rimuovi Ingredienti (Opzionale)
+                  {lang === 'en' ? 'Remove Ingredients (Optional)' : 'Rimuovi Ingredienti (Opzionale)'}
                 </h5>
                 <div className="divide-y divide-border/40 border border-border/40 rounded-2xl bg-card overflow-hidden">
-                  {item.ingredients.map((rem) => {
+                  {item.ingredients.map((rem, idx) => {
                     const isRemoved = removed.includes(rem);
+                    const displayRem = lang === 'en' && item.ingredients_en && item.ingredients_en[idx]
+                      ? item.ingredients_en[idx]
+                      : rem;
                     return (
                       <div
                         key={`remove-${rem}`}
@@ -441,12 +455,12 @@ export default function ProductDetailSheet({
                           <span
                             className={`text-xs font-medium ${isRemoved ? 'text-red-500 line-through font-semibold' : 'text-foreground'}`}
                           >
-                            Senza {rem}
+                            {lang === 'en' ? 'Without ' + displayRem : 'Senza ' + displayRem}
                           </span>
                         </div>
                         {isRemoved && (
                           <span className="text-[10px] font-bold text-red-500 uppercase">
-                            Rimosso
+                            {lang === 'en' ? 'Removed' : 'Rimosso'}
                           </span>
                         )}
                       </div>
@@ -501,19 +515,19 @@ export default function ProductDetailSheet({
                           <div key={group.id} className="space-y-2.5">
                             <h5 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
-                                {group.name}
+                                {lang === 'en' && group.name_en ? group.name_en : group.name}
                                 <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.2 font-black animate-pulse">
-                                  Obbligatorio
+                                  {lang === 'en' ? 'Required' : 'Obbligatorio'}
                                 </span>
                               </span>
                               <span
                                 className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${isSatisfied ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border/40'}`}
                               >
                                 {isSingle
-                                  ? `Scegli 1`
+                                  ? (lang === 'en' ? 'Choose 1' : 'Scegli 1')
                                   : max
-                                    ? `Scegli da ${min} a ${max} (${selectedCount}/${max})`
-                                    : `Scegli almeno ${min} (Selezionati: ${selectedCount})`}
+                                    ? (lang === 'en' ? `Choose from ${min} to ${max} (${selectedCount}/${max})` : `Scegli da ${min} a ${max} (${selectedCount}/${max})`)
+                                    : (lang === 'en' ? `Choose at least ${min} (Selected: ${selectedCount})` : `Scegli almeno ${min} (Selezionati: ${selectedCount})`)}
                               </span>
                             </h5>
 
@@ -524,15 +538,16 @@ export default function ProductDetailSheet({
                                   onChange={(e) => handleSelectGroupOption(group, e.target.value)}
                                   className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
                                 >
-                                  <option value="">Seleziona un&apos;opzione...</option>
+                                  <option value="">{lang === 'en' ? 'Select an option...' : "Seleziona un'opzione..."}</option>
                                   {group.choices.map((choice) => {
                                     const priceVal =
                                       typeof choice.price === 'string'
                                         ? parseFloat(choice.price) || 0
                                         : choice.price;
+                                    const choiceDisplayName = lang === 'en' && choice.name_en ? choice.name_en : choice.name;
                                     return (
                                       <option key={choice.id} value={choice.name}>
-                                        {choice.name}{' '}
+                                        {choiceDisplayName}{' '}
                                         {priceVal > 0 ? `(+€${priceVal.toFixed(2)})` : ''}
                                       </option>
                                     );
@@ -555,7 +570,7 @@ export default function ProductDetailSheet({
                                     }}
                                     className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
                                   >
-                                    <option value="">Aggiungi un&apos;opzione...</option>
+                                    <option value="">{lang === 'en' ? 'Add an option...' : "Aggiungi un'opzione..."}</option>
                                     {group.choices
                                       .filter(
                                         (choice) => !added.some((e) => e.name === choice.name)
@@ -565,9 +580,10 @@ export default function ProductDetailSheet({
                                           typeof choice.price === 'string'
                                             ? parseFloat(choice.price) || 0
                                             : choice.price;
+                                        const choiceDisplayName = lang === 'en' && choice.name_en ? choice.name_en : choice.name;
                                         return (
                                           <option key={choice.id} value={choice.name}>
-                                            {choice.name}{' '}
+                                            {choiceDisplayName}{' '}
                                             {priceVal > 0 ? `(+€${priceVal.toFixed(2)})` : ''}
                                           </option>
                                         );
@@ -583,12 +599,13 @@ export default function ProductDetailSheet({
                                       const matchChoice = group.choices.find(
                                         (c) => c.name === choice.name
                                       );
+                                      const choiceDisplayName = lang === 'en' && choice.name_en ? choice.name_en : choice.name;
                                       return (
                                         <span
                                           key={choice.name}
                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 border border-primary/20 text-primary"
                                         >
-                                          {choice.name}
+                                          {choiceDisplayName}
                                           <button
                                             type="button"
                                             onClick={() => {
@@ -616,7 +633,7 @@ export default function ProductDetailSheet({
                   {optionalGroups.length > 0 && (
                     <div className="space-y-3">
                       <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                        Altre Aggiunte & Personalizzazioni
+                        {lang === 'en' ? 'Other Customizations' : 'Altre Aggiunte & Personalizzazioni'}
                       </h5>
                       <div className="space-y-2">
                         {optionalGroups.map((group) => {
@@ -630,6 +647,14 @@ export default function ProductDetailSheet({
                           );
                           const selectedCount = selectedInGroup.length;
 
+                          const displayGroupName = lang === 'en' && group.name_en
+                            ? group.name_en
+                            : (group.id === 'supplementi-singoli' ||
+                               group.name === 'Supplementi' ||
+                               group.name === 'Supplementi Singoli'
+                                 ? (lang === 'en' ? 'Other' : 'Altro')
+                                 : group.name);
+
                           return (
                             <div
                               key={group.id}
@@ -642,16 +667,12 @@ export default function ProductDetailSheet({
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                                    {group.id === 'supplementi-singoli' ||
-                                    group.name === 'Supplementi' ||
-                                    group.name === 'Supplementi Singoli'
-                                      ? 'Altro'
-                                      : group.name}
+                                    {displayGroupName}
                                   </span>
                                   {selectedCount > 0 && (
                                     <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full border border-primary/20">
                                       {selectedCount}{' '}
-                                      {selectedCount === 1 ? 'selezionato' : 'selezionati'}
+                                      {selectedCount === 1 ? (lang === 'en' ? 'selected' : 'selezionato') : (lang === 'en' ? 'selected' : 'selezionati')}
                                     </span>
                                   )}
                                 </div>
@@ -677,15 +698,16 @@ export default function ProductDetailSheet({
                                         }
                                         className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
                                       >
-                                        <option value="">Nessuna selezione</option>
+                                        <option value="">{lang === 'en' ? 'No selection' : 'Nessuna selezione'}</option>
                                         {group.choices.map((choice) => {
                                           const priceVal =
                                             typeof choice.price === 'string'
                                               ? parseFloat(choice.price) || 0
                                               : choice.price;
+                                          const choiceDisplayName = lang === 'en' && choice.name_en ? choice.name_en : choice.name;
                                           return (
                                             <option key={choice.id} value={choice.name}>
-                                              {choice.name}{' '}
+                                              {choiceDisplayName}{' '}
                                               {priceVal > 0 ? `(+€${priceVal.toFixed(2)})` : ''}
                                             </option>
                                           );
@@ -703,6 +725,7 @@ export default function ProductDetailSheet({
                                             ? parseFloat(choice.price) || 0
                                             : choice.price;
                                         const isChecked = added.some((e) => e.name === choice.name);
+                                        const choiceDisplayName = lang === 'en' && choice.name_en ? choice.name_en : choice.name;
                                         return (
                                           <div
                                             key={choice.id}
@@ -722,7 +745,7 @@ export default function ProductDetailSheet({
                                                 )}
                                               </div>
                                               <span className="text-xs font-medium text-foreground">
-                                                {choice.name}
+                                                {choiceDisplayName}
                                               </span>
                                             </div>
                                             {priceVal > 0 && (
@@ -751,12 +774,12 @@ export default function ProductDetailSheet({
           {item.notesEnabled !== false && (
             <div className="space-y-2.5">
               <h5 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Note per la cucina
+                {lang === 'en' ? 'Notes for the kitchen' : 'Note per la cucina'}
               </h5>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Es. Ben cotto, salsa a parte, allergia alle arachidi..."
+                placeholder={lang === 'en' ? 'E.g. Well cooked, sauce on the side, peanut allergy...' : 'Es. Ben cotto, salsa a parte, allergia alle arachidi...'}
                 className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-20 resize-none leading-relaxed"
               />
             </div>
@@ -797,12 +820,12 @@ export default function ProductDetailSheet({
             >
               <span>
                 {disabled
-                  ? 'Locale Chiuso'
+                  ? t('cart_closed')
                   : validationError
                     ? validationError
                     : cartItem
-                      ? 'Aggiorna Piatto'
-                      : 'Aggiungi al carrello'}
+                      ? (lang === 'en' ? 'Update Item' : 'Aggiorna Piatto')
+                      : t('detail_add_to_cart')}
               </span>
               {!validationError && <span className="w-1.5 h-1.5 rounded-full bg-white/40" />}
               {!validationError && <span className="tabular-nums">€ {totalPrice.toFixed(2)}</span>}

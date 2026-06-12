@@ -113,12 +113,14 @@ type VisibilityType = 'always' | 'hidden' | 'scheduled';
 interface OptionChoice {
   id: string;
   name: string;
+  name_en?: string;
   price: string;
 }
 
 interface OptionGroup {
   id: string;
   name: string;
+  name_en?: string;
   minSelections: number;
   maxSelections: number | null;
   choices: OptionChoice[];
@@ -127,15 +129,18 @@ interface OptionGroup {
 interface MenuItemDraft {
   id: string;
   name: string;
+  name_en?: string;
   category: string;
   price: string;
   originalPrice?: string;
   description: string;
+  description_en?: string;
   available: boolean;
   imageUrl: string;
   allergens: string[];
   dishTags?: string[];
   ingredients?: string[];
+  ingredients_en?: string[];
   visibility: VisibilityType;
   visibilitySchedule?: { from: string; to: string };
   optionGroups: OptionGroup[];
@@ -203,6 +208,7 @@ export default function ItemForm({
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newChoiceName, setNewChoiceName] = useState<Record<string, string>>({});
+  const [newChoiceNameEn, setNewChoiceNameEn] = useState<Record<string, string>>({});
   const [newChoicePrice, setNewChoicePrice] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState(false);
   const [isSupplementsModalOpen, setIsSupplementsModalOpen] = useState(false);
@@ -215,6 +221,7 @@ export default function ItemForm({
   const [selectedTagIcon, setSelectedTagIcon] = useState('leaf');
   const [newIngredientInput, setNewIngredientInput] = useState('');
   const [showErrors, setShowErrors] = useState(false);
+  const [enSectionOpen, setEnSectionOpen] = useState(false);
   const [sessionGroups, setSessionGroups] = useState<OptionGroup[]>([]);
   const [activeGroupIds, setActiveGroupIds] = useState<string[]>([]);
 
@@ -456,13 +463,28 @@ export default function ItemForm({
     if (!trimmed) return;
     const currentIngredients = draft.ingredients || [];
     if (!currentIngredients.includes(trimmed)) {
-      setDraft((p) => ({ ...p, ingredients: [...currentIngredients, trimmed] }));
+      setDraft((p) => ({
+        ...p,
+        ingredients: [...currentIngredients, trimmed],
+        ingredients_en: [...(p.ingredients_en || []), ''],
+      }));
     }
   };
 
   const handleRemoveIngredient = (ing: string) => {
     const currentIngredients = draft.ingredients || [];
-    setDraft((p) => ({ ...p, ingredients: currentIngredients.filter((x) => x !== ing) }));
+    const idx = currentIngredients.indexOf(ing);
+    if (idx !== -1) {
+      const currentIngredientsEn = draft.ingredients_en || [];
+      const updatedEn = currentIngredientsEn.filter((_: string, i: number) => i !== idx);
+      setDraft((p) => ({
+        ...p,
+        ingredients: currentIngredients.filter((x) => x !== ing),
+        ingredients_en: updatedEn,
+      }));
+    } else {
+      setDraft((p) => ({ ...p, ingredients: currentIngredients.filter((x) => x !== ing) }));
+    }
   };
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -514,10 +536,12 @@ export default function ItemForm({
   const handleAddChoice = (gid: string) => {
     const name = (newChoiceName[gid] || '').trim();
     if (!name) return;
+    const nameEn = (newChoiceNameEn[gid] || '').trim();
     const priceVal = newChoicePrice[gid] || '0';
     const newChoice: OptionChoice = {
       id: `ch-${Date.now()}`,
       name,
+      name_en: nameEn || undefined,
       price: priceVal,
     };
     setModalOptionGroups((prev) =>
@@ -531,6 +555,7 @@ export default function ItemForm({
       )
     );
     setNewChoiceName((prev) => ({ ...prev, [gid]: '' }));
+    setNewChoiceNameEn((prev) => ({ ...prev, [gid]: '' }));
     setNewChoicePrice((prev) => ({ ...prev, [gid]: '' }));
   };
 
@@ -848,10 +873,89 @@ export default function ItemForm({
               }}
               className="px-3.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
             >
-              <Plus size={14} />
               Aggiungi
             </button>
           </div>
+        </div>
+
+        {/* Collapsible Accordion: English Translation */}
+        <div className="sm:col-span-2 border border-border/60 rounded-2xl overflow-hidden bg-card">
+          <button
+            type="button"
+            onClick={() => setEnSectionOpen(!enSectionOpen)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/10 transition-colors text-left font-bold"
+          >
+            <span className="text-sm font-bold text-foreground">🌐 English Translation (optional)</span>
+            <ChevronDown
+              size={18}
+              className={`transition-transform duration-200 ${enSectionOpen ? 'rotate-180 text-primary' : 'text-muted-foreground'}`}
+            />
+          </button>
+          {enSectionOpen && (
+            <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-4 bg-muted/5 animate-in slide-in-from-top-1 duration-150">
+              {/* Name EN */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Dish Name (EN)
+                </label>
+                <input
+                  type="text"
+                  value={draft.name_en || ''}
+                  onChange={(e) => setDraft((p) => ({ ...p, name_en: e.target.value }))}
+                  placeholder="e.g. Margherita Pizza"
+                  className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                />
+              </div>
+
+              {/* Description EN */}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Description (EN)
+                </label>
+                <textarea
+                  value={draft.description_en || ''}
+                  onChange={(e) => setDraft((p) => ({ ...p, description_en: e.target.value }))}
+                  rows={2}
+                  placeholder="e.g. Classic pizza with tomato sauce and fresh mozzarella"
+                  className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                />
+              </div>
+
+              {/* Ingredients EN Translations */}
+              {draft.ingredients && draft.ingredients.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    Ingredients Translation (EN)
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3 bg-muted/20 border border-border rounded-xl">
+                    {draft.ingredients.map((ing, idx) => {
+                      const currentVal = draft.ingredients_en?.[idx] || '';
+                      return (
+                        <div key={`ing-en-${ing}`} className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-foreground truncate w-24 sm:w-32 block">{ing}:</span>
+                          <input
+                            type="text"
+                            value={currentVal}
+                            onChange={(e) => {
+                              const updatedEn = [...(draft.ingredients_en || [])];
+                              const totalIngredients = draft.ingredients?.length || 0;
+                              while (updatedEn.length < totalIngredients) {
+                                updatedEn.push('');
+                              }
+                              updatedEn[idx] = e.target.value;
+                              setDraft((p) => ({ ...p, ingredients_en: updatedEn }));
+                            }}
+                            placeholder={`Translation of ${ing}`}
+                            className="flex-1 px-2.5 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Allergen Input (Pills + Inline custom allergen input with Emoji) */}
@@ -1906,6 +2010,20 @@ export default function ItemForm({
                             Aggiungi
                           </button>
                         </div>
+
+                        {/* Choice English Translation */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 Traduzione EN (opzionale):</span>
+                          <input
+                            type="text"
+                            value={newChoiceNameEn[gid] || ''}
+                            onChange={(e) =>
+                              setNewChoiceNameEn((p) => ({ ...p, [gid]: e.target.value }))
+                            }
+                            placeholder="es. Ketchup, Extra Cheese..."
+                            className="flex-1 px-3 py-1.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          />
+                        </div>
                       </div>
 
                       {/* Choices List */}
@@ -1927,36 +2045,12 @@ export default function ItemForm({
                             {activeGroup.choices.map((choice) => (
                               <div
                                 key={choice.id}
-                                className="flex items-center gap-3 bg-muted/10 hover:bg-muted/20 p-2 rounded-xl border border-border"
+                                className="flex flex-col gap-2 bg-muted/10 hover:bg-muted/20 p-3 rounded-xl border border-border"
                               >
-                                <input
-                                  type="text"
-                                  value={choice.name}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setModalOptionGroups((p) =>
-                                      p.map((g) =>
-                                        g.id === gid
-                                          ? {
-                                              ...g,
-                                              choices: g.choices.map((c) =>
-                                                c.id === choice.id ? { ...c, name: val } : c
-                                              ),
-                                            }
-                                          : g
-                                      )
-                                    );
-                                  }}
-                                  className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                                />
-
-                                <div className="relative w-24 flex-shrink-0">
-                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
-                                    +€
-                                  </span>
+                                <div className="flex items-center gap-3 w-full">
                                   <input
-                                    type="number"
-                                    value={choice.price}
+                                    type="text"
+                                    value={choice.name}
                                     onChange={(e) => {
                                       const val = e.target.value;
                                       setModalOptionGroups((p) =>
@@ -1965,25 +2059,77 @@ export default function ItemForm({
                                             ? {
                                                 ...g,
                                                 choices: g.choices.map((c) =>
-                                                  c.id === choice.id ? { ...c, price: val } : c
+                                                  c.id === choice.id ? { ...c, name: val } : c
                                                 ),
                                               }
                                             : g
                                         )
                                       );
                                     }}
-                                    step={0.1}
-                                    className="w-full pl-7 pr-2 py-1.5 text-base bg-input border border-border rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                                    className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
                                   />
+
+                                  <div className="relative w-24 flex-shrink-0">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                      +€
+                                    </span>
+                                    <input
+                                      type="number"
+                                      value={choice.price}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setModalOptionGroups((p) =>
+                                          p.map((g) =>
+                                            g.id === gid
+                                              ? {
+                                                  ...g,
+                                                  choices: g.choices.map((c) =>
+                                                    c.id === choice.id ? { ...c, price: val } : c
+                                                  ),
+                                                }
+                                              : g
+                                          )
+                                        );
+                                      }}
+                                      step={0.1}
+                                      className="w-full pl-7 pr-2 py-1.5 text-base bg-input border border-border rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteChoice(gid, choice.id)}
+                                    className="text-muted-foreground hover:text-red-500 p-1.5 rounded-lg hover:bg-muted transition-colors flex-shrink-0 cursor-pointer"
+                                  >
+                                    <X size={14} />
+                                  </button>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteChoice(gid, choice.id)}
-                                  className="text-muted-foreground hover:text-red-500 p-1.5 rounded-lg hover:bg-muted transition-colors flex-shrink-0 cursor-pointer"
-                                >
-                                  <X size={14} />
-                                </button>
+                                {/* English translation in-place edit */}
+                                <div className="flex items-center gap-2 pl-1.5 w-full">
+                                  <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 EN:</span>
+                                  <input
+                                    type="text"
+                                    value={choice.name_en || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setModalOptionGroups((p) =>
+                                        p.map((g) =>
+                                          g.id === gid
+                                            ? {
+                                                ...g,
+                                                choices: g.choices.map((c) =>
+                                                  c.id === choice.id ? { ...c, name_en: val || undefined } : c
+                                                ),
+                                              }
+                                            : g
+                                        )
+                                      );
+                                    }}
+                                    placeholder="English translation (optional)"
+                                    className="flex-1 px-3 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                                  />
+                                </div>
                               </div>
                             ))}
                           </div>

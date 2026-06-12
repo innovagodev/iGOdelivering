@@ -115,12 +115,14 @@ import {
 } from '@/types';
 
 interface MenuStepProps {
-  menuCategories: string[];
-  setMenuCategories: React.Dispatch<React.SetStateAction<string[]>>;
+  menuCategories: { name: string; name_en?: string }[];
+  setMenuCategories: React.Dispatch<React.SetStateAction<{ name: string; name_en?: string }[]>>;
   showNewCategory: boolean;
   setShowNewCategory: (show: boolean) => void;
   newCategoryName: string;
   setNewCategoryName: (name: string) => void;
+  newCategoryNameEn: string;
+  setNewCategoryNameEn: (name: string) => void;
   addNewCategory: () => void;
   optionGroups: WizardOptionGroup[];
   showAddGroup: boolean;
@@ -129,7 +131,7 @@ interface MenuStepProps {
   setNewGroupName: (name: string) => void;
   newGroupChoices: WizardOptionChoice[];
   addChoice: () => void;
-  updateChoice: (id: string, field: 'name' | 'price', value: string | number) => void;
+  updateChoice: (id: string, field: 'name' | 'price' | 'name_en', value: string | number) => void;
   removeChoice: (id: string) => void;
   addWizardOptionGroup: (minSel?: number, maxSel?: number | null) => void;
   removeWizardOptionGroup: (id: string) => void;
@@ -139,7 +141,7 @@ interface MenuStepProps {
   setEditGroupName: (name: string) => void;
   editGroupChoices: WizardOptionChoice[];
   addEditChoice: () => void;
-  updateEditChoice: (id: string, field: 'name' | 'price', value: string | number) => void;
+  updateEditChoice: (id: string, field: 'name' | 'price' | 'name_en', value: string | number) => void;
   removeEditChoice: (id: string) => void;
   saveEditGroup: () => void;
   cancelEditGroup: () => void;
@@ -168,6 +170,8 @@ export default function MenuStep({
   setShowNewCategory,
   newCategoryName,
   setNewCategoryName,
+  newCategoryNameEn,
+  setNewCategoryNameEn,
   addNewCategory,
   optionGroups,
   showAddGroup,
@@ -218,6 +222,7 @@ export default function MenuStep({
   const [customTag, setCustomTag] = React.useState('');
   const [newIngredientInput, setNewIngredientInput] = React.useState('');
   const [showErrors, setShowErrors] = React.useState(false);
+  const [enSectionOpen, setEnSectionOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!showAddItem) {
@@ -231,13 +236,27 @@ export default function MenuStep({
     setNewItem((p) => {
       const currentIngredients = p.ingredients || [];
       if (currentIngredients.includes(trimmed)) return p;
-      return { ...p, ingredients: [...currentIngredients, trimmed] };
+      return {
+        ...p,
+        ingredients: [...currentIngredients, trimmed],
+        ingredients_en: [...(p.ingredients_en || []), ''],
+      };
     });
   };
 
   const handleRemoveIngredient = (ing: string) => {
     setNewItem((p) => {
       const currentIngredients = p.ingredients || [];
+      const idx = currentIngredients.indexOf(ing);
+      if (idx !== -1) {
+        const currentIngredientsEn = p.ingredients_en || [];
+        const updatedEn = currentIngredientsEn.filter((_, i) => i !== idx);
+        return {
+          ...p,
+          ingredients: currentIngredients.filter((x) => x !== ing),
+          ingredients_en: updatedEn,
+        };
+      }
       return { ...p, ingredients: currentIngredients.filter((x) => x !== ing) };
     });
   };
@@ -412,12 +431,17 @@ export default function MenuStep({
         <div className="flex flex-wrap gap-2">
           {menuCategories.map((cat) => (
             <div
-              key={cat}
+              key={cat.name}
               className="group relative bg-muted px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground border border-border flex items-center gap-2"
             >
-              {cat}
+              <span>{cat.name}</span>
+              {cat.name_en && (
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  ({cat.name_en})
+                </span>
+              )}
               <button
-                onClick={() => setMenuCategories((p) => p.filter((c) => c !== cat))}
+                onClick={() => setMenuCategories((p) => p.filter((c) => c.name !== cat.name))}
                 className="text-muted-foreground hover:text-[var(--danger)] transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
               >
                 <X size={10} />
@@ -426,26 +450,51 @@ export default function MenuStep({
           ))}
         </div>
         {showNewCategory && (
-          <div className="flex items-center gap-2 max-w-sm">
-            <input
-              type="text"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Nome categoria..."
-              className="flex-1 px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-            />
-            <button
-              onClick={addNewCategory}
-              className="bg-primary text-white px-3 py-2 rounded-xl text-xs font-bold"
-            >
-              Aggiungi
-            </button>
-            <button
-              onClick={() => setShowNewCategory(false)}
-              className="text-muted-foreground hover:text-foreground p-2"
-            >
-              <X size={16} />
-            </button>
+          <div className="bg-card border border-border rounded-2xl p-4 max-w-sm space-y-3 shadow-xs">
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Nome Categoria (IT) *
+              </label>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Nome categoria (es. Pizze, Primi...)"
+                className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Nome Categoria (EN) (opzionale)
+              </label>
+              <input
+                type="text"
+                value={newCategoryNameEn}
+                onChange={(e) => setNewCategoryNameEn(e.target.value)}
+                placeholder="Category name (e.g. Pizzas, First Courses...)"
+                className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2 justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewCategory(false);
+                  setNewCategoryName('');
+                  setNewCategoryNameEn('');
+                }}
+                className="text-xs font-semibold text-muted-foreground hover:bg-muted px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={addNewCategory}
+                className="bg-primary text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:bg-primary-hover active:scale-95 transition-all cursor-pointer"
+              >
+                Aggiungi
+              </button>
+            </div>
           </div>
         )}
       </section>
@@ -648,35 +697,50 @@ export default function MenuStep({
                 Opzioni
               </p>
               {newGroupChoices.map((choice) => (
-                <div key={choice.id} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={choice.name}
-                    onChange={(e) => updateChoice(choice.id, 'name', e.target.value)}
-                    placeholder="Nome opzione"
-                    className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg"
-                  />
-                  <div className="relative w-24">
-                    <Euro
-                      size={10}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    />
+                <div
+                  key={choice.id}
+                  className="flex flex-col gap-1.5 p-2 bg-card border border-border rounded-xl"
+                >
+                  <div className="flex items-center gap-2">
                     <input
-                      type="number"
-                      value={choice.price}
-                      onChange={(e) =>
-                        updateChoice(choice.id, 'price', parseFloat(e.target.value) || 0)
-                      }
-                      placeholder="Prezzo"
-                      className="w-full pl-6 pr-2 py-1.5 text-base bg-input border border-border rounded-lg"
+                      type="text"
+                      value={choice.name}
+                      onChange={(e) => updateChoice(choice.id, 'name', e.target.value)}
+                      placeholder="Nome opzione"
+                      className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg"
+                    />
+                    <div className="relative w-24">
+                      <Euro
+                        size={10}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <input
+                        type="number"
+                        value={choice.price}
+                        onChange={(e) =>
+                          updateChoice(choice.id, 'price', parseFloat(e.target.value) || 0)
+                        }
+                        placeholder="Prezzo"
+                        className="w-full pl-6 pr-2 py-1.5 text-base bg-input border border-border rounded-lg"
+                      />
+                    </div>
+                    <button
+                      onClick={() => removeChoice(choice.id)}
+                      className="p-1.5 text-muted-foreground hover:text-[var(--danger)] cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 pl-1.5 w-full">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 EN:</span>
+                    <input
+                      type="text"
+                      value={choice.name_en || ''}
+                      onChange={(e) => updateChoice(choice.id, 'name_en', e.target.value)}
+                      placeholder="English translation (optional)"
+                      className="flex-1 px-3 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
                     />
                   </div>
-                  <button
-                    onClick={() => removeChoice(choice.id)}
-                    className="p-1.5 text-muted-foreground hover:text-[var(--danger)] cursor-pointer"
-                  >
-                    <Trash2 size={13} />
-                  </button>
                 </div>
               ))}
               <button
@@ -727,7 +791,7 @@ export default function MenuStep({
               setNewItem({
                 id: '',
                 name: '',
-                category: menuCategories[0] || 'Pizza',
+                category: menuCategories[0]?.name || 'Pizza',
                 price: '',
                 originalPrice: '',
                 description: '',
@@ -882,7 +946,9 @@ export default function MenuStep({
                       className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none"
                     >
                       {menuCategories.map((c) => (
-                        <option key={c}>{c}</option>
+                        <option key={c.name} value={c.name}>
+                          {c.name} {c.name_en ? `(${c.name_en})` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -970,6 +1036,84 @@ export default function MenuStep({
                     rows={2}
                     className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                   />
+                </div>
+                {/* Collapsible Accordion: English Translation */}
+                <div className="border border-border/60 rounded-2xl overflow-hidden bg-card">
+                  <button
+                    type="button"
+                    onClick={() => setEnSectionOpen(!enSectionOpen)}
+                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/10 transition-colors text-left font-bold"
+                  >
+                    <span className="text-xs font-bold text-foreground">🌐 English Translation (optional)</span>
+                    <ChevronDown
+                      size={18}
+                      className={`transition-transform duration-200 ${enSectionOpen ? 'rotate-180 text-primary' : 'text-muted-foreground'}`}
+                    />
+                  </button>
+                  {enSectionOpen && (
+                    <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-4 bg-muted/5 animate-in slide-in-from-top-1 duration-150 text-left">
+                      {/* Name EN */}
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Dish Name (EN)
+                        </label>
+                        <input
+                          type="text"
+                          value={newItem.name_en || ''}
+                          onChange={(e) => setNewItem((p) => ({ ...p, name_en: e.target.value }))}
+                          placeholder="e.g. Margherita Pizza"
+                          className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        />
+                      </div>
+
+                      {/* Description EN */}
+                      <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Description (EN)
+                        </label>
+                        <textarea
+                          value={newItem.description_en || ''}
+                          onChange={(e) => setNewItem((p) => ({ ...p, description_en: e.target.value }))}
+                          rows={2}
+                          placeholder="e.g. Classic pizza with tomato sauce and fresh mozzarella"
+                          className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                        />
+                      </div>
+
+                      {/* Ingredients EN Translations */}
+                      {newItem.ingredients && newItem.ingredients.length > 0 && (
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                            Ingredients Translation (EN)
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3 bg-muted/20 border border-border rounded-xl">
+                            {(newItem.ingredients || []).map((ing, idx) => {
+                              const currentVal = newItem.ingredients_en?.[idx] || '';
+                              return (
+                                <div key={`ing-en-${ing}`} className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-foreground truncate w-24 sm:w-32 block">{ing}:</span>
+                                  <input
+                                    type="text"
+                                    value={currentVal}
+                                    onChange={(e) => {
+                                      const updatedEn = [...(newItem.ingredients_en || [])];
+                                      while (updatedEn.length < (newItem.ingredients || []).length) {
+                                        updatedEn.push('');
+                                      }
+                                      updatedEn[idx] = e.target.value;
+                                      setNewItem((p) => ({ ...p, ingredients_en: updatedEn }));
+                                    }}
+                                    placeholder={`Translation of ${ing}`}
+                                    className="flex-1 px-2.5 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">

@@ -195,9 +195,10 @@ export default function NewRestaurantPage() {
     onlinePaymentAccount: '',
     ibanHolder: '',
   });
-  const [menuCategories, setMenuCategories] = useState<string[]>([]);
+  const [menuCategories, setMenuCategories] = useState<{ name: string; name_en?: string }[]>([]);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryNameEn, setNewCategoryNameEn] = useState('');
   const [optionGroups, setOptionGroups] = useState<WizardOptionGroup[]>([]);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -326,8 +327,12 @@ export default function NewRestaurantPage() {
 
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return;
-    setMenuCategories((p) => [...p, newCategoryName.trim()]);
+    setMenuCategories((p) => [
+      ...p,
+      { name: newCategoryName.trim(), name_en: newCategoryNameEn.trim() || undefined },
+    ]);
     setNewCategoryName('');
+    setNewCategoryNameEn('');
     setShowNewCategory(false);
   };
   const addMenuItem = () => {
@@ -337,7 +342,7 @@ export default function NewRestaurantPage() {
     setNewItem({
       id: '',
       name: '',
-      category: menuCategories[0] || 'Pizza',
+      category: menuCategories[0]?.name || 'Pizza',
       price: '',
       originalPrice: '',
       description: '',
@@ -605,7 +610,8 @@ export default function NewRestaurantPage() {
           await supabase.from('menu_categories').delete().eq('restaurant_id', dbRestaurantId);
           const catsPayload = menuCategories.map((cat, idx) => ({
             restaurant_id: dbRestaurantId,
-            name: cat,
+            name: cat.name,
+            name_en: cat.name_en || null,
             sort_order: idx,
           }));
           const { data: savedCats, error: catsErr } = await supabase
@@ -644,11 +650,13 @@ export default function NewRestaurantPage() {
                   return {
                     id: matchedGroup.id,
                     name: matchedGroup.name,
+                    name_en: matchedGroup.name_en ?? undefined,
                     minSelections: matchedGroup.minSelections ?? 0,
                     maxSelections: matchedGroup.maxSelections ?? null,
                     choices: matchedGroup.choices.map((c) => ({
                       id: c.id,
                       name: c.name,
+                      name_en: c.name_en ?? undefined,
                       price: c.price.toString(),
                     })),
                   };
@@ -659,11 +667,13 @@ export default function NewRestaurantPage() {
                 mappedOptionGroups.push({
                   id: 'supplementi-singoli',
                   name: 'Supplementi Singoli',
+                  name_en: undefined,
                   minSelections: 0,
                   maxSelections: null,
                   choices: (item.singleSupplements as any[]).map((c) => ({
                     id: c.id,
                     name: c.name,
+                    name_en: c.name_en ?? undefined,
                     price: c.price.toString(),
                   })),
                 });
@@ -674,7 +684,9 @@ export default function NewRestaurantPage() {
                 category_id: catMap[item.category] || null,
                 category_name: item.category,
                 name: item.name,
+                name_en: item.name_en || null,
                 description: item.description || null,
+                description_en: item.description_en || null,
                 price: isPromoActive ? promoPrice! : listPrice,
                 original_price: isPromoActive ? listPrice : null,
                 image_url: item.imageUrl || null,
@@ -682,6 +694,7 @@ export default function NewRestaurantPage() {
                 allergens: item.allergens,
                 dish_tags: item.dishTags || [],
                 ingredients: item.ingredients || [],
+                ingredients_en: item.ingredients_en || [],
                 available: item.available,
                 visibility,
                 visibility_from: item.visibility.timeFrom || null,
@@ -924,6 +937,8 @@ export default function NewRestaurantPage() {
                 setShowNewCategory={setShowNewCategory}
                 newCategoryName={newCategoryName}
                 setNewCategoryName={setNewCategoryName}
+                newCategoryNameEn={newCategoryNameEn}
+                setNewCategoryNameEn={setNewCategoryNameEn}
                 addNewCategory={addNewCategory}
                 optionGroups={optionGroups}
                 showAddGroup={showAddGroup}
@@ -1007,7 +1022,7 @@ export default function NewRestaurantPage() {
                 zones={zones}
                 hours={hours}
                 menuItems={menuItems}
-                menuCategories={menuCategories}
+                menuCategories={menuCategories.map((c) => c.name)}
                 handlePublish={() => saveRestaurant('published')}
                 handleSaveDraft={() => saveRestaurant('draft')}
                 isSavedDraft={isSavedDraft}

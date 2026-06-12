@@ -75,11 +75,13 @@ export interface ScheduledOrdersConfig {
 export interface WizardOptionChoice {
   id: string;
   name: string;
+  name_en?: string;
   price: number;
 }
 export interface WizardOptionGroup {
   id: string;
   name: string;
+  name_en?: string;
   choices: WizardOptionChoice[];
   appliedTo: string[];
   minSelections?: number;

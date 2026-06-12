@@ -328,9 +328,12 @@ export default function RestaurantConfigurePage() {
     ibanHolder: '',
   });
 
-  const [menuCategories, setMenuCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
+  const [menuCategories, setMenuCategories] = useState<{ name: string; name_en?: string }[]>(() =>
+    DEFAULT_CATEGORIES.map((name) => ({ name }))
+  );
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryNameEn, setNewCategoryNameEn] = useState('');
   const [optionGroups, setOptionGroups] = useState<WizardOptionGroup[]>([]);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -366,6 +369,9 @@ export default function RestaurantConfigurePage() {
       dateTo: '',
       dateToTime: '15:00',
     },
+    name_en: '',
+    description_en: '',
+    ingredients_en: [],
   });
   const [showAddItem, setShowAddItem] = useState(false);
   const [showVisibilityPanel, setShowVisibilityPanel] = useState(false);
@@ -716,7 +722,9 @@ export default function RestaurantConfigurePage() {
         if (catsErr) throw catsErr;
 
         const categoriesData =
-          dbCats && dbCats.length > 0 ? dbCats.map((c: any) => c.name) : [...DEFAULT_CATEGORIES];
+          dbCats && dbCats.length > 0
+            ? dbCats.map((c: any) => ({ name: c.name, name_en: c.name_en || undefined }))
+            : DEFAULT_CATEGORIES.map((name) => ({ name }));
         setMenuCategories(categoriesData);
 
         // Restore Menu Items
@@ -811,15 +819,18 @@ export default function RestaurantConfigurePage() {
           return {
             id: item.id,
             name: item.name,
+            name_en: item.name_en || '',
             category: item.category_name || 'Pizza',
             price: draftPrice,
             originalPrice: draftOriginalPrice,
             description: item.description || '',
+            description_en: item.description_en || '',
             available: !!item.available,
             imageUrl: item.image_url || '',
             allergens: item.allergens || [],
             dishTags: item.dish_tags || [],
             ingredients: item.ingredients || [],
+            ingredients_en: item.ingredients_en || [],
             imageFile: null,
             optionGroups: itemOptionGroupIds,
             singleSupplements,
@@ -946,16 +957,19 @@ export default function RestaurantConfigurePage() {
         return {
           id: item.id || `mi-${Date.now()}-${Math.random()}`,
           name: item.name,
+          name_en: item.name_en,
           category: item.category,
           price: isPromoActive ? promoPrice! : listPrice,
           originalPrice: isPromoActive ? listPrice : undefined,
           description: item.description,
+          description_en: item.description_en,
           available: item.available,
           image: item.imageUrl,
           imageAlt: item.name,
           allergens: item.allergens || [],
           dishTags: item.dishTags || [],
           ingredients: item.ingredients || [],
+          ingredients_en: item.ingredients_en,
           orders: 0,
           visibility,
           visibilitySchedule,
@@ -1089,7 +1103,8 @@ export default function RestaurantConfigurePage() {
         await supabase.from('menu_categories').delete().eq('restaurant_id', restaurantId);
         const catsPayload = menuCategories.map((cat, idx) => ({
           restaurant_id: restaurantId,
-          name: cat,
+          name: cat.name,
+          name_en: cat.name_en || null,
           sort_order: idx,
         }));
         const { data: savedCats, error: catsErr } = await supabase
@@ -1163,7 +1178,9 @@ export default function RestaurantConfigurePage() {
               category_id: catMap[item.category] || null,
               category_name: item.category,
               name: item.name,
+              name_en: item.name_en || null,
               description: item.description || null,
+              description_en: item.description_en || null,
               price: isPromoActive ? promoPrice! : listPrice,
               original_price: isPromoActive ? listPrice : null,
               image_url: item.imageUrl || null,
@@ -1171,6 +1188,7 @@ export default function RestaurantConfigurePage() {
               allergens: item.allergens,
               dish_tags: item.dishTags || [],
               ingredients: item.ingredients || [],
+              ingredients_en: item.ingredients_en || [],
               available: item.available,
               visibility,
               visibility_from: item.visibility.timeFrom || null,
@@ -1455,8 +1473,12 @@ export default function RestaurantConfigurePage() {
 
   const addNewCategory = () => {
     if (!newCategoryName.trim()) return;
-    setMenuCategories((p) => [...p, newCategoryName.trim()]);
+    setMenuCategories((p) => [
+      ...p,
+      { name: newCategoryName.trim(), name_en: newCategoryNameEn.trim() || undefined },
+    ]);
     setNewCategoryName('');
+    setNewCategoryNameEn('');
     setShowNewCategory(false);
   };
   const addMenuItem = () => {
@@ -1475,7 +1497,7 @@ export default function RestaurantConfigurePage() {
     setNewItem({
       id: '',
       name: '',
-      category: menuCategories[0] || 'Pizza',
+      category: menuCategories[0]?.name || 'Pizza',
       price: '',
       originalPrice: '',
       description: '',
@@ -1499,6 +1521,9 @@ export default function RestaurantConfigurePage() {
       },
       customizationEnabled: true,
       notesEnabled: true,
+      name_en: '',
+      description_en: '',
+      ingredients_en: [],
     });
   };
   const toggleAllergen = (a: string) =>
@@ -1765,6 +1790,8 @@ export default function RestaurantConfigurePage() {
                 setShowNewCategory={setShowNewCategory}
                 newCategoryName={newCategoryName}
                 setNewCategoryName={setNewCategoryName}
+                newCategoryNameEn={newCategoryNameEn}
+                setNewCategoryNameEn={setNewCategoryNameEn}
                 addNewCategory={addNewCategory}
                 optionGroups={optionGroups}
                 showAddGroup={showAddGroup}
@@ -2414,7 +2441,7 @@ export default function RestaurantConfigurePage() {
                 zones={zones}
                 hours={hours}
                 menuItems={menuItems}
-                menuCategories={menuCategories}
+                menuCategories={menuCategories.map((c) => c.name)}
                 promos={promos}
                 handlePublish={handleSave}
                 handleSaveDraft={handleSave}

@@ -65,15 +65,19 @@ import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { generateId } from '@/lib/id-generator';
 import { supabase } from '@/lib/supabase';
+import { LanguageProvider, useLang } from '@/context/LanguageContext';
+
 
 // ─── Types ────────────────────────────────────────────────────
 interface MenuItemType {
   id: string;
   name: string;
+  name_en?: string;
   category: string;
   price: number;
   originalPrice?: number;
   description: string;
+  description_en?: string;
   image: string;
   imageAlt: string;
   popular?: boolean;
@@ -83,6 +87,7 @@ interface MenuItemType {
   allergens: string[];
   dishTags?: string[];
   ingredients?: string[];
+  ingredients_en?: string[];
   optionGroups?: any[];
   customizationEnabled?: boolean;
   notesEnabled?: boolean;
@@ -92,7 +97,7 @@ interface CartItem extends MenuItemType {
   qty: number;
   note?: string;
   cartId?: string;
-  addedIngredients?: { name: string; price: number }[];
+  addedIngredients?: { name: string; name_en?: string; price: number }[];
   removedIngredients?: string[];
   selectedOptions?: any[];
 }
@@ -193,6 +198,7 @@ function CartSidebar({
   isCurrentlyClosed?: boolean;
   isPreOrderAllowed?: boolean;
 }) {
+  const { t, lang } = useLang();
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const total = subtotal - discount + (deliveryType === 'domicilio' ? actualDeliveryFee : 0);
   const meetsMin = subtotal >= minOrder;
@@ -203,7 +209,7 @@ function CartSidebar({
       <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 flex-shrink-0">
         <div className="flex items-center gap-2">
           <ShoppingCart size={18} className="text-primary" />
-          <h3 className="font-bold text-foreground text-sm">Il tuo ordine</h3>
+          <h3 className="font-bold text-foreground text-sm">{t('cart_your_order')}</h3>
           <span className="bg-primary/10 text-primary text-[10px] font-extrabold px-2 py-0.5 rounded-full ml-1">
             {cart.reduce((s, i) => s + i.qty, 0)}
           </span>
@@ -215,7 +221,7 @@ function CartSidebar({
               onClick={onClear}
               className="text-[10px] font-black text-muted-foreground hover:text-red-500 uppercase tracking-wide px-2.5 py-1.5 rounded-xl hover:bg-red-50/60 transition-all duration-150 active:scale-95 border border-transparent hover:border-red-100"
             >
-              Svuota
+              {t('cart_clear')}
             </button>
           )}
           {showClose && onClose && (
@@ -234,10 +240,10 @@ function CartSidebar({
         <div className="px-5 py-3 border-b border-border/40 bg-primary/5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2 text-primary font-bold">
             <MapPin size={16} />
-            <span>Tavolo {tableNumber || 'Da specificare'}</span>
+            <span>{t('cart_table', { n: tableNumber || (lang === 'en' ? 'To specify' : 'Da specificare') })}</span>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-muted-foreground">Ospiti:</label>
+            <label className="text-xs font-semibold text-muted-foreground">{t('cart_guests')}</label>
             <div className="flex items-center bg-card border border-border rounded-lg overflow-hidden">
               <button
                 onClick={() => setGuests?.(Math.max(1, (guests || 1) - 1))}
@@ -260,9 +266,9 @@ function CartSidebar({
       {cart.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
           <ShoppingCart size={40} className="text-muted-foreground mb-3" />
-          <p className="font-semibold text-foreground text-sm">Il carrello è vuoto</p>
+          <p className="font-semibold text-foreground text-sm">{t('cart_empty')}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Aggiungi prodotti dal menu per iniziare il tuo ordine
+            {t('cart_add_items')}
           </p>
         </div>
       ) : (
@@ -279,12 +285,12 @@ function CartSidebar({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold text-foreground leading-tight truncate">
-                      {item.name}
+                      {lang === 'en' && item.name_en ? item.name_en : item.name}
                     </p>
                     <button
                       onClick={() => onEdit(item)}
                       className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded"
-                      title="Modifica ingredienti"
+                      title={lang === 'en' ? 'Edit ingredients' : 'Modifica ingredienti'}
                     >
                       <Edit2 size={11} />
                     </button>
@@ -298,7 +304,7 @@ function CartSidebar({
                             key={ext.name}
                             className="text-primary font-semibold flex justify-between"
                           >
-                            <span>+ {ext.name}</span>
+                            <span>+ {lang === 'en' && ext.name_en ? ext.name_en : ext.name}</span>
                             <span className="text-[9px] text-muted-foreground font-normal">
                               € {ext.price.toFixed(2)}
                             </span>
@@ -306,13 +312,13 @@ function CartSidebar({
                         ))}
                         {item.removedIngredients?.map((rem) => (
                           <div key={rem} className="text-red-500 font-semibold flex justify-between">
-                            <span>- Senza {rem}</span>
-                            <span className="text-[9px] text-red-400 font-normal">Rimosso</span>
+                            <span>{lang === 'en' ? `- Without ${rem}` : `- Senza ${rem}`}</span>
+                            <span className="text-[9px] text-red-400 font-normal">{t('cart_removed')}</span>
                           </div>
                         ))}
                         {item.note && (
                           <div className="italic text-muted-foreground pt-1 border-t border-border/20 mt-1">
-                            Note: &quot;{item.note}&quot;
+                            {t('cart_notes')} &quot;{item.note}&quot;
                           </div>
                         )}
                       </div>
@@ -354,9 +360,7 @@ function CartSidebar({
                   <>
                     <p className="text-[10px] font-bold text-muted-foreground flex justify-between">
                       <span>
-                        Ti mancano{' '}
-                        <strong>€ {(freeDeliveryThreshold - subtotal).toFixed(2)}</strong> per la
-                        consegna gratuita!
+                        {t('cart_free_delivery_warning', { amount: `€ ${(freeDeliveryThreshold - subtotal).toFixed(2)}` })}
                       </span>
                     </p>
                     <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
@@ -370,7 +374,7 @@ function CartSidebar({
                   </>
                 ) : (
                   <p className="text-[10px] font-extrabold text-[var(--success)] flex items-center gap-1">
-                    🎉 Consegna gratuita raggiunta!
+                    {t('cart_free_delivery_success')}
                   </p>
                 )}
               </div>
@@ -381,7 +385,7 @@ function CartSidebar({
               {promoApplied && appliedPromoDetail && (
                 <div className="flex justify-between text-[var(--success)]">
                   <span>
-                    Sconto (
+                    {t('cart_discount')} (
                     {appliedPromoDetail.type === 'percentage'
                       ? `${appliedPromoDetail.value}%`
                       : `€${appliedPromoDetail.value.toFixed(2)}`}
@@ -391,15 +395,14 @@ function CartSidebar({
                 </div>
               )}
               <div className="flex justify-between font-extrabold text-foreground text-sm pt-0.5">
-                <span>Prezzo</span>
+                <span>{t('cart_total')}</span>
                 <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
               </div>
             </div>
 
             {!meetsMin && (
               <p className="text-[10px] text-[var(--warning)] bg-[var(--warning-bg)] rounded-lg px-2.5 py-1.5 leading-snug">
-                Ordine minimo € {minOrder.toFixed(2)} — aggiungi ancora €{' '}
-                {(minOrder - subtotal).toFixed(2)}
+                {t('cart_min_order_warning', { min: `€ ${minOrder.toFixed(2)}`, diff: `€ ${(minOrder - subtotal).toFixed(2)}` })}
               </p>
             )}
 
@@ -409,12 +412,10 @@ function CartSidebar({
               className="w-full py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-95 text-xs shadow-md shadow-primary/10"
             >
               {isCurrentlyClosed && !isPreOrderAllowed
-                ? 'Locale Chiuso'
+                ? t('cart_closed')
                 : isCurrentlyClosed
-                  ? 'Ordina per dopo'
-                  : deliveryType === 'tavolo'
-                    ? 'Procedi'
-                    : 'Procedi'}
+                  ? t('cart_preorder')
+                  : t('cart_proceed')}
             </button>
           </div>
         </>
@@ -568,6 +569,12 @@ function MenuItemCard({
   onRemove: (cartId: string) => void;
   compact?: boolean;
 }) {
+  const { t, lang } = useLang();
+
+  const displayName = lang === 'en' && item.name_en ? item.name_en : item.name;
+  const displayDescription = lang === 'en' && item.description_en ? item.description_en : item.description;
+  const displayIngredients = lang === 'en' && item.ingredients_en && item.ingredients_en.length > 0 ? item.ingredients_en : item.ingredients;
+
   // Trova se c'è un elemento di base (senza personalizzazioni) nel carrello
   const defaultCartItem = cart.find(
     (c) =>
@@ -591,7 +598,7 @@ function MenuItemCard({
           <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border border-border/40 bg-muted mr-4">
             <AppImage
               src={item.image}
-              alt={item.imageAlt || item.name}
+              alt={item.imageAlt || displayName}
               fill
               sizes="(max-width: 768px) 96px, 96px"
               className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
@@ -613,7 +620,7 @@ function MenuItemCard({
                   {totalQty}
                 </span>
               )}
-              {item.name}
+              {displayName}
             </h4>
             <div className="flex items-center gap-0.5">
               {item.dishTags &&
@@ -636,13 +643,13 @@ function MenuItemCard({
             </div>
           </div>
 
-          {item.description ? (
+          {displayDescription ? (
             <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-2 leading-relaxed">
-              {item.description}
+              {displayDescription}
             </p>
-          ) : item.ingredients && item.ingredients.length > 0 ? (
+          ) : displayIngredients && displayIngredients.length > 0 ? (
             <p className="text-xs text-muted-foreground/75 mt-1 line-clamp-2 leading-relaxed">
-              {item.ingredients.join(', ')}
+              {displayIngredients.join(', ')}
             </p>
           ) : null}
 
@@ -727,7 +734,7 @@ function MenuItemCard({
         <div className={`relative overflow-hidden ${compact ? 'h-28' : 'h-40'}`}>
           <AppImage
             src={item.image}
-            alt={item.imageAlt}
+            alt={item.imageAlt || displayName}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -737,11 +744,11 @@ function MenuItemCard({
           <h4
             className={`font-bold text-foreground mb-1 group-hover:text-primary transition-colors ${compact ? 'text-xs sm:text-sm line-clamp-1' : 'text-sm sm:text-base'}`}
           >
-            {item.name}
+            {displayName}
           </h4>
-          {item.ingredients && item.ingredients.length > 0 && (
+          {displayIngredients && displayIngredients.length > 0 && (
             <p className="text-[10px] text-muted-foreground/80 font-medium mb-1 line-clamp-1 leading-normal">
-              {item.ingredients.join(', ')}
+              {displayIngredients.join(', ')}
             </p>
           )}
           {item.dishTags && item.dishTags.length > 0 && (
@@ -764,7 +771,7 @@ function MenuItemCard({
           <p
             className={`text-muted-foreground leading-relaxed ${compact ? 'text-[10px] mb-1.5 line-clamp-1 leading-normal' : 'text-xs mb-3 line-clamp-2'}`}
           >
-            {item.description}
+            {displayDescription}
           </p>
           {!compact && item.allergens.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
@@ -832,7 +839,7 @@ function MenuItemCard({
             className={`flex items-center bg-primary text-white hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm shadow-primary/10 ${compact ? 'w-7 h-7 justify-center rounded-lg p-0' : 'gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold'}`}
           >
             <Plus size={compact ? 12 : 14} />
-            {!compact && <span>Aggiungi</span>}
+            {!compact && <span>{t('menu_add')}</span>}
           </button>
         )}
       </div>
@@ -921,6 +928,7 @@ function CheckoutModal({
   setBookingContext: (v: any) => void;
   isCurrentlyClosed?: boolean;
 }) {
+  const { t, lang } = useLang();
   const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
   const [emailTouched, setEmailTouched] = useState(false);
   const { settings: restaurantSettings } = useRestaurantSettings(slug);
@@ -946,8 +954,8 @@ function CheckoutModal({
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
             item.addedIngredients
-              ?.map((i: any) => '+' + i.name)
-              .concat(item.removedIngredients?.map((i: string) => '-' + i))
+              ?.map((i: any) => '+' + (lang === 'en' && i.name_en ? i.name_en : i.name))
+              .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + i : '-' + i))
               .join(', ') +
             '</div>'
             : '';
@@ -961,7 +969,7 @@ function CheckoutModal({
           '<strong>' +
           item.qty +
           'x ' +
-          item.name +
+          (lang === 'en' && item.name_en ? item.name_en : item.name) +
           '</strong>' +
           customNotes +
           '</div>' +
@@ -975,28 +983,28 @@ function CheckoutModal({
 
     const tableRow =
       order.type === 'tavolo'
-        ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
-        : '<div class="row"><strong>Cliente:</strong> <span>' +
+        ? '<div class="row"><strong>' + t('receipt_table').replace(':', '') + ':</strong> <span>' + order.tableNumber + '</span></div>'
+        : '<div class="row"><strong>' + t('receipt_customer').replace(':', '') + ':</strong> <span>' +
         (order.customer?.name || order.customerName) +
         '</span></div>' +
-        '<div class="row"><strong>Telefono:</strong> <span>' +
+        '<div class="row"><strong>' + t('receipt_phone').replace(':', '') + ':</strong> <span>' +
         order.customer?.phone +
         '</span></div>' +
         (order.type === 'domicilio'
-          ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
+          ? '<div class="row"><strong>' + t('receipt_address').replace(':', '') + ':</strong> <span>' +
           order.customer?.address +
           '</span></div>'
           : '');
 
     const deliveryFeeRow =
       (order.deliveryFee || 0) > 0
-        ? '<div class="row"><span>Consegna:</span> <span>&euro; ' +
+        ? '<div class="row"><span>' + t('receipt_delivery').replace(':', '') + ':</span> <span>&euro; ' +
         (order.deliveryFee || 0).toFixed(2) +
         '</span></div>'
         : '';
     const discountRow =
       (order.discount || 0) > 0
-        ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' +
+        ? '<div class="row" style="color: #16a34a;"><span>' + t('receipt_discount', { promo: '' }).replace(':', '') + ':</span> <span>-&euro; ' +
         (order.discount || 0).toFixed(2) +
         '</span></div>'
         : '';
@@ -1004,7 +1012,7 @@ function CheckoutModal({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Ricevuta Ordine - ${order.id}</title>
+          <title>${t('receipt_title')} - ${order.id}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.4; }
             .container { max-width: 320px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -1021,15 +1029,15 @@ function CheckoutModal({
             <div class="header">
               ${logoHtml}
               <div style="font-size: 16px; font-weight: 800; text-transform: uppercase;">${restName}</div>
-              <div style="font-size: 10px; color: #777; margin-top: 4px;">Ricevuta Digitale</div>
+              <div style="font-size: 10px; color: #777; margin-top: 4px;">${t('receipt_title')}</div>
             </div>
             
             <div class="section">
-              <div class="row"><strong>ID Ordine:</strong> <span>${order.order_number || order.id}</span></div>
-              <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
-              <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
+              <div class="row"><strong>${t('receipt_order_id')}:</strong> <span>${order.order_number || order.id}</span></div>
+              <div class="row"><strong>${t('receipt_date_time').replace(' & ORA', '').replace(' & TIME', '')}:</strong> <span>${new Date(order.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT')}</span></div>
+              <div class="row"><strong>${t('receipt_service').replace(':', '')}:</strong> <span style="text-transform: capitalize;">${order.type === 'domicilio' ? t('checkout_home_delivery') : order.type === 'asporto' ? t('checkout_takeaway') : t('checkout_your_table')}</span></div>
               ${tableRow}
-              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? 'Carta (Online)' : order.payMethod === 'pos' ? 'POS Fisico' : 'Contanti'}</span></div>
+              <div class="row"><strong>${t('receipt_payment').replace(':', '')}:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? t('receipt_pay_card') : order.payMethod === 'pos' ? t('receipt_pay_pos') : t('receipt_pay_cash')}</span></div>
             </div>
             
             <div class="section">
@@ -1037,14 +1045,14 @@ function CheckoutModal({
             </div>
             
             <div class="totals">
-              <div class="row"><span>Subtotale:</span> <span>&euro; ${(order.subtotal || 0).toFixed(2)}</span></div>
+              <div class="row"><span>${t('receipt_subtotal').replace(':', '')}:</span> <span>&euro; ${(order.subtotal || 0).toFixed(2)}</span></div>
               ${deliveryFeeRow}
               ${discountRow}
-              <div class="total-row"><span>Totale:</span> <span>&euro; ${(order.total || 0).toFixed(2)}</span></div>
+              <div class="total-row"><span>${t('receipt_total').replace(':', '')}:</span> <span>&euro; ${(order.total || 0).toFixed(2)}</span></div>
             </div>
             
             <div class="footer">
-              Grazie per il tuo ordine!<br>A presto!
+              ${t('receipt_thanks')}
             </div>
           </div>
           <script>
@@ -1069,16 +1077,16 @@ function CheckoutModal({
         <div className="flex justify-between items-start border-b border-border/40 pb-3">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-              ID ORDINE
+              {t('receipt_order_id')}
             </p>
             <p className="text-sm font-black font-mono text-foreground">{order.order_number || order.id}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-              DATA & ORA
+              {t('receipt_date_time')}
             </p>
             <p className="text-xs font-semibold text-foreground">
-              {new Date(order.timestamp).toLocaleString('it-IT', {
+              {new Date(order.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
                 day: '2-digit',
                 month: '2-digit',
                 hour: '2-digit',
@@ -1090,48 +1098,54 @@ function CheckoutModal({
 
         <div className="space-y-1 text-xs">
           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
-            Riferimenti
+            {t('receipt_details')}
           </p>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Servizio:</span>
-            <span className="font-bold text-foreground capitalize">{order.type}</span>
+            <span className="text-muted-foreground">{t('receipt_service')}</span>
+            <span className="font-bold text-foreground capitalize">
+              {order.type === 'domicilio'
+                ? t('checkout_home_delivery')
+                : order.type === 'asporto'
+                  ? t('checkout_takeaway')
+                  : t('checkout_your_table')}
+            </span>
           </div>
           {order.deliveryTime && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Programmato per:</span>
+              <span className="text-muted-foreground">{t('receipt_scheduled_for')}</span>
               <span className="font-bold text-amber-500">
                 {order.deliveryDate
-                  ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} `
+                  ? `${new Date(order.deliveryDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'it-IT', { day: '2-digit', month: '2-digit' })} `
                   : ''}
                 {order.deliveryTime === 'asap'
-                  ? 'Il prima possibile'
-                  : `alle ${order.deliveryTime}`}
+                  ? t('checkout_asap')
+                  : t('receipt_at', { time: order.deliveryTime })}
               </span>
             </div>
           )}
           {order.type === 'tavolo' && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tavolo:</span>
+              <span className="text-muted-foreground">{t('receipt_table')}</span>
               <span className="font-extrabold text-primary">{order.tableNumber}</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Pagamento:</span>
+            <span className="text-muted-foreground">{t('receipt_payment')}</span>
             <span className="font-semibold text-foreground uppercase">
               {order.payMethod === 'online'
                 ? 'PayPal (Online)'
                 : order.payMethod === 'card'
-                  ? 'Carta di Credito (Online)'
+                  ? t('receipt_pay_card')
                   : order.payMethod === 'pos'
-                    ? 'POS (Alla Consegna/Ritiro)'
-                    : 'Contanti'}
+                    ? t('receipt_pay_pos')
+                    : t('receipt_pay_cash')}
             </span>
           </div>
         </div>
 
         <div className="border-t border-border/40 pt-3">
           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
-            Prodotti Ordinati
+            {t('receipt_items')}
           </p>
           <ul className="space-y-2 text-xs">
             {Array.isArray(order.items) &&
@@ -1139,13 +1153,13 @@ function CheckoutModal({
                 <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
                   <div className="flex-1 min-w-0 pr-2">
                     <p className="font-bold text-foreground truncate">
-                      {item.qty}× {item.name}
+                      {item.qty}× {lang === 'en' && item.name_en ? item.name_en : item.name}
                     </p>
                     {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
-                          ?.map((i: any) => `+${i.name}`)
-                          .concat(item.removedIngredients?.map((i: string) => `-${i}`))
+                          ?.map((i: any) => `+${lang === 'en' && i.name_en ? i.name_en : i.name}`)
+                          .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? `-Without ${i}` : `-${i}`))
                           .join(', ')}
                       </p>
                     )}
@@ -1166,23 +1180,23 @@ function CheckoutModal({
 
         <div className="border-t border-border/40 pt-3 text-xs space-y-1.5">
           <div className="flex justify-between text-muted-foreground">
-            <span>Subtotale:</span>
+            <span>{t('receipt_subtotal')}</span>
             <span className="tabular-nums">€ {(order.subtotal || 0).toFixed(2)}</span>
           </div>
           {(order.deliveryFee || 0) > 0 && (
             <div className="flex justify-between text-muted-foreground">
-              <span>Consegna:</span>
+              <span>{t('receipt_delivery')}</span>
               <span className="tabular-nums">€ {(order.deliveryFee || 0).toFixed(2)}</span>
             </div>
           )}
           {(order.discount || 0) > 0 && (
             <div className="flex justify-between text-[var(--success)] font-semibold">
-              <span>Sconto {order.promoApplied ? `(${order.promoApplied})` : ''}:</span>
+              <span>{t('receipt_discount', { promo: order.promoApplied ? `(${order.promoApplied})` : '' })}</span>
               <span className="tabular-nums">- € {(order.discount || 0).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-black text-foreground border-t border-border/40 pt-2">
-            <span>Totale Ordine:</span>
+            <span>{t('receipt_total')}</span>
             <span className="text-primary tabular-nums">€ {(order.total || 0).toFixed(2)}</span>
           </div>
         </div>
@@ -1323,13 +1337,13 @@ function CheckoutModal({
                 <Clock className="text-primary animate-pulse" size={40} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-foreground">In attesa di accettazione...</h3>
+                <h3 className="text-lg font-black text-foreground">{t('tracker_waiting')}</h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
                   {lastCreatedOrder?.type === 'prenotazione_tavolo'
-                    ? 'La tua prenotazione è in attesa di essere approvata dal locale.'
+                    ? t('tracker_booking_waiting')
                     : deliveryType === 'tavolo'
-                      ? `Il tuo ordine per il tavolo ${tableNumber} è stato inviato alla cucina.`
-                      : `Il ristorante sta esaminando il tuo ordine.`}
+                      ? t('tracker_order_table', { n: tableNumber || '' })
+                      : t('tracker_reviewing')}
                 </p>
               </div>
             </div>
@@ -1342,12 +1356,12 @@ function CheckoutModal({
                 <Clock className="text-amber-500 animate-pulse animate-duration-500" size={40} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-foreground">Ancora un momento...</h3>
+                <h3 className="text-lg font-black text-foreground">{t('tracker_just_moment')}</h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                  Stiamo sollecitando il ristorante. Grazie per la tua pazienza!
+                  {t('tracker_notifying')}
                 </p>
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-700 dark:text-amber-400 mt-4 text-center font-bold animate-pulse leading-relaxed">
-                  Ci scusiamo per l&apos;attesa, siamo pieni e accetteremo l&apos;ordine a breve
+                  {t('tracker_apologize')}
                 </div>
               </div>
             </div>
@@ -1359,9 +1373,9 @@ function CheckoutModal({
                 <CheckCircle size={44} className="text-green-600 animate-bounce" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-black text-foreground">Ordine Confermato! 🎉</h3>
+                <h3 className="text-xl font-black text-foreground">{t('tracker_confirmed')}</h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                  Il ristorante ha accettato il tuo ordine ed è già all&apos;opera in cucina.
+                  {t('tracker_accepted')}
                 </p>
               </div>
             </div>
@@ -1373,19 +1387,19 @@ function CheckoutModal({
                 <X size={44} className="text-rose-600 animate-pulse" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-rose-600">Ordine non accettato ❌</h3>
+                <h3 className="text-lg font-black text-rose-600">{t('tracker_rejected')}</h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                  Il ristorante non ha potuto accettare il tuo ordine in questo momento.
+                  {t('tracker_rejected_desc')}
                 </p>
                 {/* Refund info */}
                 <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3 text-xs text-rose-700 dark:text-rose-400 mt-3 text-left leading-relaxed">
                   {(payMethod === 'online' || payMethod === 'card') ? (
                     <>
-                      <strong>💳 Rimborso:</strong> L&apos;importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente entro 3-5 giorni lavorativi.
+                      <strong>{lang === 'en' ? '💳 Refund:' : '💳 Rimborso:'}</strong> {lang === 'en' ? 'The pre-authorized or online paid amount will be reversed and automatically refunded within 3-5 business days.' : 'L\'importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente entro 3-5 giorni lavorativi.'}
                     </>
                   ) : (
                     <>
-                      <strong>Nessun addebito:</strong> Poiché avevi selezionato il pagamento alla consegna/cassa, non è stato effettuato alcun addebito.
+                      <strong>{lang === 'en' ? 'No charge:' : 'Nessun addebito:'}</strong> {lang === 'en' ? 'Since you selected payment on delivery/checkout, no charge has been made.' : 'Poiché avevi selezionato il pagamento alla consegna/cassa, non è stato effettuato alcun addebito.'}
                     </>
                   )}
                 </div>
@@ -1399,19 +1413,19 @@ function CheckoutModal({
                 <Clock size={44} className="text-red-500" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-red-600">Nessuna risposta dal locale ⏰</h3>
+                <h3 className="text-lg font-black text-red-600">{t('tracker_no_response')}</h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                  Il ristorante non ha risposto alla tua richiesta in tempo. L&apos;ordine è scaduto.
+                  {t('tracker_expired')}
                 </p>
                 {/* Refund/expired info */}
                 <div className="bg-red-500/5 border border-red-500/15 rounded-xl p-3 text-xs text-red-700 dark:text-red-400 mt-3 text-left leading-relaxed">
                   {(payMethod === 'online' || payMethod === 'card') ? (
                     <>
-                      <strong>💳 Rimborso:</strong> L&apos;importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente sul tuo conto entro 3-5 giorni lavorativi.
+                      <strong>{lang === 'en' ? '💳 Refund:' : '💳 Rimborso:'}</strong> {lang === 'en' ? 'The pre-authorized or online paid amount will be reversed and automatically refunded to your account within 3-5 business days.' : 'L\'importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente sul tuo conto entro 3-5 giorni lavorativi.'}
                     </>
                   ) : (
                     <>
-                      <strong>Nessun addebito:</strong> Nessun pagamento è stato prelevato. Puoi provare a reinviare l&apos;ordine o contattare telefonicamente il locale.
+                      <strong>{lang === 'en' ? 'No charge:' : 'Nessun addebito:'}</strong> {lang === 'en' ? 'No payment was taken. You can try resubmitting the order or call the restaurant.' : 'Nessun addebito: Nessun pagamento è stato prelevato. Puoi provare a reinviare l\'ordine o contattare telefonicamente il locale.'}
                     </>
                   )}
                 </div>
@@ -1424,7 +1438,7 @@ function CheckoutModal({
         {(phase === 'pending' || phase === 'waiting_warn') && (
           <div className="max-w-xs mx-auto space-y-2.5">
             <div className="flex justify-between items-center text-xs font-bold text-muted-foreground select-none">
-              <span>Tempo rimasto per la risposta:</span>
+              <span>{t('tracker_time_remaining')}</span>
               <span className="font-mono text-foreground text-sm tracking-wider tabular-nums font-black">
                 {formatTime(secondsLeft)}
               </span>
@@ -1454,8 +1468,8 @@ function CheckoutModal({
           className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 text-xs shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {phase === 'pending' || phase === 'waiting_warn'
-            ? 'Attendi risposta...'
-            : 'Torna al menu'}
+            ? t('tracker_waiting_response')
+            : t('tracker_back_to_menu')}
         </button>
       </div>
     );
@@ -2138,7 +2152,7 @@ function CheckoutModal({
                   ))}
                 </div>
                 <div className="border-t border-border/40 pt-2 flex justify-between text-sm font-extrabold text-foreground">
-                  <span>Totale Ordine al tavolo</span>
+                  <span>{t('checkout_table_total')}</span>
                   <span className="text-primary tabular-nums">€ {total.toFixed(2)}</span>
                 </div>
               </div>
@@ -2148,7 +2162,7 @@ function CheckoutModal({
               {/* Delivery type selector */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-2">
-                  Modalità di consegna
+                  {t('checkout_delivery_method')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -2162,7 +2176,7 @@ function CheckoutModal({
                         : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                       }`}
                   >
-                    Consegna a domicilio
+                    {t('checkout_home_delivery')}
                   </button>
                   <button
                     type="button"
@@ -2172,7 +2186,7 @@ function CheckoutModal({
                       : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                       }`}
                   >
-                    Asporto
+                    {t('checkout_takeaway')}
                   </button>
                 </div>
               </div>
@@ -2180,7 +2194,7 @@ function CheckoutModal({
               {/* Name */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Nome e Cognome *
+                  {t('checkout_full_name')} *
                 </label>
                 <div className="relative">
                   <User
@@ -2202,7 +2216,7 @@ function CheckoutModal({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                      Indirizzo di consegna *
+                      {t('checkout_delivery_address')} *
                     </label>
                     <div className="relative">
                       <MapPin
@@ -2213,7 +2227,7 @@ function CheckoutModal({
                         type="text"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Via, numero civico, città"
+                        placeholder={t('checkout_address_placeholder')}
                         className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
                       />
                     </div>
@@ -2221,7 +2235,7 @@ function CheckoutModal({
 
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                      CAP (Codice Avviamento Postale) *
+                      {t('checkout_cap_placeholder')} *
                     </label>
                     <div className="relative">
                       <MapPin
@@ -2240,21 +2254,20 @@ function CheckoutModal({
                     {cap.length === 5 && !matchedZone && (
                       <p className="text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 p-2 rounded-lg">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                        Spiacenti, la consegna a domicilio non è disponibile per il CAP inserito.
+                        {t('checkout_cap_invalid')}
                       </p>
                     )}
                     {cap.length === 5 && matchedZone && itemsTotal < matchedZone.minOrder && (
                       <p className="text-xs text-amber-500 font-semibold mt-1.5 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2 rounded-lg">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
-                        L&apos;ordine minimo per questo CAP è € {matchedZone.minOrder.toFixed(2)}{' '}
-                        (Mancano € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
+                        {t('checkout_cap_min_order', { min: `€ ${matchedZone.minOrder.toFixed(2)}` })}{' '}
+                        ({lang === 'en' ? 'Missing' : 'Mancano'} € {(matchedZone.minOrder - itemsTotal).toFixed(2)})
                       </p>
                     )}
                     {cap.length === 5 && matchedZone && itemsTotal >= matchedZone.minOrder && (
                       <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1.5 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 p-2 rounded-lg">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                        Zona servita! Consegna:{' '}
-                        {currentDeliveryFee === 0 ? 'Gratis' : `€ ${currentDeliveryFee.toFixed(2)}`}
+                        {t('checkout_cap_valid', { deliveryFee: currentDeliveryFee === 0 ? (lang === 'en' ? 'Free' : 'Gratis') : `€ ${currentDeliveryFee.toFixed(2)}` })}
                       </p>
                     )}
                   </div>
@@ -2264,7 +2277,7 @@ function CheckoutModal({
               {/* Phone */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Numero di telefono *
+                  {t('checkout_phone_number')} *
                 </label>
                 <div className="relative">
                   <Phone
@@ -2284,7 +2297,7 @@ function CheckoutModal({
               {/* Email */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Indirizzo Email *
+                  {t('checkout_email')} *
                 </label>
                 <div className="relative">
                   <Mail
@@ -2304,7 +2317,7 @@ function CheckoutModal({
                 </div>
                 {emailTouched && email && !isEmailValid && (
                   <p className="text-xs text-red-500 font-semibold mt-1">
-                    Inserisci un indirizzo email valido.
+                    {t('checkout_email_invalid')}
                   </p>
                 )}
               </div>
@@ -2314,11 +2327,12 @@ function CheckoutModal({
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
                     <Calendar size={12} />
-                    Giorno di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
+                    {t('checkout_delivery_day', { service: deliveryType === 'domicilio' ? (lang === 'en' ? 'delivery' : 'consegna') : (lang === 'en' ? 'pickup' : 'ritiro') })} *
                   </label>
                   <div className="flex gap-2 overflow-x-auto pb-1.5 mb-1 scrollbar-hide">
                     {dateOptions.map((opt) => {
                       const isSelected = selectedDate === opt.value;
+                      const displayOptLabel = opt.label === 'Oggi' ? t('checkout_today') : opt.label === 'Domani' ? t('checkout_tomorrow') : opt.label;
                       return (
                         <button
                           key={opt.value}
@@ -2329,7 +2343,7 @@ function CheckoutModal({
                             : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
                             }`}
                         >
-                          {opt.label}
+                          {displayOptLabel}
                         </button>
                       );
                     })}
@@ -2341,7 +2355,7 @@ function CheckoutModal({
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
                   <Clock size={12} />
-                  Orario di {deliveryType === 'domicilio' ? 'consegna' : 'ritiro'} *
+                  {t('checkout_delivery_time', { service: deliveryType === 'domicilio' ? (lang === 'en' ? 'delivery' : 'consegna') : (lang === 'en' ? 'pickup' : 'ritiro') })} *
                 </label>
                 <div className="relative">
                   <Clock
@@ -2353,8 +2367,8 @@ function CheckoutModal({
                     onChange={(e) => setDeliveryTime(e.target.value)}
                     className="w-full pl-9 pr-10 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-foreground cursor-pointer"
                   >
-                    {!showAsapOption && <option value="">Seleziona orario...</option>}
-                    {showAsapOption && <option value="asap">Il prima possibile</option>}
+                    {!showAsapOption && <option value="">{t('checkout_select_time')}</option>}
+                    {showAsapOption && <option value="asap">{t('checkout_asap')}</option>}
                     {timeSlots.map((slot) => (
                       <option key={slot} value={slot}>
                         {slot}
@@ -2364,7 +2378,7 @@ function CheckoutModal({
                 </div>
                 {timeSlots.length === 0 && !showAsapOption && (
                   <p className="text-xs text-red-500 font-semibold mt-1">
-                    Nessun orario disponibile per questo giorno.
+                    {t('checkout_no_times')}
                   </p>
                 )}
               </div>
@@ -2372,15 +2386,15 @@ function CheckoutModal({
               {/* Notes */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Note per il ristorante
+                  {t('checkout_notes').replace(':', '')}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder={
                     deliveryType === 'domicilio'
-                      ? 'Allergie, preferenze, istruzioni per la consegna...'
-                      : 'Allergie, preferenze, orario di ritiro...'
+                      ? t('checkout_allergies')
+                      : (lang === 'en' ? 'Allergies, preferences, pickup details...' : 'Allergie, preferenze, orario di ritiro...')
                   }
                   rows={2}
                   className="w-full px-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
@@ -2388,7 +2402,7 @@ function CheckoutModal({
               </div>
 
               <div className="flex justify-between items-center py-2.5 border-t border-border/40 mt-4 text-sm font-bold text-foreground">
-                <span>Prezzo</span>
+                <span>{t('cart_total')}</span>
                 <span className="tabular-nums text-primary text-base">
                   € {itemsTotal.toFixed(2)}
                 </span>
@@ -2407,7 +2421,7 @@ function CheckoutModal({
                   htmlFor="remember-me"
                   className="text-xs text-muted-foreground font-medium cursor-pointer select-none"
                 >
-                  Ricordami su questo dispositivo
+                  {t('checkout_remember_details')}
                 </label>
               </div>
             </>
@@ -2418,7 +2432,7 @@ function CheckoutModal({
             disabled={!detailsValid || loading}
             className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
           >
-            Vai al Pagamento
+            {t('checkout_next')}
           </button>
         </div>
       )}
@@ -2430,11 +2444,11 @@ function CheckoutModal({
               {
                 id: 'card',
                 title: bookingContext
-                  ? 'Paga con Carta'
+                  ? (lang === 'en' ? 'Pay with Card' : 'Paga con Carta')
                   : deliveryType === 'tavolo'
-                    ? 'Paga al Tavolo con Carta'
-                    : 'Carta di Credito',
-                desc: 'Paga online con carta di credito',
+                    ? (lang === 'en' ? 'Pay at Table with Card' : 'Paga al Tavolo con Carta')
+                    : (lang === 'en' ? 'Credit Card' : 'Carta di Credito'),
+                desc: lang === 'en' ? 'Pay online with credit card' : 'Paga online con carta di credito',
                 icon: (
                   <CreditCard
                     size={18}
@@ -2446,11 +2460,11 @@ function CheckoutModal({
               {
                 id: 'online',
                 title: bookingContext
-                  ? 'Paga adesso con PayPal'
+                  ? (lang === 'en' ? 'Pay now with PayPal' : 'Paga adesso con PayPal')
                   : deliveryType === 'tavolo'
-                    ? 'Paga adesso con PayPal'
+                    ? (lang === 'en' ? 'Pay now with PayPal' : 'Paga adesso con PayPal')
                     : 'PayPal',
-                desc: 'Paga con il tuo account PayPal o carta',
+                desc: lang === 'en' ? 'Pay with your PayPal account or card' : 'Paga con il tuo account PayPal o carta',
                 icon: (
                   <Wallet
                     size={18}
@@ -2462,13 +2476,13 @@ function CheckoutModal({
               {
                 id: 'pos',
                 title: bookingContext
-                  ? 'Carta al ritiro (POS)'
+                  ? (lang === 'en' ? 'Card on pickup (POS)' : 'Carta al ritiro (POS)')
                   : deliveryType === 'tavolo'
-                    ? 'Paga al tavolo con Carta'
+                    ? (lang === 'en' ? 'Pay at table with Card' : 'Paga al tavolo con Carta')
                     : deliveryType === 'asporto'
-                      ? 'Carta al Ritiro (POS)'
-                      : 'Carta alla Consegna (POS)',
-                desc: 'Pagamento con terminale POS fisico',
+                      ? (lang === 'en' ? 'Card on Pickup (POS)' : 'Carta al Ritiro (POS)')
+                      : (lang === 'en' ? 'Card on Delivery (POS)' : 'Carta alla Consegna (POS)'),
+                desc: lang === 'en' ? 'Payment with physical POS terminal' : 'Pagamento con terminale POS fisico',
                 icon: (
                   <CreditCard
                     size={18}
@@ -2484,19 +2498,19 @@ function CheckoutModal({
               {
                 id: 'cash',
                 title: bookingContext
-                  ? 'Paga alla cassa'
+                  ? (lang === 'en' ? 'Pay at cash desk' : 'Paga alla cassa')
                   : deliveryType === 'tavolo'
-                    ? 'Paga in Cassa'
+                    ? (lang === 'en' ? 'Pay at Cash Desk' : 'Paga in Cassa')
                     : deliveryType === 'asporto'
-                      ? 'Contanti al ritiro'
-                      : 'Contanti alla consegna',
+                      ? (lang === 'en' ? 'Cash on collection' : 'Contanti al ritiro')
+                      : (lang === 'en' ? 'Cash on delivery' : 'Contanti alla consegna'),
                 desc: bookingContext
-                  ? "Invia l'ordine e paga in cassa"
+                  ? (lang === 'en' ? "Submit booking and pay at cash desk" : "Invia l'ordine e paga in cassa")
                   : deliveryType === 'tavolo'
-                    ? "Invia l'ordine e paga alla cassa"
+                    ? (lang === 'en' ? "Submit order and pay at cash desk" : "Invia l'ordine e paga alla cassa")
                     : deliveryType === 'asporto'
-                      ? 'Paga in cassa'
-                      : 'Paga alla consegna',
+                      ? (lang === 'en' ? 'Pay at cash desk' : 'Paga in cassa')
+                      : (lang === 'en' ? 'Pay on delivery' : 'Paga alla consegna'),
                 icon: (
                   <Banknote
                     size={18}
@@ -2514,7 +2528,7 @@ function CheckoutModal({
             return (
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-2">
-                  Metodo di pagamento
+                  {t('checkout_payment')}
                 </label>
                 <div className="space-y-2">
                   {payOptions.map((opt) => {
@@ -2559,9 +2573,7 @@ function CheckoutModal({
             <div className="space-y-2">
               {bookingContext && (
                 <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3.5 text-xs text-blue-700 dark:text-blue-300 mb-2 leading-relaxed">
-                  💳 <strong>Pre-autorizzazione:</strong> I dati della carta serviranno solo a
-                  pre-autorizzare l&apos;importo. L&apos;addebito effettivo avverrà{' '}
-                  <strong>solo dopo la conferma</strong> della prenotazione da parte del ristorante.
+                  💳 <strong>{lang === 'en' ? 'Pre-authorization:' : 'Pre-autorizzazione:'}</strong> {lang === 'en' ? 'Card details will only be used to pre-authorize the amount. The actual charge will happen only after the reservation is confirmed by the restaurant.' : 'I dati della carta serviranno solo a pre-autorizzare l\'importo. L\'addebito effettivo avverrà solo dopo la conferma della prenotazione da parte del ristorante.'}
                 </div>
               )}
               <CardPaymentForm
@@ -2581,20 +2593,20 @@ function CheckoutModal({
               {(bookingContext || deliveryType === 'tavolo') && (
                 <div className="bg-amber-500/5 border border-amber-500/25 rounded-lg p-3 text-[11px] text-amber-700 dark:text-amber-400">
                   {bookingContext
-                    ? "Invia la prenotazione e l'ordine. Pagherai comodamente in cassa a fine pasto (dopo che il ristorante avrà accettato e confermato)."
-                    : "Invia l'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto."}
+                    ? (lang === 'en' ? 'Submit reservation and order. You will pay at the cash desk after your meal (after the restaurant accepts and confirms).' : 'Invia la prenotazione e l\'ordine. Pagherai comodamente in cassa a fine pasto (dopo che il ristorante avrà accettato e confermato).')
+                    : (lang === 'en' ? 'Submit order to the kitchen. You will pay at the cash desk or table after your meal.' : 'Invia l\'ordine in cucina. Pagherai comodamente in cassa o al tavolo a fine pasto.')}
                 </div>
               )}
               {deliveryType === 'domicilio' && (
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-muted-foreground">
-                    Hai bisogno di resto?
+                    {lang === 'en' ? 'Do you need change?' : 'Hai bisogno di resto?'}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { label: 'No', value: 'no' },
-                      { label: 'Sì, da €20', value: '20' },
-                      { label: 'Sì, da €50', value: '50' },
+                      { label: lang === 'en' ? 'No' : 'No', value: 'no' },
+                      { label: lang === 'en' ? 'Yes, from €20' : 'Sì, da €20', value: '20' },
+                      { label: lang === 'en' ? 'Yes, from €50' : 'Sì, da €50', value: '50' },
                     ].map((opt) => (
                       <button
                         key={`rest-${opt.value}`}
@@ -2627,15 +2639,14 @@ function CheckoutModal({
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                  📱 Pagamento Online
+                  📱 {lang === 'en' ? 'Online Payment' : 'Pagamento Online'}
                 </span>
                 <span className="text-xs font-black tracking-tighter text-blue-600 dark:text-blue-400 italic">
                   Pay<span className="text-cyan-500">Pal</span>
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Verrai reindirizzato al portale sicuro di PayPal per autorizzare la transazione in
-                modo protetto.
+                {lang === 'en' ? 'You will be redirected to PayPal secure portal to authorize the transaction safely.' : 'Verrai reindirizzato al portale sicuro di PayPal per autorizzare la transazione in modo protetto.'}
               </p>
             </div>
           )}
@@ -2644,13 +2655,13 @@ function CheckoutModal({
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                  💳 Pagamento con POS portatile
+                  💳 {lang === 'en' ? 'Payment with physical POS' : 'Pagamento con POS portatile'}
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 {bookingContext
-                  ? 'Pagherai comodamente al ristorante tramite carta di credito/debito.'
-                  : "Invia l'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto."}
+                  ? (lang === 'en' ? 'You will pay at the restaurant via credit/debit card.' : 'Pagherai comodamente al ristorante tramite carta di credito/debito.')
+                  : (lang === 'en' ? 'Submit order to the kitchen. You will pay via POS at the table or cash desk after your meal.' : 'Invia l\'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto.')}
               </p>
             </div>
           )}
@@ -2666,7 +2677,7 @@ function CheckoutModal({
                   />
                   <input
                     type="text"
-                    placeholder="Codice promozionale"
+                    placeholder={lang === 'en' ? 'Promo code' : 'Codice promozionale'}
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     className="w-full pl-9 pr-3 py-2 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all uppercase font-semibold placeholder:text-muted-foreground/50 text-foreground"
@@ -2678,7 +2689,7 @@ function CheckoutModal({
                   disabled={!promoCode || promoApplied}
                   className="px-4 py-2 bg-secondary text-primary text-xs sm:text-sm font-bold rounded-lg hover:bg-orange-100 disabled:opacity-50 disabled:hover:bg-secondary transition-colors border border-orange-200"
                 >
-                  {promoApplied ? 'Applicato' : 'Applica'}
+                  {promoApplied ? (lang === 'en' ? 'Applied' : 'Applicato') : (lang === 'en' ? 'Apply' : 'Applica')}
                 </button>
               </div>
               {promoError && (
@@ -2688,8 +2699,8 @@ function CheckoutModal({
                 <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-md px-2.5 py-1 font-semibold">
                   <CheckCircle size={12} />
                   {appliedPromoDetail.type === 'percentage'
-                    ? `Sconto promozionale del ${appliedPromoDetail.value}% applicato!`
-                    : `Sconto promozionale di € ${appliedPromoDetail.value.toFixed(2)} applicato!`}
+                    ? (lang === 'en' ? `Promo discount of ${appliedPromoDetail.value}% applied!` : `Sconto promozionale del ${appliedPromoDetail.value}% applicato!`)
+                    : (lang === 'en' ? `Promo discount of € ${appliedPromoDetail.value.toFixed(2)} applied!` : `Sconto promozionale di € ${appliedPromoDetail.value.toFixed(2)} applicato!`)}
                 </div>
               )}
             </div>
@@ -2699,27 +2710,27 @@ function CheckoutModal({
           {deliveryType === 'domicilio' ? (
             <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
-                <span>Articoli</span>
+                <span>{lang === 'en' ? 'Items' : 'Articoli'}</span>
                 <span className="tabular-nums font-semibold">€ {itemsTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Consegna</span>
+                <span>{t('receipt_delivery').replace(':', '')}</span>
                 <span className="tabular-nums font-semibold">
                   {currentDeliveryFee === 0 ? (
-                    <span className="text-[var(--success)] font-bold">Gratis</span>
+                    <span className="text-[var(--success)] font-bold">{lang === 'en' ? 'Free' : 'Gratis'}</span>
                   ) : (
                     `€ ${currentDeliveryFee.toFixed(2)}`
                   )}
                 </span>
               </div>
               <div className="flex justify-between font-extrabold text-foreground pt-2 border-t border-border/60 text-sm">
-                <span>Prezzo</span>
+                <span>{t('cart_total')}</span>
                 <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
               </div>
             </div>
           ) : (
             <div className="bg-card border border-border/60 rounded-lg p-4 flex justify-between font-extrabold text-foreground text-sm">
-              <span>Prezzo</span>
+              <span>{t('cart_total')}</span>
               <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
             </div>
           )}
@@ -2729,7 +2740,7 @@ function CheckoutModal({
               onClick={() => setStep('details')}
               className="flex-1 py-3 border border-border/80 text-foreground font-bold rounded-lg hover:bg-muted transition-colors text-xs sm:text-sm"
             >
-              Indietro
+              {t('checkout_back')}
             </button>
             {payMethod === 'online' ? (
               <button
@@ -2740,11 +2751,11 @@ function CheckoutModal({
                 {loading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-[#003087]/30 border-t-[#003087] rounded-full animate-spin" />
-                    Connessione...
+                    {lang === 'en' ? 'Connecting...' : 'Connessione...'}
                   </>
                 ) : (
                   <span>
-                    Paga con{' '}
+                    {lang === 'en' ? 'Pay with' : 'Paga con'}{' '}
                     <span className="font-black italic text-[#003087]">
                       Pay<span className="text-[#0079C1]">Pal</span>
                     </span>
@@ -2760,14 +2771,14 @@ function CheckoutModal({
                 {loading ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {payMethod === 'card' ? 'Autorizzazione...' : 'Invio...'}
+                    {payMethod === 'card' ? (lang === 'en' ? 'Authorizing...' : 'Autorizzazione...') : (lang === 'en' ? 'Sending...' : 'Invio...')}
                   </>
                 ) : payMethod === 'card' ? (
-                  'Conferma pagamento'
+                  (lang === 'en' ? 'Confirm payment' : 'Conferma pagamento')
                 ) : deliveryType === 'tavolo' ? (
-                  'Invia ordine in cucina'
+                  (lang === 'en' ? 'Send order to kitchen' : 'Invia ordine in cucina')
                 ) : (
-                  'Conferma ordine'
+                  t('checkout_place_order')
                 )}
               </button>
             )}
@@ -3380,8 +3391,35 @@ function CustomizationView({
   );
 }
 
+const FlagIT = () => (
+  <svg viewBox="0 0 3 2" className="w-full h-full">
+    <rect width="1" height="2" fill="#009246"/>
+    <rect x="1" width="1" height="2" fill="#fff"/>
+    <rect x="2" width="1" height="2" fill="#ce2b37"/>
+  </svg>
+);
+
+const FlagEN = () => (
+  <svg viewBox="0 0 50 30" className="w-full h-full">
+    <rect width="50" height="30" fill="#012169" />
+    <path d="M0,0 L50,30 M0,30 L50,0" stroke="#fff" strokeWidth="6" />
+    <path d="M0,0 L50,30 M0,30 L50,0" stroke="#C8102E" strokeWidth="3.5" />
+    <path d="M25,0 L25,30 M0,15 L50,15" stroke="#fff" strokeWidth="10" />
+    <path d="M25,0 L25,30 M0,15 L50,15" stroke="#C8102E" strokeWidth="6" />
+  </svg>
+);
+
 // ─── Main Page ────────────────────────────────────────────────
 export default function CustomerStorefront() {
+  return (
+    <LanguageProvider>
+      <StorefrontContent />
+    </LanguageProvider>
+  );
+}
+
+function StorefrontContent() {
+  const { lang, setLang, t } = useLang();
   const params = useParams();
   const slug = (params?.slug as string) || 'pizzeria-bella-napoli';
 
@@ -3439,6 +3477,36 @@ export default function CustomerStorefront() {
   }, [slug]);
 
   const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>([]);
+  const [categoriesList, setCategoriesList] = useState<{ name: string; name_en?: string }[]>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      if (!restaurantSettings?.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('menu_categories')
+          .select('name, name_en')
+          .eq('restaurant_id', restaurantSettings.id);
+        if (error) throw error;
+        if (data) {
+          setCategoriesList(data);
+        }
+      } catch (err) {
+        console.error('Error loading menu categories:', err);
+      }
+    };
+    loadCategories();
+  }, [restaurantSettings?.id]);
+
+  const getDisplayCategoryName = (catName: string) => {
+    if (lang === 'en') {
+      if (catName === 'Promozioni') return 'Promotions';
+      if (catName === 'Tutti') return 'All';
+      const found = categoriesList.find((c) => c.name === catName);
+      if (found?.name_en) return found.name_en;
+    }
+    return catName;
+  };
 
   useEffect(() => {
     const loadMenuItems = async () => {
@@ -3456,15 +3524,18 @@ export default function CustomerStorefront() {
         const mappedItems: MenuItemType[] = (data || []).map((item: any) => ({
           id: item.id,
           name: item.name,
+          name_en: item.name_en,
           category: item.category_name,
           price: parseFloat(item.price),
           originalPrice: item.original_price ? parseFloat(item.original_price) : undefined,
           description: item.description || '',
+          description_en: item.description_en,
           image: item.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
           imageAlt: item.image_alt || item.name,
           allergens: item.allergens || [],
           dishTags: item.dish_tags || [],
           ingredients: item.ingredients || [],
+          ingredients_en: item.ingredients_en,
           optionGroups: item.option_groups || [],
           customizationEnabled:
             item.customization_enabled !== undefined ? !!item.customization_enabled : true,
@@ -3698,8 +3769,8 @@ export default function CustomerStorefront() {
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
             item.addedIngredients
-              ?.map((i: any) => '+' + i.name)
-              .concat(item.removedIngredients?.map((i: string) => '-' + i))
+              ?.map((i: any) => '+' + (lang === 'en' && i.name_en ? i.name_en : i.name))
+              .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + i : '-' + i))
               .join(', ') +
             '</div>'
             : '';
@@ -3713,7 +3784,7 @@ export default function CustomerStorefront() {
           '<strong>' +
           item.qty +
           'x ' +
-          item.name +
+          (lang === 'en' && item.name_en ? item.name_en : item.name) +
           '</strong>' +
           customNotes +
           '</div>' +
@@ -3727,28 +3798,28 @@ export default function CustomerStorefront() {
 
     const tableRow =
       order.type === 'tavolo'
-        ? '<div class="row"><strong>Tavolo:</strong> <span>' + order.tableNumber + '</span></div>'
-        : '<div class="row"><strong>Cliente:</strong> <span>' +
+        ? '<div class="row"><strong>' + t('receipt_table').replace(':', '') + ':</strong> <span>' + order.tableNumber + '</span></div>'
+        : '<div class="row"><strong>' + t('receipt_customer').replace(':', '') + ':</strong> <span>' +
         (order.customer?.name || order.customerName) +
         '</span></div>' +
-        '<div class="row"><strong>Telefono:</strong> <span>' +
+        '<div class="row"><strong>' + t('receipt_phone').replace(':', '') + ':</strong> <span>' +
         order.customer?.phone +
         '</span></div>' +
         (order.type === 'domicilio'
-          ? '<div class="row"><strong>Indirizzo:</strong> <span>' +
+          ? '<div class="row"><strong>' + t('receipt_address').replace(':', '') + ':</strong> <span>' +
           order.customer?.address +
           '</span></div>'
           : '');
 
     const deliveryFeeRow =
       order.deliveryFee > 0
-        ? '<div class="row"><span>Consegna:</span> <span>&euro; ' +
+        ? '<div class="row"><span>' + t('receipt_delivery').replace(':', '') + ':</span> <span>&euro; ' +
         order.deliveryFee.toFixed(2) +
         '</span></div>'
         : '';
     const discountRow =
       order.discount > 0
-        ? '<div class="row" style="color: #16a34a;"><span>Sconto:</span> <span>-&euro; ' +
+        ? '<div class="row" style="color: #16a34a;"><span>' + t('receipt_discount', { promo: '' }).replace(':', '') + ':</span> <span>-&euro; ' +
         order.discount.toFixed(2) +
         '</span></div>'
         : '';
@@ -3756,7 +3827,7 @@ export default function CustomerStorefront() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Ricevuta Ordine - ${order.id}</title>
+          <title>${t('receipt_title')} - ${order.id}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; color: #333; line-height: 1.4; }
             .container { max-width: 320px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -3773,15 +3844,15 @@ export default function CustomerStorefront() {
             <div class="header">
               ${logoHtml}
               <div style="font-size: 16px; font-weight: 800; text-transform: uppercase;">${restName}</div>
-              <div style="font-size: 10px; color: #777; margin-top: 4px;">Ricevuta Digitale</div>
+              <div style="font-size: 10px; color: #777; margin-top: 4px;">${t('receipt_title')}</div>
             </div>
             
             <div class="section">
-              <div class="row"><strong>ID Ordine:</strong> <span>${order.order_number || order.id}</span></div>
-              <div class="row"><strong>Data:</strong> <span>${new Date(order.timestamp).toLocaleString('it-IT')}</span></div>
-              <div class="row"><strong>Servizio:</strong> <span style="text-transform: capitalize;">${order.type}</span></div>
+              <div class="row"><strong>${t('receipt_order_id')}:</strong> <span>${order.order_number || order.id}</span></div>
+              <div class="row"><strong>${t('receipt_date_time').replace(' & ORA', '').replace(' & TIME', '')}:</strong> <span>${new Date(order.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT')}</span></div>
+              <div class="row"><strong>${t('receipt_service').replace(':', '')}:</strong> <span style="text-transform: capitalize;">${order.type === 'domicilio' ? t('checkout_home_delivery') : order.type === 'asporto' ? t('checkout_takeaway') : t('checkout_your_table')}</span></div>
               ${tableRow}
-              <div class="row"><strong>Pagamento:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? 'Carta (Online)' : order.payMethod === 'pos' ? 'POS Fisico' : 'Contanti'}</span></div>
+              <div class="row"><strong>${t('receipt_payment').replace(':', '')}:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? t('receipt_pay_card') : order.payMethod === 'pos' ? t('receipt_pay_pos') : t('receipt_pay_cash')}</span></div>
             </div>
             
             <div class="section">
@@ -3789,14 +3860,14 @@ export default function CustomerStorefront() {
             </div>
             
             <div class="totals">
-              <div class="row"><span>Subtotale:</span> <span>&euro; ${order.subtotal.toFixed(2)}</span></div>
+              <div class="row"><span>${t('receipt_subtotal').replace(':', '')}:</span> <span>&euro; ${order.subtotal.toFixed(2)}</span></div>
               ${deliveryFeeRow}
               ${discountRow}
-              <div class="total-row"><span>Totale:</span> <span>&euro; ${order.total.toFixed(2)}</span></div>
+              <div class="total-row"><span>${t('receipt_total').replace(':', '')}:</span> <span>&euro; ${order.total.toFixed(2)}</span></div>
             </div>
             
             <div class="footer">
-              Grazie per il tuo ordine!<br>A presto!
+              ${t('receipt_thanks')}
             </div>
           </div>
           <script>
@@ -4355,7 +4426,6 @@ export default function CustomerStorefront() {
     },
     [serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]
   );
-
   const getClosedReason = () => {
     let config = serviceHoursConfig;
     if (!config && typeof window !== 'undefined') {
@@ -4372,6 +4442,20 @@ export default function CustomerStorefront() {
       }
     }
 
+    const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
+    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    const DAYS_MAP_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayIndex = new Date().getDay();
+    const todayDayName = DAYS_MAP[dayIndex];
+    const todayDayNameEn = DAYS_MAP_EN[dayIndex];
+    const displayDay = lang === 'en' ? todayDayNameEn : todayDayName;
+    const serviceName = activeType === 'delivery'
+      ? (lang === 'en' ? 'delivery' : 'consegna')
+      : (lang === 'en' ? 'takeaway' : 'asporto');
+    const serviceNameCap = activeType === 'delivery'
+      ? (lang === 'en' ? 'Delivery' : 'Consegna')
+      : (lang === 'en' ? 'Takeaway' : 'Asporto');
+
     if (config) {
       // Controllo chiusura temporanea (es. ferie)
       if (
@@ -4384,6 +4468,9 @@ export default function CustomerStorefront() {
           currentDate >= config.temporaryClosure.from &&
           currentDate <= config.temporaryClosure.to
         ) {
+          if (lang === 'en') {
+            return `We are closed for holidays from ${config.temporaryClosure.from} to ${config.temporaryClosure.to}.`;
+          }
           return (
             config.temporaryClosure.message ||
             `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`
@@ -4392,12 +4479,11 @@ export default function CustomerStorefront() {
       }
     }
 
-    const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
-    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-    const todayDayName = DAYS_MAP[new Date().getDay()];
-
     if (config) {
       if (config.serviceSuspended?.[activeType] === true) {
+        if (lang === 'en') {
+          return `The ${serviceNameCap} service has been temporarily suspended by the manager.`;
+        }
         return `Il servizio di ${activeType === 'delivery' ? 'Consegna' : 'Asporto'} è stato temporaneamente sospeso dal gestore.`;
       }
 
@@ -4408,6 +4494,9 @@ export default function CustomerStorefront() {
       const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
       if (dayConfig) {
         if (dayConfig.enabled === false) {
+          if (lang === 'en') {
+            return `Sorry, the restaurant is closed on ${todayDayNameEn} for ${serviceName} service.`;
+          }
           return `Spiacenti, il ristorante è chiuso il ${todayDayName} per il servizio di ${activeType === 'delivery' ? 'consegna' : 'asporto'}.`;
         }
 
@@ -4415,19 +4504,35 @@ export default function CustomerStorefront() {
         const dinnerEnabled = dayConfig.dinnerEnabled !== false;
 
         let hoursStr = '';
-        if (lunchEnabled && dinnerEnabled) {
-          hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}, cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
-        } else if (lunchEnabled) {
-          hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}`;
-        } else if (dinnerEnabled) {
-          hoursStr = `cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+        if (lang === 'en') {
+          if (lunchEnabled && dinnerEnabled) {
+            hoursStr = `lunch ${dayConfig.lunch.from}-${dayConfig.lunch.to}, dinner ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+          } else if (lunchEnabled) {
+            hoursStr = `lunch ${dayConfig.lunch.from}-${dayConfig.lunch.to}`;
+          } else if (dinnerEnabled) {
+            hoursStr = `dinner ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+          } else {
+            hoursStr = `no active time slots`;
+          }
+          return `We are sorry, we are currently closed. Service hours for ${todayDayNameEn}: ${hoursStr}.`;
         } else {
-          hoursStr = `nessuna fascia oraria attiva`;
+          if (lunchEnabled && dinnerEnabled) {
+            hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}, cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+          } else if (lunchEnabled) {
+            hoursStr = `pranzo ${dayConfig.lunch.from}-${dayConfig.lunch.to}`;
+          } else if (dinnerEnabled) {
+            hoursStr = `cena ${dayConfig.dinner.from}-${dayConfig.dinner.to}`;
+          } else {
+            hoursStr = `nessuna fascia oraria attiva`;
+          }
+          return `Ci dispiace, siamo fuori dall'orario di servizio. Orari ${todayDayName}: ${hoursStr}.`;
         }
-        return `Ci dispiace, siamo fuori dall'orario di servizio. Orari ${todayDayName}: ${hoursStr}.`;
       }
     }
 
+    if (lang === 'en') {
+      return 'We are sorry, the restaurant is closed at the moment. You can browse the menu but cannot place orders.';
+    }
     return 'Ci dispiace, il ristorante è chiuso in questo momento. Puoi consultare il menu ma non ordinare.';
   };
 
@@ -4877,11 +4982,11 @@ export default function CustomerStorefront() {
 
   const getRestaurantStatus = () => {
     if (!isMounted) {
-      return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
+      return { label: lang === 'en' ? 'OPEN' : 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
     }
 
     if (isTemporaryClosure) {
-      return { label: 'CHIUSO PER FERIE', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
+      return { label: lang === 'en' ? 'CLOSED FOR HOLIDAYS' : 'CHIUSO PER FERIE', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
 
     const isPickupOpen = checkServiceOpen('pickup');
@@ -4890,16 +4995,16 @@ export default function CustomerStorefront() {
     if (!isPickupOpen && !isDeliveryOpen) {
       if (isPreOrderAllowed) {
         return {
-          label: 'PREORDINI ATTIVI',
+          label: lang === 'en' ? 'PRE-ORDERS ACTIVE' : 'PREORDINI ATTIVI',
           color: 'bg-amber-500/20 border-amber-500/40 text-amber-300',
         };
       }
-      return { label: 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
+      return { label: lang === 'en' ? 'CLOSED' : 'CHIUSO', color: 'bg-red-500/20 border-red-500/40 text-red-300' };
     }
     if (isPickupOpen && !isDeliveryOpen) {
-      return { label: 'SOLO ASPORTO', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
+      return { label: lang === 'en' ? 'TAKEAWAY ONLY' : 'SOLO ASPORTO', color: 'bg-amber-500/20 border-amber-500/40 text-amber-300' };
     }
-    return { label: 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
+    return { label: lang === 'en' ? 'OPEN' : 'APERTO', color: 'bg-green-500/20 border-green-500/40 text-green-300' };
   };
 
   const status = getRestaurantStatus();
@@ -4932,7 +5037,7 @@ export default function CustomerStorefront() {
         currentDate >= config.temporaryClosure.from &&
         currentDate <= config.temporaryClosure.to
       ) {
-        return 'Ferie';
+        return lang === 'en' ? 'Holiday' : 'Ferie';
       }
     }
 
@@ -4948,7 +5053,7 @@ export default function CustomerStorefront() {
 
     if (config) {
       if (config.serviceSuspended?.[activeType] === true) {
-        return 'Sospeso';
+        return lang === 'en' ? 'Suspended' : 'Sospeso';
       }
 
       const useGeneral =
@@ -4958,7 +5063,7 @@ export default function CustomerStorefront() {
       const dayConfig = config.serviceHours?.[targetHoursKey]?.[todayDayName];
       if (dayConfig) {
         if (dayConfig.enabled === false) {
-          return 'Chiuso';
+          return lang === 'en' ? 'Closed' : 'Chiuso';
         }
         const lunchEnabled = dayConfig.lunchEnabled !== false;
         const dinnerEnabled = dayConfig.dinnerEnabled !== false;
@@ -4969,7 +5074,7 @@ export default function CustomerStorefront() {
         if (dinnerEnabled && dayConfig.dinner) {
           parts.push(`${dayConfig.dinner.from}-${dayConfig.dinner.to}`);
         }
-        return parts.length > 0 ? parts.join(', ') : 'Chiuso';
+        return parts.length > 0 ? parts.join(', ') : (lang === 'en' ? 'Closed' : 'Chiuso');
       }
     }
 
@@ -4984,13 +5089,13 @@ export default function CustomerStorefront() {
         legacyHours[0].start === '00:00' &&
         legacyHours[0].end === '23:59';
       if (is24h) {
-        return '24 Ore';
+        return lang === 'en' ? '24 Hours' : '24 Ore';
       }
       return legacyHours.map((h) => `${h.start}-${h.end}`).join(', ');
     }
 
-    return 'Chiuso';
-  }, [isMounted, serviceHoursConfig, slug, deliveryType, restaurantSettings, getCurrentDateStr]);
+    return lang === 'en' ? 'Closed' : 'Chiuso';
+  }, [isMounted, serviceHoursConfig, slug, deliveryType, restaurantSettings, getCurrentDateStr, lang]);
 
   // Dynamic promo banner text
   const activePromo = promos.find((p) => p.active);
@@ -5001,18 +5106,30 @@ export default function CustomerStorefront() {
     } else {
       const minStr =
         activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0
-          ? ` con spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`
+          ? (lang === 'en'
+            ? ` with a minimum spend of € ${activePromo.minOrderSubtotal.toFixed(2)}`
+            : ` con spesa minima di € ${activePromo.minOrderSubtotal.toFixed(2)}`)
           : '';
       if (activePromo.type === 'percentage') {
-        bannerText = `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto${minStr}!`;
+        bannerText = lang === 'en'
+          ? `Use code ${activePromo.code} for ${activePromo.value}% off${minStr}!`
+          : `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto${minStr}!`;
       } else if (activePromo.type === 'first_order') {
-        bannerText = `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto sul tuo primo ordine${minStr}!`;
+        bannerText = lang === 'en'
+          ? `Use code ${activePromo.code} for ${activePromo.value}% off on your first order${minStr}!`
+          : `Usa il codice ${activePromo.code} per il ${activePromo.value}% di sconto sul tuo primo ordine${minStr}!`;
       } else if (activePromo.type === 'fixed_amount') {
-        bannerText = `Usa il codice ${activePromo.code} per uno sconto fisso di € ${activePromo.value.toFixed(2)}${minStr}!`;
+        bannerText = lang === 'en'
+          ? `Use code ${activePromo.code} for a fixed € ${activePromo.value.toFixed(2)} discount${minStr}!`
+          : `Usa il codice ${activePromo.code} per uno sconto fisso di € ${activePromo.value.toFixed(2)}${minStr}!`;
       } else if (activePromo.type === 'threshold_based') {
-        bannerText = `Usa il codice ${activePromo.code} per uno sconto di € ${activePromo.value.toFixed(2)}${minStr}!`;
+        bannerText = lang === 'en'
+          ? `Use code ${activePromo.code} for a € ${activePromo.value.toFixed(2)} discount${minStr}!`
+          : `Usa il codice ${activePromo.code} per uno sconto di € ${activePromo.value.toFixed(2)}${minStr}!`;
       } else if (activePromo.type === 'free_delivery') {
-        bannerText = `Usa il codice ${activePromo.code} per ottenere la consegna gratuita${minStr}!`;
+        bannerText = lang === 'en'
+          ? `Use code ${activePromo.code} to get free delivery${minStr}!`
+          : `Usa il codice ${activePromo.code} per ottenere la consegna gratuita${minStr}!`;
       }
     }
   } else {
@@ -5156,10 +5273,10 @@ export default function CustomerStorefront() {
           <Clock size={12} className="animate-pulse flex-shrink-0" />
           <span className="truncate max-w-full">
             {isTemporaryClosure
-              ? closureMessage || 'Locale Chiuso per Ferie'
+              ? closureMessage || (lang === 'en' ? 'Closed for Holidays' : 'Locale Chiuso per Ferie')
               : isPreOrderAllowed
-                ? 'Siamo chiusi ora, ma puoi ordinare per dopo!'
-                : 'Locale Chiuso - Solo consultazione menu'}
+                ? (lang === 'en' ? 'We are closed now, but you can pre-order for later!' : 'Siamo chiusi ora, ma puoi ordinare per dopo!')
+                : (lang === 'en' ? 'Restaurant Closed - Menu consultation only' : 'Locale Chiuso - Solo consultazione menu')}
           </span>
         </div>
       )}
@@ -5216,7 +5333,7 @@ export default function CustomerStorefront() {
               />
               <input
                 type="text"
-                placeholder="Cerca nel menu..."
+                placeholder={t('search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
@@ -5232,7 +5349,7 @@ export default function CustomerStorefront() {
             {/* Share Button */}
             <button
               onClick={handleShare}
-              title="Condividi Vetrina"
+              title={lang === 'en' ? 'Share Menu' : 'Condividi Vetrina'}
               className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
                 ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
                 : 'bg-secondary text-foreground hover:bg-muted border border-border'
@@ -5252,7 +5369,7 @@ export default function CustomerStorefront() {
                     setHistoryOrders([]);
                   }
                 }}
-                title="I miei ordini"
+                title={lang === 'en' ? 'My orders' : 'I miei ordini'}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
                   ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
                   : 'bg-secondary text-foreground hover:bg-muted border border-border'
@@ -5272,9 +5389,35 @@ export default function CustomerStorefront() {
                   }`}
               >
                 <CalendarCheck size={14} />
-                PRENOTA TAVOLO
+                {lang === 'en' ? 'BOOK A TABLE' : 'PRENOTA TAVOLO'}
               </button>
             )}
+
+            {/* Language Switcher */}
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setLang('it')}
+                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${
+                  lang === 'it'
+                    ? 'opacity-100 scale-110'
+                    : 'opacity-35 hover:opacity-80 hover:scale-105'
+                }`}
+                title="Italiano"
+              >
+                <FlagIT />
+              </button>
+              <button
+                onClick={() => setLang('en')}
+                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${
+                  lang === 'en'
+                    ? 'opacity-100 scale-110'
+                    : 'opacity-35 hover:opacity-80 hover:scale-105'
+                }`}
+                title="English"
+              >
+                <FlagEN />
+              </button>
+            </div>
 
             {/* Cart Button (Visible on both desktop & mobile) */}
             <button
@@ -5286,7 +5429,7 @@ export default function CustomerStorefront() {
                 }`}
             >
               <ShoppingCart size={14} />
-              <span className="hidden sm:inline">Carrello</span>
+              <span className="hidden sm:inline">{t('menu_cart')}</span>
               {cartCount > 0 && (
                 <span className="bg-white text-primary text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
                   {cartCount}
@@ -5306,15 +5449,15 @@ export default function CustomerStorefront() {
             <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold">
               <Calendar size={14} className="flex-shrink-0 animate-pulse text-green-600" />
               <span className="truncate text-foreground font-semibold">
-                Tavolo:{' '}
+                {t('modal_table_booking_banner_title')}{' '}
                 <span className="font-extrabold text-green-600 dark:text-green-400">
-                  {new Date(bookingContext.date).toLocaleDateString('it-IT', {
+                  {new Date(bookingContext.date).toLocaleDateString(lang === 'en' ? 'en-US' : 'it-IT', {
                     day: '2-digit',
                     month: 'short',
                   })}{' '}
                   {bookingContext.time}
                 </span>{' '}
-                · {bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}
+                · {bookingContext.guests} {bookingContext.guests === 1 ? t('checkout_guest_single') : t('checkout_guests')}
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -5322,12 +5465,12 @@ export default function CustomerStorefront() {
                 onClick={() => setCheckoutOpen(true)}
                 className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 shadow-sm text-[11px] uppercase tracking-wider"
               >
-                Completa →
+                {t('modal_complete')} →
               </button>
               <button
                 onClick={() => {
                   if (
-                    confirm('Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.')
+                    confirm(lang === 'en' ? 'Do you want to cancel the reservation? This will also clear the cart.' : 'Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.')
                   ) {
                     setBookingContext(null);
                     setCart([]);
@@ -5335,7 +5478,7 @@ export default function CustomerStorefront() {
                 }}
                 className="text-red-500 hover:text-red-700 font-bold px-2 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors text-[11px] uppercase tracking-wider"
               >
-                Annulla
+                {t('modal_cancel')}
               </button>
             </div>
           </div>
@@ -5399,15 +5542,28 @@ export default function CustomerStorefront() {
       </div>
 
       {/* Promo banner */}
-      {deliveryType !== 'tavolo' && bannerText && (
+      {deliveryType !== 'tavolo' && activePromo && bannerText && (
         <div className="bg-secondary border-b border-orange-200">
           <div className="max-w-screen-2xl mx-auto px-6 lg:px-10 py-2.5 flex items-center gap-3">
             <Tag size={14} className="text-primary flex-shrink-0" />
             <p className="text-sm text-primary font-semibold">
-              {activePromo ? (
+              {activePromo.customBannerText ? (
+                activePromo.customBannerText
+              ) : (
                 <>
-                  {activePromo.customBannerText ? (
-                    activePromo.customBannerText
+                  {lang === 'en' ? (
+                    <>
+                      Use code <strong>{activePromo.code}</strong>{' '}
+                      {activePromo.type === 'percentage' && `for ${activePromo.value}% off`}
+                      {activePromo.type === 'first_order' && `for ${activePromo.value}% off on your first order`}
+                      {activePromo.type === 'fixed_amount' && `for a fixed € ${activePromo.value.toFixed(2)} discount`}
+                      {activePromo.type === 'threshold_based' && `for a € ${activePromo.value.toFixed(2)} discount`}
+                      {activePromo.type === 'free_delivery' && `to get free delivery`}
+                      {activePromo.minOrderSubtotal &&
+                        activePromo.minOrderSubtotal > 0 &&
+                        ` with a minimum spend of € ${activePromo.minOrderSubtotal.toFixed(2)}`}
+                      !
+                    </>
                   ) : (
                     <>
                       Usa il codice <strong>{activePromo.code}</strong> per{' '}
@@ -5426,11 +5582,6 @@ export default function CustomerStorefront() {
                       !
                     </>
                   )}
-                </>
-              ) : (
-                <>
-                  🎉 Usa il codice <strong>WELCOME10</strong> per il 10% di sconto sul tuo primo
-                  ordine!
                 </>
               )}
             </p>
@@ -5455,7 +5606,7 @@ export default function CustomerStorefront() {
                     : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
                     }`}
                 >
-                  <span>{cat}</span>
+                  <span>{getDisplayCategoryName(cat)}</span>
                 </button>
               );
             })}
@@ -5470,7 +5621,9 @@ export default function CustomerStorefront() {
           {searchQuery ? (
             <div>
               <h2 className="text-lg font-bold text-foreground mb-4">
-                {filteredItems.length} risultati per &quot;{searchQuery}&quot;
+                {lang === 'en'
+                  ? `${filteredItems.length} results for "${searchQuery}"`
+                  : `${filteredItems.length} risultati per "${searchQuery}"`}
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
                 {filteredItems.map((item) => (
@@ -5487,8 +5640,12 @@ export default function CustomerStorefront() {
               {filteredItems.length === 0 && (
                 <div className="text-center py-16">
                   <Search size={40} className="mx-auto text-muted-foreground mb-3" />
-                  <p className="font-semibold text-foreground">Nessun prodotto trovato</p>
-                  <p className="text-sm text-muted-foreground mt-1">Prova con un termine diverso</p>
+                  <p className="font-semibold text-foreground">
+                    {lang === 'en' ? 'No products found' : 'Nessun prodotto trovato'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {lang === 'en' ? 'Try searching for something else' : 'Prova con un termine diverso'}
+                  </p>
                 </div>
               )}
             </div>
@@ -5500,7 +5657,7 @@ export default function CustomerStorefront() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-extrabold text-foreground flex items-center gap-2">
                       <span className="text-red-500">🏷️</span>
-                      <span>Promozioni</span>
+                      <span>{getDisplayCategoryName('Promozioni')}</span>
                     </h3>
                   </div>
                   <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0">
@@ -5525,10 +5682,10 @@ export default function CustomerStorefront() {
 
               <div className="flex items-center gap-3 mb-5">
                 <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
-                  <span>{activeCategory}</span>
+                  <span>{getDisplayCategoryName(activeCategory)}</span>
                 </h2>
                 <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full font-bold">
-                  {displayedItems.length} {displayedItems.length === 1 ? 'prodotto' : 'prodotti'}
+                  {displayedItems.length} {displayedItems.length === 1 ? (lang === 'en' ? 'product' : 'prodotto') : (lang === 'en' ? 'products' : 'prodotti')}
                 </span>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
@@ -5720,11 +5877,11 @@ export default function CustomerStorefront() {
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-foreground tracking-tight">
-              {availabilityError === 'closed' ? 'Locale Chiuso' : 'Consegna Non Disponibile'}
+              {availabilityError === 'closed' ? t('modal_closed_title') : t('modal_delivery_unavailable')}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed px-2">
               {availabilityError === 'closed' && isPreOrderAllowed
-                ? "Siamo chiusi in questo momento, ma puoi già ordinare per la prossima apertura! Seleziona l'orario di ritiro o consegna al checkout."
+                ? t('modal_preorder_desc')
                 : getClosedReason()}
             </p>
           </div>
@@ -5738,7 +5895,7 @@ export default function CustomerStorefront() {
                   }}
                   className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10"
                 >
-                  Ordina per dopo
+                  {t('cart_preorder')}
                 </button>
                 <button
                   onClick={() => {
@@ -5747,7 +5904,7 @@ export default function CustomerStorefront() {
                   }}
                   className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 text-zinc-800 text-xs font-semibold rounded-xl transition-all active:scale-95"
                 >
-                  Consulta il Menu
+                  {t('modal_browse_menu')}
                 </button>
               </>
             ) : availabilityError === 'no_delivery' ? (
@@ -5759,13 +5916,13 @@ export default function CustomerStorefront() {
                   }}
                   className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10"
                 >
-                  Ordina da Asporto
+                  {t('modal_order_takeaway')}
                 </button>
                 <button
                   onClick={() => setAvailabilityError(null)}
                   className="w-full py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-semibold rounded-xl transition-all active:scale-95"
                 >
-                  Consulta il Menu
+                  {t('modal_browse_menu')}
                 </button>
               </>
             ) : (
@@ -5778,7 +5935,7 @@ export default function CustomerStorefront() {
                 }}
                 className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 shadow-md shadow-primary/10"
               >
-                Consulta il Menu
+                {t('modal_browse_menu')}
               </button>
             )}
           </div>
@@ -6073,7 +6230,9 @@ export default function CustomerStorefront() {
                     // Ordina anche il cibo
                     if (cart.length > 0) {
                       const ok = window.confirm(
-                        'Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?'
+                        lang === 'en'
+                          ? 'You already have items in the cart. Do you want to clear the cart and start an order associated with this booking?'
+                          : 'Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?'
                       );
                       if (!ok) return;
                     }
