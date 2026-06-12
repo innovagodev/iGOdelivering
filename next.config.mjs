@@ -2,12 +2,8 @@ import { imageHosts } from './image-hosts.config.mjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  productionBrowserSourceMaps: false,
-  compress: true,
+  productionBrowserSourceMaps: true,
   distDir: process.env.DIST_DIR || '.next',
-  experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts'],
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -18,16 +14,19 @@ const nextConfig = {
     remotePatterns: imageHosts,
     minimumCacheTTL: 60,
   },
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: 'https://igodelivering.it',
-        permanent: false,
-      },
-    ];
-  },
-  webpack(config, { dev }) {
+  webpack(
+    config,
+    {
+      dev: dev
+    }
+  ) {
+    config.module.rules.push({
+      test: /\.(jsx|tsx)$/,
+      exclude: [/node_modules/],
+      use: [{
+        loader: '@dhiwise/component-tagger/nextLoader',
+      }],
+    });
     if (dev) {
       const ignoredPaths = (process.env.WATCH_IGNORED_PATHS || '')
         .split(',')

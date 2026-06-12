@@ -1,8 +1,12 @@
-import { createBrowserClient } from '@supabase/ssr';
+/**
+ * Supabase configuration entry point.
+ *
+ * - For Client Components: import { createClient } from '@/lib/supabase/client';
+ * - For Server Components / Route Handlers: import { createClient } from '@/lib/supabase/server';
+ */
 
-// Fallback values to prevent build-time static rendering crashes in CI/CD when env variables are not present.
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+export { createClient as createBrowserClient } from '@supabase/ssr';
+export { createClient as createServerClient } from '@supabase/ssr';
 
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+export const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
