@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.23.0](https://github.com/innovagodev/iGOdelivering/compare/v1.22.0...v1.23.0) (2026-06-17)
+
+
+### Features
+
+* **menu:** implementata traduzione inglese per gruppi opzioni, allergeni e tag ([fe71a14](https://github.com/innovagodev/iGOdelivering/commit/fe71a14cd06539d6a6bf441967ae360f2fb5ace4))
+
 ## [1.22.0](https://github.com/innovagodev/iGOdelivering/compare/v1.21.0...v1.22.0) (2026-06-12)
 
 
