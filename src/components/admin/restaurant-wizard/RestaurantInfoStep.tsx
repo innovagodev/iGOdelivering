@@ -1,5 +1,6 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import {
   Store,
   FileText,
@@ -49,19 +50,53 @@ export default function RestaurantInfoStep({
   const newCatInputRef = useRef<HTMLInputElement>(null);
   const [emailTouched, setEmailTouched] = useState(false);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('restaurant_categories')
+          .select('name')
+          .order('name', { ascending: true });
+        if (error) throw error;
+        if (data) {
+          setAllCategories(data.map((c) => c.name));
+        }
+      } catch (err) {
+        console.error('Error fetching restaurant categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const isEmailValid = React.useMemo(() => {
     if (!info.email) return true;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(info.email);
   }, [info.email]);
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     const trimmed = newCategoryInput.trim();
     if (!trimmed) return;
-    if (!allCategories.includes(trimmed)) {
-      setAllCategories((p) => [...p, trimmed]);
+
+    try {
+      // Salva la nuova categoria su DB
+      const { error } = await supabase
+        .from('restaurant_categories')
+        .insert({ name: trimmed });
+
+      // Se non ci sono errori o se la categoria esiste già (23505), aggiorna lo stato locale
+      if (!error || error.code === '23505') {
+        if (!allCategories.includes(trimmed)) {
+          setAllCategories((p) => [...p, trimmed].sort());
+        }
+        setInfo((p) => ({ ...p, category: trimmed }));
+      } else {
+        console.error('Error saving restaurant category to DB:', error);
+      }
+    } catch (err) {
+      console.error('Exception saving restaurant category:', err);
     }
-    setInfo((p) => ({ ...p, category: trimmed }));
+
     setNewCategoryInput('');
     setShowAddCategory(false);
   };

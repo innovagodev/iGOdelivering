@@ -5,6 +5,7 @@ import Topbar from '@/components/layout/Topbar';
 import { PauseCircle, Plus, PlayCircle, Zap, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { uploadImage } from '@/lib/storage-upload';
 
 import MenuEditorTab from '@/components/ristoratore/menu-management/MenuEditorTab';
 import { MenuItem, MenuItemDraft } from '@/types';
@@ -155,7 +156,9 @@ export default function RistoratoreMenuPage() {
         image: i.image_url || '',
         imageAlt: i.image_alt || i.name,
         allergens: i.allergens || [],
+        allergens_en: i.allergens_en || [],
         dishTags: i.dish_tags || [],
+        dishTagsEn: i.dish_tags_en || [],
         ingredients: i.ingredients || [],
         ingredients_en: i.ingredients_en || [],
         orders: i.orders_count || 0,
@@ -241,6 +244,17 @@ export default function RistoratoreMenuPage() {
     const listPrice = parseFloat(draft.price) || 0;
     const promoPrice = isPromoActive ? parseFloat(draft.originalPrice!) : undefined;
 
+    let imageUrl = draft.imageUrl || null;
+    if (draft.imageFile) {
+      try {
+        const fileExt = draft.imageFile.name.split('.').pop();
+        const fileName = `${restaurantId}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        imageUrl = await uploadImage(draft.imageFile, 'dish-images', fileName);
+      } catch (err) {
+        console.error('Error uploading dish image:', err);
+      }
+    }
+
     try {
       const { data: catData } = await supabase
         .from('menu_categories')
@@ -259,10 +273,12 @@ export default function RistoratoreMenuPage() {
         description_en: draft.description_en || null,
         price: isPromoActive ? promoPrice! : listPrice,
         original_price: isPromoActive ? listPrice : null,
-        image_url: draft.imageUrl || null,
+        image_url: imageUrl,
         image_alt: draft.name,
         allergens: draft.allergens,
+        allergens_en: draft.allergens_en || [],
         dish_tags: draft.dishTags || [],
+        dish_tags_en: draft.dishTagsEn || [],
         ingredients: draft.ingredients || [],
         ingredients_en: draft.ingredients_en || [],
         available: draft.available,
@@ -289,6 +305,17 @@ export default function RistoratoreMenuPage() {
     const listPrice = parseFloat(draft.price) || 0;
     const promoPrice = isPromoActive ? parseFloat(draft.originalPrice!) : undefined;
 
+    let imageUrl = draft.imageUrl || null;
+    if (draft.imageFile) {
+      try {
+        const fileExt = draft.imageFile.name.split('.').pop();
+        const fileName = `${restaurantId}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        imageUrl = await uploadImage(draft.imageFile, 'dish-images', fileName);
+      } catch (err) {
+        console.error('Error uploading dish image:', err);
+      }
+    }
+
     try {
       const { data: catData } = await supabase
         .from('menu_categories')
@@ -308,9 +335,11 @@ export default function RistoratoreMenuPage() {
           description_en: draft.description_en || null,
           price: isPromoActive ? promoPrice! : listPrice,
           original_price: isPromoActive ? listPrice : null,
-          image_url: draft.imageUrl || null,
+          image_url: imageUrl,
           allergens: draft.allergens,
+          allergens_en: draft.allergens_en || [],
           dish_tags: draft.dishTags || [],
+          dish_tags_en: draft.dishTagsEn || [],
           ingredients: draft.ingredients || [],
           ingredients_en: draft.ingredients_en || [],
           available: draft.available,

@@ -21,6 +21,9 @@ import {
   Coffee,
   Wine,
   Pizza,
+  Snowflake,
+  Vegan,
+  Edit2,
 } from 'lucide-react';
 
 import { DISH_TAGS_LIST } from '@/lib/constants';
@@ -38,10 +41,12 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
   coffee: Coffee,
   wine: Wine,
   pizza: Pizza,
+  snowflake: Snowflake,
+  vegan: Vegan,
 };
 
 const ICON_LABELS: Record<string, string> = {
-  leaf: 'Vegano / Vegetariano',
+  leaf: 'Vegetariano',
   flame: 'Piccante',
   wheat: 'Senza Glutine',
   sparkles: 'Nuovo / Novità',
@@ -53,9 +58,48 @@ const ICON_LABELS: Record<string, string> = {
   coffee: 'Colazione',
   wine: 'Alcolico / Vino',
   pizza: 'Pizza / Forno',
+  snowflake: 'Surgelato / Congelato',
+  vegan: 'Vegano',
 };
 
-const getIconComponent = (name: string, size = 14, className = '') => {
+const STANDARD_ALLERGENS_MAP: Record<string, string> = {
+  '🌾 Glutine': '🌾 Gluten',
+  '🥛 Lattosio': '🥛 Lactose',
+  '🥜 Arachidi': '🥜 Peanuts',
+  '🥚 Uova': '🥚 Eggs',
+  '🐟 Pesce': '🐟 Fish',
+  '🦀 Crostacei': '🦀 Crustaceans',
+  '🦪 Molluschi': '🦪 Molluscs',
+  '🥜 Frutta a guscio': '🥜 Nuts',
+  '🌾 Soia': '🌾 Soy',
+  '🌱 Sedano': '🌱 Celery',
+  '🍯 Senape': '🍯 Mustard',
+  '🌾 Sesamo': '🌾 Sesame',
+  '🍷 Anidride solforosa': '🍷 Sulphur dioxide',
+  '🌱 Lupini': '🌱 Lupins',
+};
+
+const STANDARD_TAGS_MAP: Record<string, string> = {
+  'vegan:Vegano': 'vegan:Vegan',
+  'leaf:Vegetariano': 'leaf:Vegetarian',
+  'flame:Piccante': 'flame:Spicy',
+  'wheat:Senza Glutine': 'wheat:Gluten Free',
+  'sparkles:Novità': 'sparkles:New',
+  'star:Consigliato': 'star:Recommended',
+  'milk:Senza Lattosio': 'milk:Lactose Free',
+  'snowflake:Surgelato': 'snowflake:Frozen',
+};
+
+const getTranslationForAllergen = (a: string) => {
+  return STANDARD_ALLERGENS_MAP[a] || a;
+};
+
+const getTranslationForTag = (t: string) => {
+  return STANDARD_TAGS_MAP[t] || t;
+};
+
+const getIconComponent = (name: string | null, size = 14, className = '') => {
+  if (!name) return null;
   const Icon = ICON_MAP[name.toLowerCase()];
   if (!Icon) return null;
   return <Icon size={size} className={className} />;
@@ -71,14 +115,16 @@ const parseTag = (tag: string) => {
 
   // Legacy parsing fallback
   const t = tag.toLowerCase();
-  let iconName = 'leaf';
+  let iconName: string | null = null;
   let label = tag;
 
   label = label
-    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+    .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{2B50}]|[\u{FE0F}]/gu, '')
     .trim();
 
-  if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+  if (t.includes('vegan') || tag.includes('🌱')) {
+    iconName = 'vegan';
+  } else if (t.includes('vegetar') || tag.includes('🥗')) {
     iconName = 'leaf';
   } else if (
     t.includes('piccant') ||
@@ -101,6 +147,8 @@ const parseTag = (tag: string) => {
     iconName = 'star';
   } else if (t.includes('lattosio') || tag.includes('🥛')) {
     iconName = 'milk';
+  } else if (t.includes('surgelat') || t.includes('frozen') || tag.includes('❄️')) {
+    iconName = 'snowflake';
   }
 
   return { iconName, label };
@@ -123,6 +171,8 @@ interface OptionGroup {
   name_en?: string;
   minSelections: number;
   maxSelections: number | null;
+  defaultOption?: string;
+  defaultOptionEn?: string;
   choices: OptionChoice[];
 }
 
@@ -137,8 +187,11 @@ interface MenuItemDraft {
   description_en?: string;
   available: boolean;
   imageUrl: string;
+  imageFile?: File | null;
   allergens: string[];
+  allergens_en?: string[];
   dishTags?: string[];
+  dishTagsEn?: string[];
   ingredients?: string[];
   ingredients_en?: string[];
   visibility: VisibilityType;
@@ -215,8 +268,10 @@ export default function ItemForm({
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [modalOptionGroups, setModalOptionGroups] = useState<OptionGroup[]>([]);
   const [customAllergen, setCustomAllergen] = useState('');
+  const [customAllergenEn, setCustomAllergenEn] = useState('');
   const [availableAllergens, setAvailableAllergens] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
+  const [customTagEn, setCustomTagEn] = useState('');
   const [availableDishTags, setAvailableDishTags] = useState<string[]>([]);
   const [selectedTagIcon, setSelectedTagIcon] = useState('leaf');
   const [newIngredientInput, setNewIngredientInput] = useState('');
@@ -377,7 +432,12 @@ export default function ItemForm({
 
       const allGroups = Array.from(mergedMap.values());
       setModalOptionGroups(allGroups);
-      setSelectedGroupId(allGroups.length > 0 ? allGroups[0].id : null);
+      setSelectedGroupId((currentId) => {
+        if (currentId && allGroups.some((g) => g.id === currentId)) {
+          return currentId;
+        }
+        return allGroups.length > 0 ? allGroups[0].id : null;
+      });
       setActiveGroupIds(itemGroups.map((g) => g.id));
     }
   }, [isSupplementsModalOpen, draft.optionGroups]);
@@ -388,9 +448,10 @@ export default function ItemForm({
     }
   };
 
-  const handleAddAllergen = (val: string) => {
+  const handleAddAllergen = (val: string, valEn?: string) => {
     const trimmed = val.trim();
     if (!trimmed) return;
+    const trimmedEn = valEn?.trim() || getTranslationForAllergen(trimmed);
     setAvailableAllergens((prev) => {
       if (prev.includes(trimmed)) return prev;
       const next = [...prev, trimmed];
@@ -398,7 +459,11 @@ export default function ItemForm({
       return next;
     });
     if (!draft.allergens.includes(trimmed)) {
-      setDraft((p) => ({ ...p, allergens: [...p.allergens, trimmed] }));
+      setDraft((p) => ({
+        ...p,
+        allergens: [...p.allergens, trimmed],
+        allergens_en: [...(p.allergens_en || []), trimmedEn],
+      }));
     }
   };
 
@@ -408,14 +473,39 @@ export default function ItemForm({
       saveAllergensToLocalStorage(next);
       return next;
     });
-    setDraft((p) => ({ ...p, allergens: p.allergens.filter((x) => x !== a) }));
+    setDraft((p) => {
+      const idx = p.allergens.indexOf(a);
+      const nextAllergens = p.allergens.filter((x) => x !== a);
+      const nextAllergensEn = (p.allergens_en || []).filter((_, i) => i !== idx);
+      return {
+        ...p,
+        allergens: nextAllergens,
+        allergens_en: nextAllergensEn,
+      };
+    });
   };
 
   const toggleAllergen = (a: string) => {
-    setDraft((p) => ({
-      ...p,
-      allergens: p.allergens.includes(a) ? p.allergens.filter((x) => x !== a) : [...p.allergens, a],
-    }));
+    setDraft((p) => {
+      const isSelected = p.allergens.includes(a);
+      const nextAllergens = isSelected ? p.allergens.filter((x) => x !== a) : [...p.allergens, a];
+      
+      const prevAllergens = p.allergens || [];
+      const prevAllergensEn = p.allergens_en || [];
+      const nextAllergensEn = nextAllergens.map((item) => {
+        const prevIdx = prevAllergens.indexOf(item);
+        if (prevIdx !== -1 && prevAllergensEn[prevIdx]) {
+          return prevAllergensEn[prevIdx];
+        }
+        return getTranslationForAllergen(item);
+      });
+
+      return {
+        ...p,
+        allergens: nextAllergens,
+        allergens_en: nextAllergensEn,
+      };
+    });
   };
 
   const saveDishTagsToLocalStorage = (list: string[]) => {
@@ -424,9 +514,10 @@ export default function ItemForm({
     }
   };
 
-  const handleAddDishTag = (val: string) => {
+  const handleAddDishTag = (val: string, valEn?: string) => {
     const trimmed = val.trim();
     if (!trimmed) return;
+    const trimmedEn = valEn?.trim() || getTranslationForTag(trimmed);
     setAvailableDishTags((prev) => {
       if (prev.includes(trimmed)) return prev;
       const next = [...prev, trimmed];
@@ -435,7 +526,11 @@ export default function ItemForm({
     });
     const currentTags = draft.dishTags || [];
     if (!currentTags.includes(trimmed)) {
-      setDraft((p) => ({ ...p, dishTags: [...(p.dishTags || []), trimmed] }));
+      setDraft((p) => ({
+        ...p,
+        dishTags: [...(p.dishTags || []), trimmed],
+        dishTagsEn: [...(p.dishTagsEn || []), trimmedEn],
+      }));
     }
   };
 
@@ -445,17 +540,40 @@ export default function ItemForm({
       saveDishTagsToLocalStorage(next);
       return next;
     });
-    setDraft((p) => ({ ...p, dishTags: (p.dishTags || []).filter((x: string) => x !== a) }));
+    setDraft((p) => {
+      const currentTags = p.dishTags || [];
+      const currentTagsEn = p.dishTagsEn || [];
+      const idx = currentTags.indexOf(a);
+      return {
+        ...p,
+        dishTags: currentTags.filter((x: string) => x !== a),
+        dishTagsEn: currentTagsEn.filter((_, i) => i !== idx),
+      };
+    });
   };
 
   const toggleDishTag = (a: string) => {
     const currentTags = draft.dishTags || [];
-    setDraft((p) => ({
-      ...p,
-      dishTags: currentTags.includes(a)
-        ? currentTags.filter((x: string) => x !== a)
-        : [...currentTags, a],
-    }));
+    setDraft((p) => {
+      const isSelected = currentTags.includes(a);
+      const nextTags = isSelected ? currentTags.filter((x: string) => x !== a) : [...currentTags, a];
+      
+      const prevTags = p.dishTags || [];
+      const prevTagsEn = p.dishTagsEn || [];
+      const nextTagsEn = nextTags.map((item) => {
+        const prevIdx = prevTags.indexOf(item);
+        if (prevIdx !== -1 && prevTagsEn[prevIdx]) {
+          return prevTagsEn[prevIdx];
+        }
+        return getTranslationForTag(item);
+      });
+
+      return {
+        ...p,
+        dishTags: nextTags,
+        dishTagsEn: nextTagsEn,
+      };
+    });
   };
 
   const handleAddIngredient = (val: string) => {
@@ -491,7 +609,7 @@ export default function ItemForm({
     const file = e.target.files?.[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
-    setDraft((p) => ({ ...p, imageUrl: url }));
+    setDraft((p) => ({ ...p, imageUrl: url, imageFile: file }));
   };
 
   const handleAddCategory = () => {
@@ -989,6 +1107,9 @@ export default function ItemForm({
             )}
             {availableAllergens.map((a) => {
               const isActive = draft.allergens.includes(a);
+              const idx = draft.allergens.indexOf(a);
+              const translation = idx !== -1 && draft.allergens_en?.[idx] ? draft.allergens_en[idx] : getTranslationForAllergen(a);
+              const displayLabel = translation && translation !== a ? `${a} / ${translation}` : a;
               return (
                 <div
                   key={a}
@@ -1002,7 +1123,7 @@ export default function ItemForm({
                   {isActive && (
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 mr-1.5 animate-pulse" />
                   )}
-                  {a}
+                  {displayLabel}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1021,8 +1142,8 @@ export default function ItemForm({
           </div>
 
           {/* Inline input with Emoji Selector to add a custom allergen */}
-          <div className="mt-3 flex gap-2 relative">
-            <div className="relative">
+          <div className="mt-3 flex flex-col sm:flex-row gap-3 items-end sm:items-center relative">
+            <div className="relative flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -1061,37 +1182,54 @@ export default function ItemForm({
                 </div>
               )}
             </div>
-            <input
-              type="text"
-              value={customAllergen}
-              onChange={(e) => setCustomAllergen(e.target.value)}
-              placeholder="Aggiungi nuovo allergene (es. Arachidi)"
-              className="flex-1 px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const txt = customAllergen.trim();
-                  if (txt) {
-                    const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
-                    handleAddAllergen(finalVal);
-                    setCustomAllergen('');
-                    setAllergenEmoji('➕');
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+              <input
+                type="text"
+                value={customAllergen}
+                onChange={(e) => setCustomAllergen(e.target.value)}
+                placeholder="Aggiungi nuovo allergene (es. Arachidi)"
+                className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const txt = customAllergen.trim();
+                    if (txt) {
+                      const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
+                      const finalValEn = customAllergenEn.trim()
+                        ? (allergenEmoji !== '➕' ? `${allergenEmoji} ${customAllergenEn.trim()}` : customAllergenEn.trim())
+                        : undefined;
+                      handleAddAllergen(finalVal, finalValEn);
+                      setCustomAllergen('');
+                      setCustomAllergenEn('');
+                      setAllergenEmoji('➕');
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+              <input
+                type="text"
+                value={customAllergenEn}
+                onChange={(e) => setCustomAllergenEn(e.target.value)}
+                placeholder="Traduzione inglese (es. Peanuts)"
+                className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+              />
+            </div>
             <button
               type="button"
               onClick={() => {
                 const txt = customAllergen.trim();
                 if (txt) {
                   const finalVal = allergenEmoji !== '➕' ? `${allergenEmoji} ${txt}` : txt;
-                  handleAddAllergen(finalVal);
+                  const finalValEn = customAllergenEn.trim()
+                    ? (allergenEmoji !== '➕' ? `${allergenEmoji} ${customAllergenEn.trim()}` : customAllergenEn.trim())
+                    : undefined;
+                  handleAddAllergen(finalVal, finalValEn);
                   setCustomAllergen('');
+                  setCustomAllergenEn('');
                   setAllergenEmoji('➕');
                 }
               }}
-              className="px-3.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+              className="px-4 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors w-full sm:w-auto h-[42px]"
             >
               <Plus size={14} />
               Aggiungi
@@ -1118,7 +1256,7 @@ export default function ItemForm({
                 type="button"
                 onClick={() => {
                   const standardOnly = [
-                    'leaf:Vegano',
+                    'vegan:Vegano',
                     'leaf:Vegetariano',
                     'flame:Piccante',
                     'wheat:Senza Glutine',
@@ -1143,7 +1281,11 @@ export default function ItemForm({
             )}
             {availableDishTags.map((t) => {
               const isActive = (draft.dishTags || []).includes(t);
+              const idx = (draft.dishTags || []).indexOf(t);
+              const translation = idx !== -1 && draft.dishTagsEn?.[idx] ? draft.dishTagsEn[idx] : getTranslationForTag(t);
               const { iconName, label } = parseTag(t);
+              const { label: labelEn } = parseTag(translation);
+              const displayLabel = labelEn && labelEn !== label ? `${label} / ${labelEn}` : label;
               const IconComp = getIconComponent(iconName);
 
               return (
@@ -1157,7 +1299,7 @@ export default function ItemForm({
                   }`}
                 >
                   {IconComp}
-                  <span>{label}</span>
+                  <span>{displayLabel}</span>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1204,8 +1346,8 @@ export default function ItemForm({
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="custom-tag-name"
                   className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide"
@@ -1225,28 +1367,48 @@ export default function ItemForm({
                       const txt = customTag.trim();
                       if (txt) {
                         const finalVal = `${selectedTagIcon}:${txt}`;
-                        handleAddDishTag(finalVal);
+                        const finalValEn = customTagEn.trim() ? `${selectedTagIcon}:${customTagEn.trim()}` : undefined;
+                        handleAddDishTag(finalVal, finalValEn);
                         setCustomTag('');
+                        setCustomTagEn('');
                       }
                     }
                   }}
                 />
               </div>
-              <div className="sm:self-end">
+              <div className="space-y-1.5 flex gap-2 items-end">
+                <div className="flex-1">
+                  <label
+                    htmlFor="custom-tag-name-en"
+                    className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide"
+                  >
+                    🌐 Traduzione Inglese (opzionale)
+                  </label>
+                  <input
+                    id="custom-tag-name-en"
+                    type="text"
+                    value={customTagEn}
+                    onChange={(e) => setCustomTagEn(e.target.value)}
+                    placeholder="Es. Organic, Km 0"
+                    className="w-full px-3.5 py-2.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold h-[38px]"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
                     const txt = customTag.trim();
                     if (txt) {
                       const finalVal = `${selectedTagIcon}:${txt}`;
-                      handleAddDishTag(finalVal);
+                      const finalValEn = customTagEn.trim() ? `${selectedTagIcon}:${customTagEn.trim()}` : undefined;
+                      handleAddDishTag(finalVal, finalValEn);
                       setCustomTag('');
+                      setCustomTagEn('');
                     }
                   }}
-                  className="w-full sm:w-auto px-4 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors h-[38px]"
+                  className="px-4 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors h-[38px]"
                 >
                   <Plus size={14} />
-                  Crea Etichetta
+                  Crea
                 </button>
               </div>
             </div>
@@ -1517,7 +1679,20 @@ export default function ItemForm({
                 >
                   <div>
                     <h4 className="text-xs font-bold text-foreground flex items-center justify-between border-b border-border/60 pb-1.5 mb-1.5">
-                      <span>{group.name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>{group.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedGroupId(group.id);
+                            setIsSupplementsModalOpen(true);
+                          }}
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          title="Modifica gruppo"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      </div>
                       <div className="flex gap-1.5 items-center">
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-bold">
                           {group.minSelections > 0 ? 'Obblig.' : 'Opz.'}
@@ -1532,8 +1707,13 @@ export default function ItemForm({
                         </span>
                       </div>
                     </h4>
-                    {group.choices.length > 0 ? (
+                    {(group.defaultOption || group.choices.length > 0) ? (
                       <div className="flex flex-wrap gap-1">
+                        {group.defaultOption && (
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary">
+                            {group.defaultOption} (Default, €0)
+                          </span>
+                        )}
                         {group.choices.slice(0, 5).map((choice) => (
                           <span
                             key={choice.id}
@@ -1795,22 +1975,79 @@ export default function ItemForm({
                   const gid = activeGroup.id;
                   return (
                     <div className="flex-1 flex flex-col min-h-0 space-y-4">
-                      {/* Rename Group & Title */}
-                      <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Nome Gruppo Opzioni
-                        </label>
-                        <input
-                          type="text"
-                          value={activeGroup.name}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setModalOptionGroups((prev) =>
-                              prev.map((g) => (g.id === gid ? { ...g, name: val } : g))
-                            );
-                          }}
-                          className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
-                        />
+                      {/* Rename Group & Title and Default Option */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                            Nome Gruppo Opzioni
+                          </label>
+                          <input
+                            type="text"
+                            value={activeGroup.name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setModalOptionGroups((prev) =>
+                                prev.map((g) => (g.id === gid ? { ...g, name: val } : g))
+                              );
+                            }}
+                            className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                            Opzione Default (Prezzo €0)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeGroup.defaultOption || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setModalOptionGroups((prev) =>
+                                prev.map((g) => (g.id === gid ? { ...g, defaultOption: val || undefined } : g))
+                              );
+                            }}
+                            placeholder="es. Classico, Normale..."
+                            className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* English translations for Group Name and Default Option */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            🌐 Nome Gruppo (Versione Inglese)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeGroup.name_en || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setModalOptionGroups((prev) =>
+                                prev.map((g) => (g.id === gid ? { ...g, name_en: val || undefined } : g))
+                              );
+                            }}
+                            placeholder="es. Choose dough, Extra toppings..."
+                            className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            🌐 Opzione Default (Versione Inglese)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeGroup.defaultOptionEn || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setModalOptionGroups((prev) =>
+                                prev.map((g) => (g.id === gid ? { ...g, defaultOptionEn: val || undefined } : g))
+                              );
+                            }}
+                            placeholder="es. Classic, None..."
+                            className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          />
+                        </div>
                       </div>
 
                       {/* Regole di Selezione & Vincoli */}

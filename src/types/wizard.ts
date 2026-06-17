@@ -86,4 +86,6 @@ export interface WizardOptionGroup {
   appliedTo: string[];
   minSelections?: number;
   maxSelections?: number | null;
+  defaultOption?: string;
+  defaultOptionEn?: string;
 }

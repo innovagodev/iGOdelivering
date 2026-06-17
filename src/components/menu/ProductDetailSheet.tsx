@@ -34,6 +34,8 @@ export interface OptionGroup {
   name_en?: string;
   minSelections: number;
   maxSelections: number | null;
+  defaultOption?: string;
+  defaultOptionEn?: string;
   choices: OptionChoice[];
 }
 
@@ -52,7 +54,9 @@ export interface MenuItemType {
   veg?: boolean;
   spicy?: boolean;
   allergens: string[];
+  allergens_en?: string[];
   dishTags?: string[];
+  dishTagsEn?: string[];
   ingredients?: string[];
   ingredients_en?: string[];
   optionGroups?: OptionGroup[];
@@ -238,7 +242,14 @@ export default function ProductDetailSheet({
         setNote(cartItem.note || '');
       } else {
         setQty(1);
-        setAdded([]);
+        const defaultAdded = (item.optionGroups || [])
+          .filter((g) => g.defaultOption)
+          .map((g) => ({
+            name: g.defaultOption!,
+            name_en: g.defaultOptionEn,
+            price: 0,
+          }));
+        setAdded(defaultAdded);
         setRemoved([]);
         setNote('');
       }
@@ -296,10 +307,16 @@ export default function ProductDetailSheet({
 
   const handleSelectGroupOption = (group: OptionGroup, choiceName: string) => {
     const otherChoiceNames = group.choices.map((c) => c.name);
+    if (group.defaultOption) {
+      otherChoiceNames.push(group.defaultOption);
+    }
     const choice = group.choices.find((c) => c.name === choiceName);
 
     setAdded((prev) => {
       const filtered = prev.filter((e) => !otherChoiceNames.includes(e.name));
+      if (choiceName === group.defaultOption) {
+        return [...filtered, { name: group.defaultOption, name_en: group.defaultOptionEn, price: 0 }];
+      }
       if (!choice) return filtered;
       const priceVal =
         typeof choice.price === 'string' ? parseFloat(choice.price) || 0 : choice.price;
@@ -387,13 +404,14 @@ export default function ProductDetailSheet({
             )}
             {item.dishTags && item.dishTags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-1 mt-0.5 animate-in fade-in duration-200">
-                {item.dishTags.map((tag) => {
-                  const icon = getTagIcon(tag);
-                  const label = getCleanTagLabel(tag);
+                {item.dishTags.map((tag, idx) => {
+                  const displayTag = lang === 'en' && item.dishTagsEn?.[idx] ? item.dishTagsEn[idx] : tag;
+                  const icon = getTagIcon(displayTag);
+                  const label = getCleanTagLabel(displayTag);
                   return (
                     <span
                       key={tag}
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold ${getTagStyle(tag)}`}
+                      className={`inline-flex items-center gap-1 text-[10px] font-bold ${getTagStyle(displayTag)}`}
                     >
                       {icon}
                       <span>{label}</span>
@@ -410,14 +428,17 @@ export default function ProductDetailSheet({
                 <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">
                   {lang === 'en' ? 'Allergens:' : 'Allergeni:'}
                 </span>
-                {item.allergens.map((a) => (
-                  <span
-                    key={a}
-                    className="text-[9px] bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full px-2 py-0.5 font-semibold"
-                  >
-                    {a}
-                  </span>
-                ))}
+                {item.allergens.map((a, idx) => {
+                  const displayAllergen = lang === 'en' && item.allergens_en?.[idx] ? item.allergens_en[idx] : a;
+                  return (
+                    <span
+                      key={a}
+                      className="text-[9px] bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full px-2 py-0.5 font-semibold"
+                    >
+                      {displayAllergen}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -538,7 +559,15 @@ export default function ProductDetailSheet({
                                   onChange={(e) => handleSelectGroupOption(group, e.target.value)}
                                   className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
                                 >
-                                  <option value="">{lang === 'en' ? 'Select an option...' : "Seleziona un'opzione..."}</option>
+                                  {group.defaultOption ? (
+                                    <option value={group.defaultOption}>
+                                      {lang === 'en' && group.defaultOptionEn ? group.defaultOptionEn : group.defaultOption}
+                                    </option>
+                                  ) : (
+                                    <option value="" disabled>
+                                      {lang === 'en' ? `Choose ${group.name_en || group.name}` : `Scegli ${group.name}`}
+                                    </option>
+                                  )}
                                   {group.choices.map((choice) => {
                                     const priceVal =
                                       typeof choice.price === 'string'
@@ -698,7 +727,15 @@ export default function ProductDetailSheet({
                                         }
                                         className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
                                       >
-                                        <option value="">{lang === 'en' ? 'No selection' : 'Nessuna selezione'}</option>
+                                        {group.defaultOption ? (
+                                          <option value={group.defaultOption}>
+                                            {lang === 'en' && group.defaultOptionEn ? group.defaultOptionEn : group.defaultOption}
+                                          </option>
+                                        ) : (
+                                          <option value="" disabled>
+                                            {lang === 'en' ? `Choose ${group.name_en || group.name}` : `Scegli ${group.name}`}
+                                          </option>
+                                        )}
                                         {group.choices.map((choice) => {
                                           const priceVal =
                                             typeof choice.price === 'string'

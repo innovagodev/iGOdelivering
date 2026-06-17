@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { supabase } from '@/lib/supabase';
+import { uploadImage } from '@/lib/storage-upload';
 import {
   ArrowLeft,
   ChevronRight,
@@ -234,9 +235,11 @@ export default function RestaurantConfigurePage() {
   const [tempTableCount, setTempTableCount] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // --- STATE ---
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [bgImageFile, setBgImageFile] = useState<File | null>(null);
   const [restaurantStatus, setRestaurantStatus] = useState<string>('draft');
   const [initialStatus, setInitialStatus] = useState<string>('draft');
+
   const [info, setInfo] = useState<RestaurantInfo>({
     name: '',
     category: 'Pizzeria',
@@ -337,12 +340,20 @@ export default function RestaurantConfigurePage() {
   const [optionGroups, setOptionGroups] = useState<WizardOptionGroup[]>([]);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupNameEn, setNewGroupNameEn] = useState('');
+  const [newGroupDefaultOption, setNewGroupDefaultOption] = useState('');
+  const [newGroupDefaultOptionEn, setNewGroupDefaultOptionEn] = useState('');
   const [newGroupChoices, setNewGroupChoices] = useState<WizardOptionChoice[]>([
     { id: 'c-1', name: '', price: 0 },
   ]);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupNameEn, setEditGroupNameEn] = useState('');
+  const [editGroupDefaultOption, setEditGroupDefaultOption] = useState('');
+  const [editGroupDefaultOptionEn, setEditGroupDefaultOptionEn] = useState('');
   const [editGroupChoices, setEditGroupChoices] = useState<WizardOptionChoice[]>([]);
+  const [editGroupMinSelections, setEditGroupMinSelections] = useState(0);
+  const [editGroupMaxSelections, setEditGroupMaxSelections] = useState<number | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItemWizardDraft[]>([]);
   const [newItem, setNewItem] = useState<MenuItemWizardDraft>({
     id: '',
@@ -1026,6 +1037,26 @@ export default function RestaurantConfigurePage() {
 
       // --- SUPABASE SYNC ---
 
+      // Upload files to Supabase storage if selected
+      let logoUrlToSave = info.logoUrl || null;
+      let backgroundUrlToSave = info.backgroundImageUrl || null;
+
+      try {
+        if (logoFile) {
+          const fileExt = logoFile.name.split('.').pop();
+          const fileName = `${slug}-${Date.now()}-logo.${fileExt}`;
+          logoUrlToSave = await uploadImage(logoFile, 'restaurant-logos', fileName);
+        }
+        if (bgImageFile) {
+          const fileExt = bgImageFile.name.split('.').pop();
+          const fileName = `${slug}-${Date.now()}-banner.${fileExt}`;
+          backgroundUrlToSave = await uploadImage(bgImageFile, 'restaurant-banners', fileName);
+        }
+      } catch (uploadErr) {
+        console.error('Error uploading logo/banner to Supabase Storage:', uploadErr);
+        throw new Error('Errore nel caricamento delle immagini (Logo/Sfondo).');
+      }
+
       // 1. Sync restaurant row
       const restaurantPayload = {
         name: info.name,
@@ -1039,8 +1070,8 @@ export default function RestaurantConfigurePage() {
         vat_number: info.vatNumber || null,
         category: info.category || null,
         description: info.description || null,
-        logo_url: info.logoUrl || null,
-        background_url: info.backgroundImageUrl || null,
+        logo_url: logoUrlToSave,
+        background_url: backgroundUrlToSave,
         status: restaurantStatus,
         delivery_enabled: zones.some((z) => z.enabled),
         pickup_enabled: true,
@@ -1122,89 +1153,110 @@ export default function RestaurantConfigurePage() {
         if (menuItems.length > 0 && savedCats) {
           const catMap = Object.fromEntries(savedCats.map((c: any) => [c.name, c.id]));
 
-          const itemsPayload = menuItems.map((item) => {
-            const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
-            const listPrice = parseFloat(item.price) || 0;
-            const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
+          const itemsPayload = await Promise.all(
+            menuItems.map(async (item) => {
+              const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
+              const listPrice = parseFloat(item.price) || 0;
+              const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
 
-            let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
-            if (item.visibility.mode === 'hidden') {
-              visibility = 'hidden';
-            } else if (
-              item.visibility.mode === 'time_range' ||
-              item.visibility.mode === 'date_range'
-            ) {
-              visibility = 'scheduled';
-            }
+              let imageUrl = item.imageUrl || null;
+              if (item.imageFile) {
+                try {
+                  const fileExt = item.imageFile.name.split('.').pop();
+                  const fileName = `${restaurantId}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+                  imageUrl = await uploadImage(item.imageFile, 'dish-images', fileName);
+                } catch (err) {
+                  console.error('Error uploading dish image:', err);
+                }
+              }
 
-            const mappedOptionGroups = item.optionGroups
-              .map((groupId: string) => {
-                const matchedGroup = optionGroups.find((g) => g.id === groupId);
-                if (!matchedGroup) return null;
-                return {
-                  id: matchedGroup.id,
-                  name: matchedGroup.name,
-                  minSelections: matchedGroup.minSelections ?? 0,
-                  maxSelections: matchedGroup.maxSelections ?? null,
-                  choices: matchedGroup.choices.map((c) => ({
+              let visibility: 'always' | 'hidden' | 'scheduled' = 'always';
+              if (item.visibility.mode === 'hidden') {
+                visibility = 'hidden';
+              } else if (
+                item.visibility.mode === 'time_range' ||
+                item.visibility.mode === 'date_range'
+              ) {
+                visibility = 'scheduled';
+              }
+
+              const mappedOptionGroups = item.optionGroups
+                .map((groupId: string) => {
+                  const matchedGroup = optionGroups.find((g) => g.id === groupId);
+                  if (!matchedGroup) return null;
+                  return {
+                    id: matchedGroup.id,
+                    name: matchedGroup.name,
+                    name_en: matchedGroup.name_en ?? undefined,
+                    minSelections: matchedGroup.minSelections ?? 0,
+                    maxSelections: matchedGroup.maxSelections ?? null,
+                    defaultOption: matchedGroup.defaultOption,
+                    defaultOptionEn: matchedGroup.defaultOptionEn,
+                    choices: matchedGroup.choices.map((c) => ({
+                      id: c.id,
+                      name: c.name,
+                      price: c.price.toString(),
+                    })),
+                  };
+                })
+                .filter(Boolean);
+
+              if (item.singleSupplements && item.singleSupplements.length > 0) {
+                mappedOptionGroups.push({
+                  id: 'supplementi-singoli',
+                  name: 'Supplementi Singoli',
+                  name_en: undefined,
+                  minSelections: 0,
+                  maxSelections: null,
+                  defaultOption: undefined,
+                  defaultOptionEn: undefined,
+                  choices: (item.singleSupplements as any[]).map((c) => ({
                     id: c.id,
                     name: c.name,
                     price: c.price.toString(),
                   })),
-                };
-              })
-              .filter(Boolean);
+                });
+              }
 
-            if (item.singleSupplements && item.singleSupplements.length > 0) {
-              mappedOptionGroups.push({
-                id: 'supplementi-singoli',
-                name: 'Supplementi Singoli',
-                minSelections: 0,
-                maxSelections: null,
-                choices: (item.singleSupplements as any[]).map((c) => ({
-                  id: c.id,
-                  name: c.name,
-                  price: c.price.toString(),
-                })),
-              });
-            }
+              const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                item.id
+              );
 
-            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-              item.id
-            );
+              const payloadItem: any = {
+                restaurant_id: restaurantId,
+                category_id: catMap[item.category] || null,
+                category_name: item.category,
+                name: item.name,
+                name_en: item.name_en || null,
+                description: item.description || null,
+                description_en: item.description_en || null,
+                price: isPromoActive ? promoPrice! : listPrice,
+                original_price: isPromoActive ? listPrice : null,
+                image_url: imageUrl,
+                image_alt: item.name,
+                allergens: item.allergens,
+                allergens_en: item.allergens_en || [],
+                dish_tags: item.dishTags || [],
+                dish_tags_en: item.dishTagsEn || [],
+                ingredients: item.ingredients || [],
+                ingredients_en: item.ingredients_en || [],
+                available: item.available,
+                visibility,
+                visibility_from: item.visibility.timeFrom || null,
+                visibility_to: item.visibility.timeTo || null,
+                option_groups: mappedOptionGroups,
+                customization_enabled: item.customizationEnabled ?? true,
+                notes_enabled: item.notesEnabled ?? true,
+                sort_order: 0,
+              };
 
-            const payloadItem: any = {
-              restaurant_id: restaurantId,
-              category_id: catMap[item.category] || null,
-              category_name: item.category,
-              name: item.name,
-              name_en: item.name_en || null,
-              description: item.description || null,
-              description_en: item.description_en || null,
-              price: isPromoActive ? promoPrice! : listPrice,
-              original_price: isPromoActive ? listPrice : null,
-              image_url: item.imageUrl || null,
-              image_alt: item.name,
-              allergens: item.allergens,
-              dish_tags: item.dishTags || [],
-              ingredients: item.ingredients || [],
-              ingredients_en: item.ingredients_en || [],
-              available: item.available,
-              visibility,
-              visibility_from: item.visibility.timeFrom || null,
-              visibility_to: item.visibility.timeTo || null,
-              option_groups: mappedOptionGroups,
-              customization_enabled: item.customizationEnabled ?? true,
-              notes_enabled: item.notesEnabled ?? true,
-              sort_order: 0,
-            };
+              if (isUuid) {
+                payloadItem.id = item.id;
+              }
 
-            if (isUuid) {
-              payloadItem.id = item.id;
-            }
-
-            return payloadItem;
-          });
+              return payloadItem;
+            })
+          );
 
           const { error: itemsErr } = await supabase.from('menu_items').insert(itemsPayload);
           if (itemsErr) {
@@ -1553,11 +1605,17 @@ export default function RestaurantConfigurePage() {
 
   const handleLogoFile = (e: any) => {
     const f = e.target.files?.[0];
-    if (f) setInfo((p) => ({ ...p, logoUrl: URL.createObjectURL(f) }));
+    if (f) {
+      setLogoFile(f);
+      setInfo((p) => ({ ...p, logoUrl: URL.createObjectURL(f) }));
+    }
   };
   const handleBgImageFile = (e: any) => {
     const f = e.target.files?.[0];
-    if (f) setInfo((p) => ({ ...p, backgroundImageUrl: URL.createObjectURL(f) }));
+    if (f) {
+      setBgImageFile(f);
+      setInfo((p) => ({ ...p, backgroundImageUrl: URL.createObjectURL(f) }));
+    }
   };
   const handleImageFile = (e: any) => {
     const f = e.target.files?.[0];
@@ -1798,6 +1856,12 @@ export default function RestaurantConfigurePage() {
                 setShowAddGroup={setShowAddGroup}
                 newGroupName={newGroupName}
                 setNewGroupName={setNewGroupName}
+                newGroupNameEn={newGroupNameEn}
+                setNewGroupNameEn={setNewGroupNameEn}
+                newGroupDefaultOption={newGroupDefaultOption}
+                setNewGroupDefaultOption={setNewGroupDefaultOption}
+                newGroupDefaultOptionEn={newGroupDefaultOptionEn}
+                setNewGroupDefaultOptionEn={setNewGroupDefaultOptionEn}
                 newGroupChoices={newGroupChoices}
                 addChoice={() =>
                   setNewGroupChoices((p) => [...p, { id: `c-${Date.now()}`, name: '', price: 0 }])
@@ -1813,12 +1877,19 @@ export default function RestaurantConfigurePage() {
                     {
                       id: `og-${Date.now()}`,
                       name: newGroupName.trim(),
+                      name_en: newGroupNameEn.trim() || undefined,
                       choices: newGroupChoices.filter((c) => c.name.trim()),
                       appliedTo: [],
                       minSelections: minSel ?? 0,
                       maxSelections: maxSel !== undefined ? maxSel : null,
+                      defaultOption: newGroupDefaultOption.trim() || undefined,
+                      defaultOptionEn: newGroupDefaultOptionEn.trim() || undefined,
                     },
                   ]);
+                  setNewGroupName('');
+                  setNewGroupNameEn('');
+                  setNewGroupDefaultOption('');
+                  setNewGroupDefaultOptionEn('');
                   setShowAddGroup(false);
                 }}
                 removeWizardOptionGroup={(id) =>
@@ -1828,10 +1899,17 @@ export default function RestaurantConfigurePage() {
                 startEditGroup={(g) => {
                   setEditingGroupId(g.id);
                   setEditGroupName(g.name);
+                  setEditGroupNameEn(g.name_en ?? '');
                   setEditGroupChoices(g.choices.map((c) => ({ ...c })));
+                  setEditGroupMinSelections(g.minSelections ?? 0);
+                  setEditGroupMaxSelections(g.maxSelections ?? null);
+                  setEditGroupDefaultOption(g.defaultOption ?? '');
+                  setEditGroupDefaultOptionEn(g.defaultOptionEn ?? '');
                 }}
                 editGroupName={editGroupName}
                 setEditGroupName={setEditGroupName}
+                editGroupNameEn={editGroupNameEn}
+                setEditGroupNameEn={setEditGroupNameEn}
                 editGroupChoices={editGroupChoices}
                 addEditChoice={() =>
                   setEditGroupChoices((p) => [...p, { id: `c-${Date.now()}`, name: '', price: 0 }])
@@ -1844,13 +1922,40 @@ export default function RestaurantConfigurePage() {
                   setOptionGroups((p) =>
                     p.map((g) =>
                       g.id === editingGroupId
-                        ? { ...g, name: editGroupName, choices: editGroupChoices }
+                        ? {
+                            ...g,
+                            name: editGroupName,
+                            name_en: editGroupNameEn.trim() || undefined,
+                            choices: editGroupChoices,
+                            minSelections: editGroupMinSelections,
+                            maxSelections: editGroupMaxSelections,
+                            defaultOption: editGroupDefaultOption.trim() || undefined,
+                            defaultOptionEn: editGroupDefaultOptionEn.trim() || undefined,
+                          }
                         : g
                     )
                   );
                   setEditingGroupId(null);
+                  setEditGroupName('');
+                  setEditGroupNameEn('');
+                  setEditGroupDefaultOption('');
+                  setEditGroupDefaultOptionEn('');
                 }}
-                cancelEditGroup={() => setEditingGroupId(null)}
+                cancelEditGroup={() => {
+                  setEditingGroupId(null);
+                  setEditGroupName('');
+                  setEditGroupNameEn('');
+                  setEditGroupDefaultOption('');
+                  setEditGroupDefaultOptionEn('');
+                }}
+                editGroupMinSelections={editGroupMinSelections}
+                setEditGroupMinSelections={setEditGroupMinSelections}
+                editGroupMaxSelections={editGroupMaxSelections}
+                setEditGroupMaxSelections={setEditGroupMaxSelections}
+                editGroupDefaultOption={editGroupDefaultOption}
+                setEditGroupDefaultOption={setEditGroupDefaultOption}
+                editGroupDefaultOptionEn={editGroupDefaultOptionEn}
+                setEditGroupDefaultOptionEn={setEditGroupDefaultOptionEn}
                 menuItems={menuItems}
                 newItem={newItem}
                 setNewItem={setNewItem}

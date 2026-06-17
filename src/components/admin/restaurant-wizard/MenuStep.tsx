@@ -22,6 +22,8 @@ import {
   Coffee,
   Wine,
   Pizza,
+  Snowflake,
+  Vegan,
 } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import { DISH_TAGS_LIST } from '@/lib/constants';
@@ -39,10 +41,12 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
   coffee: Coffee,
   wine: Wine,
   pizza: Pizza,
+  snowflake: Snowflake,
+  vegan: Vegan,
 };
 
 const ICON_LABELS: Record<string, string> = {
-  leaf: 'Vegano / Vegetariano',
+  leaf: 'Vegetariano',
   flame: 'Piccante',
   wheat: 'Senza Glutine',
   sparkles: 'Nuovo / Novità',
@@ -54,9 +58,12 @@ const ICON_LABELS: Record<string, string> = {
   coffee: 'Colazione',
   wine: 'Alcolico / Vino',
   pizza: 'Pizza / Forno',
+  snowflake: 'Surgelato / Congelato',
+  vegan: 'Vegano',
 };
 
-const getIconComponent = (name: string, size = 14, className = '') => {
+const getIconComponent = (name: string | null, size = 14, className = '') => {
+  if (!name) return null;
   const Icon = ICON_MAP[name.toLowerCase()];
   if (!Icon) return null;
   return <Icon size={size} className={className} />;
@@ -72,14 +79,16 @@ const parseTag = (tag: string) => {
 
   // Legacy parsing fallback
   const t = tag.toLowerCase();
-  let iconName = 'leaf';
+  let iconName: string | null = null;
   let label = tag;
 
   label = label
-    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+    .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{2B50}]|[\u{FE0F}]/gu, '')
     .trim();
 
-  if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+  if (t.includes('vegan') || tag.includes('🌱')) {
+    iconName = 'vegan';
+  } else if (t.includes('vegetar') || tag.includes('🥗')) {
     iconName = 'leaf';
   } else if (
     t.includes('piccant') ||
@@ -102,6 +111,8 @@ const parseTag = (tag: string) => {
     iconName = 'star';
   } else if (t.includes('lattosio') || tag.includes('🥛')) {
     iconName = 'milk';
+  } else if (t.includes('surgelat') || t.includes('frozen') || tag.includes('❄️')) {
+    iconName = 'snowflake';
   }
 
   return { iconName, label };
@@ -129,6 +140,12 @@ interface MenuStepProps {
   setShowAddGroup: (show: boolean) => void;
   newGroupName: string;
   setNewGroupName: (name: string) => void;
+  newGroupNameEn: string;
+  setNewGroupNameEn: (name: string) => void;
+  newGroupDefaultOption: string;
+  setNewGroupDefaultOption: (val: string) => void;
+  newGroupDefaultOptionEn: string;
+  setNewGroupDefaultOptionEn: (val: string) => void;
   newGroupChoices: WizardOptionChoice[];
   addChoice: () => void;
   updateChoice: (id: string, field: 'name' | 'price' | 'name_en', value: string | number) => void;
@@ -139,12 +156,22 @@ interface MenuStepProps {
   startEditGroup: (group: WizardOptionGroup) => void;
   editGroupName: string;
   setEditGroupName: (name: string) => void;
+  editGroupNameEn: string;
+  setEditGroupNameEn: (name: string) => void;
   editGroupChoices: WizardOptionChoice[];
   addEditChoice: () => void;
   updateEditChoice: (id: string, field: 'name' | 'price' | 'name_en', value: string | number) => void;
   removeEditChoice: (id: string) => void;
   saveEditGroup: () => void;
   cancelEditGroup: () => void;
+  editGroupMinSelections: number;
+  setEditGroupMinSelections: (val: number) => void;
+  editGroupMaxSelections: number | null;
+  setEditGroupMaxSelections: (val: number | null) => void;
+  editGroupDefaultOption: string;
+  setEditGroupDefaultOption: (val: string) => void;
+  editGroupDefaultOptionEn: string;
+  setEditGroupDefaultOptionEn: (val: string) => void;
   menuItems: MenuItemWizardDraft[];
   newItem: MenuItemWizardDraft;
   setNewItem: React.Dispatch<React.SetStateAction<MenuItemWizardDraft>>;
@@ -178,6 +205,12 @@ export default function MenuStep({
   setShowAddGroup,
   newGroupName,
   setNewGroupName,
+  newGroupNameEn,
+  setNewGroupNameEn,
+  newGroupDefaultOption,
+  setNewGroupDefaultOption,
+  newGroupDefaultOptionEn,
+  setNewGroupDefaultOptionEn,
   newGroupChoices,
   addChoice,
   updateChoice,
@@ -188,12 +221,22 @@ export default function MenuStep({
   startEditGroup,
   editGroupName,
   setEditGroupName,
+  editGroupNameEn,
+  setEditGroupNameEn,
   editGroupChoices,
   addEditChoice,
   updateEditChoice,
   removeEditChoice,
   saveEditGroup,
   cancelEditGroup,
+  editGroupMinSelections,
+  setEditGroupMinSelections,
+  editGroupMaxSelections,
+  setEditGroupMaxSelections,
+  editGroupDefaultOption,
+  setEditGroupDefaultOption,
+  editGroupDefaultOptionEn,
+  setEditGroupDefaultOptionEn,
   menuItems,
   newItem,
   setNewItem,
@@ -536,6 +579,11 @@ export default function MenuStep({
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
+                {group.defaultOption && (
+                  <span className="text-[10px] bg-primary/10 border border-primary/20 text-primary font-semibold px-2 py-0.5 rounded-md">
+                    {group.defaultOption} (Default, €0)
+                  </span>
+                )}
                 {group.choices.map((c) => (
                   <span
                     key={c.id}
@@ -552,13 +600,51 @@ export default function MenuStep({
         {/* Add Group Form */}
         {showAddGroup && (
           <div className="bg-muted/40 border-2 border-dashed border-border rounded-xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2">
-            <input
-              type="text"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder="Nome gruppo (es. Scegli impasto, Ingredienti extra...)"
-              className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Nome Gruppo</label>
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Nome gruppo (es. Scegli impasto, Ingredienti extra...)"
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Opzione Default (Prezzo €0)</label>
+                <input
+                  type="text"
+                  value={newGroupDefaultOption}
+                  onChange={(e) => setNewGroupDefaultOption(e.target.value)}
+                  placeholder="es. Classico, Nessuno..."
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Nome Gruppo (EN)</label>
+                <input
+                  type="text"
+                  value={newGroupNameEn}
+                  onChange={(e) => setNewGroupNameEn(e.target.value)}
+                  placeholder="es. Choose dough, Extra toppings..."
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Opzione Default (EN)</label>
+                <input
+                  type="text"
+                  value={newGroupDefaultOptionEn}
+                  onChange={(e) => setNewGroupDefaultOptionEn(e.target.value)}
+                  placeholder="es. Classic, None..."
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+            </div>
             {/* Regole di Selezione & Vincoli per il Nuovo Gruppo */}
             <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
@@ -768,6 +854,279 @@ export default function MenuStep({
                   setNewGroupMinSelections(0);
                   setNewGroupMaxSelections(null);
                 }}
+                className="text-xs font-semibold text-muted-foreground cursor-pointer"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Group Form */}
+        {editingGroupId && (
+          <div className="bg-muted/40 border-2 border-solid border-primary/40 rounded-xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                Modifica Gruppo Opzioni
+              </h4>
+              <button
+                type="button"
+                onClick={cancelEditGroup}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Nome Gruppo</label>
+                <input
+                  type="text"
+                  value={editGroupName}
+                  onChange={(e) => setEditGroupName(e.target.value)}
+                  placeholder="Nome gruppo (es. Scegli impasto, Ingredienti extra...)"
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1">Opzione Default (Prezzo €0)</label>
+                <input
+                  type="text"
+                  value={editGroupDefaultOption}
+                  onChange={(e) => setEditGroupDefaultOption(e.target.value)}
+                  placeholder="es. Classico, Nessuno..."
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Nome Gruppo (EN)</label>
+                <input
+                  type="text"
+                  value={editGroupNameEn}
+                  onChange={(e) => setEditGroupNameEn(e.target.value)}
+                  placeholder="es. Choose dough, Extra toppings..."
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Opzione Default (EN)</label>
+                <input
+                  type="text"
+                  value={editGroupDefaultOptionEn}
+                  onChange={(e) => setEditGroupDefaultOptionEn(e.target.value)}
+                  placeholder="es. Classic, None..."
+                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
+                />
+              </div>
+            </div>
+            {/* Regole di Selezione & Vincoli per il Gruppo in Modifica */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
+                ⚙️ Regole di comportamento per il cliente
+              </h4>
+
+              {/* Question 1: Solo una o più scelte? */}
+              <div className="space-y-2">
+                <span className="block text-xs font-bold text-foreground">
+                  1. Quante opzioni può selezionare il cliente?
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditGroupMaxSelections(1);
+                      setEditGroupMinSelections(Math.min(1, editGroupMinSelections));
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      editGroupMaxSelections === 1
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span
+                        className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${editGroupMaxSelections === 1 ? 'border-primary' : 'border-muted-foreground'}`}
+                      >
+                        {editGroupMaxSelections === 1 && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        )}
+                      </span>
+                      Una sola scelta (es. Impasto)
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente può scegliere un solo elemento. La selezione di uno esclude gli
+                      altri.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditGroupMaxSelections(null);
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      editGroupMaxSelections !== 1
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span
+                        className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${editGroupMaxSelections !== 1 ? 'border-primary bg-primary/10' : 'border-muted-foreground'}`}
+                      >
+                        {editGroupMaxSelections !== 1 && (
+                          <span className="w-1.5 h-1.5 bg-primary rounded-[2px]" />
+                        )}
+                      </span>
+                      Scelte multiple (es. Aggiunte)
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente può selezionare più opzioni contemporaneamente o nessuna.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Question 2: Obbligatorio o opzionale? */}
+              <div className="space-y-2">
+                <span className="block text-xs font-bold text-foreground">
+                  2. La scelta è obbligatoria per poter ordinare?
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditGroupMinSelections(0);
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      editGroupMinSelections === 0
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className="text-xs">⚪</span>
+                      Facoltativa
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente può procedere all&apos;ordine anche senza selezionare alcuna
+                      opzione da questo gruppo.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditGroupMinSelections(1);
+                    }}
+                    className={`flex flex-col text-left p-3 border rounded-xl transition-all cursor-pointer ${
+                      editGroupMinSelections > 0
+                        ? 'bg-primary/5 border-primary shadow-xs ring-1 ring-primary/20'
+                        : 'bg-card border-border hover:border-border-strong hover:bg-muted/10'
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <span className="text-xs">🔴</span>
+                      Obbligatoria
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                      Il cliente non può aggiungere il piatto al carrello se non seleziona almeno
+                      un&apos;opzione.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Summary rules badge */}
+              <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+                <span className="text-muted-foreground font-semibold">Regola applicata:</span>
+                <span className="px-3 py-1 font-bold rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  {editGroupMinSelections > 0
+                    ? editGroupMaxSelections === 1
+                      ? '🔴 Selezione Obbligatoria (1 sola scelta)'
+                      : '🔴 Selezione Obbligatoria (Scelte multiple)'
+                    : editGroupMaxSelections === 1
+                      ? '⚪ Selezione Facoltativa (Max 1 scelta)'
+                      : '⚪ Selezione Facoltativa (Scelte multiple libere)'}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
+                Opzioni
+              </p>
+              {editGroupChoices.map((choice) => (
+                <div
+                  key={choice.id}
+                  className="flex flex-col gap-1.5 p-2 bg-card border border-border rounded-xl"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={choice.name}
+                      onChange={(e) => updateEditChoice(choice.id, 'name', e.target.value)}
+                      placeholder="Nome opzione"
+                      className="flex-1 px-3 py-1.5 text-base bg-input border border-border rounded-lg"
+                    />
+                    <div className="relative w-24">
+                      <Euro
+                        size={10}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <input
+                        type="number"
+                        value={choice.price}
+                        onChange={(e) =>
+                          updateEditChoice(choice.id, 'price', parseFloat(e.target.value) || 0)
+                        }
+                        placeholder="Prezzo"
+                        className="w-full pl-6 pr-2 py-1.5 text-base bg-input border border-border rounded-lg"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeEditChoice(choice.id)}
+                      className="p-1.5 text-muted-foreground hover:text-[var(--danger)] cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 pl-1.5 w-full">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 EN:</span>
+                    <input
+                      type="text"
+                      value={choice.name_en || ''}
+                      onChange={(e) => updateEditChoice(choice.id, 'name_en', e.target.value)}
+                      placeholder="English translation (optional)"
+                      className="flex-1 px-3 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addEditChoice}
+                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={12} />
+                Aggiungi Opzione
+              </button>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={saveEditGroup}
+                className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Salva Modifiche
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditGroup}
                 className="text-xs font-semibold text-muted-foreground cursor-pointer"
               >
                 Annulla
@@ -1231,165 +1590,6 @@ export default function MenuStep({
             {/* Opzioni & Allergeni & Tag Panels */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-border text-left">
               <div className="space-y-6">
-                {/* Supplementi Singoli Section */}
-                <div className="border border-border/80 rounded-2xl p-4 bg-muted/10 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                        Supplementi Singoli del Piatto
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Aggiungi o importa da gruppi opzioni creati.
-                      </p>
-                    </div>
-                    {optionGroups.filter(
-                      (g) =>
-                        g.id !== 'supplementi-singoli' &&
-                        g.name !== 'Supplementi' &&
-                        g.name !== 'Supplementi Singoli' &&
-                        !newItem.optionGroups.includes(g.id)
-                    ).length > 0 && (
-                      <select
-                        onChange={(e) => {
-                          const gid = e.target.value;
-                          if (!gid) return;
-                          setNewItem((prev) => {
-                            const currentGroups = prev.optionGroups || [];
-                            if (currentGroups.includes(gid)) return prev;
-                            return {
-                              ...prev,
-                              optionGroups: [...currentGroups, gid],
-                            };
-                          });
-                          e.target.value = ''; // Reset select
-                        }}
-                        className="px-2 py-0.5 text-[10px] bg-input border border-border rounded-md focus:outline-none cursor-pointer self-start sm:self-auto font-semibold"
-                        defaultValue=""
-                      >
-                        <option value="" disabled>
-                          Inserisci da gruppo...
-                        </option>
-                        {optionGroups
-                          .filter(
-                            (g) =>
-                              g.id !== 'supplementi-singoli' &&
-                              g.name !== 'Supplementi' &&
-                              g.name !== 'Supplementi Singoli' &&
-                              !newItem.optionGroups.includes(g.id)
-                          )
-                          .map((g) => (
-                            <option key={g.id} value={g.id}>
-                              {g.name}
-                            </option>
-                          ))}
-                      </select>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2 bg-card border border-border rounded-xl">
-                    {(!newItem.singleSupplements || newItem.singleSupplements.length === 0) && (
-                      <p className="text-[10px] text-muted-foreground italic">
-                        Nessun supplemento singolo configurato.
-                      </p>
-                    )}
-                    {(newItem.singleSupplements || []).map((choice) => (
-                      <div
-                        key={choice.id}
-                        className="relative px-2 py-1 rounded-lg text-[10px] font-semibold border bg-card border-border text-foreground pr-6"
-                      >
-                        <span>{choice.name}</span>
-                        <span className="text-primary font-bold ml-1">
-                          (+€{choice.price.toFixed(2)})
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewItem((prev) => ({
-                              ...prev,
-                              singleSupplements: (prev.singleSupplements || []).filter(
-                                (c) => c.id !== choice.id
-                              ),
-                            }))
-                          }
-                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                          style={{ fontSize: '7px', lineHeight: '1' }}
-                          title={`Elimina ${choice.name}`}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add Supplement inline form */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newWizardSuppName}
-                      onChange={(e) => setNewWizardSuppName(e.target.value)}
-                      placeholder="Nome supplemento..."
-                      className="flex-1 px-3 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none min-w-0"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          if (newWizardSuppName.trim()) {
-                            const price =
-                              parseFloat(newWizardSuppPrice) >= 0
-                                ? parseFloat(newWizardSuppPrice)
-                                : 0;
-                            setNewItem((prev) => ({
-                              ...prev,
-                              singleSupplements: [
-                                ...(prev.singleSupplements || []),
-                                {
-                                  id: `choice-${Date.now()}`,
-                                  name: newWizardSuppName.trim(),
-                                  price,
-                                },
-                              ],
-                            }));
-                            setNewWizardSuppName('');
-                            setNewWizardSuppPrice('');
-                          }
-                        }
-                      }}
-                    />
-                    <input
-                      type="number"
-                      value={newWizardSuppPrice}
-                      onChange={(e) => setNewWizardSuppPrice(e.target.value)}
-                      placeholder="Prezzo"
-                      min={0}
-                      step={0.1}
-                      className="w-16 px-2 py-1.5 text-xs bg-input border border-border rounded-lg text-center min-w-0"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (newWizardSuppName.trim()) {
-                          const price =
-                            parseFloat(newWizardSuppPrice) >= 0
-                              ? parseFloat(newWizardSuppPrice)
-                              : 0;
-                          setNewItem((prev) => ({
-                            ...prev,
-                            singleSupplements: [
-                              ...(prev.singleSupplements || []),
-                              { id: `choice-${Date.now()}`, name: newWizardSuppName.trim(), price },
-                            ],
-                          }));
-                          setNewWizardSuppName('');
-                          setNewWizardSuppPrice('');
-                        }
-                      }}
-                      className="px-2.5 py-1.5 bg-primary text-white hover:bg-primary-hover rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
-                    >
-                      <Plus size={10} />
-                      Aggiungi
-                    </button>
-                  </div>
-                </div>
-
                 {/* Gruppi Opzioni Applicabili Section */}
                 <div>
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -1590,7 +1790,7 @@ export default function MenuStep({
                         type="button"
                         onClick={() => {
                           const standardOnly = [
-                            'leaf:Vegano',
+                            'vegan:Vegano',
                             'leaf:Vegetariano',
                             'flame:Piccante',
                             'wheat:Senza Glutine',

@@ -15,6 +15,8 @@ export interface OptionGroup {
   name_en?: string;
   minSelections: number; // 0 = optional, 1+ = required
   maxSelections: number | null; // null = unlimited, 1 = single choice
+  defaultOption?: string;
+  defaultOptionEn?: string;
   choices: OptionChoice[];
 }
 
@@ -31,7 +33,9 @@ export interface MenuItem {
   image: string;
   imageAlt: string;
   allergens: string[];
+  allergens_en?: string[];
   dishTags?: string[];
+  dishTagsEn?: string[];
   ingredients?: string[];
   ingredients_en?: string[];
   orders: number;
@@ -53,8 +57,11 @@ export interface MenuItemDraft {
   description_en?: string;
   available: boolean;
   imageUrl: string;
+  imageFile?: File | null;
   allergens: string[];
+  allergens_en?: string[];
   dishTags?: string[];
+  dishTagsEn?: string[];
   ingredients?: string[];
   ingredients_en?: string[];
   visibility: VisibilityType;

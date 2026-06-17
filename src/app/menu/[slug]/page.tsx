@@ -48,6 +48,8 @@ import {
   Coffee,
   Wine,
   Pizza,
+  Snowflake,
+  Vegan,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -428,8 +430,10 @@ const getCleanTagLabel = (tag: string) => {
   if (tag.includes(':')) {
     return tag.split(':').slice(1).join(':').trim();
   }
-  // Strip emojis
-  return tag.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+  // Strip emojis, variation selectors, and common symbols
+  return tag
+    .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{2B50}]|[\u{FE0F}]/gu, '')
+    .trim();
 };
 
 const getTagStyle = (tag: string) => {
@@ -438,7 +442,9 @@ const getTagStyle = (tag: string) => {
     iconName = tag.split(':')[0].trim().toLowerCase();
   } else {
     const t = tag.toLowerCase();
-    if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+    if (t.includes('vegan') || tag.includes('🌱')) {
+      iconName = 'vegan';
+    } else if (t.includes('vegetar') || tag.includes('🥗')) {
       iconName = 'leaf';
     } else if (
       t.includes('piccant') ||
@@ -466,10 +472,12 @@ const getTagStyle = (tag: string) => {
       iconName = 'star';
     } else if (t.includes('lattosio') || tag.includes('🥛')) {
       iconName = 'milk';
+    } else if (t.includes('surgelat') || t.includes('frozen') || tag.includes('❄️')) {
+      iconName = 'snowflake';
     }
   }
 
-  if (iconName === 'leaf') {
+  if (iconName === 'vegan' || iconName === 'leaf') {
     return 'text-emerald-600 dark:text-emerald-400';
   }
   if (iconName === 'flame') {
@@ -484,7 +492,10 @@ const getTagStyle = (tag: string) => {
   if (iconName === 'star') {
     return 'text-amber-600 dark:text-amber-400';
   }
-  return 'text-slate-500 dark:text-slate-450';
+  if (iconName === 'snowflake') {
+    return 'text-sky-500 dark:text-sky-450';
+  }
+  return 'text-slate-500 dark:text-slate-400';
 };
 
 const getTagIcon = (tag: string) => {
@@ -493,7 +504,9 @@ const getTagIcon = (tag: string) => {
     iconName = tag.split(':')[0].trim().toLowerCase();
   } else {
     const t = tag.toLowerCase();
-    if (t.includes('vegan') || t.includes('vegetar') || tag.includes('🌱') || tag.includes('🥗')) {
+    if (t.includes('vegan') || tag.includes('🌱')) {
+      iconName = 'vegan';
+    } else if (t.includes('vegetar') || tag.includes('🥗')) {
       iconName = 'leaf';
     } else if (
       t.includes('piccant') ||
@@ -521,10 +534,14 @@ const getTagIcon = (tag: string) => {
       iconName = 'star';
     } else if (t.includes('lattosio') || tag.includes('🥛')) {
       iconName = 'milk';
+    } else if (t.includes('surgelat') || t.includes('frozen') || tag.includes('❄️')) {
+      iconName = 'snowflake';
     }
   }
 
   switch (iconName) {
+    case 'vegan':
+      return <Vegan size={14} className="text-current shrink-0" strokeWidth={2} />;
     case 'leaf':
       return <Leaf size={14} className="text-current shrink-0" strokeWidth={2} />;
     case 'flame':
@@ -549,6 +566,8 @@ const getTagIcon = (tag: string) => {
       return <Wine size={14} className="text-current shrink-0" strokeWidth={2} />;
     case 'pizza':
       return <Pizza size={14} className="text-current shrink-0" strokeWidth={2} />;
+    case 'snowflake':
+      return <Snowflake size={14} className="text-current shrink-0" strokeWidth={2} />;
     default:
       return null;
   }
