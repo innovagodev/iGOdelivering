@@ -239,6 +239,7 @@ export default function RestaurantConfigurePage() {
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
   const [restaurantStatus, setRestaurantStatus] = useState<string>('draft');
   const [initialStatus, setInitialStatus] = useState<string>('draft');
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
 
   const [info, setInfo] = useState<RestaurantInfo>({
     name: '',
@@ -496,6 +497,7 @@ export default function RestaurantConfigurePage() {
         const loadedStatus = restaurant.status || 'draft';
         setRestaurantStatus(loadedStatus);
         setInitialStatus(loadedStatus);
+        setPublishedAt(restaurant.published_at || null);
 
         // Map info
         const infoData: RestaurantInfo = {
@@ -1057,8 +1059,14 @@ export default function RestaurantConfigurePage() {
         throw new Error('Errore nel caricamento delle immagini (Logo/Sfondo).');
       }
 
+      let publishedAtValue = publishedAt;
+      if (restaurantStatus === 'published' && !publishedAt) {
+        publishedAtValue = new Date().toISOString();
+        setPublishedAt(publishedAtValue);
+      }
+
       // 1. Sync restaurant row
-      const restaurantPayload = {
+      const restaurantPayload: any = {
         name: info.name,
         slug: slug,
         email: info.email,
@@ -1073,6 +1081,7 @@ export default function RestaurantConfigurePage() {
         logo_url: logoUrlToSave,
         background_url: backgroundUrlToSave,
         status: restaurantStatus,
+        published_at: publishedAtValue,
         delivery_enabled: zones.some((z) => z.enabled),
         pickup_enabled: true,
         table_enabled: tableBooking.enabled,
@@ -1670,7 +1679,7 @@ export default function RestaurantConfigurePage() {
           rightExtra={
             <div className="flex items-center gap-1.5 sm:gap-2">
               <Link
-                href={`/admin/restaurants/${restaurantId}/access`}
+                href="/admin/utenti"
                 className="flex items-center gap-2 p-2 sm:px-3 sm:py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border flex-shrink-0"
                 title="Gestione Accessi"
               >

@@ -47,6 +47,7 @@ interface Restaurant {
   email: string;
   phone: string;
   createdAt: string;
+  publishedAt?: string | null;
   menuItems: number;
   ordersToday: number;
   category: string;
@@ -96,6 +97,7 @@ export default function AdminRestaurantsPage() {
           email: r.profiles?.email || r.email || '',
           phone: r.phone || '',
           createdAt: r.created_at ? r.created_at.slice(0, 10) : '',
+          publishedAt: r.published_at ? r.published_at.slice(0, 10) : null,
           menuItems: 0,
           ordersToday: 0,
           category: r.category || 'Generico',
@@ -147,12 +149,30 @@ export default function AdminRestaurantsPage() {
     const restaurant = restaurants.find((r) => r.id === id);
     if (!restaurant) return;
 
-    setRestaurants((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'published' } : r)));
+    const nowIso = new Date().toISOString();
+    const isAlreadyPublishedOnce = !!restaurant.publishedAt;
+    const publishedAtVal = isAlreadyPublishedOnce ? restaurant.publishedAt : nowIso;
+
+    setRestaurants((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              status: 'published',
+              publishedAt: publishedAtVal ? publishedAtVal.slice(0, 10) : null,
+            }
+          : r
+      )
+    );
 
     try {
+      const updatePayload: any = { status: 'published' };
+      if (!isAlreadyPublishedOnce) {
+        updatePayload.published_at = nowIso;
+      }
       const { error } = await supabase
         .from('restaurants')
-        .update({ status: 'published' })
+        .update(updatePayload)
         .eq('id', id);
 
       if (error) throw error;
@@ -358,6 +378,9 @@ export default function AdminRestaurantsPage() {
                       <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Città
                       </th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                        Pubblicato il
+                      </th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Stato
                       </th>
@@ -427,6 +450,11 @@ export default function AdminRestaurantsPage() {
                                 {r.city}
                               </div>
                             </td>
+                            <td className="px-5 py-4 hidden md:table-cell">
+                              <span className="text-sm text-muted-foreground">
+                                {r.publishedAt ? r.publishedAt.split('-').reverse().join('/') : '—'}
+                              </span>
+                            </td>
                             <td className="px-5 py-4">
                               <span
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -470,7 +498,7 @@ export default function AdminRestaurantsPage() {
                                   <Settings size={15} />
                                 </Link>
                                 <Link
-                                  href={`/admin/restaurants/${r.id}/access`}
+                                  href="/admin/utenti"
                                   className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                   title="Gestisci accessi"
                                 >
@@ -600,9 +628,15 @@ export default function AdminRestaurantsPage() {
                             <p className="text-muted-foreground mb-0.5">Menu</p>
                             <p className="font-medium text-foreground">{r.menuItems} voci</p>
                           </div>
-                          <div className="mt-1">
+                           <div className="mt-1">
                             <p className="text-muted-foreground mb-0.5">Ordini Oggi</p>
                             <p className="font-medium text-foreground">{r.ordersToday}</p>
+                          </div>
+                          <div className="mt-1">
+                            <p className="text-muted-foreground mb-0.5">Pubblicato il</p>
+                            <p className="font-medium text-foreground">
+                              {r.publishedAt ? r.publishedAt.split('-').reverse().join('/') : '—'}
+                            </p>
                           </div>
                         </div>
 
@@ -624,7 +658,7 @@ export default function AdminRestaurantsPage() {
                             <Settings size={14} />
                           </Link>
                           <Link
-                            href={`/admin/restaurants/${r.id}/access`}
+                            href="/admin/utenti"
                             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
                             title="Accessi"
                           >

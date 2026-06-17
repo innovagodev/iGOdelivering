@@ -73,7 +73,7 @@ export default function PublishedSuccess({
         </div>
         <div className="flex flex-col gap-3">
           <Link
-            href={`/admin/restaurants/${restaurantId || 'new'}/access`}
+            href="/admin/utenti"
             className="w-full flex items-center justify-center gap-2 bg-primary text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-primary-hover transition-all"
           >
             Gestisci Accessi
