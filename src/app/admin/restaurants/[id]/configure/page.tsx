@@ -1107,6 +1107,12 @@ export default function RestaurantConfigurePage() {
         tables_count: tableCount,
       };
 
+      if (info.category) {
+        await supabase
+          .from('restaurant_categories')
+          .insert({ name: info.category.trim() });
+      }
+
       const { error: rUpdateErr } = await supabase
         .from('restaurants')
         .update(restaurantPayload)
@@ -1862,7 +1868,16 @@ export default function RestaurantConfigurePage() {
                 addNewCategory={addNewCategory}
                 optionGroups={optionGroups}
                 showAddGroup={showAddGroup}
-                setShowAddGroup={setShowAddGroup}
+                setShowAddGroup={(show) => {
+                  setShowAddGroup(show);
+                  if (!show) {
+                    setNewGroupName('');
+                    setNewGroupNameEn('');
+                    setNewGroupDefaultOption('');
+                    setNewGroupDefaultOptionEn('');
+                    setNewGroupChoices([{ id: `c-${Date.now()}`, name: '', price: 0 }]);
+                  }
+                }}
                 newGroupName={newGroupName}
                 setNewGroupName={setNewGroupName}
                 newGroupNameEn={newGroupNameEn}
@@ -1899,6 +1914,7 @@ export default function RestaurantConfigurePage() {
                   setNewGroupNameEn('');
                   setNewGroupDefaultOption('');
                   setNewGroupDefaultOptionEn('');
+                  setNewGroupChoices([{ id: `c-${Date.now()}`, name: '', price: 0 }]);
                   setShowAddGroup(false);
                 }}
                 removeWizardOptionGroup={(id) =>

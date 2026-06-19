@@ -39,6 +39,7 @@ const slugify = (text: string) => {
 interface Restaurant {
   id: string;
   name: string;
+  slug: string;
   address: string;
   city: string;
   status: 'published' | 'draft' | 'suspended';
@@ -89,6 +90,7 @@ export default function AdminRestaurantsPage() {
         const mapped = data.map((r: any) => ({
           id: r.id,
           name: r.name,
+          slug: r.slug || '',
           address: r.address || '',
           city: r.city || '',
           status: r.status,
@@ -483,7 +485,7 @@ export default function AdminRestaurantsPage() {
                             <td className="px-5 py-4">
                               <div className="flex items-center justify-end gap-1">
                                 <Link
-                                  href={`/menu/${slugify(r.name)}`}
+                                  href={`/menu/${r.slug || slugify(r.name)}`}
                                   target="_blank"
                                   className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
                                   title="Apri Vetrina"
@@ -642,7 +644,7 @@ export default function AdminRestaurantsPage() {
 
                         <div className="flex items-center justify-end gap-1.5 pt-1">
                           <Link
-                            href={`/menu/${slugify(r.name)}`}
+                            href={`/menu/${r.slug || slugify(r.name)}`}
                             target="_blank"
                             className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors text-xs font-semibold border border-border/50"
                             title="Apri Vetrina"

@@ -30,67 +30,10 @@ const ALLERGENS_LIST = [
 ];
 const DEFAULT_CATEGORIES = ['Antipasti', 'Primi', 'Pizza', 'Secondi', 'Dolci', 'Bevande'];
 
-const initialMenuItems: MenuItem[] = [
-  {
-    id: 'mi-001',
-    name: 'Pizza Margherita',
-    category: 'Pizza',
-    price: 9.5,
-    description: 'Pomodoro, mozzarella fior di latte, basilico fresco',
-    available: true,
-    image: 'https://images.unsplash.com/photo-1703784022146-b72677752ce5',
-    imageAlt: 'Pizza Margherita',
-    allergens: ['Glutine', 'Latte'],
-    orders: 284,
-    visibility: 'always',
-    optionGroups: [],
-  },
-  {
-    id: 'mi-002',
-    name: 'Pizza Diavola',
-    category: 'Pizza',
-    price: 11.0,
-    description: 'Pomodoro, mozzarella, salame piccante',
-    available: true,
-    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_11fe408ea-1772095952334.png',
-    imageAlt: 'Pizza Diavola',
-    allergens: ['Glutine', 'Latte'],
-    orders: 198,
-    visibility: 'always',
-    optionGroups: [],
-  },
-  {
-    id: 'mi-003',
-    name: 'Spaghetti Carbonara',
-    category: 'Primi',
-    price: 13.5,
-    description: 'Spaghetti, guanciale, uova, pecorino',
-    available: true,
-    image: 'https://img.rocket.new/generatedImages/rocket_gen_img_146ec8666-1772378183438.png',
-    imageAlt: 'Spaghetti Carbonara',
-    allergens: ['Glutine', 'Uova', 'Latte'],
-    orders: 156,
-    visibility: 'always',
-    optionGroups: [],
-  },
-  {
-    id: 'mi-004',
-    name: 'Risotto ai Funghi',
-    category: 'Primi',
-    price: 14.0,
-    description: 'Riso Carnaroli, funghi porcini, parmigiano',
-    available: false,
-    image: 'https://images.unsplash.com/photo-1627124679711-80f287a6451f',
-    imageAlt: 'Risotto ai Funghi',
-    allergens: ['Latte'],
-    orders: 89,
-    visibility: 'always',
-    optionGroups: [],
-  },
-];
+
 
 export default function RistoratoreMenuPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
@@ -112,14 +55,17 @@ export default function RistoratoreMenuPage() {
       .replace(/--+/g, '-');
   };
 
-  const restaurantId = user?.restaurantId || 'r-001';
+  const restaurantId = user?.restaurantId || '';
   const slug = slugify(user?.restaurantName || 'Il tuo ristorante');
 
   const [items, setItems] = useState<MenuItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchMenuData = async () => {
-    if (!restaurantId || restaurantId === 'r-001') return;
+    if (!restaurantId || restaurantId === 'r-001') {
+      setIsLoaded(true);
+      return;
+    }
     try {
       // 1. Fetch categories
       const { data: dbCats, error: catError } = await supabase
@@ -453,94 +399,113 @@ export default function RistoratoreMenuPage() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Gestione Menu</h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {items.filter((i) => i.available).length}{' '}
-                  {items.filter((i) => i.available).length === 1 ? 'disponibile' : 'disponibili'} ·{' '}
-                  {items.filter((i) => !i.available).length}{' '}
-                  {items.filter((i) => !i.available).length === 1 ? 'sospeso' : 'sospesi'}
+            {isLoading || !isLoaded ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-muted-foreground text-sm font-medium animate-pulse">Caricamento menu in corso...</p>
+              </div>
+            ) : !restaurantId || restaurantId === 'r-001' ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8 bg-card border border-border rounded-2xl shadow-sm">
+                <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-4">
+                  <Store size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Nessun Ristorante Collegato</h2>
+                <p className="text-muted-foreground text-sm max-w-md mt-2">
+                  Il tuo account non è ancora collegato a un ristorante attivo. Contatta l'amministratore per completare la configurazione e l'attivazione del tuo profilo.
                 </p>
               </div>
-              <button
-                onClick={() => setShowAddItem(true)}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover w-full sm:w-auto"
-              >
-                <Plus size={14} />
-                Aggiungi Piatto
-              </button>
-            </div>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-foreground">Gestione Menu</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {items.filter((i) => i.available).length}{' '}
+                      {items.filter((i) => i.available).length === 1 ? 'disponibile' : 'disponibili'} ·{' '}
+                      {items.filter((i) => !i.available).length}{' '}
+                      {items.filter((i) => !i.available).length === 1 ? 'sospeso' : 'sospesi'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowAddItem(true)}
+                    className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover w-full sm:w-auto"
+                  >
+                    <Plus size={14} />
+                    Aggiungi Piatto
+                  </button>
+                </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-card border border-border rounded-xl p-4 shadow-card">
-                <p className="text-xs text-muted-foreground font-medium">Totale piatti</p>
-                <p className="text-2xl font-bold tabular-nums text-foreground mt-1">
-                  {items.length}
-                </p>
-              </div>
-              <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-4">
-                <p className="text-xs text-muted-foreground font-medium">Disponibili</p>
-                <p className="text-2xl font-bold tabular-nums text-[var(--success)] mt-1">
-                  {items.filter((i) => i.available).length}
-                </p>
-              </div>
-              <div className="bg-[var(--warning-bg)] border border-[var(--warning)]/20 rounded-xl p-4">
-                <p className="text-xs text-muted-foreground font-medium">Sospesi</p>
-                <p className="text-2xl font-bold tabular-nums text-[var(--warning)] mt-1">
-                  {items.filter((i) => !i.available).length}
-                </p>
-              </div>
-            </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-card border border-border rounded-xl p-4 shadow-card">
+                    <p className="text-xs text-muted-foreground font-medium">Totale piatti</p>
+                    <p className="text-2xl font-bold tabular-nums text-foreground mt-1">
+                      {items.length}
+                    </p>
+                  </div>
+                  <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground font-medium">Disponibili</p>
+                    <p className="text-2xl font-bold tabular-nums text-[var(--success)] mt-1">
+                      {items.filter((i) => i.available).length}
+                    </p>
+                  </div>
+                  <div className="bg-[var(--warning-bg)] border border-[var(--warning)]/20 rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground font-medium">Sospesi</p>
+                    <p className="text-2xl font-bold tabular-nums text-[var(--warning)] mt-1">
+                      {items.filter((i) => !i.available).length}
+                    </p>
+                  </div>
+                </div>
 
-            <MenuEditorTab
-              search={search}
-              setSearch={setSearch}
-              activeCategory={activeCategory}
-              setActiveCategory={setActiveCategory}
-              categories={categories}
-              hiddenCategories={hiddenCategories}
-              toggleCategoryVisibility={toggleCategoryVisibility}
-              filteredItems={filtered}
-              toggleAvailability={toggleAvailability}
-              removeMenuItem={removeMenuItem}
-              pauseAllDishes={async () => {
-                try {
-                  const { error } = await supabase
-                    .from('menu_items')
-                    .update({ available: false })
-                    .eq('restaurant_id', restaurantId);
-                  if (error) throw error;
-                  setItems((p) => p.map((i) => ({ ...i, available: false })));
-                  showFeedback('Tutti i piatti sospesi');
-                } catch (e) {
-                  console.error('Error pausing all dishes:', e);
-                }
-              }}
-              resumeAllDishes={async () => {
-                try {
-                  const { error } = await supabase
-                    .from('menu_items')
-                    .update({ available: true })
-                    .eq('restaurant_id', restaurantId);
-                  if (error) throw error;
-                  setItems((p) => p.map((i) => ({ ...i, available: true })));
-                  showFeedback('Tutti i piatti riattivati');
-                } catch (e) {
-                  console.error('Error resuming all dishes:', e);
-                }
-              }}
-              showAddItem={showAddItem}
-              setShowAddItem={setShowAddItem}
-              editingItemId={editingItemId}
-              setEditingItemId={setEditingItemId}
-              addMenuItem={addMenuItem}
-              saveEditItem={saveEditItem}
-              addCategory={addCategory}
-              itemToDraft={itemToDraft}
-              emptyDraft={emptyDraft}
-              allergensList={ALLERGENS_LIST}
-            />
+                <MenuEditorTab
+                  search={search}
+                  setSearch={setSearch}
+                  activeCategory={activeCategory}
+                  setActiveCategory={setActiveCategory}
+                  categories={categories}
+                  hiddenCategories={hiddenCategories}
+                  toggleCategoryVisibility={toggleCategoryVisibility}
+                  filteredItems={filtered}
+                  toggleAvailability={toggleAvailability}
+                  removeMenuItem={removeMenuItem}
+                  pauseAllDishes={async () => {
+                    try {
+                      const { error } = await supabase
+                        .from('menu_items')
+                        .update({ available: false })
+                        .eq('restaurant_id', restaurantId);
+                      if (error) throw error;
+                      setItems((p) => p.map((i) => ({ ...i, available: false })));
+                      showFeedback('Tutti i piatti sospesi');
+                    } catch (e) {
+                      console.error('Error pausing all dishes:', e);
+                    }
+                  }}
+                  resumeAllDishes={async () => {
+                    try {
+                      const { error } = await supabase
+                        .from('menu_items')
+                        .update({ available: true })
+                        .eq('restaurant_id', restaurantId);
+                      if (error) throw error;
+                      setItems((p) => p.map((i) => ({ ...i, available: true })));
+                      showFeedback('Tutti i piatti riattivati');
+                    } catch (e) {
+                      console.error('Error resuming all dishes:', e);
+                    }
+                  }}
+                  showAddItem={showAddItem}
+                  setShowAddItem={setShowAddItem}
+                  editingItemId={editingItemId}
+                  setEditingItemId={setEditingItemId}
+                  addMenuItem={addMenuItem}
+                  saveEditItem={saveEditItem}
+                  addCategory={addCategory}
+                  itemToDraft={itemToDraft}
+                  emptyDraft={emptyDraft}
+                  allergensList={ALLERGENS_LIST}
+                />
+              </>
+            )}
           </div>
         </main>
       </div>

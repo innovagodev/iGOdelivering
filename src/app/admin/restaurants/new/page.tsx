@@ -349,7 +349,14 @@ export default function NewRestaurantPage() {
   };
   const addMenuItem = () => {
     if (!newItem.name || !newItem.price) return;
-    setMenuItems((p) => [...p, { ...newItem, id: `mi-${Date.now()}` }]);
+    setMenuItems((p) => {
+      const exists = p.some((item) => item.id === newItem.id);
+      if (exists) {
+        return p.map((item) => (item.id === newItem.id ? { ...newItem } : item));
+      } else {
+        return [...p, { ...newItem, id: newItem.id || `mi-${Date.now()}` }];
+      }
+    });
     setShowAddItem(false);
     setNewItem({
       id: '',
@@ -595,6 +602,12 @@ export default function NewRestaurantPage() {
     };
 
     try {
+      if (info.category) {
+        await supabase
+          .from('restaurant_categories')
+          .insert({ name: info.category.trim() });
+      }
+
       if (dbRestaurantId) {
         const { error } = await supabase
           .from('restaurants')
@@ -1000,7 +1013,16 @@ export default function NewRestaurantPage() {
                 addNewCategory={addNewCategory}
                 optionGroups={optionGroups}
                 showAddGroup={showAddGroup}
-                setShowAddGroup={setShowAddGroup}
+                setShowAddGroup={(show) => {
+                  setShowAddGroup(show);
+                  if (!show) {
+                    setNewGroupName('');
+                    setNewGroupNameEn('');
+                    setNewGroupDefaultOption('');
+                    setNewGroupDefaultOptionEn('');
+                    setNewGroupChoices([{ id: `c-${Date.now()}`, name: '', price: 0 }]);
+                  }
+                }}
                 newGroupName={newGroupName}
                 setNewGroupName={setNewGroupName}
                 newGroupNameEn={newGroupNameEn}
@@ -1037,6 +1059,7 @@ export default function NewRestaurantPage() {
                   setNewGroupNameEn('');
                   setNewGroupDefaultOption('');
                   setNewGroupDefaultOptionEn('');
+                  setNewGroupChoices([{ id: `c-${Date.now()}`, name: '', price: 0 }]);
                   setShowAddGroup(false);
                 }}
                 removeWizardOptionGroup={(id) =>
