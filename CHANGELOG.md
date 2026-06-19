@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.24.1](https://github.com/innovagodev/iGOdelivering/compare/v1.24.0...v1.24.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* risoluzione bug pre-lancio, link attivazione e popolamento dinamico categorie ([9bd60d3](https://github.com/innovagodev/iGOdelivering/commit/9bd60d3e72d2a584495f5d41786f2bb1f75b9e36))
+
 ## [1.24.0](https://github.com/innovagodev/iGOdelivering/compare/v1.23.0...v1.24.0) (2026-06-17)
 
 
