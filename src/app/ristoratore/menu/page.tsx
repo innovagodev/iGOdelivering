@@ -177,6 +177,46 @@ export default function RistoratoreMenuPage() {
     }
   };
 
+  const moveCategory = async (index: number, direction: 'left' | 'right') => {
+    const newCategories = [...categories];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newCategories.length) return;
+
+    // Swap elements in state
+    const temp = newCategories[index];
+    newCategories[index] = newCategories[targetIndex];
+    newCategories[targetIndex] = temp;
+
+    setCategories(newCategories);
+
+    if (!restaurantId || restaurantId === 'r-001') return;
+
+    try {
+      const { data: dbCats } = await supabase
+        .from('menu_categories')
+        .select('id, name')
+        .eq('restaurant_id', restaurantId);
+
+      if (dbCats) {
+        const updates = newCategories.map((name, idx) => {
+          const matched = dbCats.find((c) => c.name === name);
+          return matched ? { id: matched.id, sort_order: idx } : null;
+        }).filter(Boolean);
+
+        for (const update of updates) {
+          if (update) {
+            await supabase
+              .from('menu_categories')
+              .update({ sort_order: update.sort_order })
+              .eq('id', update.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error updating category sort order:', e);
+    }
+  };
+
   const toggleCategoryVisibility = (cat: string) =>
     setHiddenCategories((prev) => {
       const n = new Set(prev);
@@ -500,6 +540,7 @@ export default function RistoratoreMenuPage() {
                   addMenuItem={addMenuItem}
                   saveEditItem={saveEditItem}
                   addCategory={addCategory}
+                  moveCategory={moveCategory}
                   itemToDraft={itemToDraft}
                   emptyDraft={emptyDraft}
                   allergensList={ALLERGENS_LIST}

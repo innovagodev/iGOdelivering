@@ -1635,6 +1635,7 @@ function CheckoutModal({
   const dateOptions = React.useMemo(() => {
     const options = [];
     const today = new Date();
+    const locale = lang === 'en' ? 'en-US' : 'it-IT';
     for (let i = 0; i <= maxDays; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
@@ -1642,16 +1643,24 @@ function CheckoutModal({
       if (i === 0) label = 'Oggi';
       else if (i === 1) label = 'Domani';
       else {
-        const dayName = d.toLocaleDateString('it-IT', { weekday: 'short' });
+        let dayName = d.toLocaleDateString(locale, { weekday: 'short' }).replace(/\.$/, '');
         const dayNum = d.getDate();
-        const monthName = d.toLocaleDateString('it-IT', { month: 'short' });
-        label = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dayNum} ${monthName}`;
+        let monthName = d.toLocaleDateString(locale, { month: 'short' }).replace(/\.$/, '');
+
+        if (lang === 'en') {
+          const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+          const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+          label = `${formattedDay} ${dayNum} ${formattedMonth}`;
+        } else {
+          const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+          label = `${formattedDay} ${dayNum} ${monthName.toLowerCase()}`;
+        }
       }
       const value = d.toISOString().split('T')[0];
       options.push({ value, label });
     }
     return options;
-  }, [maxDays]);
+  }, [maxDays, lang]);
 
   const [selectedDate, setSelectedDate] = useState('');
 

@@ -10,6 +10,8 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Leaf,
   Flame,
   Wheat,
@@ -254,6 +256,18 @@ export default function MenuStep({
   days,
   allergensList,
 }: MenuStepProps) {
+  const moveCategory = (index: number, direction: 'left' | 'right') => {
+    const newCategories = [...menuCategories];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newCategories.length) return;
+
+    const temp = newCategories[index];
+    newCategories[index] = newCategories[targetIndex];
+    newCategories[targetIndex] = temp;
+
+    setMenuCategories(newCategories);
+  };
+
   const [isPromo, setIsPromo] = React.useState(!!newItem.originalPrice);
   const [newGroupMinSelections, setNewGroupMinSelections] = React.useState(0);
   const [newGroupMaxSelections, setNewGroupMaxSelections] = React.useState<number | null>(null);
@@ -472,20 +486,41 @@ export default function MenuStep({
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {menuCategories.map((cat) => (
+          {menuCategories.map((cat, idx) => (
             <div
               key={cat.name}
               className="group relative bg-muted px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground border border-border flex items-center gap-2"
             >
+              {idx > 0 && (
+                <button
+                  type="button"
+                  onClick={() => moveCategory(idx, 'left')}
+                  className="text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer"
+                  title="Sposta a sinistra"
+                >
+                  <ChevronLeft size={12} />
+                </button>
+              )}
               <span>{cat.name}</span>
               {cat.name_en && (
                 <span className="text-[10px] text-muted-foreground font-normal">
                   ({cat.name_en})
                 </span>
               )}
+              {idx < menuCategories.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => moveCategory(idx, 'right')}
+                  className="text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer"
+                  title="Sposta a destra"
+                >
+                  <ChevronRight size={12} />
+                </button>
+              )}
               <button
+                type="button"
                 onClick={() => setMenuCategories((p) => p.filter((c) => c.name !== cat.name))}
-                className="text-muted-foreground hover:text-[var(--danger)] transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                className="text-muted-foreground hover:text-[var(--danger)] transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer"
               >
                 <X size={10} />
               </button>

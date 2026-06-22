@@ -11,6 +11,8 @@ import {
   PauseCircle,
   PlayCircle,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import AppImage from '@/components/ui/AppImage';
@@ -38,6 +40,7 @@ interface MenuEditorTabProps {
   addMenuItem: (draft: MenuItemDraft) => void;
   saveEditItem: (draft: MenuItemDraft) => void;
   addCategory: (cat: string) => void;
+  moveCategory?: (index: number, direction: 'left' | 'right') => void;
   itemToDraft: (item: MenuItem) => MenuItemDraft;
   emptyDraft: () => MenuItemDraft;
   allergensList: string[];
@@ -63,6 +66,7 @@ export default function MenuEditorTab({
   addMenuItem,
   saveEditItem,
   addCategory,
+  moveCategory,
   itemToDraft,
   emptyDraft,
   allergensList,
@@ -105,7 +109,7 @@ export default function MenuEditorTab({
 
       {/* Category Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {['Tutti', ...categories].map((cat) => {
+        {['Tutti', ...categories].map((cat, idx) => {
           const isHidden = hiddenCategories.has(cat);
           const isActive = activeCategory === cat;
           return (
@@ -118,7 +122,36 @@ export default function MenuEditorTab({
                   : 'bg-card text-muted-foreground border-border hover:border-primary/50'
               } ${isHidden ? 'opacity-50' : ''}`}
             >
+              {cat !== 'Tutti' && isActive && moveCategory && (idx - 1) > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveCategory(idx - 1, 'left');
+                  }}
+                  className="p-0.5 rounded text-white/80 hover:bg-white/20 hover:text-white cursor-pointer"
+                  title="Sposta a sinistra"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+              )}
+
               <span>{cat}</span>
+
+              {cat !== 'Tutti' && isActive && moveCategory && (idx - 1) < categories.length - 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveCategory(idx - 1, 'right');
+                  }}
+                  className="p-0.5 rounded text-white/80 hover:bg-white/20 hover:text-white cursor-pointer"
+                  title="Sposta a destra"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              )}
+
               {cat !== 'Tutti' && (
                 <button
                   type="button"
