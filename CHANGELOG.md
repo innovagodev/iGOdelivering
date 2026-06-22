@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.24.3](https://github.com/innovagodev/iGOdelivering/compare/v1.24.2...v1.24.3) (2026-06-22)
+
+
+### Bug Fixes
+
+* allineamento pannello ristoratore con corretta gestione loading ed empty state ([421ed01](https://github.com/innovagodev/iGOdelivering/commit/421ed01968c8e84a66b6f908ab39e683e182eaf8))
+
 ### [1.24.2](https://github.com/innovagodev/iGOdelivering/compare/v1.24.1...v1.24.2) (2026-06-22)
 
 ### [1.24.1](https://github.com/innovagodev/iGOdelivering/compare/v1.24.0...v1.24.1) (2026-06-19)
