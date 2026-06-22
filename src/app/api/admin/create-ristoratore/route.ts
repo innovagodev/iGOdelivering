@@ -6,9 +6,9 @@ import { slugify } from '@/lib/restaurant-utils';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, restaurantName, password } = await request.json();
+    const { name, email, restaurantId, password } = await request.json();
 
-    if (!name || !email || !restaurantName || !password) {
+    if (!name || !email || !restaurantId || !password) {
       return NextResponse.json({ error: 'Tutti i campi sono obbligatori' }, { status: 400 });
     }
 
@@ -91,33 +91,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Create restaurant entry
-    // Generate clean unique slug
-    const baseSlug = slugify(restaurantName);
-    let slug = baseSlug;
-    let counter = 1;
-
-    // Check slug uniqueness
-    while (true) {
-      const { data: existing } = await supabaseAdmin
-        .from('restaurants')
-        .select('id')
-        .eq('slug', slug)
-        .maybeSingle();
-      if (!existing) break;
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-    }
-
+    // 5. Update restaurant entry
     const { data: restaurant, error: restError } = await supabaseAdmin
       .from('restaurants')
-      .insert({
+      .update({
         owner_id: authUser.user.id,
-        name: restaurantName,
-        slug,
         email,
-        status: 'published',
       })
+      .eq('id', restaurantId)
       .select()
       .single();
 
@@ -126,7 +107,7 @@ export async function POST(request: Request) {
       await supabaseAdmin.from('profiles').delete().eq('id', authUser.user.id);
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
       return NextResponse.json(
-        { error: restError.message || 'Errore creazione ristorante' },
+        { error: restError.message || 'Errore associazione ristorante' },
         { status: 400 }
       );
     }

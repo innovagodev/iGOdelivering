@@ -42,7 +42,8 @@ export default function AdminUtentiPage() {
   // States for manual account creation
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newOwnerName, setNewOwnerName] = useState('');
-  const [newRestaurantName, setNewRestaurantName] = useState('');
+  const [restaurants, setRestaurants] = useState<{ id: string; name: string; owner_id: string | null }[]>([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('');
   const [newEmail, setNewEmail] = useState('');
   const [newTempPassword, setNewTempPassword] = useState('');
   const [createError, setCreateError] = useState('');
@@ -57,13 +58,31 @@ export default function AdminUtentiPage() {
     return pass;
   };
 
+  const loadRestaurantsForSelect = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('id, name, owner_id')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      setRestaurants(data || []);
+      if (data && data.length > 0) {
+        const firstAvailable = data.find((r) => !r.owner_id) || data[0];
+        setSelectedRestaurantId(firstAvailable?.id || '');
+      }
+    } catch (err) {
+      console.error('Error loading restaurants for select:', err);
+    }
+  };
+
   const handleOpenCreateModal = () => {
     setNewOwnerName('');
-    setNewRestaurantName('');
+    setSelectedRestaurantId('');
     setNewEmail('');
     setNewTempPassword(generateRandomPassword());
     setCreateError('');
     setCreateSuccess(false);
+    loadRestaurantsForSelect();
     setIsCreateModalOpen(true);
   };
 
@@ -74,7 +93,7 @@ export default function AdminUtentiPage() {
 
     if (
       !newOwnerName.trim() ||
-      !newRestaurantName.trim() ||
+      !selectedRestaurantId ||
       !newEmail.trim() ||
       !newTempPassword.trim()
     ) {
@@ -95,7 +114,7 @@ export default function AdminUtentiPage() {
         body: JSON.stringify({
           name: newOwnerName.trim(),
           email: newEmail.trim(),
-          restaurantName: newRestaurantName.trim(),
+          restaurantId: selectedRestaurantId,
           password: newTempPassword.trim(),
         }),
       });
@@ -579,16 +598,21 @@ export default function AdminUtentiPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                  Nome Ristorante
+                  Associa Ristorante
                 </label>
-                <input
-                  type="text"
+                <select
                   required
-                  value={newRestaurantName}
-                  onChange={(e) => setNewRestaurantName(e.target.value)}
-                  placeholder="Es. Pizzeria Bella Napoli"
+                  value={selectedRestaurantId}
+                  onChange={(e) => setSelectedRestaurantId(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+                >
+                  <option value="" disabled>Seleziona un ristorante</option>
+                  {restaurants.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} {r.owner_id ? '(Già gestito)' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

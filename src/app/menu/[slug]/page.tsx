@@ -750,15 +750,17 @@ function MenuItemCard({
         </div>
       )}
       <div>
-        <div className={`relative overflow-hidden ${compact ? 'h-28' : 'h-40'}`}>
-          <AppImage
-            src={item.image}
-            alt={item.imageAlt || displayName}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        </div>
+        {item.image && (
+          <div className={`relative overflow-hidden ${compact ? 'h-28' : 'h-40'}`}>
+            <AppImage
+              src={item.image}
+              alt={item.imageAlt || displayName}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          </div>
+        )}
         <div className={`${compact ? 'p-3 pb-1' : 'p-4'} flex-1`}>
           <h4
             className={`font-bold text-foreground mb-1 group-hover:text-primary transition-colors ${compact ? 'text-xs sm:text-sm line-clamp-1' : 'text-sm sm:text-base'}`}
@@ -1640,8 +1642,8 @@ function CheckoutModal({
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       let label = '';
-      if (i === 0) label = 'Oggi';
-      else if (i === 1) label = 'Domani';
+      if (i === 0) label = lang === 'en' ? 'Today' : 'Oggi';
+      else if (i === 1) label = lang === 'en' ? 'Tomorrow' : 'Domani';
       else {
         let dayName = d.toLocaleDateString(locale, { weekday: 'short' }).replace(/\.$/, '');
         const dayNum = d.getDate();
@@ -1743,18 +1745,34 @@ function CheckoutModal({
 
   useEffect(() => {
     if (open && paymentMethods) {
-      const isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected);
-      const isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected);
-      const isPosEnabled = bookingContext
-        ? false
-        : deliveryType === 'domicilio'
-          ? paymentMethods.card_delivery !== false
-          : paymentMethods.card_pickup !== false;
-      const isCashEnabled = bookingContext
-        ? true
-        : deliveryType === 'domicilio'
-          ? paymentMethods.cash_delivery !== false
-          : paymentMethods.cash_pickup !== false;
+      let isStripeEnabled = false;
+      let isPaypalEnabled = false;
+      let isPosEnabled = false;
+      let isCashEnabled = false;
+
+      if (bookingContext) {
+        isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected && paymentMethods.stripe_table);
+        isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected && paymentMethods.paypal_table);
+        isPosEnabled = !!paymentMethods.card_table;
+        isCashEnabled = true;
+      } else {
+        if (deliveryType === 'domicilio') {
+          isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected && paymentMethods.stripe_delivery !== false);
+          isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected && paymentMethods.paypal_delivery !== false);
+          isPosEnabled = paymentMethods.card_delivery !== false;
+          isCashEnabled = paymentMethods.cash_delivery !== false;
+        } else if (deliveryType === 'asporto') {
+          isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected && paymentMethods.stripe_pickup !== false);
+          isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected && paymentMethods.paypal_pickup !== false);
+          isPosEnabled = paymentMethods.card_pickup !== false;
+          isCashEnabled = paymentMethods.cash_pickup !== false;
+        } else if (deliveryType === 'tavolo') {
+          isStripeEnabled = !!(paymentMethods.stripe_enabled && paymentMethods.stripe_connected && paymentMethods.stripe_table !== false);
+          isPaypalEnabled = !!(paymentMethods.paypal_enabled && paymentMethods.paypal_connected && paymentMethods.paypal_table !== false);
+          isPosEnabled = !!paymentMethods.card_table;
+          isCashEnabled = !!paymentMethods.cash_table;
+        }
+      }
 
       if (isStripeEnabled) {
         setPayMethod('card');
@@ -2483,7 +2501,13 @@ function CheckoutModal({
                     className={payMethod === 'card' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled: !!(paymentMethods?.stripe_enabled && paymentMethods?.stripe_connected),
+                enabled: bookingContext
+                  ? !!(paymentMethods?.stripe_enabled && paymentMethods?.stripe_connected && paymentMethods?.stripe_table)
+                  : deliveryType === 'domicilio'
+                    ? !!(paymentMethods?.stripe_enabled && paymentMethods?.stripe_connected && paymentMethods?.stripe_delivery !== false)
+                    : deliveryType === 'asporto'
+                      ? !!(paymentMethods?.stripe_enabled && paymentMethods?.stripe_connected && paymentMethods?.stripe_pickup !== false)
+                      : !!(paymentMethods?.stripe_enabled && paymentMethods?.stripe_connected && paymentMethods?.stripe_table !== false),
               },
               {
                 id: 'online',
@@ -2499,7 +2523,13 @@ function CheckoutModal({
                     className={payMethod === 'online' ? 'text-primary' : 'text-muted-foreground'}
                   />
                 ),
-                enabled: !!(paymentMethods?.paypal_enabled && paymentMethods?.paypal_connected),
+                enabled: bookingContext
+                  ? !!(paymentMethods?.paypal_enabled && paymentMethods?.paypal_connected && paymentMethods?.paypal_table)
+                  : deliveryType === 'domicilio'
+                    ? !!(paymentMethods?.paypal_enabled && paymentMethods?.paypal_connected && paymentMethods?.paypal_delivery !== false)
+                    : deliveryType === 'asporto'
+                      ? !!(paymentMethods?.paypal_enabled && paymentMethods?.paypal_connected && paymentMethods?.paypal_pickup !== false)
+                      : !!(paymentMethods?.paypal_enabled && paymentMethods?.paypal_connected && paymentMethods?.paypal_table !== false),
               },
               {
                 id: 'pos',
@@ -2521,7 +2551,9 @@ function CheckoutModal({
                   ? false
                   : deliveryType === 'domicilio'
                     ? paymentMethods?.card_delivery !== false
-                    : paymentMethods?.card_pickup !== false,
+                    : deliveryType === 'asporto'
+                      ? paymentMethods?.card_pickup !== false
+                      : !!paymentMethods?.card_table,
               },
               {
                 id: 'cash',
@@ -2549,7 +2581,9 @@ function CheckoutModal({
                   ? true
                   : deliveryType === 'domicilio'
                     ? paymentMethods?.cash_delivery !== false
-                    : paymentMethods?.cash_pickup !== false,
+                    : deliveryType === 'asporto'
+                      ? paymentMethods?.cash_pickup !== false
+                      : !!paymentMethods?.cash_table,
               },
             ].filter((opt) => opt.enabled);
 
@@ -3191,9 +3225,11 @@ function CustomizationView({
       <div data-lenis-prevent className="flex-1 overflow-y-auto px-5 py-4 space-y-5 scrollbar-hide">
         {/* Info panel */}
         <div className="flex gap-3 bg-muted/20 p-3 rounded-2xl border border-border/20">
-          <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-            <AppImage src={item.image} alt={item.imageAlt} fill className="object-cover" />
-          </div>
+          {item.image && (
+            <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+              <AppImage src={item.image} alt={item.imageAlt} fill className="object-cover" />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-foreground text-sm truncate">{item.name}</h4>
             {item.ingredients && item.ingredients.length > 0 && (
@@ -3558,7 +3594,7 @@ function StorefrontContent() {
           originalPrice: item.original_price ? parseFloat(item.original_price) : undefined,
           description: item.description || '',
           description_en: item.description_en,
-          image: item.image_url || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
+          image: item.image_url || '',
           imageAlt: item.image_alt || item.name,
           allergens: item.allergens || [],
           dishTags: item.dish_tags || [],

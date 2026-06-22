@@ -16,8 +16,10 @@ export interface UnifiedSettings extends RestaurantSettings {
   paymentMethods: {
     card_delivery: boolean;
     card_pickup: boolean;
+    card_table: boolean;
     cash_delivery: boolean;
     cash_pickup: boolean;
+    cash_table: boolean;
     cash: boolean;
     card: boolean;
     paypal: boolean;
@@ -25,10 +27,16 @@ export interface UnifiedSettings extends RestaurantSettings {
     stripe_connected?: boolean;
     stripe_account_label?: string;
     stripe_account_id?: string;
+    stripe_delivery?: boolean;
+    stripe_pickup?: boolean;
+    stripe_table?: boolean;
     paypal_enabled?: boolean;
     paypal_connected?: boolean;
     paypal_email?: string;
     paypal_merchant_id?: string;
+    paypal_delivery?: boolean;
+    paypal_pickup?: boolean;
+    paypal_table?: boolean;
     iban_enabled?: boolean;
     onlinePaymentAccount?: string;
     ibanHolder?: string;
@@ -56,11 +64,19 @@ const DEFAULT_SETTINGS: UnifiedSettings = {
   paymentMethods: {
     card_delivery: true,
     card_pickup: true,
+    card_table: false,
     cash_delivery: true,
     cash_pickup: true,
+    cash_table: false,
     cash: true,
     card: true,
     paypal: false,
+    stripe_delivery: true,
+    stripe_pickup: true,
+    stripe_table: true,
+    paypal_delivery: true,
+    paypal_pickup: true,
+    paypal_table: true,
   },
   openingHours: [
     { start: '12:00', end: '14:30' },
@@ -144,17 +160,25 @@ export function useRestaurantSettings(slugOrId: string) {
           paymentMethods: {
             card_delivery: !!restaurant.card_delivery,
             card_pickup: !!restaurant.card_pickup,
+            card_table: !!restaurant.card_table,
             cash_delivery: !!restaurant.cash_delivery,
             cash_pickup: !!restaurant.cash_pickup,
-            cash: !!(restaurant.cash_delivery || restaurant.cash_pickup),
-            card: !!(restaurant.card_delivery || restaurant.card_pickup),
+            cash_table: !!restaurant.cash_table,
+            cash: !!(restaurant.cash_delivery || restaurant.cash_pickup || restaurant.cash_table),
+            card: !!(restaurant.card_delivery || restaurant.card_pickup || restaurant.card_table),
             paypal: !!restaurant.paypal_enabled,
             paypal_enabled: !!restaurant.paypal_enabled,
             paypal_connected: !!restaurant.paypal_connected,
             paypal_email: restaurant.paypal_email || '',
+            paypal_delivery: restaurant.paypal_delivery !== false,
+            paypal_pickup: restaurant.paypal_pickup !== false,
+            paypal_table: restaurant.paypal_table !== false,
             stripe_enabled: !!restaurant.stripe_enabled,
             stripe_connected: !!restaurant.stripe_connected,
             stripe_account_label: restaurant.stripe_account_label || '',
+            stripe_delivery: restaurant.stripe_delivery !== false,
+            stripe_pickup: restaurant.stripe_pickup !== false,
+            stripe_table: restaurant.stripe_table !== false,
             iban_enabled: !!restaurant.iban_enabled,
             onlinePaymentAccount: restaurant.online_payment_account || '',
             ibanHolder: restaurant.iban_holder || '',

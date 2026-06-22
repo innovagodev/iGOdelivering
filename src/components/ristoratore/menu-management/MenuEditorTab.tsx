@@ -232,25 +232,27 @@ export default function MenuEditorTab({
                     !item.available ? 'opacity-75 grayscale-[0.5]' : ''
                   }`}
                 >
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
-                    <AppImage
-                      src={item.image}
-                      alt={item.imageAlt}
-                      className="w-full h-full object-cover rounded-xl"
-                    />
-                    <div className="absolute top-1.5 right-1.5 flex flex-col gap-1">
-                      {item.visibility === 'hidden' && (
-                        <Badge variant="warning" size="xs" icon={<EyeOff size={10} />}>
-                          Nascosto
-                        </Badge>
-                      )}
-                      {!item.available && (
-                        <Badge variant="danger" size="xs" icon={<AlertTriangle size={10} />}>
-                          Esaurito
-                        </Badge>
-                      )}
+                  {item.image && (
+                    <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
+                      <AppImage
+                        src={item.image}
+                        alt={item.imageAlt}
+                        className="w-full h-full object-cover rounded-xl"
+                      />
+                      <div className="absolute top-1.5 right-1.5 flex flex-col gap-1">
+                        {item.visibility === 'hidden' && (
+                          <Badge variant="warning" size="xs" icon={<EyeOff size={10} />}>
+                            Nascosto
+                          </Badge>
+                        )}
+                        {!item.available && (
+                          <Badge variant="danger" size="xs" icon={<AlertTriangle size={10} />}>
+                            Esaurito
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-2">
@@ -258,8 +260,18 @@ export default function MenuEditorTab({
                           <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">
                             {item.category}
                           </p>
-                          <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
-                            {item.name}
+                          <h3 className="text-sm sm:text-base font-bold text-foreground truncate flex items-center gap-1.5 flex-wrap">
+                            <span>{item.name}</span>
+                            {!item.image && item.visibility === 'hidden' && (
+                              <Badge variant="warning" size="xs" icon={<EyeOff size={10} />}>
+                                Nascosto
+                              </Badge>
+                            )}
+                            {!item.image && !item.available && (
+                              <Badge variant="danger" size="xs" icon={<AlertTriangle size={10} />}>
+                                Esaurito
+                              </Badge>
+                            )}
                           </h3>
                           {item.ingredients && item.ingredients.length > 0 && (
                             <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">

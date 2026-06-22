@@ -27,8 +27,10 @@ export interface RestaurantDeliveryConfig {
 export interface RestaurantPaymentMethods {
   card_delivery: boolean;
   card_pickup: boolean;
+  card_table: boolean;
   cash_delivery: boolean;
   cash_pickup: boolean;
+  cash_table: boolean;
   cash?: boolean;
   card?: boolean;
   // Stripe Connect OAuth
@@ -36,11 +38,17 @@ export interface RestaurantPaymentMethods {
   stripe_connected?: boolean; // true = account Stripe collegato via OAuth
   stripe_account_id?: string; // acct_xxx — ID pubblico account Stripe (non sensibile)
   stripe_account_label?: string; // Nome leggibile account (es. email ristorante)
+  stripe_delivery?: boolean;
+  stripe_pickup?: boolean;
+  stripe_table?: boolean;
   // PayPal OAuth
   paypal_enabled?: boolean;
   paypal_connected?: boolean; // true = account PayPal collegato via OAuth
   paypal_merchant_id?: string; // ID pubblico account PayPal (non sensibile)
   paypal_email?: string; // Email account PayPal (per UI)
+  paypal_delivery?: boolean;
+  paypal_pickup?: boolean;
+  paypal_table?: boolean;
   // IBAN (dato pubblico, nessun OAuth)
   iban_enabled?: boolean;
   onlinePaymentAccount?: string; // Codice IBAN
@@ -76,18 +84,26 @@ export interface RestaurantSettings {
     paypal: boolean;
     card_delivery?: boolean;
     card_pickup?: boolean;
+    card_table?: boolean;
     cash_delivery?: boolean;
     cash_pickup?: boolean;
+    cash_table?: boolean;
     // Stripe Connect
     stripe_enabled?: boolean;
     stripe_connected?: boolean;
     stripe_account_id?: string;
     stripe_account_label?: string;
+    stripe_delivery?: boolean;
+    stripe_pickup?: boolean;
+    stripe_table?: boolean;
     // PayPal OAuth
     paypal_enabled?: boolean;
     paypal_connected?: boolean;
     paypal_merchant_id?: string;
     paypal_email?: string;
+    paypal_delivery?: boolean;
+    paypal_pickup?: boolean;
+    paypal_table?: boolean;
     // IBAN
     iban_enabled?: boolean;
     onlinePaymentAccount?: string;

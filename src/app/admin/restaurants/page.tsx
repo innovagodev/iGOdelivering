@@ -82,7 +82,14 @@ export default function AdminRestaurantsPage() {
   const loadRestaurants = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('restaurants').select('*, profiles(name, email)');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString();
+
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('*, profiles(name, email), menu_items(count), orders(count)')
+        .filter('orders.created_at', 'gte', todayStr);
 
       if (error) throw error;
 
@@ -100,8 +107,8 @@ export default function AdminRestaurantsPage() {
           phone: r.phone || '',
           createdAt: r.created_at ? r.created_at.slice(0, 10) : '',
           publishedAt: r.published_at ? r.published_at.slice(0, 10) : null,
-          menuItems: 0,
-          ordersToday: 0,
+          menuItems: r.menu_items?.[0]?.count || 0,
+          ordersToday: r.orders?.[0]?.count || 0,
           category: r.category || 'Generico',
         }));
         setRestaurants(mapped);

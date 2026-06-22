@@ -187,14 +187,22 @@ export default function NewRestaurantPage() {
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({
     card_delivery: true,
     card_pickup: true,
+    card_table: false,
     cash_delivery: true,
     cash_pickup: true,
+    cash_table: false,
     stripe_enabled: false,
     stripe_connected: false,
     stripe_account_label: '',
+    stripe_delivery: true,
+    stripe_pickup: true,
+    stripe_table: true,
     paypal_enabled: false,
     paypal_connected: false,
     paypal_email: '',
+    paypal_delivery: true,
+    paypal_pickup: true,
+    paypal_table: true,
     iban_enabled: false,
     onlinePaymentAccount: '',
     ibanHolder: '',
@@ -459,7 +467,38 @@ export default function NewRestaurantPage() {
     }
   };
 
+  const validateInfoStep = (): { isValid: boolean; message: string } => {
+    if (!info.name.trim()) {
+      return { isValid: false, message: 'Il "Nome Ristorante" è obbligatorio.' };
+    }
+    if (!info.category.trim()) {
+      return { isValid: false, message: 'La "Categoria" è obbligatoria.' };
+    }
+    if (!info.address.trim()) {
+      return { isValid: false, message: 'La "Via / Piazza" dell\'indirizzo è obbligatoria.' };
+    }
+    if (!info.city.trim()) {
+      return { isValid: false, message: 'La "Città" dell\'indirizzo è obbligatoria.' };
+    }
+    if (!info.phone.trim()) {
+      return { isValid: false, message: 'Il "Telefono" di contatto è obbligatorio.' };
+    }
+    if (!info.email.trim()) {
+      return { isValid: false, message: 'L\'"Email" di contatto è obbligatoria.' };
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(info.email.trim())) {
+      return { isValid: false, message: 'Inserisci un indirizzo email valido.' };
+    }
+    return { isValid: true, message: '' };
+  };
+
   const saveRestaurant = async (status: 'draft' | 'published') => {
+    const validation = validateInfoStep();
+    if (!validation.isValid) {
+      showFeedback(validation.message, 'error');
+      return;
+    }
     let dbRestaurantId = savedRestaurantId;
     const slug = slugify(info.name);
     const convertHoursToStorage = (hoursRecord: Record<string, DayHours>) => {
@@ -518,16 +557,24 @@ export default function NewRestaurantPage() {
       paymentMethods: {
         card_delivery: paymentConfig.card_delivery,
         card_pickup: paymentConfig.card_pickup,
+        card_table: paymentConfig.card_table,
         cash_delivery: paymentConfig.cash_delivery,
         cash_pickup: paymentConfig.cash_pickup,
-        cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup,
-        card: paymentConfig.card_delivery || paymentConfig.card_pickup,
+        cash_table: paymentConfig.cash_table,
+        cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup || paymentConfig.cash_table,
+        card: paymentConfig.card_delivery || paymentConfig.card_pickup || paymentConfig.card_table,
         stripe_enabled: paymentConfig.stripe_enabled,
         stripe_connected: paymentConfig.stripe_connected,
         stripe_account_label: paymentConfig.stripe_account_label,
+        stripe_delivery: paymentConfig.stripe_delivery,
+        stripe_pickup: paymentConfig.stripe_pickup,
+        stripe_table: paymentConfig.stripe_table,
         paypal_enabled: paymentConfig.paypal_enabled,
         paypal_connected: paymentConfig.paypal_connected,
         paypal_email: paymentConfig.paypal_email,
+        paypal_delivery: paymentConfig.paypal_delivery,
+        paypal_pickup: paymentConfig.paypal_pickup,
+        paypal_table: paymentConfig.paypal_table,
         iban_enabled: paymentConfig.iban_enabled,
         onlinePaymentAccount: paymentConfig.onlinePaymentAccount,
         ibanHolder: paymentConfig.ibanHolder,
@@ -586,14 +633,22 @@ export default function NewRestaurantPage() {
       free_delivery_active: (zones[0]?.freeDeliveryThreshold || 0) > 0,
       card_delivery: !!paymentConfig.card_delivery,
       card_pickup: !!paymentConfig.card_pickup,
+      card_table: !!paymentConfig.card_table,
       cash_delivery: !!paymentConfig.cash_delivery,
       cash_pickup: !!paymentConfig.cash_pickup,
+      cash_table: !!paymentConfig.cash_table,
       paypal_enabled: !!paymentConfig.paypal_enabled,
       paypal_connected: !!paymentConfig.paypal_connected,
       paypal_email: paymentConfig.paypal_email || null,
+      paypal_delivery: !!paymentConfig.paypal_delivery,
+      paypal_pickup: !!paymentConfig.paypal_pickup,
+      paypal_table: !!paymentConfig.paypal_table,
       stripe_enabled: !!paymentConfig.stripe_enabled,
       stripe_connected: !!paymentConfig.stripe_connected,
       stripe_account_label: paymentConfig.stripe_account_label || null,
+      stripe_delivery: !!paymentConfig.stripe_delivery,
+      stripe_pickup: !!paymentConfig.stripe_pickup,
+      stripe_table: !!paymentConfig.stripe_table,
       iban_enabled: !!paymentConfig.iban_enabled,
       online_payment_account: paymentConfig.onlinePaymentAccount || null,
       iban_holder: paymentConfig.ibanHolder || null,
@@ -603,9 +658,13 @@ export default function NewRestaurantPage() {
 
     try {
       if (info.category) {
-        await supabase
+        const categoryName = info.category.trim();
+        const { error: catErr } = await supabase
           .from('restaurant_categories')
-          .insert({ name: info.category.trim() });
+          .insert({ name: categoryName });
+        if (catErr && catErr.code !== '23505') {
+          console.warn('Non-fatal error inserting restaurant category:', catErr);
+        }
       }
 
       if (dbRestaurantId) {
@@ -1171,7 +1230,16 @@ export default function NewRestaurantPage() {
               </button>
               {currentStep !== 'review' && (
                 <button
-                  onClick={() => setCurrentStep(stepOrder[currentIndex + 1])}
+                  onClick={() => {
+                    if (currentStep === 'info') {
+                      const validation = validateInfoStep();
+                      if (!validation.isValid) {
+                        showFeedback(validation.message, 'error');
+                        return;
+                      }
+                    }
+                    setCurrentStep(stepOrder[currentIndex + 1]);
+                  }}
                   className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
                 >
                   Continua
