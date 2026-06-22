@@ -26,8 +26,8 @@ import {
 
 
 export default function PrenotazioniPage() {
-  const { user } = useAuth();
-  const restaurantId = user?.restaurantId || 'r-001';
+  const { user, isLoading } = useAuth();
+  const restaurantId = user?.restaurantId || '';
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -87,7 +87,10 @@ export default function PrenotazioniPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchBookings = async () => {
-    if (!restaurantId || restaurantId === 'r-001') return;
+    if (!restaurantId || restaurantId === 'r-001') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -348,6 +351,23 @@ export default function PrenotazioniPage() {
 
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
+            {isLoading || (loading && bookings.length === 0) ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-muted-foreground text-sm font-medium animate-pulse">Caricamento prenotazioni in corso...</p>
+              </div>
+            ) : !restaurantId || restaurantId === 'r-001' ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8 bg-card border border-border rounded-2xl shadow-sm">
+                <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-4">
+                  <Store size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Nessun Ristorante Collegato</h2>
+                <p className="text-muted-foreground text-sm max-w-md mt-2">
+                  Il tuo account non è ancora collegato a un ristorante attivo. Contatta l'amministratore per completare la configurazione e l'attivazione del tuo profilo.
+                </p>
+              </div>
+            ) : (
+              <>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -713,6 +733,8 @@ export default function PrenotazioniPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
         </main>
       </div>

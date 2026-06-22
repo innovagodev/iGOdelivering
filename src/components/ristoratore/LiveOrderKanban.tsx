@@ -86,7 +86,7 @@ interface Toast {
 
 export default function LiveOrderKanban() {
   const { user } = useAuth();
-  const restaurantId = user?.restaurantId || 'r-001';
+  const restaurantId = user?.restaurantId || '';
 
   const { orders, updateOrderStatus, loading } = useOrders(restaurantId);
 
