@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.25.0](https://github.com/innovagodev/iGOdelivering/compare/v1.24.3...v1.25.0) (2026-06-22)
+
+
+### Features
+
+* associa metodi di pagamento per tipologia di servizio (consegna, asporto, tavolo) e seleziona ristorante da menu a tendina nel modale utenti ([c2bc612](https://github.com/innovagodev/iGOdelivering/commit/c2bc61202a484c0e26bba52de70462645211d147))
+
+
+### Bug Fixes
+
+* ordinamento categorie e traduzione giorni settimana nel checkout inglese ([ff1b0e5](https://github.com/innovagodev/iGOdelivering/commit/ff1b0e52807dcc8becef1ddcf9f8964d9113c944))
+
 ### [1.24.3](https://github.com/innovagodev/iGOdelivering/compare/v1.24.2...v1.24.3) (2026-06-22)
 
 
