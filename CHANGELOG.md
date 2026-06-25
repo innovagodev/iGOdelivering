@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.26.0](https://github.com/innovagodev/iGOdelivering/compare/v1.25.0...v1.26.0) (2026-06-25)
+
+
+### Features
+
+* **ristoratore:** implement real-time sound notifications and sidebar badge sync ([21303fc](https://github.com/innovagodev/iGOdelivering/commit/21303fc7fac62d618d5e0ed05228c4c1b8a108ff))
+
 ## [1.25.0](https://github.com/innovagodev/iGOdelivering/compare/v1.24.3...v1.25.0) (2026-06-22)
 
 
