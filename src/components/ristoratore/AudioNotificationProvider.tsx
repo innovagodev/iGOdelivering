@@ -1,0 +1,281 @@
+'use client';
+
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { Volume2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { STORAGE_KEYS } from '@/lib/storage-keys';
+
+interface AudioNotificationContextType {
+  playAlert: () => void;
+  isAudioEnabled: boolean;
+  isMuted: boolean;
+  setIsMuted: (muted: boolean) => void;
+}
+
+const AudioNotificationContext = createContext<AudioNotificationContextType | undefined>(undefined);
+
+export function AudioNotificationProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const restaurantId = user?.restaurantId || '';
+  const [showPopup, setShowPopup] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
+  const isFirstLoadRef = useRef(true);
+
+  // Check if audio has already been authorized in this browser/device, and read muted preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const authorized = localStorage.getItem('iGO_audio_enabled');
+      const storedMuted = localStorage.getItem('iGO_audio_muted');
+      
+      if (storedMuted === 'true') {
+        setIsMuted(true);
+      }
+      
+      if (authorized === 'true') {
+        setIsAudioEnabled(true);
+      } else {
+        // If not authorized and the user is logged in as a restaurateur, show popup
+        if (restaurantId && restaurantId !== 'r-001') {
+          setShowPopup(true);
+        }
+      }
+    }
+  }, [restaurantId]);
+
+  // Request browser notification permissions on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // Audio queue logic for sequential alerts
+  const queueRef = useRef<number[]>([]);
+  const isPlayingRef = useRef(false);
+
+  const playAscendingBeeps = () => {
+    if (isMuted) return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const volume = 0.9;
+      const duration = 0.25;
+
+      const playBeep = (freq: number, startTime: number) => {
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      playBeep(1046.50, ctx.currentTime);         // C6
+      playBeep(1318.51, ctx.currentTime + 0.12);  // E6
+      playBeep(1567.98, ctx.currentTime + 0.24);  // G6
+    } catch (e) {
+      console.error('Audio playback failed:', e);
+    }
+  };
+
+  const processQueue = async () => {
+    if (isPlayingRef.current || queueRef.current.length === 0) return;
+    isPlayingRef.current = true;
+    while (queueRef.current.length > 0) {
+      queueRef.current.shift();
+      playAscendingBeeps();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    isPlayingRef.current = false;
+  };
+
+  const playAlert = () => {
+    queueRef.current.push(Date.now());
+    processQueue();
+  };
+
+  const handleSetIsMuted = (muted: boolean) => {
+    setIsMuted(muted);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iGO_audio_muted', muted ? 'true' : 'false');
+    }
+  };
+
+  // Handle custom event trigger
+  useEffect(() => {
+    const handleEvent = () => {
+      playAlert();
+    };
+    window.addEventListener('iGO_play_order_alert', handleEvent);
+    return () => {
+      window.removeEventListener('iGO_play_order_alert', handleEvent);
+    };
+  }, [isMuted]); // Re-bind on isMuted changes so playAlert has the current value
+
+  // Background realtime Supabase subscription
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+
+    // Reset ref state on restaurantId change
+    seenOrderIdsRef.current = new Set();
+    isFirstLoadRef.current = true;
+
+    // Fetch initial order list to populate seenOrderIds and initialize localStorage
+    const fetchInitial = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, status, created_at, total, order_number')
+          .eq('restaurant_id', restaurantId)
+          .order('created_at', { ascending: false });
+
+        if (data) {
+          data.forEach((o: any) => seenOrderIdsRef.current.add(o.id));
+          localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
+          window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
+        }
+      } catch (e) {
+        console.error('Error fetching initial orders for audio provider:', e);
+      } finally {
+        isFirstLoadRef.current = false;
+      }
+    };
+
+    fetchInitial();
+
+    // Subscribe to Postgres changes on the orders table for this restaurant
+    const channel = supabase
+      .channel(`orders-audio:${restaurantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        async (payload) => {
+          // Re-fetch all orders to keep badge and kanban/others synced
+          const { data, error } = await supabase
+            .from('orders')
+            .select('id, status, created_at, total, order_number')
+            .eq('restaurant_id', restaurantId)
+            .order('created_at', { ascending: false });
+
+          if (data) {
+            let hasNew = false;
+            let lastNewOrder: any = null;
+
+            data.forEach((o: any) => {
+              // Only alert for NEW or PENDING orders that we haven't seen yet
+              if ((o.status === 'new' || o.status === 'pending') && !seenOrderIdsRef.current.has(o.id)) {
+                seenOrderIdsRef.current.add(o.id);
+                hasNew = true;
+                lastNewOrder = o;
+              } else if (!seenOrderIdsRef.current.has(o.id)) {
+                // If it's a past order in another status, just mark as seen
+                seenOrderIdsRef.current.add(o.id);
+              }
+            });
+
+            // Write to localStorage to update sidebar badge
+            localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
+            window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
+
+            if (hasNew && lastNewOrder) {
+              playAlert();
+
+              // Trigger OS/Browser push notification
+              if (
+                typeof window !== 'undefined' &&
+                'Notification' in window &&
+                Notification.permission === 'granted'
+              ) {
+                new Notification('Nuovo Ordine Ricevuto!', {
+                  body: `Ordine #${lastNewOrder.order_number || lastNewOrder.id.replace('ord-', '').toUpperCase()} - € ${(lastNewOrder.total || 0).toFixed(2)}`,
+                  icon: '/favicon.ico',
+                });
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurantId, isMuted]); // Re-bind on isMuted changes so event callback has access to current state
+
+  const handleEnableAudio = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) {
+        const ctx = new AudioContext();
+        ctx.resume().then(() => {
+          // Play confirmation chime
+          playAlert();
+          localStorage.setItem('iGO_audio_enabled', 'true');
+          setIsAudioEnabled(true);
+          setShowPopup(false);
+        });
+      }
+    } catch (e) {
+      console.error('Failed to initialize AudioContext on user action:', e);
+    }
+  };
+
+  return (
+    <AudioNotificationContext.Provider value={{ playAlert, isAudioEnabled, isMuted, setIsMuted: handleSetIsMuted }}>
+      {children}
+
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-xl max-w-sm w-full p-6 text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-center">
+              <Volume2 className="text-primary h-12 w-12 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-foreground">Attiva Notifiche Sonore</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Abilita il segnale acustico per non perdere nessun nuovo ordine. Clicca sul pulsante qui sotto per autorizzare il browser.
+              </p>
+            </div>
+            <button
+              onClick={handleEnableAudio}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              Attiva ed Esegui Test
+            </button>
+          </div>
+        </div>
+      )}
+    </AudioNotificationContext.Provider>
+  );
+}
+
+export function useAudioNotification() {
+  const context = useContext(AudioNotificationContext);
+  if (!context) {
+    throw new Error('useAudioNotification must be used within an AudioNotificationProvider');
+  }
+  return context;
+}

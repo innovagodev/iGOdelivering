@@ -1232,6 +1232,7 @@ function CheckoutModal({
     slug,
     onClose,
     restaurantName,
+    restaurantPhone,
     setLastCreatedOrder,
     deliveryType,
     tableNumber,
@@ -1243,6 +1244,7 @@ function CheckoutModal({
     slug: string;
     onClose: () => void;
     restaurantName: string;
+    restaurantPhone?: string;
     setLastCreatedOrder: (order: any) => void;
     deliveryType: string;
     tableNumber?: string | null;
@@ -1338,6 +1340,48 @@ function CheckoutModal({
         setPhase('expired');
       }
     }, [orderStatus]);
+
+    // Polling fallback to update order/booking status live
+    useEffect(() => {
+      if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
+
+      const pollStatus = async () => {
+        try {
+          const isBooking =
+            lastCreatedOrder?.type === 'prenotazione_tavolo' ||
+            orderId.startsWith('booking-') ||
+            (lastCreatedOrder?.guests !== undefined && lastCreatedOrder?.customer_email !== undefined);
+
+          const table = isBooking ? 'bookings' : 'orders';
+          const { data, error } = await supabase
+            .from(table)
+            .select('status')
+            .eq('id', orderId)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error polling status:', error);
+            return;
+          }
+
+          if (data && data.status !== lastCreatedOrder?.status) {
+            setLastCreatedOrder((prev: any) => {
+              const next = { ...prev, status: data.status };
+              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+              return next;
+            });
+          }
+        } catch (err) {
+          console.error('Error in pollStatus:', err);
+        }
+      };
+
+      // Poll immediately and then every 4 seconds
+      pollStatus();
+      const interval = setInterval(pollStatus, 4000);
+
+      return () => clearInterval(interval);
+    }, [phase, orderId, slug, setLastCreatedOrder, lastCreatedOrder?.status]);
 
     const formatTime = (secs: number) => {
       const m = Math.floor(secs / 60);
@@ -1446,10 +1490,23 @@ function CheckoutModal({
                     </>
                   ) : (
                     <>
-                      <strong>{lang === 'en' ? 'No charge:' : 'Nessun addebito:'}</strong> {lang === 'en' ? 'No payment was taken. You can try resubmitting the order or call the restaurant.' : 'Nessun addebito: Nessun pagamento è stato prelevato. Puoi provare a reinviare l\'ordine o contattare telefonicamente il locale.'}
+                      <strong>{lang === 'en' ? 'No charge:' : 'Nessun addebito:'}</strong> {lang === 'en' ? 'No payment was taken. You can try resubmitting the order or call the restaurant.' : 'Nessun pagamento è stato prelevato. Puoi provare a reinviare l\'ordine o contattare telefonicamente il locale.'}
                     </>
                   )}
                 </div>
+
+                {/* Call restaurant CTA */}
+                {restaurantPhone && (
+                  <div className="mt-4 pt-2">
+                    <a
+                      href={`tel:${restaurantPhone}`}
+                      className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all active:scale-95 text-xs shadow-md shadow-emerald-600/15"
+                    >
+                      <Phone size={14} className="animate-pulse" />
+                      {lang === 'en' ? `Call Restaurant (${restaurantPhone})` : `Chiama Locale (${restaurantPhone})`}
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2856,6 +2913,7 @@ function CheckoutModal({
           slug={slug}
           onClose={onClose}
           restaurantName={restaurantSettings?.name || 'iGOdelivering'}
+          restaurantPhone={restaurantSettings?.phone || ''}
           setLastCreatedOrder={setLastCreatedOrder}
           deliveryType={deliveryType}
           tableNumber={tableNumber}
@@ -3457,9 +3515,9 @@ function CustomizationView({
 
 const FlagIT = () => (
   <svg viewBox="0 0 3 2" className="w-full h-full">
-    <rect width="1" height="2" fill="#009246"/>
-    <rect x="1" width="1" height="2" fill="#fff"/>
-    <rect x="2" width="1" height="2" fill="#ce2b37"/>
+    <rect width="1" height="2" fill="#009246" />
+    <rect x="1" width="1" height="2" fill="#fff" />
+    <rect x="2" width="1" height="2" fill="#ce2b37" />
   </svg>
 );
 
@@ -5461,22 +5519,20 @@ function StorefrontContent() {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setLang('it')}
-                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${
-                  lang === 'it'
+                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'it'
                     ? 'opacity-100 scale-110'
                     : 'opacity-35 hover:opacity-80 hover:scale-105'
-                }`}
+                  }`}
                 title="Italiano"
               >
                 <FlagIT />
               </button>
               <button
                 onClick={() => setLang('en')}
-                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${
-                  lang === 'en'
+                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'en'
                     ? 'opacity-100 scale-110'
                     : 'opacity-35 hover:opacity-80 hover:scale-105'
-                }`}
+                  }`}
                 title="English"
               >
                 <FlagEN />
