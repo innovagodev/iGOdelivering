@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.1](https://github.com/innovagodev/iGOdelivering/compare/v1.26.0...v1.26.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **notification:** sistemato suono di notifica per ordini non accettati e aggiornamento realtime popup attesa ([01d5b40](https://github.com/innovagodev/iGOdelivering/commit/01d5b40ab0af399350b1e690f428848b7f33b906))
+
 ## [1.26.0](https://github.com/innovagodev/iGOdelivering/compare/v1.25.0...v1.26.0) (2026-06-25)
 
 
