@@ -24,6 +24,7 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   const [orders, setOrders] = useState<any[]>([]);
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // Check if audio has already been authorized in this browser/device, and read muted preference
   useEffect(() => {
@@ -63,9 +64,12 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   const playLoudLongAlarm = () => {
     if (isMuted || !isAudioEnabled) return;
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = audioCtxRef.current;
       if (ctx.state === 'suspended') {
         ctx.resume();
       }
@@ -278,10 +282,12 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
 
   const handleEnableAudio = () => {
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
-        ctx.resume().then(() => {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContextClass();
+        }
+        audioCtxRef.current.resume().then(() => {
           // Play confirmation chime
           playAlert();
           localStorage.setItem('iGO_audio_enabled', 'true');

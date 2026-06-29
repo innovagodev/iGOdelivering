@@ -2987,10 +2987,13 @@ interface NotificationProps {
 
 function NotificationToast({ notification, onClose }: NotificationProps) {
   useEffect(() => {
+    let audioCtx: AudioContext | null = null;
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      audioCtx = new AudioCtxClass();
       const playBeep = (delay: number, frequency: number, duration: number) => {
         setTimeout(() => {
+          if (!audioCtx || audioCtx.state === 'closed') return;
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.connect(gain);
@@ -3014,7 +3017,12 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
     }
 
     const timer = setTimeout(() => onClose(), 8000);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (audioCtx && audioCtx.state !== 'closed') {
+        audioCtx.close().catch(err => console.log('Error closing context:', err));
+      }
+    };
   }, [notification, onClose]);
 
   const colorMap = {
