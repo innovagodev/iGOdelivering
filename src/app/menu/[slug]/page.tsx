@@ -1280,6 +1280,11 @@ function CheckoutModal({
       return 'pending';
     });
 
+    const isBooking =
+      lastCreatedOrder?.type === 'prenotazione_tavolo' ||
+      orderId.startsWith('booking-') ||
+      (lastCreatedOrder?.guests !== undefined && lastCreatedOrder?.customer_email !== undefined);
+
     useEffect(() => {
       if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
       if (secondsLeft <= 0) {
@@ -1341,17 +1346,63 @@ function CheckoutModal({
       }
     }, [orderStatus]);
 
-    // Polling fallback to update order/booking status live
+    // ─── Dedicated realtime subscription for instant order status updates ────
+    // This is the PRIMARY mechanism for live updates. Polling is kept as a
+    // lightweight fallback for cases where realtime may be temporarily unavailable.
+    useEffect(() => {
+      if (!orderId) return;
+
+      const tableName = isBooking ? 'bookings' : 'orders';
+      const channelName = `tracker-status-${orderId}`;
+
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: tableName,
+            filter: `id=eq.${orderId}`,
+          },
+          (payload) => {
+            const newStatus = (payload.new as any).status;
+            if (!newStatus) return;
+
+            // Update local lastCreatedOrder state immediately
+            setLastCreatedOrder((prev: any) => {
+              if (prev?.status === newStatus) return prev;
+              const next = { ...prev, status: newStatus };
+              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+              return next;
+            });
+
+            // Update phase immediately based on new status
+            if (newStatus === 'accepted' || newStatus === 'preparing' || newStatus === 'ready' || newStatus === 'delivering') {
+              setPhase('accepted');
+            } else if (newStatus === 'rejected' || newStatus === 'cancelled') {
+              setPhase('rejected');
+            } else if (newStatus === 'expired') {
+              setPhase('expired');
+            } else if (newStatus === 'confirmed') {
+              // For bookings: 'confirmed' maps to accepted
+              setPhase('accepted');
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [orderId, slug, setLastCreatedOrder, isBooking]);
+
+    // Polling fallback to update order/booking status live (every 5 seconds as safety net)
     useEffect(() => {
       if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
 
       const pollStatus = async () => {
         try {
-          const isBooking =
-            lastCreatedOrder?.type === 'prenotazione_tavolo' ||
-            orderId.startsWith('booking-') ||
-            (lastCreatedOrder?.guests !== undefined && lastCreatedOrder?.customer_email !== undefined);
-
           const table = isBooking ? 'bookings' : 'orders';
           const { data, error } = await supabase
             .from(table)
@@ -1376,12 +1427,12 @@ function CheckoutModal({
         }
       };
 
-      // Poll immediately and then every 4 seconds
+      // Poll immediately and then every 5 seconds
       pollStatus();
-      const interval = setInterval(pollStatus, 4000);
+      const interval = setInterval(pollStatus, 5000);
 
       return () => clearInterval(interval);
-    }, [phase, orderId, slug, setLastCreatedOrder, lastCreatedOrder?.status]);
+    }, [phase, orderId, slug, setLastCreatedOrder, lastCreatedOrder?.status, isBooking]);
 
     const formatTime = (secs: number) => {
       const m = Math.floor(secs / 60);

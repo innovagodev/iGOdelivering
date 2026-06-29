@@ -21,6 +21,7 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   const [showPopup, setShowPopup] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
 
@@ -57,9 +58,10 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   // Audio queue logic for sequential alerts
   const queueRef = useRef<number[]>([]);
   const isPlayingRef = useRef(false);
+  const lastPlayedTimeRef = useRef<number>(0);
 
-  const playAscendingBeeps = () => {
-    if (isMuted) return;
+  const playLoudLongAlarm = () => {
+    if (isMuted || !isAudioEnabled) return;
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
@@ -68,17 +70,18 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
         ctx.resume();
       }
 
-      const volume = 0.9;
-      const duration = 0.25;
+      const volume = 0.95; // Loud
+      const duration = 0.45; // duration of each tone
 
       const playBeep = (freq: number, startTime: number) => {
         const osc = ctx.createOscillator();
         const gainNode = ctx.createGain();
-        osc.type = 'sine';
+        osc.type = 'triangle'; // triangle wave is louder/richer than sine, perfect for alarms
         osc.frequency.value = freq;
 
         gainNode.gain.setValueAtTime(0, startTime);
-        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.05);
+        gainNode.gain.setValueAtTime(volume, startTime + duration - 0.05);
         gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
         osc.connect(gainNode);
@@ -88,9 +91,16 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
         osc.stop(startTime + duration);
       };
 
-      playBeep(1046.50, ctx.currentTime);         // C6
-      playBeep(1318.51, ctx.currentTime + 0.12);  // E6
-      playBeep(1567.98, ctx.currentTime + 0.24);  // G6
+      // Play a double two-tone siren (a sequence that sounds like a distinct alarm)
+      // Beep 1 (high): 880Hz, starts at 0s
+      // Beep 2 (low):  660Hz, starts at 0.5s
+      // Beep 3 (high): 880Hz, starts at 1.0s
+      // Beep 4 (low):  660Hz, starts at 1.5s
+      // Total duration of sound: ~2 seconds
+      playBeep(880, ctx.currentTime);
+      playBeep(660, ctx.currentTime + 0.5);
+      playBeep(880, ctx.currentTime + 1.0);
+      playBeep(660, ctx.currentTime + 1.5);
     } catch (e) {
       console.error('Audio playback failed:', e);
     }
@@ -101,14 +111,21 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     isPlayingRef.current = true;
     while (queueRef.current.length > 0) {
       queueRef.current.shift();
-      playAscendingBeeps();
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      playLoudLongAlarm();
+      // Since the alarm lasts ~2 seconds, wait 2.5 seconds before playing another queued alert
+      await new Promise((resolve) => setTimeout(resolve, 2500));
     }
     isPlayingRef.current = false;
   };
 
   const playAlert = () => {
-    queueRef.current.push(Date.now());
+    const now = Date.now();
+    // Throttle calls to playAlert to prevent overlapping plays (5 second cooldown)
+    if (now - lastPlayedTimeRef.current < 5000) {
+      return;
+    }
+    lastPlayedTimeRef.current = now;
+    queueRef.current.push(now);
     processQueue();
   };
 
@@ -129,6 +146,33 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
       window.removeEventListener('iGO_play_order_alert', handleEvent);
     };
   }, [isMuted]); // Re-bind on isMuted changes so playAlert has the current value
+
+  // Calculate unaccepted orders dynamically.
+  // NOTE: 'expired' orders are intentionally excluded — they can no longer be accepted,
+  // so ringing the alarm for them serves no purpose and would be annoying.
+  const unacceptedOrders = orders.filter(
+    (o) => o.status === 'new' || o.status === 'pending'
+  );
+  const hasUnaccepted = unacceptedOrders.length > 0;
+
+  // Repeat alarm every 10 seconds if there are unaccepted orders
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isMuted || !hasUnaccepted) {
+      return;
+    }
+
+    // Play once immediately
+    playAlert();
+
+    // Set interval to play every 10 seconds (10000ms)
+    const interval = setInterval(() => {
+      playAlert();
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [hasUnaccepted, restaurantId, isAudioEnabled, isMuted]);
 
   // Background realtime Supabase subscription
   useEffect(() => {
@@ -151,6 +195,7 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
           data.forEach((o: any) => seenOrderIdsRef.current.add(o.id));
           localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
           window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
+          setOrders(data);
         }
       } catch (e) {
         console.error('Error fetching initial orders for audio provider:', e);
@@ -185,8 +230,11 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
             let lastNewOrder: any = null;
 
             data.forEach((o: any) => {
-              // Only alert for NEW or PENDING orders that we haven't seen yet
-              if ((o.status === 'new' || o.status === 'pending') && !seenOrderIdsRef.current.has(o.id)) {
+              // Only alert for NEW or PENDING or EXPIRED orders that we haven't seen yet
+              if (
+                (o.status === 'new' || o.status === 'pending' || o.status === 'expired') &&
+                !seenOrderIdsRef.current.has(o.id)
+              ) {
                 seenOrderIdsRef.current.add(o.id);
                 hasNew = true;
                 lastNewOrder = o;
@@ -199,6 +247,7 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
             // Write to localStorage to update sidebar badge
             localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
             window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
+            setOrders(data);
 
             if (hasNew && lastNewOrder) {
               playAlert();
@@ -223,7 +272,9 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId, isMuted]); // Re-bind on isMuted changes so event callback has access to current state
+  }, [restaurantId]); // NOTE: isMuted intentionally excluded — toggling mute must NOT tear down and
+  // recreate the Supabase channel, which would risk missing order events during reconnect.
+  // isMuted is read via closure at playAlert() call time, which is sufficient.
 
   const handleEnableAudio = () => {
     try {
