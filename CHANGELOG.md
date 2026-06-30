@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.2](https://github.com/innovagodev/iGOdelivering/compare/v1.26.1...v1.26.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* **tracker:** corretto bug critico - countdown non si fermava all'accettazione ordine. Aggiunto phaseRef e timerRef per cancellazione imperativa del timer senza attendere il ciclo React. ([1a29bde](https://github.com/innovagodev/iGOdelivering/commit/1a29bdedb46f517568776210e5119f61ee939b31))
+
 ### [1.26.1](https://github.com/innovagodev/iGOdelivering/compare/v1.26.0...v1.26.1) (2026-06-29)
 
 
