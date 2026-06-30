@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.4](https://github.com/innovagodev/iGOdelivering/compare/v1.26.3...v1.26.4) (2026-06-30)
+
+
+### Bug Fixes
+
+* **audio:** riproduzione istantanea a latenza zero del suono di notifica all'arrivo dell'evento Supabase Realtime, senza attendere il completamento della query asincrona di allineamento ([18284ba](https://github.com/innovagodev/iGOdelivering/commit/18284ba59b1707eff054f5f4dd5cf8c30d4bbdc8))
+
 ### [1.26.3](https://github.com/innovagodev/iGOdelivering/compare/v1.26.2...v1.26.3) (2026-06-30)
 
 
