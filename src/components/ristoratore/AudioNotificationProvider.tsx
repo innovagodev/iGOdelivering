@@ -56,6 +56,41 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     }
   }, []);
 
+  // Auto-resume AudioContext on first user interaction (browser autoplay policy workaround)
+  // This ensures that even if the page loads in the background or on another panel (e.g. Dashboard),
+  // the moment the user clicks or keys down anywhere on the screen, the AudioContext is resumed
+  // and authorized to play sounds instantly when new orders arrive.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const resumeAudio = () => {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContextClass();
+      }
+
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().then(() => {
+          console.log('AudioContext successfully initialized/resumed on user gesture.');
+        }).catch((err) => {
+          console.warn('Failed to resume AudioContext:', err);
+        });
+      }
+    };
+
+    window.addEventListener('click', resumeAudio);
+    window.addEventListener('keydown', resumeAudio);
+    window.addEventListener('touchstart', resumeAudio);
+
+    return () => {
+      window.removeEventListener('click', resumeAudio);
+      window.removeEventListener('keydown', resumeAudio);
+      window.removeEventListener('touchstart', resumeAudio);
+    };
+  }, []);
+
   // Audio queue logic for sequential alerts
   const queueRef = useRef<number[]>([]);
   const isPlayingRef = useRef(false);
