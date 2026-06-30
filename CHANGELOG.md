@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.5](https://github.com/innovagodev/iGOdelivering/compare/v1.26.4...v1.26.5) (2026-06-30)
+
+
+### Bug Fixes
+
+* **audio:** aggiunto workaround autoplay browser per sbloccare l'AudioContext su qualsiasi pagina (es. dashboard) al primo click/tasto premuto dell'utente ([3bf2300](https://github.com/innovagodev/iGOdelivering/commit/3bf2300edbe67d6b896a88a3827b85958e70a11a))
+
 ### [1.26.4](https://github.com/innovagodev/iGOdelivering/compare/v1.26.3...v1.26.4) (2026-06-30)
 
 
