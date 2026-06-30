@@ -1393,6 +1393,36 @@ function CheckoutModal({
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderStatus]);
 
+    // ─── Window event listener — PRIMARY update mechanism ────────────────────
+    // The page-level Supabase subscription dispatches 'iGO_order_status_changed'
+    // synchronously BEFORE calling setLastCreatedOrder. This means the currently-
+    // mounted OrderStatusTracker instance receives the status change immediately,
+    // bypassing all React reconciliation / remounting timing issues.
+    // This is the most reliable mechanism because:
+    //   1. It runs synchronously inside the dispatch call (no async delay)
+    //   2. It targets the CURRENT component instance directly via closure
+    //   3. It is unaffected by whether OrderStatusTracker remounts or not
+    useEffect(() => {
+      if (typeof window === 'undefined') return;
+
+      const handleOrderStatusChanged = (event: Event) => {
+        const detail = (event as CustomEvent<{ orderId: string; newStatus: string }>).detail;
+        if (!detail || detail.orderId !== orderId) return;
+
+        const resolved = resolvePhase(detail.newStatus);
+        if (resolved) {
+          stopTimer(); // ← Immediately kill the countdown
+          setPhase(resolved);
+        }
+      };
+
+      window.addEventListener('iGO_order_status_changed', handleOrderStatusChanged);
+      return () => {
+        window.removeEventListener('iGO_order_status_changed', handleOrderStatusChanged);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderId]); // orderId is stable for the lifetime of a single order
+
     // ─── Dedicated Supabase Realtime subscription ─────────────────────────────
     // PRIMARY mechanism: fires instantly when the restaurant updates the order.
     useEffect(() => {
@@ -3910,6 +3940,19 @@ function StorefrontContent() {
             }
 
             setIncomingNotification({ variant, title, message, orderId });
+
+            // ─── CRITICAL: dispatch a synchronous window event BEFORE calling
+            // setLastCreatedOrder. This ensures the currently-mounted
+            // OrderStatusTracker receives the status change immediately,
+            // before React unmounts/remounts it due to the state update below.
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('iGO_order_status_changed', {
+                  detail: { orderId, newStatus },
+                })
+              );
+            }
+
             setLastCreatedOrder((prev: any) => {
               const next = { ...prev, status: newStatus };
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
