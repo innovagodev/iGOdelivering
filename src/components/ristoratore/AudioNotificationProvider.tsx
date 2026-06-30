@@ -222,7 +222,40 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
           filter: `restaurant_id=eq.${restaurantId}`,
         },
         async (payload) => {
-          // Re-fetch all orders to keep badge and kanban/others synced
+          const newRecord = payload.new as any;
+          const isInsert = payload.eventType === 'INSERT';
+          const isUpdate = payload.eventType === 'UPDATE';
+
+          // ─── INSTANT PLAYBACK (Zero Latency) ──────────────────────────────────
+          // If the replication event contains a new or pending order, play the
+          // alarm immediately. Do not wait for the async fetch query to finish.
+          if (newRecord && (isInsert || isUpdate)) {
+            const status = newRecord.status;
+            const orderId = newRecord.id;
+
+            if (
+              (status === 'new' || status === 'pending') &&
+              orderId &&
+              !seenOrderIdsRef.current.has(orderId)
+            ) {
+              seenOrderIdsRef.current.add(orderId);
+              playAlert();
+
+              // Trigger OS/Browser push notification immediately
+              if (
+                typeof window !== 'undefined' &&
+                'Notification' in window &&
+                Notification.permission === 'granted'
+              ) {
+                new Notification('Nuovo Ordine Ricevuto!', {
+                  body: `Ordine #${newRecord.order_number || orderId.replace('ord-', '').toUpperCase()} - € ${(newRecord.total || 0).toFixed(2)}`,
+                  icon: '/favicon.ico',
+                });
+              }
+            }
+          }
+
+          // Re-fetch all orders in background to keep badge and kanban/others synced
           const { data, error } = await supabase
             .from('orders')
             .select('id, status, created_at, total, order_number')
@@ -231,17 +264,15 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
 
           if (data) {
             let hasNew = false;
-            let lastNewOrder: any = null;
 
             data.forEach((o: any) => {
-              // Only alert for NEW or PENDING or EXPIRED orders that we haven't seen yet
+              // Only alert for NEW or PENDING orders that we haven't seen yet
               if (
-                (o.status === 'new' || o.status === 'pending' || o.status === 'expired') &&
+                (o.status === 'new' || o.status === 'pending') &&
                 !seenOrderIdsRef.current.has(o.id)
               ) {
                 seenOrderIdsRef.current.add(o.id);
                 hasNew = true;
-                lastNewOrder = o;
               } else if (!seenOrderIdsRef.current.has(o.id)) {
                 // If it's a past order in another status, just mark as seen
                 seenOrderIdsRef.current.add(o.id);
@@ -253,20 +284,8 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
             window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
             setOrders(data);
 
-            if (hasNew && lastNewOrder) {
+            if (hasNew) {
               playAlert();
-
-              // Trigger OS/Browser push notification
-              if (
-                typeof window !== 'undefined' &&
-                'Notification' in window &&
-                Notification.permission === 'granted'
-              ) {
-                new Notification('Nuovo Ordine Ricevuto!', {
-                  body: `Ordine #${lastNewOrder.order_number || lastNewOrder.id.replace('ord-', '').toUpperCase()} - € ${(lastNewOrder.total || 0).toFixed(2)}`,
-                  icon: '/favicon.ico',
-                });
-              }
             }
           }
         }
