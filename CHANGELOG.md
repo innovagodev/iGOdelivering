@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.3](https://github.com/innovagodev/iGOdelivering/compare/v1.26.2...v1.26.3) (2026-06-30)
+
+
+### Bug Fixes
+
+* **tracker:** risolto bug definitivo - il popup cliente non si aggiornava all'accettazione. Aggiunto window event dispatcher sincrono nella subscription del page per bypassare i problemi di remounting React di OrderStatusTracker. ([f4c39f9](https://github.com/innovagodev/iGOdelivering/commit/f4c39f9e963afae799332cb517a24c436e8b0871))
+
 ### [1.26.2](https://github.com/innovagodev/iGOdelivering/compare/v1.26.1...v1.26.2) (2026-06-30)
 
 
