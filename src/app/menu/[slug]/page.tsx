@@ -1285,11 +1285,53 @@ function CheckoutModal({
       orderId.startsWith('booking-') ||
       (lastCreatedOrder?.guests !== undefined && lastCreatedOrder?.customer_email !== undefined);
 
+    // ─── Refs for immediate, closure-safe phase access ───────────────────────
+    // phaseRef mirrors the `phase` state so the setInterval callback can always
+    // read the current phase without stale closure issues.
+    const phaseRef = useRef(phase);
     useEffect(() => {
-      if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
+      phaseRef.current = phase;
+    }, [phase]);
+
+    // timerRef holds the interval handle so we can clear it imperatively
+    // from anywhere (realtime callback, polling) without waiting for a re-render.
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Helper: stop the countdown timer unconditionally
+    const stopTimer = () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+
+    // Helper: resolve a new status to the correct phase value
+    const resolvePhase = (status: string): 'accepted' | 'rejected' | 'expired' | null => {
+      if (status === 'accepted' || status === 'preparing' || status === 'ready' || status === 'delivering' || status === 'confirmed') {
+        return 'accepted';
+      }
+      if (status === 'rejected' || status === 'cancelled') {
+        return 'rejected';
+      }
+      if (status === 'expired') {
+        return 'expired';
+      }
+      return null;
+    };
+
+    // ─── Countdown timer ──────────────────────────────────────────────────────
+    useEffect(() => {
+      // If already in a terminal phase, stop any running timer and bail out
+      if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') {
+        stopTimer();
+        return;
+      }
+
+      // If time is already up on mount, trigger expired immediately
       if (secondsLeft <= 0) {
+        stopTimer();
         setPhase('expired');
-        const triggerExpired = async () => {
+        (async () => {
           try {
             await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
             setLastCreatedOrder((prev: any) => {
@@ -1297,21 +1339,27 @@ function CheckoutModal({
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
               return next;
             });
-          } catch (e) {
-            console.error(e);
-          }
-        };
-        triggerExpired();
+          } catch (e) { console.error(e); }
+        })();
         return;
       }
 
-      const interval = setInterval(() => {
+      // Clear any previously running timer before starting a new one
+      stopTimer();
+
+      timerRef.current = setInterval(() => {
+        // Read phase from ref — not from closure — to get the live value
+        if (phaseRef.current === 'accepted' || phaseRef.current === 'rejected' || phaseRef.current === 'expired') {
+          stopTimer();
+          return;
+        }
+
         setSecondsLeft((s) => {
           const nextSec = s - 1;
           if (nextSec <= 0) {
-            clearInterval(interval);
+            stopTimer();
             setPhase('expired');
-            const triggerExpired = async () => {
+            (async () => {
               try {
                 await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
                 setLastCreatedOrder((prev: any) => {
@@ -1319,36 +1367,34 @@ function CheckoutModal({
                   sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
                   return next;
                 });
-              } catch (e) {
-                console.error(e);
-              }
-            };
-            triggerExpired();
+              } catch (e) { console.error(e); }
+            })();
             return 0;
           }
-          if (nextSec <= 90) {
+          if (nextSec <= 90 && phaseRef.current === 'pending') {
             setPhase('waiting_warn');
           }
           return nextSec;
         });
       }, 1000);
 
-      return () => clearInterval(interval);
-    }, [phase, orderId, secondsLeft, slug, setLastCreatedOrder]);
+      return () => stopTimer();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phase]); // ← Only depends on `phase`. When phase becomes 'accepted', effect re-runs,
+                 //   hits the stopTimer() guard at the top and the countdown stops immediately.
 
+    // ─── React to orderStatus prop changes (e.g. initial load or parent re-render) ──
     useEffect(() => {
-      if (orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'ready' || orderStatus === 'delivering') {
-        setPhase('accepted');
-      } else if (orderStatus === 'rejected' || orderStatus === 'cancelled') {
-        setPhase('rejected');
-      } else if (orderStatus === 'expired') {
-        setPhase('expired');
+      const resolved = resolvePhase(orderStatus);
+      if (resolved) {
+        stopTimer();
+        setPhase(resolved);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderStatus]);
 
-    // ─── Dedicated realtime subscription for instant order status updates ────
-    // This is the PRIMARY mechanism for live updates. Polling is kept as a
-    // lightweight fallback for cases where realtime may be temporarily unavailable.
+    // ─── Dedicated Supabase Realtime subscription ─────────────────────────────
+    // PRIMARY mechanism: fires instantly when the restaurant updates the order.
     useEffect(() => {
       if (!orderId) return;
 
@@ -1369,7 +1415,7 @@ function CheckoutModal({
             const newStatus = (payload.new as any).status;
             if (!newStatus) return;
 
-            // Update local lastCreatedOrder state immediately
+            // Update persisted order state
             setLastCreatedOrder((prev: any) => {
               if (prev?.status === newStatus) return prev;
               const next = { ...prev, status: newStatus };
@@ -1377,16 +1423,11 @@ function CheckoutModal({
               return next;
             });
 
-            // Update phase immediately based on new status
-            if (newStatus === 'accepted' || newStatus === 'preparing' || newStatus === 'ready' || newStatus === 'delivering') {
-              setPhase('accepted');
-            } else if (newStatus === 'rejected' || newStatus === 'cancelled') {
-              setPhase('rejected');
-            } else if (newStatus === 'expired') {
-              setPhase('expired');
-            } else if (newStatus === 'confirmed') {
-              // For bookings: 'confirmed' maps to accepted
-              setPhase('accepted');
+            // Resolve and apply phase — stopTimer is called inside resolvePhase path
+            const resolved = resolvePhase(newStatus);
+            if (resolved) {
+              stopTimer(); // ← Stop immediately, before React's next render cycle
+              setPhase(resolved);
             }
           }
         )
@@ -1395,13 +1436,17 @@ function CheckoutModal({
       return () => {
         supabase.removeChannel(channel);
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId, slug, setLastCreatedOrder, isBooking]);
 
-    // Polling fallback to update order/booking status live (every 5 seconds as safety net)
+    // Polling fallback — safety net in case realtime is temporarily unavailable.
     useEffect(() => {
       if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
 
       const pollStatus = async () => {
+        // Guard again with phaseRef so we don't run a stale poll
+        if (phaseRef.current === 'accepted' || phaseRef.current === 'rejected' || phaseRef.current === 'expired') return;
+
         try {
           const table = isBooking ? 'bookings' : 'orders';
           const { data, error } = await supabase
@@ -1421,6 +1466,12 @@ function CheckoutModal({
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
               return next;
             });
+
+            const resolved = resolvePhase(data.status);
+            if (resolved) {
+              stopTimer();
+              setPhase(resolved);
+            }
           }
         } catch (err) {
           console.error('Error in pollStatus:', err);
@@ -1432,6 +1483,7 @@ function CheckoutModal({
       const interval = setInterval(pollStatus, 5000);
 
       return () => clearInterval(interval);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase, orderId, slug, setLastCreatedOrder, lastCreatedOrder?.status, isBooking]);
 
     const formatTime = (secs: number) => {
