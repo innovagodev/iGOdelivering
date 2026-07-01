@@ -91,12 +91,12 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     };
   }, []);
 
-  // Audio queue logic for sequential alerts
-  const queueRef = useRef<number[]>([]);
-  const isPlayingRef = useRef(false);
+  // Throttle guard for playAlert (new-order events from Supabase)
   const lastPlayedTimeRef = useRef<number>(0);
 
-  const playLoudLongAlarm = () => {
+  // Internal: play the alarm immediately, no throttle check.
+  // Used by the repeat-alarm loop so it always fires at the right time.
+  const playNow = () => {
     if (isMuted || !isAudioEnabled) return;
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -145,27 +145,15 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     }
   };
 
-  const processQueue = async () => {
-    if (isPlayingRef.current || queueRef.current.length === 0) return;
-    isPlayingRef.current = true;
-    while (queueRef.current.length > 0) {
-      queueRef.current.shift();
-      playLoudLongAlarm();
-      // Since the alarm lasts ~2 seconds, wait 2.5 seconds before playing another queued alert
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-    }
-    isPlayingRef.current = false;
-  };
 
   const playAlert = () => {
     const now = Date.now();
-    // Throttle calls to playAlert to prevent overlapping plays (5 second cooldown)
+    // Throttle: prevent overlapping plays within 5 seconds
     if (now - lastPlayedTimeRef.current < 5000) {
       return;
     }
     lastPlayedTimeRef.current = now;
-    queueRef.current.push(now);
-    processQueue();
+    playNow();
   };
 
   const handleSetIsMuted = (muted: boolean) => {
@@ -194,23 +182,28 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   );
   const hasUnaccepted = unacceptedOrders.length > 0;
 
-  // Repeat alarm every 10 seconds if there are unaccepted orders
+  // Repeat alarm every 8 seconds while there are unaccepted orders.
+  // Uses playNow() directly (no throttle) so it always fires immediately on mount
+  // and at exact 8-second intervals, regardless of when playAlert() was last called.
   useEffect(() => {
     if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isMuted || !hasUnaccepted) {
       return;
     }
 
-    // Play once immediately
-    playAlert();
+    // Play once immediately (bypass throttle)
+    playNow();
+    // Reset throttle reference so a manual playAlert() call works correctly afterwards
+    lastPlayedTimeRef.current = Date.now();
 
-    // Set interval to play every 10 seconds (10000ms)
+    // Repeat every 8 seconds
     const interval = setInterval(() => {
-      playAlert();
-    }, 10000);
+      if (!isMuted) playNow();
+    }, 8000);
 
     return () => {
       clearInterval(interval);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasUnaccepted, restaurantId, isAudioEnabled, isMuted]);
 
   // Background realtime Supabase subscription

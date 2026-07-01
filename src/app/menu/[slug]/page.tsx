@@ -18,14 +18,12 @@ import {
   Bike,
   Phone,
   X,
-  CheckCircle,
-  PauseCircle,
+  Check,
   ChefHat,
   Package,
   CalendarCheck,
   Calendar,
   Edit2,
-  Settings,
   Mail,
   CreditCard,
   Banknote,
@@ -129,8 +127,8 @@ interface RestaurantType {
 const menuItems: MenuItemType[] = [];
 
 const orderSteps = [
-  { id: 'step-ricevuto', label: 'Ordine Ricevuto', icon: <CheckCircle size={18} />, done: true },
-  { id: 'step-confermato', label: 'Confermato', icon: <CheckCircle size={18} />, done: true },
+  { id: 'step-ricevuto', label: 'Ordine Ricevuto', icon: <Check size={18} />, done: true },
+  { id: 'step-confermato', label: 'Confermato', icon: <Check size={18} />, done: true },
   {
     id: 'step-preparazione',
     label: 'In Preparazione',
@@ -1285,17 +1283,22 @@ function CheckoutModal({
       orderId.startsWith('booking-') ||
       (lastCreatedOrder?.guests !== undefined && lastCreatedOrder?.customer_email !== undefined);
 
-    // ─── Refs for immediate, closure-safe phase access ───────────────────────
-    // phaseRef mirrors the `phase` state so the setInterval callback can always
-    // read the current phase without stale closure issues.
+    // ─── Refs for immediate, closure-safe access ──────────────────────────────
     const phaseRef = useRef(phase);
     useEffect(() => {
       phaseRef.current = phase;
     }, [phase]);
 
-    // timerRef holds the interval handle so we can clear it imperatively
-    // from anywhere (realtime callback, polling) without waiting for a re-render.
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Store the creation timestamp in a ref so the interval callback can always
+    // read it without stale closure issues (never changes for a given order).
+    const orderCreatedAtRef = useRef<number>(0);
+    useEffect(() => {
+      const raw = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
+      if (raw) orderCreatedAtRef.current = new Date(raw).getTime();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lastCreatedOrder?.timestamp, lastCreatedOrder?.created_at]);
 
     // Helper: stop the countdown timer unconditionally
     const stopTimer = () => {
@@ -1303,6 +1306,15 @@ function CheckoutModal({
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+    };
+
+    // Helper: compute remaining seconds from the real creation timestamp.
+    // This is self-correcting: even if the browser throttled the interval
+    // (background tab), the next tick will immediately show the correct value.
+    const computeRemaining = (): number => {
+      const createdAtMs = orderCreatedAtRef.current;
+      if (createdAtMs <= 0) return Math.max(0, secondsLeft);
+      return Math.max(0, 180 - Math.floor((Date.now() - createdAtMs) / 1000));
     };
 
     // Helper: resolve a new status to the correct phase value
@@ -1319,69 +1331,86 @@ function CheckoutModal({
       return null;
     };
 
-    // ─── Countdown timer ──────────────────────────────────────────────────────
+    // Helper: trigger the expired state and persist it to the DB
+    const triggerExpired = () => {
+      stopTimer();
+      setPhase('expired');
+      setSecondsLeft(0);
+      (async () => {
+        try {
+          await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
+          setLastCreatedOrder((prev: any) => {
+            const next = { ...prev, status: 'expired' };
+            sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+            return next;
+          });
+        } catch (e) { console.error(e); }
+      })();
+    };
+
+    // ─── Countdown timer (timestamp-based, self-correcting) ──────────────────
+    // The interval recalculates remaining time from the real creation timestamp
+    // on every tick. This means background tab throttling can never skew the
+    // display — the next tick after the tab becomes active will show the exact
+    // correct value.
     useEffect(() => {
-      // If already in a terminal phase, stop any running timer and bail out
       if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') {
         stopTimer();
         return;
       }
 
-      // If time is already up on mount, trigger expired immediately
-      if (secondsLeft <= 0) {
-        stopTimer();
-        setPhase('expired');
-        (async () => {
-          try {
-            await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
-            setLastCreatedOrder((prev: any) => {
-              const next = { ...prev, status: 'expired' };
-              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
-              return next;
-            });
-          } catch (e) { console.error(e); }
-        })();
+      const initialRemaining = computeRemaining();
+      if (initialRemaining <= 0) {
+        triggerExpired();
         return;
       }
 
-      // Clear any previously running timer before starting a new one
       stopTimer();
 
       timerRef.current = setInterval(() => {
-        // Read phase from ref — not from closure — to get the live value
         if (phaseRef.current === 'accepted' || phaseRef.current === 'rejected' || phaseRef.current === 'expired') {
           stopTimer();
           return;
         }
 
-        setSecondsLeft((s) => {
-          const nextSec = s - 1;
-          if (nextSec <= 0) {
-            stopTimer();
-            setPhase('expired');
-            (async () => {
-              try {
-                await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
-                setLastCreatedOrder((prev: any) => {
-                  const next = { ...prev, status: 'expired' };
-                  sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
-                  return next;
-                });
-              } catch (e) { console.error(e); }
-            })();
-            return 0;
-          }
-          if (nextSec <= 90 && phaseRef.current === 'pending') {
-            setPhase('waiting_warn');
-          }
-          return nextSec;
-        });
+        const remaining = computeRemaining();
+        setSecondsLeft(remaining);
+
+        if (remaining <= 0) {
+          triggerExpired();
+          return;
+        }
+        if (remaining <= 90 && phaseRef.current === 'pending') {
+          setPhase('waiting_warn');
+        }
       }, 1000);
 
       return () => stopTimer();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [phase]); // ← Only depends on `phase`. When phase becomes 'accepted', effect re-runs,
-                 //   hits the stopTimer() guard at the top and the countdown stops immediately.
+    }, [phase]);
+
+    // ─── visibilitychange — recalculate immediately when tab becomes active ──
+    // When the browser un-throttles the tab, we instantly correct secondsLeft
+    // from the real timestamp so no drift is visible to the customer.
+    useEffect(() => {
+      if (typeof document === 'undefined') return;
+
+      const handleVisibility = () => {
+        if (document.visibilityState !== 'visible') return;
+        if (phaseRef.current === 'accepted' || phaseRef.current === 'rejected' || phaseRef.current === 'expired') return;
+
+        const remaining = computeRemaining();
+        if (remaining <= 0) {
+          triggerExpired();
+        } else {
+          setSecondsLeft(remaining);
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => document.removeEventListener('visibilitychange', handleVisibility);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderId]);
 
     // ─── React to orderStatus prop changes (e.g. initial load or parent re-render) ──
     useEffect(() => {
@@ -1393,15 +1422,7 @@ function CheckoutModal({
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderStatus]);
 
-    // ─── Window event listener — PRIMARY update mechanism ────────────────────
-    // The page-level Supabase subscription dispatches 'iGO_order_status_changed'
-    // synchronously BEFORE calling setLastCreatedOrder. This means the currently-
-    // mounted OrderStatusTracker instance receives the status change immediately,
-    // bypassing all React reconciliation / remounting timing issues.
-    // This is the most reliable mechanism because:
-    //   1. It runs synchronously inside the dispatch call (no async delay)
-    //   2. It targets the CURRENT component instance directly via closure
-    //   3. It is unaffected by whether OrderStatusTracker remounts or not
+    // ─── Window event listener — synchronous update from page subscription ───
     useEffect(() => {
       if (typeof window === 'undefined') return;
 
@@ -1411,20 +1432,17 @@ function CheckoutModal({
 
         const resolved = resolvePhase(detail.newStatus);
         if (resolved) {
-          stopTimer(); // ← Immediately kill the countdown
+          stopTimer();
           setPhase(resolved);
         }
       };
 
       window.addEventListener('iGO_order_status_changed', handleOrderStatusChanged);
-      return () => {
-        window.removeEventListener('iGO_order_status_changed', handleOrderStatusChanged);
-      };
+      return () => window.removeEventListener('iGO_order_status_changed', handleOrderStatusChanged);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [orderId]); // orderId is stable for the lifetime of a single order
+    }, [orderId]);
 
-    // ─── Dedicated Supabase Realtime subscription ─────────────────────────────
-    // PRIMARY mechanism: fires instantly when the restaurant updates the order.
+    // ─── Supabase Realtime subscription (best-effort, may be blocked by RLS) ─
     useEffect(() => {
       if (!orderId) return;
 
@@ -1435,17 +1453,11 @@ function CheckoutModal({
         .channel(channelName)
         .on(
           'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: tableName,
-            filter: `id=eq.${orderId}`,
-          },
+          { event: 'UPDATE', schema: 'public', table: tableName, filter: `id=eq.${orderId}` },
           (payload) => {
             const newStatus = (payload.new as any).status;
             if (!newStatus) return;
 
-            // Update persisted order state
             setLastCreatedOrder((prev: any) => {
               if (prev?.status === newStatus) return prev;
               const next = { ...prev, status: newStatus };
@@ -1453,64 +1465,63 @@ function CheckoutModal({
               return next;
             });
 
-            // Resolve and apply phase — stopTimer is called inside resolvePhase path
             const resolved = resolvePhase(newStatus);
-            if (resolved) {
-              stopTimer(); // ← Stop immediately, before React's next render cycle
-              setPhase(resolved);
-            }
+            if (resolved) { stopTimer(); setPhase(resolved); }
           }
         )
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId, slug, setLastCreatedOrder, isBooking]);
 
-    // Polling fallback — safety net in case realtime is temporarily unavailable.
+    // ─── Server-side API polling (primary reliable fallback, bypasses RLS) ───
+    // Polls /api/order-status/[orderId] which uses the Supabase service role key
+    // server-side, so RLS can never block it. This is the definitive fallback
+    // for cases where the Supabase Realtime or anon REST queries fail.
     useEffect(() => {
       if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') return;
 
       const pollStatus = async () => {
-        // Guard again with phaseRef so we don't run a stale poll
         if (phaseRef.current === 'accepted' || phaseRef.current === 'rejected' || phaseRef.current === 'expired') return;
 
         try {
-          const table = isBooking ? 'bookings' : 'orders';
-          const { data, error } = await supabase
-            .from(table)
-            .select('status')
-            .eq('id', orderId)
-            .maybeSingle();
+          const res = await fetch(`/api/order-status/${encodeURIComponent(orderId)}`, {
+            method: 'GET',
+            cache: 'no-store',
+          });
 
-          if (error) {
-            console.error('Error polling status:', error);
+          if (!res.ok) {
+            if (res.status !== 404) console.error('[tracker] poll error:', res.status);
             return;
           }
 
-          if (data && data.status !== lastCreatedOrder?.status) {
+          const json = await res.json();
+          const newStatus: string | undefined = json?.status;
+          if (!newStatus) return;
+
+          // Persist the new status even if it's the same (keeps sessionStorage fresh)
+          if (newStatus !== lastCreatedOrder?.status) {
             setLastCreatedOrder((prev: any) => {
-              const next = { ...prev, status: data.status };
+              const next = { ...prev, status: newStatus };
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
               return next;
             });
+          }
 
-            const resolved = resolvePhase(data.status);
-            if (resolved) {
-              stopTimer();
-              setPhase(resolved);
-            }
+          const resolved = resolvePhase(newStatus);
+          if (resolved) {
+            stopTimer();
+            setPhase(resolved);
           }
         } catch (err) {
-          console.error('Error in pollStatus:', err);
+          console.error('[tracker] pollStatus error:', err);
         }
       };
 
-      // Poll immediately and then every 5 seconds
+      // Poll immediately on mount, then every 3 seconds
       pollStatus();
-      const interval = setInterval(pollStatus, 5000);
+      const interval = setInterval(pollStatus, 3000);
 
       return () => clearInterval(interval);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1567,8 +1578,8 @@ function CheckoutModal({
 
           {phase === 'accepted' && (
             <div className="space-y-4">
-              <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto border border-green-500/20 shadow-inner">
-                <CheckCircle size={44} className="text-green-600 animate-bounce" />
+              <div className="flex items-center justify-center mx-auto">
+                <Check size={48} className="text-green-600" />
               </div>
               <div className="space-y-1">
                 <h3 className="text-xl font-black text-foreground">{t('tracker_confirmed')}</h3>
@@ -2949,7 +2960,7 @@ function CheckoutModal({
               )}
               {promoApplied && appliedPromoDetail && (
                 <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-md px-2.5 py-1 font-semibold">
-                  <CheckCircle size={12} />
+                  <Check size={12} />
                   {appliedPromoDetail.type === 'percentage'
                     ? (lang === 'en' ? `Promo discount of ${appliedPromoDetail.value}% applied!` : `Sconto promozionale del ${appliedPromoDetail.value}% applicato!`)
                     : (lang === 'en' ? `Promo discount of € ${appliedPromoDetail.value.toFixed(2)} applied!` : `Sconto promozionale di € ${appliedPromoDetail.value.toFixed(2)} applicato!`)}
@@ -3859,6 +3870,13 @@ function StorefrontContent() {
     lastCreatedOrderRef.current = lastCreatedOrder;
   }, [lastCreatedOrder]);
 
+  // restaurantSettings is read inside the Supabase subscription callback via ref
+  // so that changes to the object don't recreate the channel (which would lose events).
+  const restaurantSettingsRef = useRef(restaurantSettings);
+  useEffect(() => {
+    restaurantSettingsRef.current = restaurantSettings;
+  }, [restaurantSettings]);
+
   // Listen to order updates via Supabase Realtime
   useEffect(() => {
     if (typeof window === 'undefined' || !lastCreatedOrder) return;
@@ -3898,7 +3916,7 @@ function StorefrontContent() {
           if (updatedRecord.status !== currentOrder.status) {
             const oldStatus = currentOrder.status;
             const newStatus = updatedRecord.status;
-            const restName = restaurantSettings?.name || 'iGOdelivering';
+            const restName = restaurantSettingsRef.current?.name || 'iGOdelivering';
             const customerName =
               currentOrder.customer_name || currentOrder.name || 'Cliente';
 
@@ -3966,7 +3984,10 @@ function StorefrontContent() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [lastCreatedOrder?.id, slug, restaurantSettings]);
+    // NOTE: restaurantSettings intentionally excluded from deps — it is an object
+    // and would cause the channel to be destroyed and recreated on every render,
+    // potentially losing realtime events. It is accessed via ref inside the callback.
+  }, [lastCreatedOrder?.id, slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
   const [myOrdersEmail, setMyOrdersEmail] = useState('');
@@ -5674,8 +5695,8 @@ function StorefrontContent() {
               <button
                 onClick={() => setLang('it')}
                 className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'it'
-                    ? 'opacity-100 scale-110'
-                    : 'opacity-35 hover:opacity-80 hover:scale-105'
+                  ? 'opacity-100 scale-110'
+                  : 'opacity-35 hover:opacity-80 hover:scale-105'
                   }`}
                 title="Italiano"
               >
@@ -5684,8 +5705,8 @@ function StorefrontContent() {
               <button
                 onClick={() => setLang('en')}
                 className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'en'
-                    ? 'opacity-100 scale-110'
-                    : 'opacity-35 hover:opacity-80 hover:scale-105'
+                  ? 'opacity-100 scale-110'
+                  : 'opacity-35 hover:opacity-80 hover:scale-105'
                   }`}
                 title="English"
               >
@@ -6264,8 +6285,8 @@ function StorefrontContent() {
               {/* CONFIRMED */}
               {bookingConfirmed ? (
                 <div className="px-6 py-10 text-center space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-[var(--success-bg)] flex items-center justify-center mx-auto">
-                    <CheckCircle size={32} className="text-[var(--success)]" />
+                  <div className="flex items-center justify-center mx-auto">
+                    <Check size={48} className="text-[var(--success)]" />
                   </div>
                   <div>
                     <h4 className="text-lg font-bold text-foreground mb-1">

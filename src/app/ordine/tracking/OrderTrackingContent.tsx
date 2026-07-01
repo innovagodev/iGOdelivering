@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  CheckCircle,
+  Check,
   Clock,
   ChefHat,
   Bike,
@@ -37,7 +37,7 @@ const STEPS: TrackingStep[] = [
     id: 'confirmed',
     label: 'Confermato',
     description: 'Il ristorante ha ricevuto il tuo ordine',
-    icon: <CheckCircle size={18} />,
+    icon: <Check size={18} />,
   },
   {
     id: 'preparing',
@@ -60,7 +60,7 @@ const STEPS: TrackingStep[] = [
   {
     id: 'delivered',
     label: 'Consegnato',
-    description: 'Buon appetito! 🎉',
+    description: 'Buon appetito!',
     icon: <Home size={18} />,
   },
 ];
@@ -279,8 +279,8 @@ export default function OrderTrackingContent() {
                 </div>
               )}
               {isDelivered && (
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--success-bg)] flex items-center justify-center">
-                  <CheckCircle size={22} className="text-[var(--success)]" />
+                <div className="flex-shrink-0 flex items-center justify-center">
+                  <Check size={24} className="text-[var(--success)]" />
                 </div>
               )}
             </div>
@@ -310,21 +310,19 @@ export default function OrderTrackingContent() {
                   {/* Connector column */}
                   <div className="flex flex-col items-center">
                     <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
-                        isDone
-                          ? 'bg-[var(--success)] text-white'
-                          : isActive
-                            ? 'bg-primary text-white shadow-md ring-4 ring-primary/20'
-                            : 'bg-muted text-muted-foreground border border-border'
-                      }`}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${isDone
+                        ? 'bg-[var(--success)] text-white'
+                        : isActive
+                          ? 'bg-primary text-white shadow-md ring-4 ring-primary/20'
+                          : 'bg-muted text-muted-foreground border border-border'
+                        }`}
                     >
                       {step.icon}
                     </div>
                     {!isLast && (
                       <div
-                        className={`w-0.5 flex-1 my-1 min-h-[24px] transition-all duration-700 ${
-                          isDone ? 'bg-[var(--success)]' : 'bg-border'
-                        }`}
+                        className={`w-0.5 flex-1 my-1 min-h-[24px] transition-all duration-700 ${isDone ? 'bg-[var(--success)]' : 'bg-border'
+                          }`}
                       />
                     )}
                   </div>
@@ -332,9 +330,8 @@ export default function OrderTrackingContent() {
                   {/* Content */}
                   <div className={`pb-5 flex-1 min-w-0 ${isLast ? 'pb-0' : ''}`}>
                     <p
-                      className={`text-sm font-semibold leading-tight ${
-                        isPending ? 'text-muted-foreground' : 'text-foreground'
-                      }`}
+                      className={`text-sm font-semibold leading-tight ${isPending ? 'text-muted-foreground' : 'text-foreground'
+                        }`}
                     >
                       {step.label}
                     </p>

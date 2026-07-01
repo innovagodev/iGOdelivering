@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  CheckCircle,
+  Check,
   Clock,
   MapPin,
   Package,
@@ -170,7 +170,7 @@ export default function OrderSuccessContent() {
       <div className="min-h-screen bg-background flex flex-col items-center justify-center py-10 px-4">
         <AppLogo className="h-8 mb-8" />
         <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-sm p-8 text-center">
-          <CheckCircle size={48} className="mx-auto text-[var(--success)] mb-4" />
+          <Check size={48} className="mx-auto text-[var(--success)] mb-4" />
           <h1 className="text-xl font-bold text-foreground mb-2">Ordine confermato!</h1>
           <p className="text-sm text-muted-foreground mb-6">
             Il tuo ordine è stato inviato con successo al ristorante.
@@ -197,8 +197,8 @@ export default function OrderSuccessContent() {
       <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* ── Success Header ── */}
         <div className="bg-[var(--success-bg)] border-b border-[#bbf7d0] px-6 py-8 flex flex-col items-center text-center gap-3">
-          <div className="w-16 h-16 rounded-full bg-[var(--success)] flex items-center justify-center shadow-md">
-            <CheckCircle size={34} className="text-white" strokeWidth={2.5} />
+          <div className="flex items-center justify-center">
+            <Check size={48} className="text-[var(--success)]" />
           </div>
           <div>
             <h1
