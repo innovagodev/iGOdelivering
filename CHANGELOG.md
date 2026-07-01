@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.26.6](https://github.com/innovagodev/iGOdelivering/compare/v1.26.5...v1.26.6) (2026-07-01)
+
 ### [1.26.5](https://github.com/innovagodev/iGOdelivering/compare/v1.26.4...v1.26.5) (2026-06-30)
 
 
