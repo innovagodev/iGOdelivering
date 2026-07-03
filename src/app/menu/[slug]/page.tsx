@@ -1248,6 +1248,8 @@ function CheckoutModal({
     tableNumber?: string | null;
     lastCreatedOrder: any;
   }) => {
+    const isScheduled = !!lastCreatedOrder?.scheduled_at;
+
     const [secondsLeft, setSecondsLeft] = useState(() => {
       const createdAt = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
       if (!createdAt) return 180;
@@ -1265,6 +1267,9 @@ function CheckoutModal({
       }
       if (orderStatus === 'expired') {
         return 'expired';
+      }
+      if (isScheduled) {
+        return 'pending';
       }
       const initialSeconds = (() => {
         const createdAt = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
@@ -1354,6 +1359,11 @@ function CheckoutModal({
     // display — the next tick after the tab becomes active will show the exact
     // correct value.
     useEffect(() => {
+      if (isScheduled) {
+        stopTimer();
+        return;
+      }
+
       if (phase === 'accepted' || phase === 'rejected' || phase === 'expired') {
         stopTimer();
         return;
@@ -1397,6 +1407,7 @@ function CheckoutModal({
 
       const handleVisibility = () => {
         if (document.visibilityState !== 'visible') return;
+        if (isScheduled) return;
         if (phaseRef.current === 'accepted' || phaseRef.current === 'rejected' || phaseRef.current === 'expired') return;
 
         const remaining = computeRemaining();
@@ -1546,13 +1557,21 @@ function CheckoutModal({
                 <Clock className="text-primary animate-pulse" size={40} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-foreground">{t('tracker_waiting')}</h3>
+                <h3 className="text-lg font-black text-foreground">
+                  {isScheduled
+                    ? (lang === 'en' ? 'Scheduled Order Received!' : 'Ordine programmato ricevuto!')
+                    : t('tracker_waiting')}
+                </h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                  {lastCreatedOrder?.type === 'prenotazione_tavolo'
-                    ? t('tracker_booking_waiting')
-                    : deliveryType === 'tavolo'
-                      ? t('tracker_order_table', { n: tableNumber || '' })
-                      : t('tracker_reviewing')}
+                  {isScheduled
+                    ? (lang === 'en'
+                        ? 'The restaurant will process your request as soon as it opens. You can keep this page open or return later to check confirmation.'
+                        : 'Il ristorante elaborerà la tua richiesta non appena aprirà. Puoi tenere aperta questa pagina o tornare più tardi per verificare la conferma.')
+                    : (lastCreatedOrder?.type === 'prenotazione_tavolo'
+                        ? t('tracker_booking_waiting')
+                        : deliveryType === 'tavolo'
+                          ? t('tracker_order_table', { n: tableNumber || '' })
+                          : t('tracker_reviewing'))}
                 </p>
               </div>
             </div>
@@ -1657,7 +1676,7 @@ function CheckoutModal({
         </div>
 
         {/* Real-time progress loader (only during pending/waiting) */}
-        {(phase === 'pending' || phase === 'waiting_warn') && (
+        {(phase === 'pending' || phase === 'waiting_warn') && !isScheduled && (
           <div className="max-w-xs mx-auto space-y-2.5">
             <div className="flex justify-between items-center text-xs font-bold text-muted-foreground select-none">
               <span>{t('tracker_time_remaining')}</span>
@@ -1686,10 +1705,10 @@ function CheckoutModal({
         {/* CTA Button */}
         <button
           onClick={onClose}
-          disabled={phase === 'pending' || phase === 'waiting_warn'}
+          disabled={(phase === 'pending' || phase === 'waiting_warn') && !isScheduled}
           className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all active:scale-95 text-xs shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {phase === 'pending' || phase === 'waiting_warn'
+          {(phase === 'pending' || phase === 'waiting_warn') && !isScheduled
             ? t('tracker_waiting_response')
             : t('tracker_back_to_menu')}
         </button>

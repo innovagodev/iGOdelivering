@@ -37,6 +37,7 @@ interface LiveOrder {
   id: string;
   orderNumber?: string;
   customer: string;
+  phone?: string;
   items: OrderItem[];
   total: number;
   type: 'delivery' | 'takeaway' | 'table';
@@ -46,6 +47,9 @@ interface LiveOrder {
   tableNumber?: string;
   isBookingPreOrder?: boolean;
   status?: string;
+  deliveryTime?: string;
+  deliveryDate?: string;
+  scheduledAt?: string | null;
 }
 
 
@@ -110,6 +114,24 @@ export default function LiveOrderKanban() {
     return () => clearInterval(timer);
   }, []);
 
+  const getOrderStatus = (o: any): string => {
+    if (o.status === 'expired') return 'expired';
+    // Gli ordini programmati non scadono mai automaticamente dopo 3 minuti
+    if (o.scheduled_at) {
+      return o.status || 'pending';
+    }
+    if (o.status === 'new' || o.status === 'pending') {
+      const mins = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(o.created_at || o.timestamp || o.createdAt).getTime()) / 60000
+        )
+      );
+      if (mins >= 3) return 'expired';
+    }
+    return o.status || 'pending';
+  };
+
   const mapFlatOrder = (o: any): LiveOrder => {
     const mins = Math.max(
       0,
@@ -131,24 +153,37 @@ export default function LiveOrderKanban() {
           }))
         : [];
 
+    const enriched = { ...o };
+    if (enriched.scheduled_at && !enriched.deliveryTime) {
+      const d = new Date(enriched.scheduled_at);
+      const hours = d.getHours().toString().padStart(2, '0');
+      const minutes = d.getMinutes().toString().padStart(2, '0');
+      enriched.deliveryTime = `${hours}:${minutes}`;
+      enriched.deliveryDate = enriched.scheduled_at.split('T')[0];
+    }
+
     return {
-      id: o.id || 'ord-unknown',
-      orderNumber: o.order_number || o.id || 'ord-unknown',
+      id: enriched.id || 'ord-unknown',
+      orderNumber: enriched.order_number || enriched.id || 'ord-unknown',
       customer:
-        o.customer_name ||
-        o.customerName ||
-        (o.customer && o.customer.name) ||
-        o.email ||
+        enriched.customer_name ||
+        enriched.customerName ||
+        (enriched.customer && enriched.customer.name) ||
+        enriched.email ||
         'Cliente',
+      phone: enriched.customer_phone || (enriched.customer && enriched.customer.phone) || '',
       items,
-      total: parseFloat(o.total) || 0,
-      type: o.type === 'domicilio' ? 'delivery' : o.type === 'asporto' ? 'takeaway' : 'table',
+      total: parseFloat(enriched.total) || 0,
+      type: enriched.type === 'domicilio' ? 'delivery' : enriched.type === 'asporto' ? 'takeaway' : 'table',
       minutesAgo: mins,
-      timestamp: o.created_at || o.timestamp || o.createdAt || new Date().toISOString(),
-      address: o.customer_address || (o.customer && o.customer.address) || o.address || '',
-      tableNumber: o.table_number || o.tableNumber,
-      isBookingPreOrder: o.type === 'prenotazione_tavolo' || (o.id && o.id.startsWith('PRE-')),
-      status: ((o.status === 'new' || o.status === 'pending') && mins >= 3) ? 'expired' : o.status,
+      timestamp: enriched.created_at || enriched.timestamp || enriched.createdAt || new Date().toISOString(),
+      address: enriched.customer_address || (enriched.customer && enriched.customer.address) || enriched.address || '',
+      tableNumber: enriched.table_number || enriched.tableNumber,
+      isBookingPreOrder: enriched.type === 'prenotazione_tavolo' || (enriched.id && enriched.id.startsWith('PRE-')),
+      status: getOrderStatus(enriched),
+      deliveryTime: enriched.deliveryTime || '',
+      deliveryDate: enriched.deliveryDate || '',
+      scheduledAt: enriched.scheduled_at || null,
     };
   };
 
@@ -245,8 +280,16 @@ export default function LiveOrderKanban() {
   };
 
   const handlePrintSingleOrder = (orderId: string) => {
-    const rawOrder = orders.find((o) => o.id === orderId);
-    if (!rawOrder) return;
+    const baseOrder = orders.find((o) => o.id === orderId);
+    if (!baseOrder) return;
+    const rawOrder = { ...baseOrder };
+    if (rawOrder.scheduled_at && !rawOrder.deliveryTime) {
+      const d = new Date(rawOrder.scheduled_at);
+      const hours = d.getHours().toString().padStart(2, '0');
+      const minutes = d.getMinutes().toString().padStart(2, '0');
+      rawOrder.deliveryTime = `${hours}:${minutes}`;
+      rawOrder.deliveryDate = rawOrder.scheduled_at.split('T')[0];
+    }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -341,7 +384,7 @@ export default function LiveOrderKanban() {
           
           <div style="font-size: 13px;">
             <div><strong>Cliente:</strong> ${rawOrder.customerName || (rawOrder.customer && rawOrder.customer.name) || 'Cliente'}</div>
-            ${rawOrder.customer?.phone ? `<div><strong>Tel:</strong> ${rawOrder.customer.phone}</div>` : ''}
+            ${(rawOrder.customer_phone || rawOrder.customer?.phone) ? `<div><strong>Tel:</strong> ${rawOrder.customer_phone || rawOrder.customer?.phone}</div>` : ''}
             ${rawOrder.type === 'domicilio' && rawOrder.customer?.address ? `<div><strong>Indirizzo:</strong> ${rawOrder.customer.address}</div>` : ''}
           </div>
           
@@ -458,7 +501,7 @@ export default function LiveOrderKanban() {
           
           <div style="font-size: 13px;">
             <div><strong>Cliente:</strong> ${rawOrder.customerName || (rawOrder.customer && rawOrder.customer.name) || 'Cliente'}</div>
-            ${rawOrder.customer?.phone ? `<div><strong>Tel:</strong> ${rawOrder.customer.phone}</div>` : ''}
+            ${(rawOrder.customer_phone || rawOrder.customer?.phone) ? `<div><strong>Tel:</strong> ${rawOrder.customer_phone || rawOrder.customer?.phone}</div>` : ''}
             ${rawOrder.type === 'domicilio' && rawOrder.customer?.address ? `<div><strong>Indirizzo:</strong> ${rawOrder.customer.address}</div>` : ''}
           </div>
           
@@ -517,17 +560,17 @@ export default function LiveOrderKanban() {
             onClick={async (e) => {
               e.stopPropagation();
               try {
-                await updateOrderStatus(order.id, 'completed');
+                await updateOrderStatus(order.id, 'preparing');
                 const orderCode = order.orderNumber || order.id.replace('ord-', '').toUpperCase();
-                showToast(`Ordine #${orderCode} riattivato e completato`, 'success');
+                showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
               } catch (err) {
-                showToast(`Errore durante il completamento dell'ordine`, 'danger');
+                showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
               }
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-colors cursor-pointer"
           >
             <Check size={12} />
-            Completa
+            Recupera
           </button>
         </div>
       );
@@ -835,6 +878,19 @@ export default function LiveOrderKanban() {
                         <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
                           {order.customer}
                         </h4>
+                        {order.phone && (
+                          <div className="mt-1">
+                            <a
+                              href={`tel:${order.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/60 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40 transition-colors"
+                              title="Chiama cliente"
+                            >
+                              <Phone size={10} />
+                              {order.phone}
+                            </a>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
@@ -890,6 +946,16 @@ export default function LiveOrderKanban() {
                       </div>
                     )}
 
+                    {order.scheduledAt && order.deliveryTime && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-300 font-bold mt-0.5 animate-pulse">
+                        <Clock size={10} className="text-amber-500" />
+                        <span>
+                          PROGRAMMATO: {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
+                          alle {order.deliveryTime}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Footer: Elapsed Time and Total Price */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-900 mt-1">
                       <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
@@ -917,6 +983,8 @@ export default function LiveOrderKanban() {
         const selectedOrder = orders.find((o) => o.id === selectedOrderId);
         if (!selectedOrderId || !selectedOrder) return null;
 
+        const selectedOrderStatus = getOrderStatus(selectedOrder);
+
         return (
           <div className="fixed inset-0 z-50 flex justify-end">
             <div
@@ -932,27 +1000,27 @@ export default function LiveOrderKanban() {
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
                       #{selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase()}
                     </span>
-                    {selectedOrder.status === 'new' || selectedOrder.status === 'pending' ? (
+                    {selectedOrderStatus === 'new' || selectedOrderStatus === 'pending' ? (
                       <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/20">
                         Da Accettare
                       </span>
-                    ) : selectedOrder.status === 'expired' ? (
+                    ) : selectedOrderStatus === 'expired' ? (
                       <span className="bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 text-[10px] font-extrabold px-2 py-0.5 rounded border border-rose-500/20 animate-pulse">
                         Scaduto
                       </span>
-                    ) : selectedOrder.status === 'accepted' ||
-                      selectedOrder.status === 'preparing' ||
-                      selectedOrder.status === 'delivering' ? (
+                    ) : selectedOrderStatus === 'accepted' ||
+                      selectedOrderStatus === 'preparing' ||
+                      selectedOrderStatus === 'delivering' ? (
                       <span className="bg-blue-500/10 text-blue-700 dark:text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/20">
                         In Corso
                       </span>
-                    ) : selectedOrder.status === 'completed' ||
-                      selectedOrder.status === 'delivered' ? (
+                    ) : selectedOrderStatus === 'completed' ||
+                      selectedOrderStatus === 'delivered' ? (
                       <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-500/20">
                         Completato
                       </span>
                     ) : (
-                      <span className="bg-rose-500/10 text-rose-700 dark:text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/20">
+                      <span className="bg-rose-500/10 text-rose-700 dark:text-rose-450 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/20">
                         Rifiutato
                       </span>
                     )}
@@ -1054,7 +1122,7 @@ export default function LiveOrderKanban() {
                       </div>
                     </div>
 
-                    {selectedOrder.customer?.phone && (
+                    {(selectedOrder.customer_phone || selectedOrder.customer?.phone) && (
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-500 dark:text-slate-400">
                           <Phone size={13} />
@@ -1064,10 +1132,10 @@ export default function LiveOrderKanban() {
                             Telefono
                           </span>
                           <a
-                            href={`tel:${selectedOrder.customer.phone}`}
+                            href={`tel:${selectedOrder.customer_phone || selectedOrder.customer?.phone}`}
                             className="text-xs font-bold text-blue-600 hover:underline dark:text-blue-400 block"
                           >
-                            {selectedOrder.customer.phone}
+                            {selectedOrder.customer_phone || selectedOrder.customer?.phone}
                           </a>
                         </div>
                       </div>
@@ -1305,9 +1373,9 @@ export default function LiveOrderKanban() {
                         <strong>Cliente:</strong>{' '}
                         {selectedOrder.customerName || selectedOrder.customer?.name || 'Cliente'}
                       </div>
-                      {selectedOrder.customer?.phone && (
+                      {(selectedOrder.customer_phone || selectedOrder.customer?.phone) && (
                         <div>
-                          <strong>Tel:</strong> {selectedOrder.customer.phone}
+                          <strong>Tel:</strong> {selectedOrder.customer_phone || selectedOrder.customer?.phone}
                         </div>
                       )}
                       {selectedOrder.type === 'domicilio' &&
@@ -1339,7 +1407,7 @@ export default function LiveOrderKanban() {
                   <Printer size={16} />
                 </button>
 
-                {selectedOrder.status === 'new' || selectedOrder.status === 'pending' ? (
+                {selectedOrderStatus === 'new' || selectedOrderStatus === 'pending' ? (
                   <>
                     <button
                       onClick={() => {
@@ -1359,25 +1427,36 @@ export default function LiveOrderKanban() {
                       <Check size={14} /> Accetta
                     </button>
                   </>
-                ) : selectedOrder.status === 'expired' ? (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await updateOrderStatus(selectedOrder.id, 'completed');
-                        const orderCode = selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase();
-                        showToast(`Ordine #${orderCode} riattivato e completato`, 'success');
+                ) : selectedOrderStatus === 'expired' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        rejectOrder('pending', selectedOrder.id);
                         setSelectedOrderId(null);
-                      } catch (err) {
-                        showToast(`Errore durante il completamento dell'ordine`, 'danger');
-                      }
-                    }}
-                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-550 text-white transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
-                  >
-                    <CheckCheck size={14} /> Riattiva e Completa
-                  </button>
-                ) : selectedOrder.status === 'accepted' ||
-                  selectedOrder.status === 'preparing' ||
-                  selectedOrder.status === 'delivering' ? (
+                      }}
+                      className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-700 dark:border-slate-850 dark:hover:bg-red-950/20 dark:hover:text-red-400 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <X size={14} /> Rifiuta
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await updateOrderStatus(selectedOrder.id, 'preparing');
+                          const orderCode = selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase();
+                          showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
+                          setSelectedOrderId(null);
+                        } catch (err) {
+                          showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
+                        }
+                      }}
+                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-550 text-white dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                    >
+                      <ChefHat size={14} /> Riattiva in Preparazione
+                    </button>
+                  </>
+                ) : selectedOrderStatus === 'accepted' ||
+                  selectedOrderStatus === 'preparing' ||
+                  selectedOrderStatus === 'delivering' ? (
                   <>
                     <button
                       onClick={() => {

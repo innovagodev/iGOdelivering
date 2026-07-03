@@ -16,6 +16,8 @@ import {
   UserX,
   Plus,
   AlertCircle,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 
 interface RestorateurUser {
@@ -48,6 +50,116 @@ export default function AdminUtentiPage() {
   const [newTempPassword, setNewTempPassword] = useState('');
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState(false);
+
+  // Edit State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<RestorateurUser | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editSuccess, setEditSuccess] = useState(false);
+
+  // Delete State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<RestorateurUser | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+  // Edit Handlers
+  const handleOpenEditModal = (user: RestorateurUser) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditEmail(user.email);
+    setEditPassword('');
+    setEditError('');
+    setEditSuccess(false);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateRistoratore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditError('');
+    setEditSuccess(false);
+
+    try {
+      const res = await fetch('/api/admin/update-ristoratore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editingUser.id,
+          name: editName.trim(),
+          email: editEmail.trim(),
+          password: editPassword ? editPassword : undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setEditError(data.error || "Errore durante l'aggiornamento.");
+        return;
+      }
+
+      setEditSuccess(true);
+      
+      // Update local state
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === editingUser.id
+            ? { ...u, name: editName.trim(), email: editEmail.trim() }
+            : u
+        )
+      );
+
+      setTimeout(() => {
+        setIsEditModalOpen(false);
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setEditError('Errore di rete durante il salvataggio.');
+    }
+  };
+
+  // Delete Handlers
+  const handleOpenDeleteModal = (user: RestorateurUser) => {
+    setDeletingUser(user);
+    setDeleteError('');
+    setDeleteSuccess(false);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteRistoratore = async () => {
+    if (!deletingUser) return;
+    setDeleteError('');
+    setDeleteSuccess(false);
+
+    try {
+      const res = await fetch('/api/admin/delete-ristoratore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deletingUser.id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteError(data.error || "Errore durante l'eliminazione.");
+        return;
+      }
+
+      setDeleteSuccess(true);
+      
+      // Update local state
+      setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
+
+      setTimeout(() => {
+        setIsDeleteModalOpen(false);
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setDeleteError("Errore di rete durante l'eliminazione.");
+    }
+  };
 
   const generateRandomPassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
@@ -150,7 +262,7 @@ export default function AdminUtentiPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, created_at, restaurants(id, name, status, email)')
+        .select('id, name, created_at, email, restaurants(id, name, status, email)')
         .eq('role', 'ristoratore');
 
       if (error) throw error;
@@ -160,7 +272,7 @@ export default function AdminUtentiPage() {
         return {
           id: p.id,
           name: p.name || 'Gestore',
-          email: r.email || '',
+          email: p.email || r.email || '',
           restaurantName: r.name || 'Nessun ristorante',
           status:
             r.status === 'suspended'
@@ -432,6 +544,20 @@ export default function AdminUtentiPage() {
                                 </button>
                               ) : null}
                               <button
+                                onClick={() => handleOpenEditModal(u)}
+                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                                title="Modifica Ristoratore"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleOpenDeleteModal(u)}
+                                className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
+                                title="Elimina Ristoratore"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                              <button
                                 onClick={() => handlePasswordReset(u)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border"
                                 title="Resetta Password"
@@ -516,6 +642,20 @@ export default function AdminUtentiPage() {
                             <UserCheck size={14} />
                           </button>
                         ) : null}
+                        <button
+                          onClick={() => handleOpenEditModal(u)}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                          title="Modifica Ristoratore"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleOpenDeleteModal(u)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
+                          title="Elimina Ristoratore"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                         <button
                           onClick={() => handlePasswordReset(u)}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border/50"
@@ -732,6 +872,181 @@ export default function AdminUtentiPage() {
                   Invia questa password temporanea al ristoratore.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Ristoratore Modal */}
+      {isEditModalOpen && editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsEditModalOpen(false)}
+          />
+          <form
+            onSubmit={handleUpdateRistoratore}
+            className="relative bg-card rounded-2xl border border-border shadow-xl w-full max-w-md p-6 space-y-4"
+          >
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0 text-primary">
+                <Edit2 size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold text-foreground">Modifica Ristoratore</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Aggiorna i dati dell'account per {editingUser.restaurantName}.
+                </p>
+              </div>
+            </div>
+
+            {editSuccess && (
+              <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-3 flex items-center gap-2">
+                <CheckCircle size={16} className="text-[var(--success)] shrink-0" />
+                <p className="text-xs font-semibold text-foreground">
+                  Ristoratore aggiornato con successo!
+                </p>
+              </div>
+            )}
+
+            {editError && (
+              <div className="bg-[var(--danger-bg)] border border-red-200 rounded-xl p-3 flex items-start gap-2 text-xs text-[var(--danger)]">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Nome Gestore (Proprietario)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Es. Giuseppe Esposito"
+                  className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Email Ristoratore
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="Es. giuseppe@bellanapoli.it"
+                  className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Nuova Password (lascia vuoto per non modificare)
+                </label>
+                <input
+                  type="text"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Inserisci nuova password"
+                  className="w-full px-3 py-2 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+              >
+                Salva Modifiche
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete Ristoratore Confirmation Modal */}
+      {isDeleteModalOpen && deletingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsDeleteModalOpen(false)}
+          />
+          <div className="relative bg-card rounded-2xl border border-border shadow-xl w-full max-w-md p-6 space-y-4">
+            <button
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0 text-red-600">
+                <Trash2 size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold text-foreground">Elimina Ristoratore</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Sei sicuro di voler eliminare definitivamente l'account di{' '}
+                  <span className="font-semibold text-foreground">{deletingUser.name}</span> ({deletingUser.email})?
+                </p>
+                <p className="text-xs text-[var(--danger)] bg-[var(--danger-bg)] border border-red-200 rounded-xl p-3 mt-3 leading-relaxed">
+                  L'utente verrà disassociato da <strong>{deletingUser.restaurantName}</strong> e il suo account di accesso verrà cancellato definitivamente. Questa azione non è reversibile.
+                </p>
+              </div>
+            </div>
+
+            {deleteSuccess && (
+              <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-3 flex items-center gap-2">
+                <CheckCircle size={16} className="text-[var(--success)] shrink-0" />
+                <p className="text-xs font-semibold text-foreground">
+                  Ristoratore eliminato con successo!
+                </p>
+              </div>
+            )}
+
+            {deleteError && (
+              <div className="bg-[var(--danger-bg)] border border-red-200 rounded-xl p-3 flex items-start gap-2 text-xs text-[var(--danger)]">
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-xl text-xs font-semibold transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleDeleteRistoratore}
+                className="px-4 py-2 bg-red-600 hover:bg-red-750 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
+              >
+                Elimina Definitivamente
+              </button>
             </div>
           </div>
         </div>

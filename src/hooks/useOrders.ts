@@ -53,7 +53,6 @@ export function useOrders(restaurantId: string) {
       supabase.removeChannel(channel);
     };
   }, [restaurantId]);
-
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
       const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
@@ -62,6 +61,17 @@ export function useOrders(restaurantId: string) {
 
       // Update local state immediately for fast response
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+
+      // Trigger order status email notification in the background
+      if (status === 'preparing' || status === 'cancelled') {
+        fetch('/api/order/send-status-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, status }),
+        }).catch((err) => {
+          console.error('[useOrders] Error calling send-status-email API:', err);
+        });
+      }
     } catch (e) {
       console.error(`Error updating order status to ${status}:`, e);
       throw e;

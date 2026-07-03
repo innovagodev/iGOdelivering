@@ -2,14 +2,13 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { slugify } from '@/lib/restaurant-utils';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, restaurantId, password } = await request.json();
+    const { userId, name, email, password } = await request.json();
 
-    if (!name || !email || !restaurantId || !password) {
-      return NextResponse.json({ error: 'Tutti i campi sono obbligatori' }, { status: 400 });
+    if (!userId || !name || !email) {
+      return NextResponse.json({ error: 'Nome ed Email sono obbligatori' }, { status: 400 });
     }
 
     // 1. Verify user is authorized admin
@@ -60,72 +59,46 @@ export async function POST(request: Request) {
       },
     });
 
-    // 3. Create Auth user
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // 3. Update Auth User
+    const updatePayload: any = {
       email,
-      password,
-      email_confirm: true,
       user_metadata: { name },
-    });
+    };
+    if (password) {
+      updatePayload.password = password;
+    }
 
-    if (authError || !authUser.user) {
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, updatePayload);
+
+    if (authError) {
       return NextResponse.json(
-        { error: authError?.message || 'Errore creazione utente auth' },
+        { error: authError.message || "Errore durante l'aggiornamento in Auth" },
         { status: 400 }
       );
     }
 
-    // 4. Create profile entry
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
-      id: authUser.user.id,
-      role: 'ristoratore',
-      name,
-      email,
-    });
+    // 4. Update Profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ name, email })
+      .eq('id', userId);
 
     if (profileError) {
-      // Clean up user
-      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
       return NextResponse.json(
-        { error: profileError.message || 'Errore creazione profilo' },
+        { error: profileError.message || "Errore durante l'aggiornamento del profilo" },
         { status: 400 }
       );
     }
 
-    // 5. Update restaurant entry
-    const { data: restaurant, error: restError } = await supabaseAdmin
+    // 5. Update Restaurant Email (if linked as owner)
+    await supabaseAdmin
       .from('restaurants')
-      .update({
-        owner_id: authUser.user.id,
-        email,
-      })
-      .eq('id', restaurantId)
-      .select()
-      .single();
+      .update({ email })
+      .eq('owner_id', userId);
 
-    if (restError) {
-      // Clean up profile and user
-      await supabaseAdmin.from('profiles').delete().eq('id', authUser.user.id);
-      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-      return NextResponse.json(
-        { error: restError.message || 'Errore associazione ristorante' },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: authUser.user.id,
-        name,
-        email,
-        restaurantName: restaurant.name,
-        restaurantId: restaurant.id,
-        slug: restaurant.slug,
-      },
-    });
+    return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('Error in create-ristoratore API:', err);
+    console.error('Error in update-ristoratore API:', err);
     return NextResponse.json(
       { error: err.message || 'Errore interno del server' },
       { status: 500 }
