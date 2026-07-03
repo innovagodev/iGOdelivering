@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.27.0](https://github.com/innovagodev/iGOdelivering/compare/v1.26.6...v1.27.0) (2026-07-03)
+
+
+### Features
+
+* gestione ordini persi e programmati, amministrazione ristoratori e notifiche email bilingue ([27d5af7](https://github.com/innovagodev/iGOdelivering/commit/27d5af75e836ca253215811a025297a7d9dbd879))
+
 ### [1.26.6](https://github.com/innovagodev/iGOdelivering/compare/v1.26.5...v1.26.6) (2026-07-01)
 
 ### [1.26.5](https://github.com/innovagodev/iGOdelivering/compare/v1.26.4...v1.26.5) (2026-06-30)

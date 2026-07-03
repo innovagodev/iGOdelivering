@@ -1,6 +1,6 @@
 {
   "name": "igodelivering",
-  "version": "1.26.6",
+  "version": "1.27.0",
   "private": true,
   "rocketCritical": {
     "dependencies": [
