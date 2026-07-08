@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.27.1](https://github.com/innovagodev/iGOdelivering/compare/v1.27.0...v1.27.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* **database:** ottimizzazione delle operazioni di scrittura/lettura per la scalabilita del SaaS. Riscritto il salvataggio dei piatti del menu con la logica di upsert selettivo per evitare blocchi e perdite di dati storici. Ottimizzate le query degli ordini e delle prenotazioni inserendo un filtro temporale scorrevole per ridurre il carico di memoria e prevenire rallentamenti all'aumentare dei volumi. ([c8c6857](https://github.com/innovagodev/iGOdelivering/commit/c8c6857f5a4a3af93d5f00c1d2aeb19504037c07))
+
 ## [1.27.0](https://github.com/innovagodev/iGOdelivering/compare/v1.26.6...v1.27.0) (2026-07-03)
 
 
