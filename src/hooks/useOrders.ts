@@ -11,10 +11,16 @@ export function useOrders(restaurantId: string) {
       return;
     }
     try {
+      // Limit order fetching to the last 14 days for optimal performance
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const isoString = fourteenDaysAgo.toISOString();
+
       const { data, error } = await supabase
         .from('orders')
         .select('*, order_items(*)')
         .eq('restaurant_id', restaurantId)
+        .gte('created_at', isoString)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

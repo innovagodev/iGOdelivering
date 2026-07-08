@@ -93,10 +93,16 @@ export default function PrenotazioniPage() {
     }
     setLoading(true);
     try {
+      // Limit fetching to bookings starting from 30 days ago to keep query latency low
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('restaurant_id', restaurantId)
+        .gte('date', dateStr)
         .order('date', { ascending: true })
         .order('time', { ascending: true });
 

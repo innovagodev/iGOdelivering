@@ -362,7 +362,7 @@ export default function NewRestaurantPage() {
       if (exists) {
         return p.map((item) => (item.id === newItem.id ? { ...newItem } : item));
       } else {
-        return [...p, { ...newItem, id: newItem.id || `mi-${Date.now()}` }];
+        return [...p, { ...newItem, id: newItem.id || crypto.randomUUID() }];
       }
     });
     setShowAddItem(false);

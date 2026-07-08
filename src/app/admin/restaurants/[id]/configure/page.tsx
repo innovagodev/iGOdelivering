@@ -204,7 +204,7 @@ export default function RestaurantConfigurePage() {
     const cleanCode = promoCode.trim().toUpperCase().replace(/\s+/g, '');
 
     const promoData: PromoCode = {
-      id: editingPromo ? editingPromo.id : `promo-${Date.now()}`,
+      id: editingPromo ? editingPromo.id : crypto.randomUUID(),
       code: cleanCode,
       type: promoType,
       value: promoType === 'free_delivery' ? 0 : parseFloat(promoValue) || 0,
@@ -1013,7 +1013,7 @@ export default function RestaurantConfigurePage() {
         const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
 
         return {
-          id: item.id || `mi-${Date.now()}-${Math.random()}`,
+          id: item.id || crypto.randomUUID(),
           name: item.name,
           name_en: item.name_en,
           category: item.category,
@@ -1203,26 +1203,51 @@ export default function RestaurantConfigurePage() {
 
       // 3. Sync menu categories & menu items
       if (menuCategories.length > 0) {
-        await supabase.from('menu_categories').delete().eq('restaurant_id', restaurantId);
-        const catsPayload = menuCategories.map((cat, idx) => ({
-          restaurant_id: restaurantId,
-          name: cat.name,
-          name_en: cat.name_en || null,
-          sort_order: idx,
-        }));
+        // Fetch existing categories to keep their IDs and avoid orphan items
+        const { data: dbCats, error: fetchCatsErr } = await supabase
+          .from('menu_categories')
+          .select('id, name')
+          .eq('restaurant_id', restaurantId);
+
+        if (fetchCatsErr) {
+          console.error('Error fetching categories:', fetchCatsErr);
+        }
+
+        const uiCatNames = menuCategories.map((c) => c.name);
+        const dbCatsList = dbCats || [];
+
+        // Delete categories that are no longer in UI
+        const catsToDelete = dbCatsList
+          .filter((c: any) => !uiCatNames.includes(c.name))
+          .map((c: any) => c.id);
+        if (catsToDelete.length > 0) {
+          await supabase.from('menu_categories').delete().in('id', catsToDelete);
+        }
+
+        // Upsert categories (keeping existing IDs)
+        const catsPayload = menuCategories.map((cat, idx) => {
+          const existing = dbCatsList.find((c: any) => c.name === cat.name);
+          return {
+            ...(existing ? { id: existing.id } : {}),
+            restaurant_id: restaurantId,
+            name: cat.name,
+            name_en: cat.name_en || null,
+            sort_order: idx,
+          };
+        });
+
         const { data: savedCats, error: catsErr } = await supabase
           .from('menu_categories')
-          .insert(catsPayload)
+          .upsert(catsPayload)
           .select('id, name');
 
-        if (catsErr) {
+        if (catsErr || !savedCats) {
           console.error('Error saving categories to Supabase:', catsErr);
-          throw new Error('Errore nel salvataggio delle categorie menu: ' + catsErr.message);
+          throw new Error('Errore nel salvataggio delle categorie menu: ' + (catsErr?.message || 'Nessun dato ritornato'));
         }
 
         // 4. Sync menu items
-        await supabase.from('menu_items').delete().eq('restaurant_id', restaurantId);
-        if (menuItems.length > 0 && savedCats) {
+        if (menuItems.length > 0) {
           const catMap = Object.fromEntries(savedCats.map((c: any) => [c.name, c.id]));
 
           const itemsPayload = await Promise.all(
@@ -1330,16 +1355,32 @@ export default function RestaurantConfigurePage() {
             })
           );
 
-          const { error: itemsErr } = await supabase.from('menu_items').insert(itemsPayload);
+          // Upsert all menu items
+          const { error: itemsErr } = await supabase.from('menu_items').upsert(itemsPayload);
           if (itemsErr) {
             console.error('Error saving menu items to Supabase:', itemsErr);
             throw new Error('Errore nel salvataggio dei piatti menu: ' + itemsErr.message);
           }
+
+          // Delete items that are no longer in frontend state
+          const activeItemIds = menuItems.map((item) => item.id).filter(Boolean);
+          if (activeItemIds.length > 0) {
+            const { error: delErr } = await supabase
+              .from('menu_items')
+              .delete()
+              .eq('restaurant_id', restaurantId)
+              .not('id', 'in', `(${activeItemIds.join(',')})`);
+            if (delErr) console.error('Error deleting unused menu items:', delErr);
+          } else {
+            await supabase.from('menu_items').delete().eq('restaurant_id', restaurantId);
+          }
+        } else {
+          // If frontend state menuItems is empty, delete all items
+          await supabase.from('menu_items').delete().eq('restaurant_id', restaurantId);
         }
       }
 
       // 5. Sync promos
-      await supabase.from('promos').delete().eq('restaurant_id', restaurantId);
       if (promos.length > 0) {
         const promosPayload = promos.map((p) => {
           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -1371,11 +1412,26 @@ export default function RestaurantConfigurePage() {
           return payloadItem;
         });
 
-        const { error: promosErr } = await supabase.from('promos').insert(promosPayload);
+        const { error: promosErr } = await supabase.from('promos').upsert(promosPayload);
         if (promosErr) {
           console.error('Error saving promos to Supabase:', promosErr);
           throw new Error('Errore nel salvataggio dei codici promozionali: ' + promosErr.message);
         }
+
+        // Delete promos that are no longer in frontend state
+        const activePromoIds = promos.map((p) => p.id).filter(Boolean);
+        if (activePromoIds.length > 0) {
+          const { error: delPromoErr } = await supabase
+            .from('promos')
+            .delete()
+            .eq('restaurant_id', restaurantId)
+            .not('id', 'in', `(${activePromoIds.join(',')})`);
+          if (delPromoErr) console.error('Error deleting unused promos:', delPromoErr);
+        } else {
+          await supabase.from('promos').delete().eq('restaurant_id', restaurantId);
+        }
+      } else {
+        await supabase.from('promos').delete().eq('restaurant_id', restaurantId);
       }
 
       // --- LOCAL STORAGE BACKUPS (For compatibility) ---
@@ -1621,7 +1677,7 @@ export default function RestaurantConfigurePage() {
       if (exists) {
         return p.map((item) => (item.id === newItem.id ? { ...newItem } : item));
       } else {
-        return [...p, { ...newItem, id: newItem.id || `mi-${Date.now()}` }];
+        return [...p, { ...newItem, id: newItem.id || crypto.randomUUID() }];
       }
     });
 

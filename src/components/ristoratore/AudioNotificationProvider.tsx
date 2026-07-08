@@ -217,10 +217,15 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     // Fetch initial order list to populate seenOrderIds and initialize localStorage
     const fetchInitial = async () => {
       try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const isoString = sevenDaysAgo.toISOString();
+
         const { data, error } = await supabase
           .from('orders')
           .select('id, status, created_at, total, order_number')
           .eq('restaurant_id', restaurantId)
+          .gte('created_at', isoString)
           .order('created_at', { ascending: false });
 
         if (data) {
@@ -283,11 +288,16 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
             }
           }
 
-          // Re-fetch all orders in background to keep badge and kanban/others synced
+          // Re-fetch orders in background to keep badge and kanban/others synced (only recent ones)
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const isoString = sevenDaysAgo.toISOString();
+
           const { data, error } = await supabase
             .from('orders')
             .select('id, status, created_at, total, order_number')
             .eq('restaurant_id', restaurantId)
+            .gte('created_at', isoString)
             .order('created_at', { ascending: false });
 
           if (data) {
