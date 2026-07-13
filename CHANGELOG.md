@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.27.2](https://github.com/innovagodev/iGOdelivering/compare/v1.27.1...v1.27.2) (2026-07-13)
+
+
+### Features
+
+* **menu:** allineamento completo su Supabase, rimozione localStorage, fix orari differenziati, ordinamento filtri e tracking link ([bf80860](https://github.com/innovagodev/iGOdelivering/commit/bf8086005142bfbc37ea8d549b7c23d59ba14b3b))
+
 ### [1.27.1](https://github.com/innovagodev/iGOdelivering/compare/v1.27.0...v1.27.1) (2026-07-08)
 
 
