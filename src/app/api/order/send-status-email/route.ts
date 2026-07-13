@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     let subject = '';
     let emailHtml = '';
 
-    const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/menu/${restaurantSlug}?orderId=${orderNumber}`;
+    const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/ordine/tracking?id=${orderNumber}`;
 
     if (status === 'preparing') {
       subject = `Ordine Accettato - ${restaurantName} #${orderNumber}`;

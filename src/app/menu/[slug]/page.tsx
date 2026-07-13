@@ -1733,46 +1733,70 @@ function CheckoutModal({
   const [zones, setZones] = useState<any[]>([]);
 
   useEffect(() => {
-    if (open && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const storedZones = localStorage.getItem(STORAGE_KEYS.zones(rId));
-      if (storedZones) {
+    if (open) {
+      const loadZones = async () => {
+        const rId = getRestaurantId(slug);
+        if (!rId) return;
+
         try {
-          setZones(JSON.parse(storedZones));
+          const { data, error } = await supabase
+            .from('delivery_zones')
+            .select('*')
+            .eq('restaurant_id', rId)
+            .order('radius_km', { ascending: true });
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const mappedZones = data.map((z: any) => ({
+              id: z.id,
+              name: z.name,
+              radius: Number(z.radius_km) || 0,
+              minOrder: Number(z.min_order) || 0,
+              deliveryFee: Number(z.delivery_fee) || 0,
+              freeDeliveryThreshold: Number(z.free_delivery_threshold) || 0,
+              enabled: !!z.enabled,
+              caps: z.caps || '',
+            }));
+            setZones(mappedZones);
+          } else {
+            // Fallback mock zones
+            setZones([
+              {
+                id: 'zone-1',
+                name: 'Zona Centro (Vicino)',
+                minOrder: 0,
+                deliveryFee: 2.0,
+                freeDeliveryThreshold: 25,
+                enabled: true,
+                caps: '20121, 20122, 20123',
+              },
+              {
+                id: 'zone-2',
+                name: 'Zona Periferia (Medio)',
+                minOrder: 0,
+                deliveryFee: 4.0,
+                freeDeliveryThreshold: 35,
+                enabled: true,
+                caps: '20124, 20125, 20126',
+              },
+              {
+                id: 'zone-3',
+                name: 'Fuori Comune (Lontano)',
+                minOrder: 0,
+                deliveryFee: 6.0,
+                freeDeliveryThreshold: 50,
+                enabled: false,
+                caps: '20127, 20128, 20129',
+              },
+            ]);
+          }
         } catch (e) {
-          console.error('Error parsing zones in checkout modal:', e);
+          console.error('Error fetching delivery zones from Supabase:', e);
         }
-      } else {
-        setZones([
-          {
-            id: 'zone-1',
-            name: 'Zona Centro (Vicino)',
-            minOrder: 0,
-            deliveryFee: 2.0,
-            freeDeliveryThreshold: 25,
-            enabled: true,
-            caps: '20121, 20122, 20123',
-          },
-          {
-            id: 'zone-2',
-            name: 'Zona Periferia (Medio)',
-            minOrder: 0,
-            deliveryFee: 4.0,
-            freeDeliveryThreshold: 35,
-            enabled: true,
-            caps: '20124, 20125, 20126',
-          },
-          {
-            id: 'zone-3',
-            name: 'Fuori Comune (Lontano)',
-            minOrder: 0,
-            deliveryFee: 6.0,
-            freeDeliveryThreshold: 50,
-            enabled: false,
-            caps: '20127, 20128, 20129',
-          },
-        ]);
-      }
+      };
+
+      loadZones();
     }
   }, [open, slug]);
 
@@ -3725,49 +3749,10 @@ function StorefrontContent() {
   useEffect(() => {
     if (restaurantSettings?.hours_config) {
       setServiceHoursConfig(restaurantSettings.hours_config);
+    } else {
+      setServiceHoursConfig(null);
     }
-  }, [restaurantSettings]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && slug) {
-      const rId = getRestaurantId(slug);
-      const loadConfig = () => {
-        const stored =
-          localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
-          localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-        if (stored) {
-          try {
-            setServiceHoursConfig(JSON.parse(stored));
-          } catch (e) {
-            console.error('Error loading service hours in storefront:', e);
-          }
-        } else {
-          setServiceHoursConfig(null);
-        }
-      };
-
-      loadConfig();
-
-      const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === STORAGE_KEYS.serviceHours(rId) || e.key === STORAGE_KEYS.serviceHours(slug)) {
-          loadConfig();
-        }
-      };
-      window.addEventListener('storage', handleStorageChange);
-
-      const handleCustomEvent = () => {
-        loadConfig();
-      };
-      window.addEventListener(`iGO_service_hours_${rId}_updated`, handleCustomEvent);
-      window.addEventListener(`iGO_service_hours_${slug}_updated`, handleCustomEvent);
-
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener(`iGO_service_hours_${rId}_updated`, handleCustomEvent);
-        window.removeEventListener(`iGO_service_hours_${slug}_updated`, handleCustomEvent);
-      };
-    }
-  }, [slug]);
+  }, [restaurantSettings?.hours_config]);
 
   const [menuItemsList, setMenuItemsList] = useState<MenuItemType[]>([]);
   const [categoriesList, setCategoriesList] = useState<{ name: string; name_en?: string }[]>([]);
@@ -3846,14 +3831,15 @@ function StorefrontContent() {
 
   // Dynamic categories list based on loaded menu items
   const categories = [
+    'Tutti',
     'Promozioni',
     ...Array.from(
-      new Set(menuItemsList.map((item) => item.category).filter((cat) => cat !== 'Promozioni'))
+      new Set(menuItemsList.map((item) => item.category).filter((cat) => cat !== 'Promozioni' && cat !== 'Tutti'))
     ),
   ];
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState('Promozioni');
+  const [activeCategory, setActiveCategory] = useState('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -4658,20 +4644,7 @@ function StorefrontContent() {
 
   const checkServiceOpen = React.useCallback(
     (serviceType: 'pickup' | 'delivery' | 'reservation') => {
-      let config = serviceHoursConfig;
-      if (!config && typeof window !== 'undefined') {
-        const rId = getRestaurantId(slug);
-        const stored =
-          localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
-          localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-        if (stored) {
-          try {
-            config = JSON.parse(stored);
-          } catch (e) {
-            /* ignore */
-          }
-        }
-      }
+      const config = serviceHoursConfig;
 
       if (config) {
         // Controllo chiusura temporanea (es. ferie)
@@ -4743,20 +4716,7 @@ function StorefrontContent() {
     [serviceHoursConfig, slug, restaurantSettings, getCurrentDateStr]
   );
   const getClosedReason = () => {
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored =
-        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
-        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
+    const config = serviceHoursConfig;
 
     const activeType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -5227,20 +5187,7 @@ function StorefrontContent() {
   const isCurrentlyClosed = isMounted ? !checkServiceOpen(activeServiceType) : false;
 
   const isTemporaryClosure = React.useMemo(() => {
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored =
-        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
-        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
+    const config = serviceHoursConfig;
     if (
       config?.temporaryClosure?.enabled &&
       config.temporaryClosure.from &&
@@ -5255,23 +5202,10 @@ function StorefrontContent() {
       }
     }
     return false;
-  }, [serviceHoursConfig, slug, getCurrentDateStr]);
+  }, [serviceHoursConfig, getCurrentDateStr]);
 
   const closureMessage = React.useMemo(() => {
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored =
-        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
-        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
+    const config = serviceHoursConfig;
     if (
       config?.temporaryClosure?.enabled &&
       config.temporaryClosure.from &&
@@ -5289,7 +5223,7 @@ function StorefrontContent() {
       }
     }
     return null;
-  }, [serviceHoursConfig, slug, getCurrentDateStr]);
+  }, [serviceHoursConfig, getCurrentDateStr]);
 
   const isPreOrderAllowed = React.useMemo(() => {
     if (isTemporaryClosure) return false;
@@ -5328,20 +5262,7 @@ function StorefrontContent() {
   const formattedTodayHours = React.useMemo(() => {
     if (!isMounted) return '';
 
-    let config = serviceHoursConfig;
-    if (!config && typeof window !== 'undefined') {
-      const rId = getRestaurantId(slug);
-      const stored =
-        localStorage.getItem(STORAGE_KEYS.serviceHours(rId)) ||
-        localStorage.getItem(STORAGE_KEYS.serviceHours(slug));
-      if (stored) {
-        try {
-          config = JSON.parse(stored);
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
+    const config = serviceHoursConfig;
 
     if (
       config?.temporaryClosure?.enabled &&
@@ -5559,9 +5480,11 @@ function StorefrontContent() {
 
   const displayedItems = searchQuery
     ? filteredItems
-    : activeCategory === 'Promozioni'
-      ? promoItems
-      : menuItemsList.filter((i) => i.category === activeCategory);
+    : activeCategory === 'Tutti'
+      ? menuItemsList
+      : activeCategory === 'Promozioni'
+        ? promoItems
+        : menuItemsList.filter((i) => i.category === activeCategory);
 
   const handleCategoryClick = (cat: string) => {
     setActiveCategory(cat);
@@ -5965,34 +5888,7 @@ function StorefrontContent() {
             </div>
           ) : (
             <div>
-              {/* Promo Carousel (Glovo style) */}
-              {activeCategory !== 'Promozioni' && promoItems.length > 0 && (
-                <div className="mb-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-extrabold text-foreground flex items-center gap-2">
-                      <span className="text-red-500">🏷️</span>
-                      <span>{getDisplayCategoryName('Promozioni')}</span>
-                    </h3>
-                  </div>
-                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0">
-                    {promoItems.map((item) => (
-                      <div
-                        key={`promo-carousel-${item.id}`}
-                        className="w-[170px] sm:w-[200px] flex-shrink-0"
-                      >
-                        <MenuItemCard
-                          item={item}
-                          cart={cart}
-                          onAdd={addToCart}
-                          onCustomize={setCustomizingItem}
-                          onRemove={removeFromCart}
-                          compact={true}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               <div className="flex items-center gap-3 mb-5">
                 <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
@@ -6475,7 +6371,7 @@ function StorefrontContent() {
                     !bookingName.trim() ||
                     !bookingPhone.trim()
                   }
-                  onClick={() => {
+                  onClick={async () => {
                     // Submit Solo Tavolo
                     try {
                       localStorage.setItem(
@@ -6483,49 +6379,52 @@ function StorefrontContent() {
                         JSON.stringify({ name: bookingName, phone: bookingPhone })
                       );
                       const rId = getRestaurantId(slug);
-                      const bookingsKey = STORAGE_KEYS.bookings(rId);
-                      const existingStr = localStorage.getItem(bookingsKey);
-                      let bookingsArray: any[] = [];
-                      if (existingStr) {
-                        try {
-                          bookingsArray = JSON.parse(existingStr);
-                        } catch (e) {
-                          console.error(e);
-                        }
+                      if (!rId) {
+                        alert('Errore: Ristorante non identificato');
+                        return;
                       }
-                      const newBooking = {
-                        id: `booking-${Date.now()}`,
-                        restaurantId: rId,
+
+                      const bookingPayload = {
+                        restaurant_id: rId,
                         name: bookingName.trim(),
                         phone: bookingPhone.trim(),
                         email: '',
                         guests: bookingGuests,
                         date: bookingDate,
-                        time: bookingTime,
+                        time: `${bookingTime}:00`,
                         status: 'pending',
                         notes: bookingNote.trim(),
-                        preOrderItems: [],
-                        createdAt: new Date().toISOString(),
+                        pre_order_items: [],
+                        pre_order_total: 0,
                       };
-                      bookingsArray.push(newBooking);
-                      localStorage.setItem(bookingsKey, JSON.stringify(bookingsArray));
 
-                      const trackedOrder = {
-                        ...newBooking,
+                      const { data: bookingData, error: bookingError } = await supabase
+                        .from('bookings')
+                        .insert(bookingPayload)
+                        .select()
+                        .single();
+
+                      if (bookingError || !bookingData) {
+                        throw bookingError || new Error("Errore durante l'inserimento della prenotazione");
+                      }
+
+                      const trackedBooking = {
+                        ...bookingData,
                         type: 'prenotazione_tavolo',
-                        customerName: bookingName,
+                        timestamp: bookingData.created_at,
                         total: 0,
                       };
-                      setLastCreatedOrder(trackedOrder);
+
+                      setLastCreatedOrder(trackedBooking);
                       sessionStorage.setItem(
                         `iGO_last_order_${slug}`,
-                        JSON.stringify(trackedOrder)
+                        JSON.stringify(trackedBooking)
                       );
 
-                      window.dispatchEvent(new Event('iGO_bookings_updated'));
                       setBookingConfirmed(true);
-                    } catch (err) {
+                    } catch (err: any) {
                       console.error('Error saving booking:', err);
+                      alert('Errore durante il salvataggio della prenotazione: ' + (err.message || err));
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 border border-border hover:bg-muted text-foreground py-3 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"

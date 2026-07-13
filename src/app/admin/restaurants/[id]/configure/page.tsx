@@ -240,6 +240,7 @@ export default function RestaurantConfigurePage() {
   const [restaurantStatus, setRestaurantStatus] = useState<string>('draft');
   const [initialStatus, setInitialStatus] = useState<string>('draft');
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const [dbHoursConfig, setDbHoursConfig] = useState<any>(null);
 
   const [info, setInfo] = useState<RestaurantInfo>({
     name: '',
@@ -564,26 +565,15 @@ export default function RestaurantConfigurePage() {
           serviceEnabled: true,
         };
 
-        // Try reading extra tableBooking settings from localStorage or defaults
+        // Try reading extra tableBooking settings from DB (hours_config) or defaults
         try {
-          const rawSlug = infoData.name
-            ? infoData.name
-                .toLowerCase()
-                .replace(/ /g, '-')
-                .replace(/[^\w-]+/g, '')
-            : restaurantId;
-          const storedSettingsStr =
-            localStorage.getItem(`iGO_settings_${restaurantId}`) ||
-            localStorage.getItem(`iGO_settings_${rawSlug}`);
-          if (storedSettingsStr) {
-            const stored = JSON.parse(storedSettingsStr);
-            const tb = stored.tableBooking;
-            if (tb) {
-              tableBookingData.maxGuests = tb.maxGuests ?? 8;
-              tableBookingData.slotDuration = tb.slotDuration ?? 90;
-              tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
-              tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
-            }
+          const hoursConfig = restaurant.hours_config as any;
+          const tb = hoursConfig?.tableBooking;
+          if (tb) {
+            tableBookingData.maxGuests = tb.maxGuests ?? 8;
+            tableBookingData.slotDuration = tb.slotDuration ?? 90;
+            tableBookingData.advanceBookingDays = tb.advanceBookingDays ?? 30;
+            tableBookingData.serviceEnabled = tb.serviceEnabled ?? true;
           }
         } catch (e) {
           /* ignore */
@@ -629,6 +619,7 @@ export default function RestaurantConfigurePage() {
         let temporaryClosureData = { enabled: false, from: '', to: '', message: '' };
 
         if (restaurant.hours_config) {
+          setDbHoursConfig(restaurant.hours_config);
           const parsed = restaurant.hours_config as any;
           const rawServiceHours = parsed.serviceHours;
           const rawUseGeneral = parsed.useGeneral;
@@ -737,6 +728,7 @@ export default function RestaurantConfigurePage() {
             deliveryFee: Number(z.delivery_fee) || 0,
             freeDeliveryThreshold: Number(z.free_delivery_threshold) || 0,
             enabled: !!z.enabled,
+            caps: z.caps || '',
           }));
         }
         setZones(zonesData);
@@ -1062,13 +1054,7 @@ export default function RestaurantConfigurePage() {
         reservation: convertHoursToStorage(bookingHours.hours),
       };
 
-      let existingHoursData = {};
-      try {
-        const stored = localStorage.getItem(`iGO_service_hours_${restaurantId}`);
-        if (stored) existingHoursData = JSON.parse(stored);
-      } catch (e) {
-        /* ignore */
-      }
+      const existingHoursData = dbHoursConfig || {};
 
       const serviceHoursDataToSave = {
         ...existingHoursData,
@@ -1080,6 +1066,7 @@ export default function RestaurantConfigurePage() {
         },
         serviceSuspended: serviceSuspended,
         temporaryClosure: temporaryClosure,
+        tableBooking: tableBooking,
       };
 
       // --- SUPABASE SYNC ---
@@ -1182,6 +1169,48 @@ export default function RestaurantConfigurePage() {
         );
       }
 
+      // 1b. Synchronize restaurant_hours table
+      const dayMapping: Record<string, number> = {
+        Lunedì: 0,
+        Martedì: 1,
+        Mercoledì: 2,
+        Giovedì: 3,
+        Venerdì: 4,
+        Sabato: 5,
+        Domenica: 6,
+      };
+
+      const hoursToUpsert = DAYS.map((dayName) => {
+        const dayIdx = dayMapping[dayName];
+        const dayData = serviceHoursObj.general[dayName] || {
+          enabled: true,
+          lunch: { from: '12:00', to: '14:30' },
+          dinner: { from: '19:00', to: '22:30' },
+        };
+        return {
+          restaurant_id: restaurantId,
+          day_of_week: dayIdx,
+          is_open: !!dayData.enabled,
+          lunch_from: dayData.lunch?.from ? `${dayData.lunch.from}:00` : null,
+          lunch_to: dayData.lunch?.to ? `${dayData.lunch.to}:00` : null,
+          lunch_enabled: dayData.lunchEnabled !== false,
+          dinner_from: dayData.dinner?.from ? `${dayData.dinner.from}:00` : null,
+          dinner_to: dayData.dinner?.to ? `${dayData.dinner.to}:00` : null,
+          dinner_enabled: dayData.dinnerEnabled !== false,
+        };
+      });
+
+      const { error: hoursError } = await supabase
+        .from('restaurant_hours')
+        .upsert(hoursToUpsert, { onConflict: 'restaurant_id,day_of_week' });
+
+      if (hoursError) {
+        console.warn(
+          'Failed to update Supabase restaurant_hours table:',
+          hoursError.message || hoursError
+        );
+      }
+
       // 2. Sync delivery zones
       await supabase.from('delivery_zones').delete().eq('restaurant_id', restaurantId);
       if (zones.length > 0) {
@@ -1193,6 +1222,7 @@ export default function RestaurantConfigurePage() {
           delivery_fee: z.deliveryFee,
           free_delivery_threshold: z.freeDeliveryThreshold,
           enabled: z.enabled,
+          caps: z.caps || '',
         }));
         const { error: zonesErr } = await supabase.from('delivery_zones').insert(zonesPayload);
         if (zonesErr) {
@@ -1434,119 +1464,6 @@ export default function RestaurantConfigurePage() {
         await supabase.from('promos').delete().eq('restaurant_id', restaurantId);
       }
 
-      // --- LOCAL STORAGE BACKUPS (For compatibility) ---
-      localStorage.setItem(
-        `iGO_service_hours_${restaurantId}`,
-        JSON.stringify(serviceHoursDataToSave)
-      );
-      localStorage.setItem(`iGO_zones_${restaurantId}`, JSON.stringify(zones));
-
-      const settingsObj = {
-        profile: {
-          name: info.name,
-          logoUrl: info.logoUrl,
-          backgroundImageUrl: info.backgroundImageUrl,
-          description: info.description,
-          phone: info.phone,
-          email: info.email,
-          website: info.website,
-          address: info.address,
-          city: info.city,
-          province: info.province,
-          cap: info.cap,
-          vatNumber: info.vatNumber,
-        },
-        minOrder: zones[0]?.minOrder || 0,
-        deliveryFee: zones[0]?.deliveryFee || 0,
-        freeDeliveryActive: (zones[0]?.freeDeliveryThreshold || 0) > 0,
-        freeDeliveryThreshold: zones[0]?.freeDeliveryThreshold || 0,
-        paymentMethods: {
-          card_delivery: paymentConfig.card_delivery,
-          card_pickup: paymentConfig.card_pickup,
-          card_table: paymentConfig.card_table,
-          cash_delivery: paymentConfig.cash_delivery,
-          cash_pickup: paymentConfig.cash_pickup,
-          cash_table: paymentConfig.cash_table,
-          cash: paymentConfig.cash_delivery || paymentConfig.cash_pickup || paymentConfig.cash_table,
-          card: paymentConfig.card_delivery || paymentConfig.card_pickup || paymentConfig.card_table,
-          stripe_enabled: paymentConfig.stripe_enabled,
-          stripe_connected: paymentConfig.stripe_connected,
-          stripe_account_label: paymentConfig.stripe_account_label,
-          stripe_delivery: paymentConfig.stripe_delivery,
-          stripe_pickup: paymentConfig.stripe_pickup,
-          stripe_table: paymentConfig.stripe_table,
-          paypal_enabled: paymentConfig.paypal_enabled,
-          paypal_connected: paymentConfig.paypal_connected,
-          paypal_email: paymentConfig.paypal_email,
-          paypal_delivery: paymentConfig.paypal_delivery,
-          paypal_pickup: paymentConfig.paypal_pickup,
-          paypal_table: paymentConfig.paypal_table,
-          iban_enabled: paymentConfig.iban_enabled,
-          onlinePaymentAccount: paymentConfig.onlinePaymentAccount,
-          ibanHolder: paymentConfig.ibanHolder,
-        },
-        orderModes: {
-          delivery: zones.some((z) => z.enabled),
-          pickup: true,
-          table: tableBooking.enabled,
-        },
-        tableBooking,
-        scheduledOrders,
-      };
-      localStorage.setItem(`iGO_settings_${restaurantId}`, JSON.stringify(settingsObj));
-      localStorage.setItem(`iGO_settings_${slug}`, JSON.stringify(settingsObj));
-      localStorage.setItem(`iGO_tables_${slug}`, tableCount.toString());
-      localStorage.setItem(`iGO_menu_items_${slug}`, JSON.stringify(domainMenuItems));
-      localStorage.setItem(`iGO_menu_items_${restaurantId}`, JSON.stringify(domainMenuItems));
-      localStorage.setItem(`iGO_promos_${restaurantId}`, JSON.stringify(promos));
-
-      const saveRestaurantInList = (key: string) => {
-        try {
-          const list = JSON.parse(localStorage.getItem(key) || '[]');
-          const idx = list.findIndex((r: any) => r.id === restaurantId);
-          const updatedRestaurant = {
-            ...(idx >= 0 ? list[idx] : {}),
-            id: restaurantId,
-            name: info.name,
-            address: info.address,
-            city: info.city,
-            status: restaurantStatus,
-            owner: info.name + ' Owner',
-            email: info.email,
-            phone: info.phone,
-            createdAt:
-              idx >= 0
-                ? list[idx].createdAt || new Date().toISOString().split('T')[0]
-                : new Date().toISOString().split('T')[0],
-            menuItems: domainMenuItems.length,
-            category: info.category,
-            hours: hours,
-            serviceHours: serviceHoursObj,
-            useGeneral: {
-              pickup: !pickupHours.useCustom,
-              delivery: !deliveryHours.useCustom,
-              reservation: !bookingHours.useCustom,
-            },
-            serviceSuspended: serviceSuspended,
-            temporaryClosure: temporaryClosure,
-            zones: zones,
-            paymentMethods: settingsObj.paymentMethods,
-            tableBooking,
-            scheduledOrders,
-          };
-
-          if (idx >= 0) {
-            list[idx] = updatedRestaurant;
-          } else {
-            list.push(updatedRestaurant);
-          }
-          localStorage.setItem(key, JSON.stringify(list));
-        } catch (e) {
-          /* ignore */
-        }
-      };
-      saveRestaurantInList('iGOdelivering_restaurants');
-
       // 2. Trigger activation email if status transitioned from not-published to published
       if (restaurantStatus === 'published' && initialStatus !== 'published') {
         try {
@@ -1571,6 +1488,7 @@ export default function RestaurantConfigurePage() {
       } else if (restaurantStatus !== initialStatus) {
         setInitialStatus(restaurantStatus);
       }
+      setDbHoursConfig(serviceHoursDataToSave);
 
       // Dispatch change notifications
       window.dispatchEvent(new CustomEvent('iGO_settings_updated'));
@@ -2301,10 +2219,6 @@ export default function RestaurantConfigurePage() {
                         type="button"
                         onClick={() => {
                           setTableCount(tempTableCount);
-                          localStorage.setItem(
-                            `iGO_tables_${restaurantSlug}`,
-                            tempTableCount.toString()
-                          );
                           setSaveSuccess(true);
                           setTimeout(() => setSaveSuccess(false), 2000);
                         }}

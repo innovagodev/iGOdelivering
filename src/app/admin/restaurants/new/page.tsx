@@ -533,6 +533,7 @@ export default function NewRestaurantPage() {
       },
       serviceSuspended,
       temporaryClosure,
+      tableBooking,
     };
 
     const settingsObj = {
@@ -697,6 +698,48 @@ export default function NewRestaurantPage() {
     // ── Sync to Supabase: delivery_zones, menu_categories, menu_items ──
     if (dbRestaurantId) {
       try {
+        // 0. Synchronize restaurant_hours table
+        const dayMapping: Record<string, number> = {
+          Lunedì: 0,
+          Martedì: 1,
+          Mercoledì: 2,
+          Giovedì: 3,
+          Venerdì: 4,
+          Sabato: 5,
+          Domenica: 6,
+        };
+
+        const hoursToUpsert = DAYS.map((dayName) => {
+          const dayIdx = dayMapping[dayName];
+          const dayData = serviceHoursObj.general[dayName] || {
+            enabled: true,
+            lunch: { from: '12:00', to: '14:30' },
+            dinner: { from: '19:00', to: '22:30' },
+          };
+          return {
+            restaurant_id: dbRestaurantId,
+            day_of_week: dayIdx,
+            is_open: !!dayData.enabled,
+            lunch_from: dayData.lunch?.from ? `${dayData.lunch.from}:00` : null,
+            lunch_to: dayData.lunch?.to ? `${dayData.lunch.to}:00` : null,
+            lunch_enabled: dayData.lunchEnabled !== false,
+            dinner_from: dayData.dinner?.from ? `${dayData.dinner.from}:00` : null,
+            dinner_to: dayData.dinner?.to ? `${dayData.dinner.to}:00` : null,
+            dinner_enabled: dayData.dinnerEnabled !== false,
+          };
+        });
+
+        const { error: hoursError } = await supabase
+          .from('restaurant_hours')
+          .upsert(hoursToUpsert, { onConflict: 'restaurant_id,day_of_week' });
+
+        if (hoursError) {
+          console.warn(
+            'Failed to update Supabase restaurant_hours table:',
+            hoursError.message || hoursError
+          );
+        }
+
         // 1. Delivery Zones — upsert (delete existing then re-insert for simplicity on re-save)
         await supabase.from('delivery_zones').delete().eq('restaurant_id', dbRestaurantId);
         if (zones.length > 0) {
@@ -708,6 +751,7 @@ export default function NewRestaurantPage() {
             delivery_fee: z.deliveryFee,
             free_delivery_threshold: z.freeDeliveryThreshold,
             enabled: z.enabled,
+            caps: z.caps || '',
           }));
           const { error: zonesErr } = await supabase.from('delivery_zones').insert(zonesPayload);
           if (zonesErr) {

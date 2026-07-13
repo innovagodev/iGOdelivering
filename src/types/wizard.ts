@@ -53,6 +53,7 @@ export interface DeliveryZone {
   deliveryFee: number;
   freeDeliveryThreshold: number;
   enabled: boolean;
+  caps?: string;
 }
 
 export interface ScheduledOrdersConfig {

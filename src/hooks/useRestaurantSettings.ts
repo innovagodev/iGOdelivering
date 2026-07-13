@@ -111,8 +111,48 @@ export function useRestaurantSettings(slugOrId: string) {
       if (restaurant) {
         // Map hours (deduplicating and sorting unique lunch & dinner slots)
         const rawHours = restaurant.restaurant_hours || [];
+        const hoursConfig = restaurant.hours_config;
         let openingHours = DEFAULT_SETTINGS.openingHours;
-        if (rawHours.length > 0) {
+        let deliveryHours = DEFAULT_SETTINGS.openingHours;
+
+        const parseHoursConfig = (serviceType: 'pickup' | 'delivery' | 'general') => {
+          if (!hoursConfig || !hoursConfig.serviceHours) {
+            return [];
+          }
+          const useGeneral =
+            serviceType !== 'general' &&
+            hoursConfig.useGeneral?.[serviceType] !== false &&
+            !!hoursConfig.serviceHours?.general;
+          const targetHoursKey = useGeneral ? 'general' : serviceType;
+          const dayConfigObj = hoursConfig.serviceHours[targetHoursKey];
+          if (!dayConfigObj) return [];
+
+          const slotsMap = new Map<string, { start: string; end: string }>();
+          Object.keys(dayConfigObj).forEach((day) => {
+            const h = dayConfigObj[day];
+            if (!h || h.enabled === false) return;
+            if (h.lunchEnabled !== false && h.lunch?.from && h.lunch?.to) {
+              const start = h.lunch.from.slice(0, 5);
+              const end = h.lunch.to.slice(0, 5);
+              slotsMap.set(`${start}-${end}`, { start, end });
+            }
+            if (h.dinnerEnabled !== false && h.dinner?.from && h.dinner?.to) {
+              const start = h.dinner.from.slice(0, 5);
+              const end = h.dinner.to.slice(0, 5);
+              slotsMap.set(`${start}-${end}`, { start, end });
+            }
+          });
+          return Array.from(slotsMap.values()).sort((a, b) => a.start.localeCompare(b.start));
+        };
+
+        if (hoursConfig && hoursConfig.serviceHours?.general) {
+          const generalHours = parseHoursConfig('general');
+          const pickupCustom = parseHoursConfig('pickup');
+          const deliveryCustom = parseHoursConfig('delivery');
+
+          openingHours = pickupCustom.length > 0 ? pickupCustom : generalHours;
+          deliveryHours = deliveryCustom.length > 0 ? deliveryCustom : generalHours;
+        } else if (rawHours.length > 0) {
           const slotsMap = new Map<string, { start: string; end: string }>();
           rawHours.forEach((h: any) => {
             if (!h.is_open) return;
@@ -127,10 +167,12 @@ export function useRestaurantSettings(slugOrId: string) {
               slotsMap.set(`${start}-${end}`, { start, end });
             }
           });
-          openingHours =
+          const parsedRaw =
             slotsMap.size > 0
               ? Array.from(slotsMap.values()).sort((a, b) => a.start.localeCompare(b.start))
               : [];
+          openingHours = parsedRaw;
+          deliveryHours = parsedRaw;
         }
 
         const unified: UnifiedSettings = {
@@ -185,7 +227,7 @@ export function useRestaurantSettings(slugOrId: string) {
           },
           scheduledOrders: restaurant.scheduled_orders || undefined,
           openingHours,
-          deliveryHours: openingHours,
+          deliveryHours,
           hours_config: restaurant.hours_config,
         };
 
