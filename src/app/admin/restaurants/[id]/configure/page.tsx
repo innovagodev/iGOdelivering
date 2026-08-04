@@ -1254,11 +1254,11 @@ export default function RestaurantConfigurePage() {
           await supabase.from('menu_categories').delete().in('id', catsToDelete);
         }
 
-        // Upsert categories (keeping existing IDs)
+        // Upsert categories (keeping existing IDs, assigning new UUIDs for new ones)
         const catsPayload = menuCategories.map((cat, idx) => {
           const existing = dbCatsList.find((c: any) => c.name === cat.name);
           return {
-            ...(existing ? { id: existing.id } : {}),
+            id: existing ? existing.id : crypto.randomUUID(),
             restaurant_id: restaurantId,
             name: cat.name,
             name_en: cat.name_en || null,
@@ -1350,6 +1350,7 @@ export default function RestaurantConfigurePage() {
               );
 
               const payloadItem: any = {
+                id: isUuid ? item.id : crypto.randomUUID(),
                 restaurant_id: restaurantId,
                 category_id: catMap[item.category] || null,
                 category_name: item.category,
@@ -1377,10 +1378,6 @@ export default function RestaurantConfigurePage() {
                 sort_order: 0,
               };
 
-              if (isUuid) {
-                payloadItem.id = item.id;
-              }
-
               return payloadItem;
             })
           );
@@ -1393,7 +1390,7 @@ export default function RestaurantConfigurePage() {
           }
 
           // Delete items that are no longer in frontend state
-          const activeItemIds = menuItems.map((item) => item.id).filter(Boolean);
+          const activeItemIds = itemsPayload.map((item: any) => item.id).filter(Boolean);
           if (activeItemIds.length > 0) {
             const { error: delErr } = await supabase
               .from('menu_items')
@@ -1417,6 +1414,7 @@ export default function RestaurantConfigurePage() {
             p.id
           );
           const payloadItem: any = {
+            id: isUuid ? p.id : crypto.randomUUID(),
             restaurant_id: restaurantId,
             code: p.code,
             type: p.type === 'fixed_amount' ? 'fixed' : p.type,
@@ -1435,10 +1433,6 @@ export default function RestaurantConfigurePage() {
             ],
           };
 
-          if (isUuid) {
-            payloadItem.id = p.id;
-          }
-
           return payloadItem;
         });
 
@@ -1449,7 +1443,7 @@ export default function RestaurantConfigurePage() {
         }
 
         // Delete promos that are no longer in frontend state
-        const activePromoIds = promos.map((p) => p.id).filter(Boolean);
+        const activePromoIds = promosPayload.map((p: any) => p.id).filter(Boolean);
         if (activePromoIds.length > 0) {
           const { error: delPromoErr } = await supabase
             .from('promos')
