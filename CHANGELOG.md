@@ -2,8 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [1.27.2](https://github.com/innovagodev/iGOdelivering/compare/v1.27.1...v1.27.2) (2026-07-13)
+### [1.27.2](https://github.com/innovagodev/iGOdelivering/compare/v1.27.1...v1.27.2) (2026-08-04)
 
+### Bug Fixes
+
+* risolto errore id null su upsert categorie, piatti e promozioni in configurazione ristorante ([4779eef](https://github.com/innovagodev/iGOdelivering/commit/4779eef))
 
 ### Features
 
