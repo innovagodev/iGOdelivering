@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Leaf,
@@ -26,6 +27,7 @@ import {
   Pizza,
   Snowflake,
   Vegan,
+  ArrowUpDown,
 } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import { DISH_TAGS_LIST } from '@/lib/constants';
@@ -175,6 +177,7 @@ interface MenuStepProps {
   editGroupDefaultOptionEn: string;
   setEditGroupDefaultOptionEn: (val: string) => void;
   menuItems: MenuItemWizardDraft[];
+  setMenuItems?: React.Dispatch<React.SetStateAction<MenuItemWizardDraft[]>>;
   newItem: MenuItemWizardDraft;
   setNewItem: React.Dispatch<React.SetStateAction<MenuItemWizardDraft>>;
   showAddItem: boolean;
@@ -190,6 +193,8 @@ interface MenuStepProps {
   toggleVisibilityDay: (day: string) => void;
   days: string[];
   allergensList: string[];
+  onSortNewGroupChoices?: (direction: 'asc' | 'desc') => void;
+  onSortEditGroupChoices?: (direction: 'asc' | 'desc') => void;
 }
 
 export default function MenuStep({
@@ -240,6 +245,7 @@ export default function MenuStep({
   editGroupDefaultOptionEn,
   setEditGroupDefaultOptionEn,
   menuItems,
+  setMenuItems,
   newItem,
   setNewItem,
   showAddItem,
@@ -255,7 +261,11 @@ export default function MenuStep({
   toggleVisibilityDay,
   days,
   allergensList,
+  onSortNewGroupChoices,
+  onSortEditGroupChoices,
 }: MenuStepProps) {
+  const itemFormRef = React.useRef<HTMLDivElement>(null);
+
   const moveCategory = (index: number, direction: 'left' | 'right') => {
     const newCategories = [...menuCategories];
     const targetIndex = direction === 'left' ? index - 1 : index + 1;
@@ -267,6 +277,75 @@ export default function MenuStep({
 
     setMenuCategories(newCategories);
   };
+
+  const moveMenuItem = (id: string, direction: 'up' | 'down') => {
+    if (!setMenuItems) return;
+    setMenuItems((prev) => {
+      const idx = prev.findIndex((i) => i.id === id);
+      if (idx === -1) return prev;
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(idx, 1);
+      next.splice(targetIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const handleOpenAddForm = (categoryName?: string) => {
+    if (menuCategories.length === 0) {
+      alert('Aggiungi prima almeno una categoria menu.');
+      return;
+    }
+    const selectedCategory = categoryName || menuCategories[0]?.name || 'Pizza';
+    setNewItem({
+      id: '',
+      name: '',
+      category: selectedCategory,
+      price: '',
+      originalPrice: '',
+      description: '',
+      available: true,
+      imageUrl: '',
+      imageFile: null,
+      allergens: [],
+      dishTags: [],
+      ingredients: [],
+      optionGroups: [],
+      singleSupplements: [],
+      visibility: {
+        mode: 'always',
+        timeFrom: '10:00',
+        timeTo: '15:00',
+        days: [...days],
+        dateFrom: '',
+        dateFromTime: '10:00',
+        dateTo: '',
+        dateToTime: '15:00',
+      },
+      customizationEnabled: true,
+      notesEnabled: true,
+    });
+    setShowAddItem(true);
+    setTimeout(() => {
+      itemFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  };
+
+  const handleEditDish = (item: MenuItemWizardDraft) => {
+    setNewItem({ ...item });
+    setShowAddItem(true);
+    setTimeout(() => {
+      itemFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  };
+
+  const categoriesListToRender = React.useMemo(() => {
+    const definedCats = menuCategories.map((c) => c.name);
+    const itemCats = Array.from(new Set(menuItems.map((i) => i.category)));
+    const allCats = Array.from(new Set([...definedCats, ...itemCats]));
+    return allCats;
+  }, [menuCategories, menuItems]);
 
   const [isPromo, setIsPromo] = React.useState(!!newItem.originalPrice);
   const [newGroupMinSelections, setNewGroupMinSelections] = React.useState(0);
@@ -280,6 +359,18 @@ export default function MenuStep({
   const [newIngredientInput, setNewIngredientInput] = React.useState('');
   const [showErrors, setShowErrors] = React.useState(false);
   const [enSectionOpen, setEnSectionOpen] = React.useState(false);
+
+  const handleSortNewChoices = (direction: 'asc' | 'desc') => {
+    if (onSortNewGroupChoices) {
+      onSortNewGroupChoices(direction);
+    }
+  };
+
+  const handleSortEditChoices = (direction: 'asc' | 'desc') => {
+    if (onSortEditGroupChoices) {
+      onSortEditGroupChoices(direction);
+    }
+  };
 
   React.useEffect(() => {
     if (!showAddItem) {
@@ -814,9 +905,34 @@ export default function MenuStep({
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
-                Opzioni
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
+                  Opzioni
+                </p>
+                {newGroupChoices.length > 1 && (
+                  <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-0.5 shadow-2xs">
+                    <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                      <ArrowUpDown size={11} /> Ordina:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSortNewChoices('asc')}
+                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      title="Ordina A-Z"
+                    >
+                      A-Z
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSortNewChoices('desc')}
+                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      title="Ordina Z-A"
+                    >
+                      Z-A
+                    </button>
+                  </div>
+                )}
+              </div>
               {newGroupChoices.map((choice) => (
                 <div
                   key={choice.id}
@@ -1091,9 +1207,34 @@ export default function MenuStep({
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
-                Opzioni
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-left">
+                  Opzioni
+                </p>
+                {editGroupChoices.length > 1 && (
+                  <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-0.5 shadow-2xs">
+                    <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                      <ArrowUpDown size={11} /> Ordina:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSortEditChoices('asc')}
+                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      title="Ordina A-Z"
+                    >
+                      A-Z
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSortEditChoices('desc')}
+                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      title="Ordina Z-A"
+                    >
+                      Z-A
+                    </button>
+                  </div>
+                )}
+              </div>
               {editGroupChoices.map((choice) => (
                 <div
                   key={choice.id}
@@ -1172,125 +1313,191 @@ export default function MenuStep({
       </section>
 
       {/* ─── Dishes ─── */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">Piatti</p>
+      <section className="space-y-6">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div>
+            <h3 className="text-base font-bold text-foreground">Piatti Menu</h3>
+            <p className="text-xs text-muted-foreground">
+              I piatti sono divisi per categoria. Puoi riordinarli e aggiungerne di nuovi.
+            </p>
+          </div>
           <button
             type="button"
-            onClick={() => {
-              if (menuCategories.length === 0) {
-                alert('Aggiungi prima almeno una categoria menu.');
-                return;
-              }
-              setNewItem({
-                id: '',
-                name: '',
-                category: menuCategories[0]?.name || 'Pizza',
-                price: '',
-                originalPrice: '',
-                description: '',
-                available: true,
-                imageUrl: '',
-                imageFile: null,
-                allergens: [],
-                dishTags: [],
-                ingredients: [],
-                optionGroups: [],
-                singleSupplements: [],
-                visibility: {
-                  mode: 'always',
-                  timeFrom: '10:00',
-                  timeTo: '15:00',
-                  days: [...days],
-                  dateFrom: '',
-                  dateFromTime: '10:00',
-                  dateTo: '',
-                  dateToTime: '15:00',
-                },
-                customizationEnabled: true,
-                notesEnabled: true,
-              });
-              setShowAddItem(true);
-            }}
-            className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-hover transition-colors cursor-pointer"
+            onClick={() => handleOpenAddForm()}
+            className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-hover transition-colors cursor-pointer shadow-xs"
           >
             <Plus size={14} />
             Aggiungi Piatto
           </button>
         </div>
 
-        {/* Existing Items */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {menuItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-card border border-border rounded-xl overflow-hidden flex gap-4 p-3 group"
-            >
-              <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 overflow-hidden border border-border">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    <Upload size={20} />
+        {/* Categories Grouped Items */}
+        {categoriesListToRender.length === 0 ? (
+          <div className="text-center p-8 border border-dashed border-border rounded-2xl bg-card">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Aggiungi prima almeno una categoria menu per poter inserire i piatti.
+            </p>
+          </div>
+        ) : (
+          categoriesListToRender.map((catName) => {
+            const catItems = menuItems.filter((i) => i.category === catName);
+
+            return (
+              <div
+                key={`cat-section-${catName}`}
+                className="space-y-3 bg-card border border-border/80 rounded-2xl p-4 shadow-2xs"
+              >
+                {/* Category Header */}
+                <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-black text-primary uppercase tracking-wider">
+                      {catName}
+                    </span>
+                    <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full border border-border/40">
+                      {catItems.length} {catItems.length === 1 ? 'piatto' : 'piatti'}
+                    </span>
                   </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between">
-                  <p className="text-xs font-bold text-primary uppercase tracking-wider">
-                    {item.category}
-                  </p>
-                  <div className="flex items-center gap-1 opacity-70 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:hover:!opacity-100 transition-all">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewItem({ ...item });
-                        setShowAddItem(true);
-                      }}
-                      className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                      title="Modifica piatto"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeMenuItem(item.id)}
-                      className="p-1 text-muted-foreground hover:text-[var(--danger)] transition-colors cursor-pointer"
-                      title="Elimina piatto"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddForm(catName)}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus size={13} />
+                    + Aggiungi Piatto in {catName}
+                  </button>
                 </div>
-                <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
-                {item.ingredients && item.ingredients.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">
-                    {item.ingredients.join(', ')}
+
+                {/* Items Grid */}
+                {catItems.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-3 text-center">
+                    Nessun piatto presente in questa categoria.
                   </p>
-                )}
-                {item.originalPrice ? (
-                  <div className="mt-1 flex flex-col">
-                    <span className="text-xs text-muted-foreground line-through">
-                      €{parseFloat(item.price || '0').toFixed(2)}
-                    </span>
-                    <span className="text-sm font-bold text-foreground">
-                      €{parseFloat(item.originalPrice || '0').toFixed(2)}
-                    </span>
-                  </div>
                 ) : (
-                  <p className="text-sm font-bold text-foreground mt-1">
-                    €{parseFloat(item.price || '0').toFixed(2)}
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {catItems.map((item) => {
+                      const globalIdx = menuItems.findIndex((m) => m.id === item.id);
+                      const isFirst = globalIdx === 0;
+                      const isLast = globalIdx === menuItems.length - 1;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-muted/20 border border-border/70 hover:border-primary/40 rounded-xl overflow-hidden flex gap-3 p-3 group transition-all"
+                        >
+                          <div className="w-20 h-20 rounded-lg bg-muted flex-shrink-0 overflow-hidden border border-border/60">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                <Upload size={20} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-start justify-between gap-1">
+                                <p className="text-sm font-bold text-foreground truncate">
+                                  {item.name}
+                                </p>
+                                <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                  {/* Move Up/Down */}
+                                  <button
+                                    type="button"
+                                    disabled={isFirst}
+                                    onClick={() => moveMenuItem(item.id, 'up')}
+                                    className={`p-1 rounded hover:bg-muted transition-colors cursor-pointer ${
+                                      isFirst
+                                        ? 'opacity-30 cursor-not-allowed text-muted-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Sposta su"
+                                  >
+                                    <ChevronUp size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isLast}
+                                    onClick={() => moveMenuItem(item.id, 'down')}
+                                    className={`p-1 rounded hover:bg-muted transition-colors cursor-pointer ${
+                                      isLast
+                                        ? 'opacity-30 cursor-not-allowed text-muted-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Sposta giù"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditDish(item)}
+                                    className="p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                    title="Modifica piatto"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeMenuItem(item.id)}
+                                    className="p-1 text-muted-foreground hover:text-[var(--danger)] transition-colors cursor-pointer"
+                                    title="Elimina piatto"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                              {item.ingredients && item.ingredients.length > 0 && (
+                                <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">
+                                  {item.ingredients.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              {item.originalPrice ? (
+                                <div className="mt-1 flex items-baseline gap-1.5">
+                                  <span className="text-xs text-muted-foreground line-through">
+                                    €{parseFloat(item.price || '0').toFixed(2)}
+                                  </span>
+                                  <span className="text-sm font-extrabold text-primary">
+                                    €{parseFloat(item.originalPrice || '0').toFixed(2)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className="text-sm font-extrabold text-foreground mt-1">
+                                  €{parseFloat(item.price || '0').toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
-                {/* Visibility logic removed */}
               </div>
-            </div>
-          ))}
+            );
+          })
+        )}
+
+        {/* Global Add Piatto button under dishes */}
+        <div className="flex justify-center pt-2">
+          <button
+            type="button"
+            onClick={() => handleOpenAddForm()}
+            className="bg-primary text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-hover transition-all shadow-sm cursor-pointer active:scale-95"
+          >
+            <Plus size={15} />
+            + Aggiungi Piatto
+          </button>
         </div>
 
         {/* Add Piatto Form */}
         {showAddItem && (
-          <div className="bg-muted/40 border-2 border-dashed border-border rounded-2xl p-6 space-y-6">
+          <div ref={itemFormRef} className="bg-muted/40 border-2 border-dashed border-border rounded-2xl p-6 space-y-6 animate-fade-in">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-base font-bold text-foreground">
                 {newItem.id ? 'Modifica Piatto' : 'Aggiungi Nuovo Piatto'}

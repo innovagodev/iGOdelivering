@@ -162,6 +162,30 @@ export default function RistoratoreMenuPage() {
     }
   };
 
+  const moveMenuItem = async (id: string, direction: 'up' | 'down') => {
+    const idx = items.findIndex((i) => i.id === id);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= items.length) return;
+
+    const next = [...items];
+    const [moved] = next.splice(idx, 1);
+    next.splice(targetIdx, 0, moved);
+    setItems(next);
+
+    try {
+      const updates = next.map((item, index) => ({
+        id: item.id,
+        sort_order: index,
+      }));
+      for (const u of updates) {
+        await supabase.from('menu_items').update({ sort_order: u.sort_order }).eq('id', u.id);
+      }
+    } catch (e) {
+      console.error('Error updating menu item sort order:', e);
+    }
+  };
+
   const addCategory = async (cat: string) => {
     if (categories.includes(cat)) return;
     try {
@@ -507,6 +531,7 @@ export default function RistoratoreMenuPage() {
                   filteredItems={filtered}
                   toggleAvailability={toggleAvailability}
                   removeMenuItem={removeMenuItem}
+                  moveMenuItem={moveMenuItem}
                   pauseAllDishes={async () => {
                     try {
                       const { error } = await supabase

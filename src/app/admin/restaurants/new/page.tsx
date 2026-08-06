@@ -784,7 +784,7 @@ export default function NewRestaurantPage() {
             const catMap = Object.fromEntries(savedCats.map((c: any) => [c.name, c.id]));
 
             const itemsPayload = await Promise.all(
-              menuItems.map(async (item) => {
+              menuItems.map(async (item, itemIdx) => {
                 const isPromoActive = !!item.originalPrice && parseFloat(item.originalPrice) > 0;
                 const listPrice = parseFloat(item.price) || 0;
                 const promoPrice = isPromoActive ? parseFloat(item.originalPrice!) : undefined;
@@ -875,7 +875,7 @@ export default function NewRestaurantPage() {
                   option_groups: mappedOptionGroups,
                   customization_enabled: item.customizationEnabled ?? true,
                   notes_enabled: item.notesEnabled ?? true,
-                  sort_order: 0,
+                  sort_order: itemIdx,
                 };
               })
             );
@@ -1230,6 +1230,7 @@ export default function NewRestaurantPage() {
                 editGroupDefaultOptionEn={editGroupDefaultOptionEn}
                 setEditGroupDefaultOptionEn={setEditGroupDefaultOptionEn}
                 menuItems={menuItems}
+                setMenuItems={setMenuItems}
                 newItem={newItem}
                 setNewItem={setNewItem}
                 showAddItem={showAddItem}
@@ -1245,6 +1246,28 @@ export default function NewRestaurantPage() {
                 toggleVisibilityDay={toggleVisibilityDay}
                 days={DAYS}
                 allergensList={ALLERGENS_LIST}
+                onSortNewGroupChoices={(dir) =>
+                  setNewGroupChoices((prev) =>
+                    [...prev].sort((a, b) => {
+                      const cmp = (a.name || '').localeCompare(b.name || '', undefined, {
+                        sensitivity: 'base',
+                        numeric: true,
+                      });
+                      return dir === 'asc' ? cmp : -cmp;
+                    })
+                  )
+                }
+                onSortEditGroupChoices={(dir) =>
+                  setEditGroupChoices((prev) =>
+                    [...prev].sort((a, b) => {
+                      const cmp = (a.name || '').localeCompare(b.name || '', undefined, {
+                        sensitivity: 'base',
+                        numeric: true,
+                      });
+                      return dir === 'asc' ? cmp : -cmp;
+                    })
+                  )
+                }
               />
             )}
             {currentStep === 'review' && (

@@ -3763,8 +3763,9 @@ function StorefrontContent() {
       try {
         const { data, error } = await supabase
           .from('menu_categories')
-          .select('name, name_en')
-          .eq('restaurant_id', restaurantSettings.id);
+          .select('name, name_en, sort_order')
+          .eq('restaurant_id', restaurantSettings.id)
+          .order('sort_order', { ascending: true });
         if (error) throw error;
         if (data) {
           setCategoriesList(data);
@@ -3829,14 +3830,33 @@ function StorefrontContent() {
     loadMenuItems();
   }, [restaurantSettings?.id]);
 
-  // Dynamic categories list based on loaded menu items
-  const categories = [
-    'Tutti',
-    'Promozioni',
-    ...Array.from(
-      new Set(menuItemsList.map((item) => item.category).filter((cat) => cat !== 'Promozioni' && cat !== 'Tutti'))
-    ),
-  ];
+  // Dynamic categories list respecting backend sort_order
+  const categories = React.useMemo(() => {
+    const itemCategories = new Set(
+      menuItemsList
+        .map((item) => item.category)
+        .filter((cat) => cat && cat !== 'Promozioni' && cat !== 'Tutti')
+    );
+
+    const orderedCats: string[] = [];
+
+    // First add categories from DB in their configured sort_order
+    if (categoriesList.length > 0) {
+      categoriesList.forEach((c) => {
+        if (c.name && c.name !== 'Promozioni' && c.name !== 'Tutti') {
+          if (itemCategories.has(c.name)) {
+            orderedCats.push(c.name);
+            itemCategories.delete(c.name);
+          }
+        }
+      });
+    }
+
+    // Append any remaining categories from menuItemsList that weren't in categoriesList
+    itemCategories.forEach((cat) => orderedCats.push(cat));
+
+    return ['Tutti', 'Promozioni', ...orderedCats];
+  }, [categoriesList, menuItemsList]);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('Tutti');
@@ -5467,34 +5487,63 @@ function StorefrontContent() {
     actualDeliveryFee,
   ]);
 
-  const filteredItems = menuItemsList.filter(
+  const sortedMenuItemsList = React.useMemo(() => {
+    if (categoriesList.length === 0) return menuItemsList;
+    const catOrderMap = new Map<string, number>();
+    categoriesList.forEach((c, idx) => {
+      catOrderMap.set(c.name, idx);
+    });
+
+    return [...menuItemsList].sort((a, b) => {
+      const orderA = catOrderMap.has(a.category) ? catOrderMap.get(a.category)! : 9999;
+      const orderB = catOrderMap.has(b.category) ? catOrderMap.get(b.category)! : 9999;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return 0;
+    });
+  }, [menuItemsList, categoriesList]);
+
+  const filteredItems = sortedMenuItemsList.filter(
     (item) =>
       searchQuery === '' ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const promoItems = menuItemsList.filter(
+  const promoItems = sortedMenuItemsList.filter(
     (item) => item.originalPrice && item.originalPrice > item.price
   );
 
   const displayedItems = searchQuery
     ? filteredItems
     : activeCategory === 'Tutti'
-      ? menuItemsList
+      ? sortedMenuItemsList
       : activeCategory === 'Promozioni'
         ? promoItems
-        : menuItemsList.filter((i) => i.category === activeCategory);
+        : sortedMenuItemsList.filter((i) => i.category === activeCategory);
 
   const handleCategoryClick = (cat: string) => {
     setActiveCategory(cat);
-    const el = document.getElementById('menu-section');
-    if (el && lenisRef.current) {
-      lenisRef.current.scrollTo(el, {
-        offset: -128, // navbar header + sticky category bar
-        duration: 0.4,
-        immediate: false,
-      });
+    if (cat === 'Tutti') {
+      const el = document.getElementById('menu-section');
+      if (el && lenisRef.current) {
+        lenisRef.current.scrollTo(el, {
+          offset: -140,
+          duration: 0.4,
+          immediate: false,
+        });
+      }
+    } else {
+      const targetId = `cat-section-${encodeURIComponent(cat)}`;
+      const el = document.getElementById(targetId) || document.getElementById('menu-section');
+      if (el && lenisRef.current) {
+        lenisRef.current.scrollTo(el, {
+          offset: -140,
+          duration: 0.4,
+          immediate: false,
+        });
+      }
     }
   };
 
@@ -5831,7 +5880,7 @@ function StorefrontContent() {
         className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]'}`}
       >
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-10">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-3">
+          <div className="flex flex-wrap items-center gap-2 py-3">
             {categories.map((cat) => {
               const isActive = activeCategory === cat;
               return (
@@ -5840,7 +5889,7 @@ function StorefrontContent() {
                   onClick={() => handleCategoryClick(cat)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
                     ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
-                    : 'bg-muted text-muted-foreground border-transparent hover:bg-border'
+                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
                     }`}
                 >
                   <span>{getDisplayCategoryName(cat)}</span>
@@ -5887,29 +5936,91 @@ function StorefrontContent() {
               )}
             </div>
           ) : (
-            <div>
+            <div className="space-y-12">
+              {activeCategory === 'Tutti' ? (
+                <>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
+                      <span>{getDisplayCategoryName('Tutti')}</span>
+                    </h2>
+                    <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full font-bold">
+                      {sortedMenuItemsList.length}{' '}
+                      {sortedMenuItemsList.length === 1
+                        ? (lang === 'en' ? 'product' : 'prodotto')
+                        : (lang === 'en' ? 'products' : 'prodotti')}
+                    </span>
+                  </div>
 
+                  {categories
+                    .filter((cat) => cat !== 'Tutti')
+                    .map((cat) => {
+                      const isPromoCat = cat === 'Promozioni';
+                      const itemsInCat = isPromoCat
+                        ? promoItems
+                        : sortedMenuItemsList.filter((i) => i.category === cat);
 
-              <div className="flex items-center gap-3 mb-5">
-                <h2 className="text-xl font-extrabold text-foreground flex items-center gap-2">
-                  <span>{getDisplayCategoryName(activeCategory)}</span>
-                </h2>
-                <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full font-bold">
-                  {displayedItems.length} {displayedItems.length === 1 ? (lang === 'en' ? 'product' : 'prodotto') : (lang === 'en' ? 'products' : 'prodotti')}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
-                {displayedItems.map((item) => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    cart={cart}
-                    onAdd={addToCart}
-                    onCustomize={setCustomizingItem}
-                    onRemove={removeFromCart}
-                  />
-                ))}
-              </div>
+                      if (itemsInCat.length === 0) return null;
+
+                      return (
+                        <section
+                          key={`section-${cat}`}
+                          id={`cat-section-${encodeURIComponent(cat)}`}
+                          className="scroll-mt-36 space-y-4 pt-2"
+                        >
+                          <div className="flex items-center gap-3 pb-2.5 border-b border-border/70">
+                            <h3 className="text-lg sm:text-xl font-extrabold text-foreground uppercase tracking-wider">
+                              {getDisplayCategoryName(cat)}
+                            </h3>
+                            <span className="text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold">
+                              {itemsInCat.length}{' '}
+                              {itemsInCat.length === 1
+                                ? (lang === 'en' ? 'product' : 'prodotto')
+                                : (lang === 'en' ? 'products' : 'prodotti')}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
+                            {itemsInCat.map((item) => (
+                              <MenuItemCard
+                                key={item.id}
+                                item={item}
+                                cart={cart}
+                                onAdd={addToCart}
+                                onCustomize={setCustomizingItem}
+                                onRemove={removeFromCart}
+                              />
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
+                </>
+              ) : (
+                <section className="space-y-4">
+                  <div className="flex items-center gap-3 pb-2.5 border-b border-border/70">
+                    <h2 className="text-xl font-extrabold text-foreground uppercase tracking-wider">
+                      {getDisplayCategoryName(activeCategory)}
+                    </h2>
+                    <span className="text-xs bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-bold">
+                      {displayedItems.length}{' '}
+                      {displayedItems.length === 1
+                        ? (lang === 'en' ? 'product' : 'prodotto')
+                        : (lang === 'en' ? 'products' : 'prodotti')}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
+                    {displayedItems.map((item) => (
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        cart={cart}
+                        onAdd={addToCart}
+                        onCustomize={setCustomizingItem}
+                        onRemove={removeFromCart}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </main>

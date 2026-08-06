@@ -24,6 +24,7 @@ import {
   Snowflake,
   Vegan,
   Edit2,
+  ArrowUpDown,
 } from 'lucide-react';
 
 import { DISH_TAGS_LIST } from '@/lib/constants';
@@ -279,6 +280,34 @@ export default function ItemForm({
   const [enSectionOpen, setEnSectionOpen] = useState(false);
   const [sessionGroups, setSessionGroups] = useState<OptionGroup[]>([]);
   const [activeGroupIds, setActiveGroupIds] = useState<string[]>([]);
+
+  const handleSortSupplementiSingoli = (direction: 'asc' | 'desc') => {
+    setSupplementiSingoli((prev) =>
+      [...prev].sort((a, b) => {
+        const cmp = (a.name || '').localeCompare(b.name || '', undefined, {
+          sensitivity: 'base',
+          numeric: true,
+        });
+        return direction === 'asc' ? cmp : -cmp;
+      })
+    );
+  };
+
+  const handleSortChoices = (groupId: string, direction: 'asc' | 'desc') => {
+    setModalOptionGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        const sorted = [...g.choices].sort((a, b) => {
+          const cmp = (a.name || '').localeCompare(b.name || '', undefined, {
+            sensitivity: 'base',
+            numeric: true,
+          });
+          return direction === 'asc' ? cmp : -cmp;
+        });
+        return { ...g, choices: sorted };
+      })
+    );
+  };
 
   // Emoji Picker States
   const [allergenEmoji, setAllergenEmoji] = useState('➕');
@@ -1487,13 +1516,38 @@ export default function ItemForm({
         {/* Supplementi Singoli Section */}
         <div className="sm:col-span-2 border-t border-border/60 pt-4 mt-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Supplementi del Piatto
-              </label>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Aggiungi ingredienti extra, oppure importa da un gruppo.
-              </p>
+            <div className="flex items-center justify-between gap-2 flex-1">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Supplementi del Piatto
+                </label>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Aggiungi ingredienti extra, oppure importa da un gruppo.
+                </p>
+              </div>
+              {supplementiSingoli.length > 1 && (
+                <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-1 shadow-2xs">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                    <ArrowUpDown size={11} /> Ordina:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleSortSupplementiSingoli('asc')}
+                    className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                    title="Ordina A-Z"
+                  >
+                    A-Z
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSortSupplementiSingoli('desc')}
+                    className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                    title="Ordina Z-A"
+                  >
+                    Z-A
+                  </button>
+                </div>
+              )}
             </div>
             {/* Import from groups dropdown selector */}
             {sessionGroups.filter(
@@ -2265,9 +2319,34 @@ export default function ItemForm({
 
                       {/* Choices List */}
                       <div className="flex-1 flex flex-col min-h-0 space-y-2">
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Scelte in {activeGroup.name}
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                            Scelte in {activeGroup.name}
+                          </label>
+                          {activeGroup.choices.length > 1 && (
+                            <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-0.5 shadow-2xs">
+                              <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                                <ArrowUpDown size={11} /> Ordina:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleSortChoices(gid, 'asc')}
+                                className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                                title="Ordina A-Z"
+                              >
+                                A-Z
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSortChoices(gid, 'desc')}
+                                className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                                title="Ordina Z-A"
+                              >
+                                Z-A
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         {activeGroup.choices.length === 0 ? (
                           <div className="flex-1 bg-muted/10 border border-border border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center">
                             <p className="text-xs text-muted-foreground font-semibold">
