@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.28.0](https://github.com/innovagodev/iGOdelivering/compare/v1.27.1...v1.28.0) (2026-08-06)
+
+
+### Features
+
+* **menu:** add dish reordering, category grouping, bottom add button, and customer menu category sections ([2a891e2](https://github.com/innovagodev/iGOdelivering/commit/2a891e28ba9c353a3081254097ab77817010407c))
+* **menu:** allineamento completo su Supabase, rimozione localStorage, fix orari differenziati, ordinamento filtri e tracking link ([bf80860](https://github.com/innovagodev/iGOdelivering/commit/bf8086005142bfbc37ea8d549b7c23d59ba14b3b))
+
+
+### Bug Fixes
+
+* risolto errore id null su upsert categorie, piatti e promozioni in configurazione ristorante ([4779eef](https://github.com/innovagodev/iGOdelivering/commit/4779eef4cb4b702d965b58f3a6ba22b382a4edee))
+
 ### [1.27.2](https://github.com/innovagodev/iGOdelivering/compare/v1.27.1...v1.27.2) (2026-08-04)
 
 ### Bug Fixes
