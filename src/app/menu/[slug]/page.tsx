@@ -5619,20 +5619,20 @@ function StorefrontContent() {
       {/* Topbar */}
       {/* Topbar */}
       <header
-        className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isCurrentlyClosed ? 'top-8' : 'top-0'}`}
+        className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isCurrentlyClosed ? 'top-8' : 'top-0'} ${!isScrolled ? 'bg-card/85 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-b border-border/40 sm:border-transparent' : ''}`}
         ref={headerRef}
       >
         {/* Layer 1: Solid glassmorphic background managed by GSAP */}
         <div
           ref={headerBgSolidRef}
-          className="absolute inset-0 bg-card/90 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.03)] z-[-1] pointer-events-none"
+          className="absolute inset-0 bg-card/95 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.03)] z-[-1] pointer-events-none"
           style={{ opacity: 0 }}
         />
 
-        {/* Layer 2: Transparent gradient background managed by GSAP */}
+        {/* Layer 2: Transparent gradient background managed by GSAP (desktop only) */}
         <div
           ref={headerBgGradRef}
-          className="absolute inset-0 bg-gradient-to-b from-black/60 to-transparent z-[-2] pointer-events-none"
+          className="hidden sm:block absolute inset-0 bg-gradient-to-b from-black/60 to-transparent z-[-2] pointer-events-none"
           style={{ opacity: 1 }}
         />
 
@@ -5646,7 +5646,7 @@ function StorefrontContent() {
             <div className="flex items-center gap-3 flex-shrink-0">
               {restaurantSettings.logoUrl ? (
                 <div
-                  className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-white/20' : 'border-border/30'}`}
+                  className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-primary/20 sm:border-white/20' : 'border-border/30'}`}
                 >
                   <img
                     src={restaurantSettings.logoUrl}
@@ -5667,10 +5667,7 @@ function StorefrontContent() {
               <button
                 onClick={handleShare}
                 title={lang === 'en' ? 'Share Menu' : 'Condividi Vetrina'}
-                className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
-                  }`}
+                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm bg-card text-foreground hover:bg-muted border border-border"
               >
                 <Share2 size={15} />
               </button>
@@ -5687,10 +5684,7 @@ function StorefrontContent() {
                     }
                   }}
                   title={lang === 'en' ? 'My orders' : 'I miei ordini'}
-                  className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
-                    ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                    : 'bg-secondary text-foreground hover:bg-muted border border-border'
-                    }`}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm bg-card text-foreground hover:bg-muted border border-border"
                 >
                   <History size={15} />
                 </button>
@@ -5724,10 +5718,7 @@ function StorefrontContent() {
               <button
                 id="header-cart-button-mobile"
                 onClick={() => setCartOpen((o) => !o)}
-                className={`relative flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
-                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
-                  : 'bg-primary text-white hover:bg-primary-hover'
-                  }`}
+                className="relative flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm bg-primary text-white hover:bg-primary-hover border border-primary/20"
               >
                 <ShoppingCart size={15} />
                 {cartCount > 0 && (
@@ -5744,7 +5735,7 @@ function StorefrontContent() {
             <div className="relative">
               <Search
                 size={14}
-                className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-300 ${!isScrolled ? 'text-white/70' : 'text-muted-foreground'}`}
+                className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-300 ${!isScrolled ? 'text-muted-foreground sm:text-white/70' : 'text-muted-foreground'}`}
               />
               <input
                 type="text"
@@ -5752,7 +5743,7 @@ function StorefrontContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-9 pr-3 h-9 sm:h-10 text-xs sm:text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
-                  ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
+                  ? 'bg-muted sm:bg-white/10 text-foreground sm:text-white placeholder-muted-foreground sm:placeholder-white/60 border border-border sm:border-white/20 focus:ring-0 focus:border-primary sm:focus:bg-white/20 sm:focus:border-white/40'
                   : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
                   }`}
               />
