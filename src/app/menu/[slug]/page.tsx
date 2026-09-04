@@ -5603,7 +5603,7 @@ function StorefrontContent() {
       {/* Closed Banner */}
       {isCurrentlyClosed && (
         <div
-          className={`fixed top-0 left-0 right-0 z-50 text-white text-[10px] sm:text-xs font-bold py-2 px-3 text-center flex items-center justify-center gap-1.5 shadow-md ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}
+          className={`relative z-50 text-white text-[10px] sm:text-xs font-bold py-2.5 px-3 text-center flex items-center justify-center gap-1.5 shadow-xs ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}
         >
           <Clock size={12} className="animate-pulse flex-shrink-0" />
           <span className="truncate max-w-full">
