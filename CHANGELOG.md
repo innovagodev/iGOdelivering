@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.28.5](https://github.com/innovagodev/iGOdelivering/compare/v1.28.4...v1.28.5) (2026-09-04)
+
+
+### Bug Fixes
+
+* responsive banner e topbar ([98c8c88](https://github.com/innovagodev/iGOdelivering/commit/98c8c8873b73a86bf9043be661b4871e7e1258d8))
+
 ### [1.28.4](https://github.com/innovagodev/iGOdelivering/compare/v1.28.3...v1.28.4) (2026-09-04)
 
 
