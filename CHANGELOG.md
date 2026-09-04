@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.28.6](https://github.com/innovagodev/iGOdelivering/compare/v1.28.5...v1.28.6) (2026-09-04)
+
+
+### Bug Fixes
+
+* fetch orari consegna/asporto e delivery zone ([71b12a1](https://github.com/innovagodev/iGOdelivering/commit/71b12a10a3ace14860960560ffde007451492fc9))
+
 ### [1.28.5](https://github.com/innovagodev/iGOdelivering/compare/v1.28.4...v1.28.5) (2026-09-04)
 
 
