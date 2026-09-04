@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.28.3](https://github.com/innovagodev/iGOdelivering/compare/v1.28.2...v1.28.3) (2026-09-04)
+
+
+### Bug Fixes
+
+* ottimizzata topbar navigazione e hero section ([be3343b](https://github.com/innovagodev/iGOdelivering/commit/be3343b3b5269c6ff3cf814fc8b14be223c3203c))
+
 ### [1.28.2](https://github.com/innovagodev/iGOdelivering/compare/v1.28.1...v1.28.2) (2026-09-04)
 
 
