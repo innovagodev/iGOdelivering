@@ -48,6 +48,7 @@ import {
   Pizza,
   Snowflake,
   Vegan,
+  LayoutGrid,
 } from 'lucide-react';
 
 import AppLogo from '@/components/ui/AppLogo';
@@ -1874,8 +1875,8 @@ function CheckoutModal({
   }, [currentConfig, deliveryType]);
 
   const maxDays = React.useMemo(() => {
-    if (!currentConfig) return 0; // only today
-    return currentConfig.maxNoticeDays || 0;
+    if (!currentConfig) return 7; // allow 7 days by default if no restrictive config
+    return currentConfig.maxNoticeDays ?? 7;
   }, [currentConfig]);
 
   const dateOptions = React.useMemo(() => {
@@ -1923,8 +1924,52 @@ function CheckoutModal({
 
   const timeSlots = React.useMemo(() => {
     if (deliveryType === 'tavolo') return [];
-    const activeRanges =
-      deliveryType === 'domicilio' ? deliveryHours || openingHours || [] : openingHours || [];
+
+    // 1. Determine target day name based on selectedDate or today
+    const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    let targetDayName = '';
+    if (selectedDate) {
+      const parts = selectedDate.split('-');
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      targetDayName = DAYS_MAP[d.getDay()];
+    } else {
+      targetDayName = DAYS_MAP[new Date().getDay()];
+    }
+
+    // 2. Extract specific day active ranges from hours_config if available
+    let activeRanges: { start: string; end: string }[] = [];
+    const hoursConfig = restaurantSettings?.hours_config;
+    const activeServiceType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
+
+    if (hoursConfig && hoursConfig.serviceHours) {
+      const useGeneral =
+        hoursConfig.useGeneral?.[activeServiceType] !== false &&
+        !!hoursConfig.serviceHours?.general;
+      const targetHoursKey = useGeneral ? 'general' : activeServiceType;
+      const dayConfig = hoursConfig.serviceHours?.[targetHoursKey]?.[targetDayName];
+
+      if (dayConfig && dayConfig.enabled !== false && dayConfig.open !== false) {
+        if (dayConfig.lunchEnabled !== false && dayConfig.lunch?.from && dayConfig.lunch?.to) {
+          activeRanges.push({
+            start: dayConfig.lunch.from.slice(0, 5),
+            end: dayConfig.lunch.to.slice(0, 5),
+          });
+        }
+        if (dayConfig.dinnerEnabled !== false && dayConfig.dinner?.from && dayConfig.dinner?.to) {
+          activeRanges.push({
+            start: dayConfig.dinner.from.slice(0, 5),
+            end: dayConfig.dinner.to.slice(0, 5),
+          });
+        }
+      }
+    }
+
+    // 3. Fallback to deliveryHours/openingHours props if no day-specific ranges were found
+    if (activeRanges.length === 0 && (!hoursConfig || !hoursConfig.serviceHours)) {
+      activeRanges =
+        deliveryType === 'domicilio' ? deliveryHours || openingHours || [] : openingHours || [];
+    }
+
     const slots: string[] = [];
     if (activeRanges.length === 0) return [];
 
@@ -1961,6 +2006,7 @@ function CheckoutModal({
     dateOptions,
     minNoticeMinutes,
     timeInterval,
+    restaurantSettings?.hours_config,
   ]);
 
   const showAsapOption = false;
@@ -3860,6 +3906,7 @@ function StorefrontContent() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('Tutti');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -5591,29 +5638,109 @@ function StorefrontContent() {
 
         <div
           ref={headerContentRef}
-          className="max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-8 flex items-center justify-between gap-2.5 sm:gap-4 py-3 sm:py-4"
+          className="max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-8 py-2.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"
         >
-          {/* Restaurant Logo and Name instead of iGO */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {restaurantSettings.logoUrl ? (
-              <div
-                className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-white/20' : 'border-border/30'}`}
+          {/* Top Row on Mobile: Logo (left) + Action Controls (right) */}
+          <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+            {/* Restaurant Logo and Name */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {restaurantSettings.logoUrl ? (
+                <div
+                  className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-white/20' : 'border-border/30'}`}
+                >
+                  <img
+                    src={restaurantSettings.logoUrl}
+                    alt={`Logo ${restaurantSettings.name}`}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-base flex-shrink-0 shadow-sm">
+                  {restaurantSettings.name.charAt(0)}
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Actions Container (Right side of Top Row on Mobile) */}
+            <div className="flex sm:hidden items-center gap-2 flex-shrink-0">
+              {/* Share Button */}
+              <button
+                onClick={handleShare}
+                title={lang === 'en' ? 'Share Menu' : 'Condividi Vetrina'}
+                className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                  }`}
               >
-                <img
-                  src={restaurantSettings.logoUrl}
-                  alt={`Logo ${restaurantSettings.name}`}
-                  className="w-full h-full object-contain"
-                />
+                <Share2 size={15} />
+              </button>
+
+              {/* My Orders Button */}
+              {deliveryType !== 'tavolo' && (
+                <button
+                  onClick={() => {
+                    setShowMyOrdersModal(true);
+                    if (myOrdersEmail) {
+                      loadHistoryOrders(myOrdersEmail);
+                    } else {
+                      setHistoryOrders([]);
+                    }
+                  }}
+                  title={lang === 'en' ? 'My orders' : 'I miei ordini'}
+                  className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
+                    ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                    : 'bg-secondary text-foreground hover:bg-muted border border-border'
+                    }`}
+                >
+                  <History size={15} />
+                </button>
+              )}
+
+              {/* Language Switcher */}
+              <div className="flex items-center gap-1.5 px-1">
+                <button
+                  onClick={() => setLang('it')}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'it'
+                    ? 'opacity-100 scale-110'
+                    : 'opacity-40 hover:opacity-80'
+                    }`}
+                  title="Italiano"
+                >
+                  <FlagIT />
+                </button>
+                <button
+                  onClick={() => setLang('en')}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'en'
+                    ? 'opacity-100 scale-110'
+                    : 'opacity-40 hover:opacity-80'
+                    }`}
+                  title="English"
+                >
+                  <FlagEN />
+                </button>
               </div>
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-base flex-shrink-0 shadow-sm">
-                {restaurantSettings.name.charAt(0)}
-              </div>
-            )}
+
+              {/* Cart Button */}
+              <button
+                id="header-cart-button-mobile"
+                onClick={() => setCartOpen((o) => !o)}
+                className={`relative flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
+                  ? 'bg-white/15 hover:bg-white/25 border border-white/20 text-white'
+                  : 'bg-primary text-white hover:bg-primary-hover'
+                  }`}
+              >
+                <ShoppingCart size={15} />
+                {cartCount > 0 && (
+                  <span className="bg-white text-primary text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Search bar */}
-          <div className="flex-1 max-w-xs sm:max-w-md mx-auto">
+          {/* Search bar (Full width on mobile, centered on desktop) */}
+          <div className="w-full sm:flex-1 sm:max-w-xs md:max-w-md sm:mx-auto">
             <div className="relative">
               <Search
                 size={14}
@@ -5624,7 +5751,7 @@ function StorefrontContent() {
                 placeholder={t('search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-9 pr-3 h-10 text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
+                className={`w-full pl-9 pr-3 h-9 sm:h-10 text-xs sm:text-base rounded-xl focus:outline-none transition-all duration-300 ${!isScrolled
                   ? 'bg-white/10 text-white placeholder-white/60 border border-white/20 focus:bg-white/20 focus:ring-0 focus:border-white/40'
                   : 'bg-muted text-foreground placeholder-muted-foreground border border-border focus:ring-0 focus:border-primary'
                   }`}
@@ -5632,8 +5759,8 @@ function StorefrontContent() {
             </div>
           </div>
 
-          {/* Desktop Booking & Cart Button */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Desktop Actions Container (Visible only on sm+) */}
+          <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Share Button */}
             <button
               onClick={handleShare}
@@ -5671,7 +5798,7 @@ function StorefrontContent() {
             {deliveryType !== 'tavolo' && (
               <button
                 onClick={() => setShowBookingModal(true)}
-                className={`hidden sm:flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
+                className={`flex items-center justify-center gap-2 px-4 h-10 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm ${!isScrolled
                   ? 'bg-white/10 hover:bg-white/20 border border-white/20 text-white'
                   : 'bg-[var(--success)] text-white hover:bg-green-700'
                   }`}
@@ -5705,7 +5832,7 @@ function StorefrontContent() {
               </button>
             </div>
 
-            {/* Cart Button (Visible on both desktop & mobile) */}
+            {/* Cart Button */}
             <button
               id="header-cart-button"
               onClick={() => setCartOpen((o) => !o)}
@@ -5715,7 +5842,7 @@ function StorefrontContent() {
                 }`}
             >
               <ShoppingCart size={14} />
-              <span className="hidden sm:inline">{t('menu_cart')}</span>
+              <span>{t('menu_cart')}</span>
               {cartCount > 0 && (
                 <span className="bg-white text-primary text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
                   {cartCount}
@@ -5879,26 +6006,110 @@ function StorefrontContent() {
       <div
         className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]'}`}
       >
-        <div className="max-w-screen-2xl mx-auto px-6 lg:px-10">
-          <div className="flex flex-wrap items-center gap-2 py-3">
-            {categories.map((cat) => {
-              const isActive = activeCategory === cat;
-              return (
-                <button
-                  key={`cat-nav-${cat}`}
-                  onClick={() => handleCategoryClick(cat)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border ${isActive
-                    ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
-                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
-                    }`}
-                >
-                  <span>{getDisplayCategoryName(cat)}</span>
-                </button>
-              );
-            })}
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
+          <div className="flex items-center gap-2 py-2.5">
+            {/* Scrollable horizontal category list */}
+            <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide no-scrollbar py-0.5 scroll-smooth">
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat;
+                return (
+                  <button
+                    key={`cat-nav-${cat}`}
+                    type="button"
+                    onClick={() => handleCategoryClick(cat)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border flex-shrink-0 ${isActive
+                      ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
+                      : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                      }`}
+                  >
+                    <span>{getDisplayCategoryName(cat)}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal opener button */}
+            <button
+              type="button"
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-full text-xs font-extrabold bg-muted/80 hover:bg-muted text-foreground border border-border flex-shrink-0 transition-all active:scale-95 shadow-xs cursor-pointer"
+              title={lang === 'en' ? 'All categories' : 'Tutte le categorie'}
+            >
+              <LayoutGrid size={14} className="text-primary" />
+              <span className="hidden sm:inline">{lang === 'en' ? 'Categories' : 'Categorie'}</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Category Modal / Bottom Sheet */}
+      {isCategoryModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setIsCategoryModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-card rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[85vh] animate-in slide-in-from-bottom-6 duration-250"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/80 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <LayoutGrid size={18} className="text-primary" />
+                <h3 className="font-extrabold text-base sm:text-lg text-foreground">
+                  {lang === 'en' ? 'Menu Categories' : 'Categorie del Menu'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body - List of Categories */}
+            <div className="p-3 overflow-y-auto divide-y divide-border/30">
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat;
+                const isPromoCat = cat === 'Promozioni';
+                const itemsInCat =
+                  cat === 'Tutti'
+                    ? sortedMenuItemsList.length
+                    : isPromoCat
+                    ? promoItems.length
+                    : sortedMenuItemsList.filter((i) => i.category === cat).length;
+
+                return (
+                  <button
+                    key={`modal-cat-${cat}`}
+                    type="button"
+                    onClick={() => {
+                      setIsCategoryModalOpen(false);
+                      handleCategoryClick(cat);
+                    }}
+                    className={`w-full flex items-center justify-between py-3 px-3 rounded-xl transition-all cursor-pointer ${isActive
+                      ? 'bg-primary/10 text-primary font-extrabold'
+                      : 'hover:bg-muted/60 text-foreground font-semibold'
+                      }`}
+                  >
+                    <span className="text-sm">{getDisplayCategoryName(cat)}</span>
+                    <span
+                      className={`text-xs px-2.5 py-0.5 rounded-full font-bold tabular-nums ${isActive
+                        ? 'bg-primary text-white'
+                        : 'bg-muted text-muted-foreground'
+                        }`}
+                    >
+                      {itemsInCat}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main layout */}
       <div id="menu-section" className="flex-1 w-full max-w-screen-2xl mx-auto px-6 lg:px-10 py-8">

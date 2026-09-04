@@ -344,7 +344,7 @@ export default function RistoratoreOrariPage() {
           return {
             restaurant_id: restaurantId,
             day_of_week: dayIdx,
-            is_open: !!dayData.enabled,
+            is_open: dayData.enabled !== undefined ? !!dayData.enabled : !!(dayData as any).open,
             lunch_from: dayData.lunch?.from ? `${dayData.lunch.from}:00` : null,
             lunch_to: dayData.lunch?.to ? `${dayData.lunch.to}:00` : null,
             lunch_enabled: dayData.lunchEnabled !== false,

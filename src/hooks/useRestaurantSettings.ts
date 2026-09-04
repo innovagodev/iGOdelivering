@@ -130,7 +130,7 @@ export function useRestaurantSettings(slugOrId: string) {
           const slotsMap = new Map<string, { start: string; end: string }>();
           Object.keys(dayConfigObj).forEach((day) => {
             const h = dayConfigObj[day];
-            if (!h || h.enabled === false) return;
+            if (!h || h.enabled === false || h.open === false) return;
             if (h.lunchEnabled !== false && h.lunch?.from && h.lunch?.to) {
               const start = h.lunch.from.slice(0, 5);
               const end = h.lunch.to.slice(0, 5);
