@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.29.0](https://github.com/innovagodev/iGOdelivering/compare/v1.28.6...v1.29.0) (2026-09-04)
+
+
+### Features
+
+* aggiunto gestione cap zone di consegna e fetch del cap reale ([3993027](https://github.com/innovagodev/iGOdelivering/commit/39930277057818059b5ac4ca7ba6c2b784529a12))
+
 ### [1.28.6](https://github.com/innovagodev/iGOdelivering/compare/v1.28.5...v1.28.6) (2026-09-04)
 
 
