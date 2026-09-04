@@ -177,7 +177,7 @@ export default function DeliveryZonesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !caps.trim()) return;
 
     const zoneData = {
       restaurant_id: restaurantId,
@@ -347,6 +347,7 @@ export default function DeliveryZonesPage() {
                         <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           <th className="px-6 py-4">Stato</th>
                           <th className="px-6 py-4">Nome Zona</th>
+                          <th className="px-6 py-4">CAP Serviti</th>
                           <th className="px-6 py-4 text-right">Raggio (Km)</th>
                           <th className="px-6 py-4 text-right">Ordine Minimo</th>
                           <th className="px-6 py-4 text-right">Costo Consegna</th>
@@ -369,6 +370,9 @@ export default function DeliveryZonesPage() {
                             </td>
                             <td className="px-6 py-4 font-semibold text-foreground whitespace-nowrap">
                               {zone.name}
+                            </td>
+                            <td className="px-6 py-4 font-mono text-xs text-muted-foreground whitespace-nowrap max-w-[200px] truncate" title={zone.caps || 'Tutti i CAP'}>
+                              {zone.caps || 'Tutti i CAP'}
                             </td>
                             <td className="px-6 py-4 text-right font-medium tabular-nums whitespace-nowrap">
                               {zone.radius} km
@@ -432,6 +436,16 @@ export default function DeliveryZonesPage() {
                               size="sm"
                             />
                           </div>
+                        </div>
+
+                        {/* CAP Serviti */}
+                        <div className="text-xs">
+                          <span className="block text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">
+                            CAP Serviti
+                          </span>
+                          <span className="font-mono text-foreground text-xs">
+                            {zone.caps || 'Tutti i CAP'}
+                          </span>
                         </div>
 
                         {/* Raggio & Minimo */}
@@ -535,7 +549,7 @@ export default function DeliveryZonesPage() {
 
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-              CAP Serviti * (Separati da virgola)
+              CAP Serviti * (Separati da virgola, es. 20121, 20122)
             </label>
             <input
               type="text"

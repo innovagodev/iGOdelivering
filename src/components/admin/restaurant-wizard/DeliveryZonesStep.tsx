@@ -77,8 +77,26 @@ export default function DeliveryZonesStep({
             {/* Divider */}
             <div className="border-t border-border/60" />
 
-            {/* Fields grid — radius solo, then 2-col euros */}
+            {/* Fields grid — caps first, then radius, then 2-col euros */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* CAP Serviti */}
+              <div>
+                <label className={labelClass}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin size={10} />
+                    CAP Serviti * (separati da virgola)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={zone.caps || ''}
+                  onChange={(e) => updateZone(zone.id, 'caps', e.target.value)}
+                  placeholder="Es. 20121, 20122, 20123"
+                  className={inputClass}
+                />
+              </div>
+
               {/* Raggio */}
               <div>
                 <label className={labelClass}>
