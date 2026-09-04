@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.28.2](https://github.com/innovagodev/iGOdelivering/compare/v1.28.1...v1.28.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* aggiornato sfondo top bar navigazione con pulsanti più evidenti e meno trasparenza ([765a7b4](https://github.com/innovagodev/iGOdelivering/commit/765a7b4d55506cda0f82db9101b24768b76c8085))
+
 ### [1.28.1](https://github.com/innovagodev/iGOdelivering/compare/v1.28.0...v1.28.1) (2026-09-04)
 
 
