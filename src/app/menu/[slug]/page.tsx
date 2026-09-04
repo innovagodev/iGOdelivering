@@ -5617,15 +5617,14 @@ function StorefrontContent() {
       )}
 
       {/* Topbar */}
-      {/* Topbar */}
       <header
-        className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isCurrentlyClosed ? 'top-8' : 'top-0'} ${!isScrolled ? 'bg-card/85 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-b border-border/40 sm:border-transparent' : ''}`}
+        className={`relative sm:fixed left-0 right-0 z-40 bg-card border-b border-border shadow-xs sm:shadow-none transition-all duration-300 ${isCurrentlyClosed ? 'sm:top-8' : 'sm:top-0'} ${!isScrolled ? 'sm:bg-transparent sm:border-transparent' : ''}`}
         ref={headerRef}
       >
-        {/* Layer 1: Solid glassmorphic background managed by GSAP */}
+        {/* Layer 1: Solid glassmorphic background managed by GSAP (desktop) */}
         <div
           ref={headerBgSolidRef}
-          className="absolute inset-0 bg-card/95 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.03)] z-[-1] pointer-events-none"
+          className="hidden sm:block absolute inset-0 bg-card/95 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.03)] z-[-1] pointer-events-none"
           style={{ opacity: 0 }}
         />
 
@@ -5907,7 +5906,7 @@ function StorefrontContent() {
           }}
         />
 
-        <div className="relative pt-28 sm:pt-20 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-10 text-white z-10 w-full">
+        <div className="relative py-6 sm:pt-20 sm:pb-8 px-4 sm:px-6 lg:px-10 text-white z-10 w-full">
           <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2.5 leading-tight drop-shadow-sm">
@@ -5995,7 +5994,7 @@ function StorefrontContent() {
 
       {/* Sticky category nav */}
       <div
-        className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[8.5rem] sm:top-[9rem]' : 'top-[6.5rem] sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-16 sm:top-[4.5rem]'}`}
+        className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[4rem] sm:top-[9rem]' : 'top-0 sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-0 sm:top-[6.5rem]' : 'top-0 sm:top-[4.5rem]'}`}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-2 py-2.5">
