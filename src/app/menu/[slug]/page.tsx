@@ -5890,7 +5890,7 @@ function StorefrontContent() {
       )}
 
       {/* Restaurant Hero */}
-      <div className="relative h-[22rem] sm:h-[26rem] md:h-[30rem] overflow-hidden">
+      <div className="relative min-h-[22rem] sm:min-h-[26rem] md:min-h-[30rem] h-auto flex flex-col justify-end overflow-hidden">
         <AppImage
           src={restaurantSettings.image || ''}
           alt={restaurantSettings.imageAlt || ''}
@@ -5903,21 +5903,21 @@ function StorefrontContent() {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.85) 100%)',
+              'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 35%, rgba(0,0,0,0.88) 100%)',
           }}
         />
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-10 text-white z-10">
+        <div className="relative pt-28 sm:pt-20 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-10 text-white z-10 w-full">
           <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8">
             <div className="flex-1 min-w-0">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2 leading-none">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2.5 leading-tight drop-shadow-sm">
                 {restaurantSettings.name}
               </h1>
-              <p className="text-white/80 text-sm sm:text-base font-medium mb-4 max-w-2xl leading-relaxed">
+              <p className="text-white/90 text-xs sm:text-base font-medium mb-4 max-w-3xl leading-relaxed drop-shadow-xs">
                 {restaurantSettings.tagline}
               </p>
 
-              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
+              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-3 sm:gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}
