@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.28.1](https://github.com/innovagodev/iGOdelivering/compare/v1.28.0...v1.28.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **menu:** ottimizzazione orari, nav categorie mobile e topbar 2 righe ([5b823fc](https://github.com/innovagodev/iGOdelivering/commit/5b823fc963b9ec716187604717047686cb6439f2))
+
 ## [1.28.0](https://github.com/innovagodev/iGOdelivering/compare/v1.27.1...v1.28.0) (2026-08-06)
 
 
