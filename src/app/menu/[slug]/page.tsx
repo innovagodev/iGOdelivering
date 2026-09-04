@@ -1734,9 +1734,9 @@ function CheckoutModal({
   const [zones, setZones] = useState<any[]>([]);
 
   useEffect(() => {
-    if (open) {
+    if (open && restaurantSettings?.id) {
       const loadZones = async () => {
-        const rId = getRestaurantId(slug);
+        const rId = restaurantSettings?.id;
         if (!rId) return;
 
         try {
@@ -1799,7 +1799,7 @@ function CheckoutModal({
 
       loadZones();
     }
-  }, [open, slug]);
+  }, [open, slug, restaurantSettings?.id]);
 
   const matchedZone = React.useMemo(() => {
     if (deliveryType !== 'domicilio' || cap.length < 5) return null;
@@ -1982,15 +1982,26 @@ function CheckoutModal({
     // Apply minimum notice buffer if it's today
     const minTimeStart = isToday ? currMin + minNoticeMinutes : 0;
 
+    // Convert "HH:MM" to minutes. "00:00" as end means midnight (1440 min).
+    const toMin = (t: string, isEnd = false): number => {
+      const [hh, mm] = t.split(':').map(Number);
+      const total = hh * 60 + mm;
+      return isEnd && total === 0 ? 24 * 60 : total; // 00:00 end → midnight
+    };
+
     for (let h = 0; h < 24; h++) {
       for (let m = 0; m < 60; m += timeInterval) {
         const slotMin = h * 60 + m;
-        const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
-        const inRange = activeRanges.some((r) => timeStr >= r.start && timeStr <= r.end);
+        const inRange = activeRanges.some((r) => {
+          const startMin = toMin(r.start);
+          const endMin = toMin(r.end, true);
+          return slotMin >= startMin && slotMin <= endMin;
+        });
 
         if (inRange) {
           if (!isToday || slotMin >= minTimeStart) {
+            const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
             slots.push(timeStr);
           }
         }
@@ -4504,7 +4515,8 @@ function StorefrontContent() {
       const [startH, startM] = range.start.split(':').map(Number);
       const [endH, endM] = range.end.split(':').map(Number);
       const startMin = startH * 60 + startM;
-      const endMin = endH * 60 + endM;
+      // "00:00" as end means midnight (1440 min), not the start of the day (0 min)
+      const endMin = (endH === 0 && endM === 0) ? 24 * 60 : endH * 60 + endM;
 
       // Se l'admin ha definito orari dedicati alle prenotazioni, li applichiamo esattamente (senza sottrarre orari).
       // Se invece usiamo gli orari generali come ripiego, applichiamo un cut-off protettivo di 1 ora prima della chiusura.
@@ -6690,7 +6702,7 @@ function StorefrontContent() {
                         'iGO_booking_info',
                         JSON.stringify({ name: bookingName, phone: bookingPhone })
                       );
-                      const rId = getRestaurantId(slug);
+                      const rId = restaurantSettings?.id;
                       if (!rId) {
                         alert('Errore: Ristorante non identificato');
                         return;
