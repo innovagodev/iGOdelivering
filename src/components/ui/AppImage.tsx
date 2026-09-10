@@ -131,7 +131,7 @@ const AppImage = memo(function AppImage({
 
   if (fill) {
     return (
-      <div className="relative" style={{ width: '100%', height: '100%' }}>
+      <div className="absolute inset-0 w-full h-full">
         <Image
           {...imageProps}
           fill

@@ -1825,7 +1825,18 @@ function CheckoutModal({
     return actualDeliveryFee;
   }, [deliveryType, matchedZone, itemsTotal, actualDeliveryFee]);
 
-  const finalTotal = itemsTotal + currentDeliveryFee;
+  const checkoutDiscount = React.useMemo(() => {
+    if (!promoApplied || !appliedPromoDetail) return 0;
+    if (appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order') {
+      return itemsTotal * (appliedPromoDetail.value / 100);
+    }
+    if (appliedPromoDetail.type === 'free_delivery') {
+      return currentDeliveryFee;
+    }
+    return Math.min(appliedPromoDetail.value, itemsTotal);
+  }, [promoApplied, appliedPromoDetail, itemsTotal, currentDeliveryFee]);
+
+  const finalTotal = Math.max(0, itemsTotal - checkoutDiscount + currentDeliveryFee);
 
   useEffect(() => {
     setCardError(null);
@@ -2176,13 +2187,7 @@ function CheckoutModal({
     }
 
     try {
-      const discount = appliedPromoDetail
-        ? appliedPromoDetail.type === 'percentage' || appliedPromoDetail.type === 'first_order'
-          ? itemsTotal * (appliedPromoDetail.value / 100)
-          : appliedPromoDetail.type === 'free_delivery'
-            ? actualDeliveryFee
-            : Math.min(appliedPromoDetail.value, itemsTotal)
-        : 0;
+      const discount = checkoutDiscount;
 
       const orderNumber =
         deliveryType === 'domicilio'
@@ -3070,12 +3075,12 @@ function CheckoutModal({
           )}
 
           {/* Checkout Finale breakdown display */}
-          {deliveryType === 'domicilio' ? (
-            <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>{lang === 'en' ? 'Items' : 'Articoli'}</span>
-                <span className="tabular-nums font-semibold">€ {itemsTotal.toFixed(2)}</span>
-              </div>
+          <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
+            <div className="flex justify-between text-muted-foreground">
+              <span>{lang === 'en' ? 'Items' : 'Articoli'}</span>
+              <span className="tabular-nums font-semibold">€ {itemsTotal.toFixed(2)}</span>
+            </div>
+            {deliveryType === 'domicilio' && (
               <div className="flex justify-between text-muted-foreground">
                 <span>{t('receipt_delivery').replace(':', '')}</span>
                 <span className="tabular-nums font-semibold">
@@ -3086,17 +3091,18 @@ function CheckoutModal({
                   )}
                 </span>
               </div>
-              <div className="flex justify-between font-extrabold text-foreground pt-2 border-t border-border/60 text-sm">
-                <span>{t('cart_total')}</span>
-                <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
+            )}
+            {checkoutDiscount > 0 && (
+              <div className="flex justify-between text-[var(--success)] font-semibold">
+                <span>{lang === 'en' ? 'Promo Discount' : 'Sconto promozionale'}</span>
+                <span className="tabular-nums">− € {checkoutDiscount.toFixed(2)}</span>
               </div>
-            </div>
-          ) : (
-            <div className="bg-card border border-border/60 rounded-lg p-4 flex justify-between font-extrabold text-foreground text-sm">
+            )}
+            <div className="flex justify-between font-extrabold text-foreground pt-2 border-t border-border/60 text-sm">
               <span>{t('cart_total')}</span>
               <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
             </div>
-          )}
+          </div>
 
           <div className="flex gap-3">
             <button

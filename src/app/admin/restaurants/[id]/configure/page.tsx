@@ -2732,10 +2732,8 @@ export default function RestaurantConfigurePage() {
                       )}
                       <input
                         type="number"
-                        min="0.1"
-                        step={
-                          promoType === 'percentage' || promoType === 'first_order' ? '1' : '0.5'
-                        }
+                        min="0"
+                        step="any"
                         required
                         value={promoValue}
                         onChange={(e) => setPromoValue(e.target.value)}

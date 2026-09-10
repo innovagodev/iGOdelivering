@@ -662,15 +662,15 @@ export default function PromozioniPage() {
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                   />
                 ) : (
-                  <Euro
+                                  <Euro
                     size={14}
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                   />
                 )}
                 <input
                   type="number"
-                  min="0.1"
-                  step={type === 'percentage' || type === 'first_order' ? '1' : '0.5'}
+                  min="0"
+                  step="any"
                   required
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
