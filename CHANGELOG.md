@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.29.2](https://github.com/innovagodev/iGOdelivering/compare/v1.29.1...v1.29.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* banner image, campo input percentuale coupon e funzionamento coupon ([8c34fb5](https://github.com/innovagodev/iGOdelivering/commit/8c34fb59aa593c093d367ed3656d41e87e68ebdc))
+
 ### [1.29.1](https://github.com/innovagodev/iGOdelivering/compare/v1.29.0...v1.29.1) (2026-09-04)
 
 
