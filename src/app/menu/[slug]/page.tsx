@@ -2122,7 +2122,14 @@ function CheckoutModal({
 
     if (bookingContext) {
       try {
+        // L'id è generato qui e non dal DB: il cliente è anonimo e non ha una
+        // policy SELECT su bookings, quindi un insert().select() fallirebbe
+        // (il RETURNING richiede anche il permesso di lettura sulla riga).
+        const bookingId = crypto.randomUUID();
+        const bookingCreatedAt = new Date().toISOString();
+
         const bookingPayload = {
+          id: bookingId,
           restaurant_id: rId,
           name: bookingContext.name.trim(),
           phone: bookingContext.phone.trim(),
@@ -2136,20 +2143,17 @@ function CheckoutModal({
           pre_order_total: total,
         };
 
-        const { data: bookingData, error: bookingError } = await supabase
-          .from('bookings')
-          .insert(bookingPayload)
-          .select()
-          .single();
+        const { error: bookingError } = await supabase.from('bookings').insert(bookingPayload);
 
-        if (bookingError || !bookingData) {
-          throw bookingError || new Error("Errore durante l'inserimento della prenotazione");
+        if (bookingError) {
+          throw bookingError;
         }
 
         const trackedBooking = {
-          ...bookingData,
+          ...bookingPayload,
+          created_at: bookingCreatedAt,
           type: 'prenotazione_tavolo',
-          timestamp: bookingData.created_at,
+          timestamp: bookingCreatedAt,
           payMethod: payMethod,
           total: total,
         };
@@ -2196,7 +2200,15 @@ function CheckoutModal({
             ? generateId('ASP')
             : generateId('TAV', tableNumber || undefined);
 
+      // L'id è generato qui e non dal DB: il cliente è anonimo e non ha una
+      // policy SELECT su orders, quindi un insert().select() fallirebbe (il
+      // RETURNING richiede anche il permesso di lettura sulla riga appena
+      // creata) e l'ordine non verrebbe salvato affatto.
+      const orderId = crypto.randomUUID();
+      const orderCreatedAt = new Date().toISOString();
+
       const orderPayload = {
+        id: orderId,
         restaurant_id: rId,
         order_number: orderNumber,
         type: deliveryType,
@@ -2221,18 +2233,14 @@ function CheckoutModal({
         notes: notes || '',
       };
 
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderPayload)
-        .select()
-        .single();
+      const { error: orderError } = await supabase.from('orders').insert(orderPayload);
 
-      if (orderError || !orderData) {
-        throw orderError || new Error("Errore durante la creazione dell'ordine");
+      if (orderError) {
+        throw orderError;
       }
 
       const orderItemsPayload = cart.map((item) => ({
-        order_id: orderData.id,
+        order_id: orderId,
         menu_item_id: item.id.startsWith('sf-') || item.id.startsWith('bk-') ? null : item.id,
         name: item.name,
         price: item.price,
@@ -2255,9 +2263,10 @@ function CheckoutModal({
       }
 
       const trackedOrder = {
-        ...orderData,
+        ...orderPayload,
+        created_at: orderCreatedAt,
         items: cart,
-        timestamp: orderData.created_at,
+        timestamp: orderCreatedAt,
         payMethod: payMethod,
       };
 
@@ -6714,7 +6723,15 @@ function StorefrontContent() {
                         return;
                       }
 
+                      // Id generato qui e non dal DB: il cliente è anonimo e
+                      // non ha una policy SELECT su bookings, quindi un
+                      // insert().select() fallirebbe (il RETURNING richiede
+                      // anche il permesso di lettura sulla riga).
+                      const bookingId = crypto.randomUUID();
+                      const bookingCreatedAt = new Date().toISOString();
+
                       const bookingPayload = {
+                        id: bookingId,
                         restaurant_id: rId,
                         name: bookingName.trim(),
                         phone: bookingPhone.trim(),
@@ -6728,20 +6745,19 @@ function StorefrontContent() {
                         pre_order_total: 0,
                       };
 
-                      const { data: bookingData, error: bookingError } = await supabase
+                      const { error: bookingError } = await supabase
                         .from('bookings')
-                        .insert(bookingPayload)
-                        .select()
-                        .single();
+                        .insert(bookingPayload);
 
-                      if (bookingError || !bookingData) {
-                        throw bookingError || new Error("Errore durante l'inserimento della prenotazione");
+                      if (bookingError) {
+                        throw bookingError;
                       }
 
                       const trackedBooking = {
-                        ...bookingData,
+                        ...bookingPayload,
+                        created_at: bookingCreatedAt,
                         type: 'prenotazione_tavolo',
-                        timestamp: bookingData.created_at,
+                        timestamp: bookingCreatedAt,
                         total: 0,
                       };
 

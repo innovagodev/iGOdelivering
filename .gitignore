@@ -43,12 +43,16 @@ jest-test-results.json
 # Optional: if using TurboRepo or monorepo
 turbo/
 
-# Documentation folder
+# Documentation folder (note private, tenute in locale)
 docs/
 
 # Local Scratch folder
 scratch/
 
-# Supabase local files (removed from git)
-supabase/migrations/
-supabase/seed.sql
+# Supabase: lo schema (migrations/, seed.sql) VA versionato.
+# Qui si escludono solo gli artefatti locali della CLI.
+supabase/.temp/
+supabase/.branches/
+
+# Output operativo degli script one-shot
+scripts/logs/

@@ -1078,12 +1078,12 @@ export default function RestaurantConfigurePage() {
       try {
         if (logoFile) {
           const fileExt = logoFile.name.split('.').pop();
-          const fileName = `${slug}-${Date.now()}-logo.${fileExt}`;
+          const fileName = `${restaurantId}/${Date.now()}-logo.${fileExt}`;
           logoUrlToSave = await uploadImage(logoFile, 'restaurant-logos', fileName);
         }
         if (bgImageFile) {
           const fileExt = bgImageFile.name.split('.').pop();
-          const fileName = `${slug}-${Date.now()}-banner.${fileExt}`;
+          const fileName = `${restaurantId}/${Date.now()}-banner.${fileExt}`;
           backgroundUrlToSave = await uploadImage(bgImageFile, 'restaurant-banners', fileName);
         }
       } catch (uploadErr) {

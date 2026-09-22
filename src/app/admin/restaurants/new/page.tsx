@@ -499,7 +499,10 @@ export default function NewRestaurantPage() {
       showFeedback(validation.message, 'error');
       return;
     }
-    let dbRestaurantId = savedRestaurantId;
+    const isNewRestaurant = !savedRestaurantId;
+    // L'id viene generato qui invece di lasciarlo al DEFAULT del DB perché serve a
+    // costruire il path di upload di logo e banner, che avviene prima dell'insert.
+    let dbRestaurantId = savedRestaurantId || crypto.randomUUID();
     const slug = slugify(info.name);
     const convertHoursToStorage = (hoursRecord: Record<string, DayHours>) => {
       const result: Record<string, any> = {};
@@ -596,12 +599,12 @@ export default function NewRestaurantPage() {
     try {
       if (logoFile) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${slug}-${Date.now()}-logo.${fileExt}`;
+        const fileName = `${dbRestaurantId}/${Date.now()}-logo.${fileExt}`;
         logoUrlToSave = await uploadImage(logoFile, 'restaurant-logos', fileName);
       }
       if (bgImageFile) {
         const fileExt = bgImageFile.name.split('.').pop();
-        const fileName = `${slug}-${Date.now()}-banner.${fileExt}`;
+        const fileName = `${dbRestaurantId}/${Date.now()}-banner.${fileExt}`;
         backgroundUrlToSave = await uploadImage(bgImageFile, 'restaurant-banners', fileName);
       }
     } catch (uploadErr) {
@@ -668,7 +671,7 @@ export default function NewRestaurantPage() {
         }
       }
 
-      if (dbRestaurantId) {
+      if (!isNewRestaurant) {
         const { error } = await supabase
           .from('restaurants')
           .update(restaurantPayload)
@@ -677,7 +680,7 @@ export default function NewRestaurantPage() {
       } else {
         const { data, error } = await supabase
           .from('restaurants')
-          .insert(restaurantPayload)
+          .insert({ ...restaurantPayload, id: dbRestaurantId })
           .select('id')
           .single();
         if (error) throw error;

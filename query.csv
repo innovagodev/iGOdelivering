@@ -1,0 +1,115 @@
+sezione,oggetto,dettaglio
+DIAGNOSI,A14 · numero di indici non-PK/UNIQUE su public,0
+DIAGNOSI,A5 · order_number ha un vincolo UNIQUE?,"UNIQUE (restaurant_id, order_number)"
+DIAGNOSI,A7 · orders.status ammette expired?,NO → le scritture di expired falliscono
+DIAGNOSI,versione PostgreSQL,"PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit"
+COLONNE,bookings,"id uuid NOT NULL, restaurant_id uuid NOT NULL, name text NOT NULL, phone text NOT NULL, email text, guests smallint NOT NULL, date date NOT NULL, time time without time zone NOT NULL, status text NOT NULL, notes text, pre_order_items jsonb, pre_order_total numeric(10,2), linked_order_id uuid, created_at timestamp with time zone"
+COLONNE,delivery_zones,"id uuid NOT NULL, restaurant_id uuid NOT NULL, name text NOT NULL, radius_km numeric(10,2), min_order numeric(10,2), delivery_fee numeric(10,2), free_delivery_threshold numeric(10,2), enabled boolean, caps text, lat numeric(10,6), lng numeric(10,6), created_at timestamp with time zone"
+COLONNE,menu_categories,"id uuid NOT NULL, restaurant_id uuid NOT NULL, name text NOT NULL, sort_order smallint, created_at timestamp with time zone, name_en text"
+COLONNE,menu_items,"id uuid NOT NULL, restaurant_id uuid NOT NULL, category_id uuid, category_name text NOT NULL, name text NOT NULL, description text, price numeric(10,2) NOT NULL, original_price numeric(10,2), image_url text, image_alt text, allergens text[], dish_tags text[], ingredients text[], available boolean, visibility text, visibility_from time without time zone, visibility_to time without time zone, sort_order smallint, orders_count integer, option_groups jsonb, created_at timestamp with time zone, updated_at timestamp with time zone, customization_enabled boolean NOT NULL, notes_enabled boolean NOT NULL, name_en text, description_en text, ingredients_en text[], allergens_en text[], dish_tags_en text[]"
+COLONNE,order_items,"id uuid NOT NULL, order_id uuid NOT NULL, menu_item_id uuid, name text NOT NULL, price numeric(10,2) NOT NULL, qty smallint NOT NULL, note text, added_ingredients jsonb, removed_ingredients text[], selected_options jsonb"
+COLONNE,orders,"id uuid NOT NULL, restaurant_id uuid NOT NULL, order_number text NOT NULL, type text NOT NULL, status text NOT NULL, customer_name text, customer_email text, customer_phone text, customer_address text, table_number text, guests smallint, subtotal numeric(10,2) NOT NULL, delivery_fee numeric(10,2), discount numeric(10,2), total numeric(10,2) NOT NULL, promo_code text, promo_applied boolean, scheduled_at timestamp with time zone, notes text, created_at timestamp with time zone, updated_at timestamp with time zone"
+COLONNE,platform_settings,"key text NOT NULL, value jsonb NOT NULL, updated_at timestamp with time zone"
+COLONNE,profiles,"id uuid NOT NULL, role text NOT NULL, name text, email text, created_at timestamp with time zone"
+COLONNE,promos,"id uuid NOT NULL, restaurant_id uuid NOT NULL, code text NOT NULL, type text NOT NULL, value numeric(10,2) NOT NULL, min_order_subtotal numeric(10,2), active boolean, start_date date, end_date date, description text, max_uses integer, used_count integer, custom_banner_text text, applicable_delivery_modes text[], created_at timestamp with time zone"
+COLONNE,restaurant_categories,"id uuid NOT NULL, name text NOT NULL, created_at timestamp with time zone"
+COLONNE,restaurant_hours,"id uuid NOT NULL, restaurant_id uuid NOT NULL, day_of_week smallint NOT NULL, is_open boolean, lunch_from time without time zone, lunch_to time without time zone, lunch_enabled boolean, dinner_from time without time zone, dinner_to time without time zone, dinner_enabled boolean"
+COLONNE,restaurants,"id uuid NOT NULL, owner_id uuid, name text NOT NULL, slug text NOT NULL, email text NOT NULL, phone text, address text, city text, province text, cap text, vat_number text, category text, tagline text, description text, logo_url text, background_url text, status text NOT NULL, plan text NOT NULL, delivery_enabled boolean, pickup_enabled boolean, table_enabled boolean, delivery_fee numeric(10,2), min_order numeric(10,2), free_delivery_threshold numeric(10,2), free_delivery_active boolean, card_delivery boolean, card_pickup boolean, cash_delivery boolean, cash_pickup boolean, paypal_enabled boolean, paypal_connected boolean, paypal_email text, stripe_enabled boolean, stripe_connected boolean, stripe_account_label text, iban_enabled boolean, online_payment_account text, iban_holder text, scheduled_orders jsonb, hours_config jsonb, tables_count integer, created_at timestamp with time zone, updated_at timestamp with time zone, published_at timestamp with time zone, card_table boolean, cash_table boolean, stripe_delivery boolean, stripe_pickup boolean, stripe_table boolean, paypal_delivery boolean, paypal_pickup boolean, paypal_table boolean"
+CHECK,bookings,"bookings_status_check: CHECK ((status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'cancelled'::text])))"
+CHECK,menu_items,"menu_items_visibility_check: CHECK ((visibility = ANY (ARRAY['always'::text, 'hidden'::text, 'scheduled'::text])))"
+CHECK,orders,"orders_type_check: CHECK ((type = ANY (ARRAY['domicilio'::text, 'asporto'::text, 'tavolo'::text])))  |  orders_status_check: CHECK ((status = ANY (ARRAY['new'::text, 'pending'::text, 'preparing'::text, 'ready'::text, 'delivering'::text, 'delivered'::text, 'cancelled'::text])))"
+CHECK,profiles,"profiles_role_check: CHECK ((role = ANY (ARRAY['admin'::text, 'ristoratore'::text])))"
+CHECK,promos,"promos_type_check: CHECK ((type = ANY (ARRAY['percentage'::text, 'fixed_amount'::text, 'threshold_based'::text, 'first_order'::text, 'free_delivery'::text])))"
+CHECK,restaurant_hours,restaurant_hours_day_of_week_check: CHECK (((day_of_week >= 0) AND (day_of_week <= 6)))
+CHECK,restaurants,"restaurants_status_check: CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'suspended'::text])))  |  restaurants_plan_check: CHECK ((plan = ANY (ARRAY['starter'::text, 'pro'::text, 'enterprise'::text])))"
+PK_UNIQUE,bookings,bookings_pkey: PRIMARY KEY (id)
+PK_UNIQUE,delivery_zones,delivery_zones_pkey: PRIMARY KEY (id)
+PK_UNIQUE,menu_categories,menu_categories_pkey: PRIMARY KEY (id)
+PK_UNIQUE,menu_items,menu_items_pkey: PRIMARY KEY (id)
+PK_UNIQUE,order_items,order_items_pkey: PRIMARY KEY (id)
+PK_UNIQUE,orders,"orders_restaurant_id_order_number_key: UNIQUE (restaurant_id, order_number)  |  orders_pkey: PRIMARY KEY (id)"
+PK_UNIQUE,platform_settings,platform_settings_pkey: PRIMARY KEY (key)
+PK_UNIQUE,profiles,profiles_pkey: PRIMARY KEY (id)
+PK_UNIQUE,promos,"promos_pkey: PRIMARY KEY (id)  |  promos_restaurant_id_code_key: UNIQUE (restaurant_id, code)"
+PK_UNIQUE,restaurant_categories,restaurant_categories_pkey: PRIMARY KEY (id)  |  restaurant_categories_name_key: UNIQUE (name)
+PK_UNIQUE,restaurant_hours,"restaurant_hours_pkey: PRIMARY KEY (id)  |  restaurant_hours_restaurant_id_day_of_week_key: UNIQUE (restaurant_id, day_of_week)"
+PK_UNIQUE,restaurants,restaurants_pkey: PRIMARY KEY (id)  |  restaurants_slug_key: UNIQUE (slug)  |  restaurants_email_key: UNIQUE (email)
+FOREIGN_KEY,bookings,bookings_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE  |  bookings_linked_order_id_fkey: FOREIGN KEY (linked_order_id) REFERENCES orders(id) ON DELETE SET NULL
+FOREIGN_KEY,delivery_zones,delivery_zones_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+FOREIGN_KEY,menu_categories,menu_categories_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+FOREIGN_KEY,menu_items,menu_items_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE  |  menu_items_category_id_fkey: FOREIGN KEY (category_id) REFERENCES menu_categories(id) ON DELETE SET NULL
+FOREIGN_KEY,order_items,order_items_order_id_fkey: FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE  |  order_items_menu_item_id_fkey: FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE SET NULL
+FOREIGN_KEY,orders,orders_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+FOREIGN_KEY,profiles,profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+FOREIGN_KEY,promos,promos_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+FOREIGN_KEY,restaurant_hours,restaurant_hours_restaurant_id_fkey: FOREIGN KEY (restaurant_id) REFERENCES restaurants(id) ON DELETE CASCADE
+FOREIGN_KEY,restaurants,restaurants_owner_id_fkey: FOREIGN KEY (owner_id) REFERENCES profiles(id) ON DELETE SET NULL
+INDICI,bookings,CREATE UNIQUE INDEX bookings_pkey ON public.bookings USING btree (id)
+INDICI,delivery_zones,CREATE UNIQUE INDEX delivery_zones_pkey ON public.delivery_zones USING btree (id)
+INDICI,menu_categories,CREATE UNIQUE INDEX menu_categories_pkey ON public.menu_categories USING btree (id)
+INDICI,menu_items,CREATE UNIQUE INDEX menu_items_pkey ON public.menu_items USING btree (id)
+INDICI,order_items,CREATE UNIQUE INDEX order_items_pkey ON public.order_items USING btree (id)
+INDICI,orders,"CREATE UNIQUE INDEX orders_restaurant_id_order_number_key ON public.orders USING btree (restaurant_id, order_number)  |  CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+INDICI,platform_settings,CREATE UNIQUE INDEX platform_settings_pkey ON public.platform_settings USING btree (key)
+INDICI,profiles,CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)
+INDICI,promos,"CREATE UNIQUE INDEX promos_pkey ON public.promos USING btree (id)  |  CREATE UNIQUE INDEX promos_restaurant_id_code_key ON public.promos USING btree (restaurant_id, code)"
+INDICI,restaurant_categories,CREATE UNIQUE INDEX restaurant_categories_name_key ON public.restaurant_categories USING btree (name)  |  CREATE UNIQUE INDEX restaurant_categories_pkey ON public.restaurant_categories USING btree (id)
+INDICI,restaurant_hours,"CREATE UNIQUE INDEX restaurant_hours_restaurant_id_day_of_week_key ON public.restaurant_hours USING btree (restaurant_id, day_of_week)  |  CREATE UNIQUE INDEX restaurant_hours_pkey ON public.restaurant_hours USING btree (id)"
+INDICI,restaurants,CREATE UNIQUE INDEX restaurants_pkey ON public.restaurants USING btree (id)  |  CREATE UNIQUE INDEX restaurants_slug_key ON public.restaurants USING btree (slug)  |  CREATE UNIQUE INDEX restaurants_email_key ON public.restaurants USING btree (email)
+RLS_ATTIVA,bookings,ENABLED
+RLS_ATTIVA,delivery_zones,ENABLED
+RLS_ATTIVA,menu_categories,ENABLED
+RLS_ATTIVA,menu_items,ENABLED
+RLS_ATTIVA,order_items,ENABLED
+RLS_ATTIVA,orders,ENABLED
+RLS_ATTIVA,platform_settings,ENABLED
+RLS_ATTIVA,profiles,ENABLED
+RLS_ATTIVA,promos,ENABLED
+RLS_ATTIVA,restaurant_categories,ENABLED
+RLS_ATTIVA,restaurant_hours,ENABLED
+RLS_ATTIVA,restaurants,ENABLED
+POLICY,bookings · bookings: owner all,ALL | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,bookings · bookings: public insert,INSERT | roles=public | USING(-) | CHECK(true)
+POLICY,delivery_zones · delivery_zones: owner write,ALL | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,delivery_zones · delivery_zones: public read,SELECT | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin() OR (restaurant_id IN ( SELECT restaurants.id    FROM restaurants   WHERE (restaurants.status = 'published'::text))))) | CHECK(-)
+POLICY,menu_categories · menu_categories: owner,ALL | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,menu_categories · menu_categories: public read,SELECT | roles=public | USING(((restaurant_id IN ( SELECT restaurants.id    FROM restaurants   WHERE (restaurants.status = 'published'::text))) OR (restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,menu_items · menu_items: owner write,ALL | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,menu_items · menu_items: public read,SELECT | roles=public | USING(((restaurant_id IN ( SELECT restaurants.id    FROM restaurants   WHERE (restaurants.status = 'published'::text))) OR (restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,order_items · order_items: owner read,SELECT | roles=public | USING(((order_id IN ( SELECT orders.id    FROM orders   WHERE (orders.restaurant_id = my_restaurant_id()))) OR is_admin())) | CHECK(-)
+POLICY,order_items · order_items: public insert,INSERT | roles=public | USING(-) | CHECK(true)
+POLICY,orders · orders: owner read,SELECT | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,orders · orders: owner update,UPDATE | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,orders · orders: public insert,INSERT | roles=public | USING(-) | CHECK(true)
+POLICY,orders · orders: public update expired,UPDATE | roles=public | USING(((status = 'new'::text) OR (status = 'pending'::text))) | CHECK((status = 'expired'::text))
+POLICY,platform_settings · platform_settings: admin write,ALL | roles=public | USING(is_admin()) | CHECK(-)
+POLICY,platform_settings · platform_settings: public select,SELECT | roles=public | USING(true) | CHECK(-)
+POLICY,profiles · profiles: admin all,ALL | roles=public | USING(is_admin()) | CHECK(-)
+POLICY,profiles · profiles: self insert,INSERT | roles=public | USING(-) | CHECK((id = auth.uid()))
+POLICY,profiles · profiles: self read,SELECT | roles=public | USING(((id = auth.uid()) OR is_admin())) | CHECK(-)
+POLICY,promos · promos: owner write,ALL | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,promos · promos: public read active,SELECT | roles=public | USING(((active = true) AND ((restaurant_id = my_restaurant_id()) OR is_admin() OR (restaurant_id IN ( SELECT restaurants.id    FROM restaurants   WHERE (restaurants.status = 'published'::text)))))) | CHECK(-)
+POLICY,restaurant_categories · Authenticated Insert restaurant_categories,INSERT | roles=public | USING(-) | CHECK((auth.role() = 'authenticated'::text))
+POLICY,restaurant_categories · Public Read restaurant_categories,SELECT | roles=public | USING(true) | CHECK(-)
+POLICY,restaurant_hours · restaurant_hours: owner,ALL | roles=public | USING(((restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,restaurant_hours · restaurant_hours: public read,SELECT | roles=public | USING(((restaurant_id IN ( SELECT restaurants.id    FROM restaurants   WHERE (restaurants.status = 'published'::text))) OR (restaurant_id = my_restaurant_id()) OR is_admin())) | CHECK(-)
+POLICY,restaurants · restaurants: admin delete,DELETE | roles=public | USING(is_admin()) | CHECK(-)
+POLICY,restaurants · restaurants: admin insert,INSERT | roles=public | USING(-) | CHECK(is_admin())
+POLICY,restaurants · restaurants: owner read,SELECT | roles=public | USING(((owner_id = auth.uid()) OR is_admin())) | CHECK(-)
+POLICY,restaurants · restaurants: owner write,UPDATE | roles=public | USING(((owner_id = auth.uid()) OR is_admin())) | CHECK(-)
+POLICY_STORAGE,objects · Public Read Access,"SELECT | roles=public | USING((bucket_id = ANY (ARRAY['restaurant-logos'::text, 'restaurant-banners'::text, 'dish-images'::text]))) | CHECK(-)"
+POLICY_STORAGE,objects · logos: public read,SELECT | roles=public | USING((bucket_id = 'restaurant-logos'::text)) | CHECK(-)
+POLICY_STORAGE,objects · tenant storage: owner delete,"DELETE | roles=public | USING(((bucket_id = ANY (ARRAY['restaurant-logos'::text, 'restaurant-banners'::text, 'dish-images'::text])) AND (((storage.foldername(name))[1] = (my_restaurant_id())::text) OR is_admin()))) | CHECK(-)"
+POLICY_STORAGE,objects · tenant storage: owner insert,"INSERT | roles=public | USING(-) | CHECK(((bucket_id = ANY (ARRAY['restaurant-logos'::text, 'restaurant-banners'::text, 'dish-images'::text])) AND (((storage.foldername(name))[1] = (my_restaurant_id())::text) OR is_admin())))"
+POLICY_STORAGE,objects · tenant storage: owner update,"UPDATE | roles=public | USING(((bucket_id = ANY (ARRAY['restaurant-logos'::text, 'restaurant-banners'::text, 'dish-images'::text])) AND (((storage.foldername(name))[1] = (my_restaurant_id())::text) OR is_admin()))) | CHECK(-)"
+BUCKET,dish-images,public=true
+BUCKET,menu-images,public=true
+BUCKET,restaurant-banners,public=true
+BUCKET,restaurant-logos,public=true
+FUNZIONE,is_admin,"CREATE OR REPLACE FUNCTION public.is_admin()  RETURNS boolean  LANGUAGE sql  SECURITY DEFINER AS $function$   SELECT EXISTS (     SELECT 1 FROM public.profiles     WHERE id = auth.uid() AND role = 'admin'   ); $function$ "
+FUNZIONE,my_restaurant_id,"CREATE OR REPLACE FUNCTION public.my_restaurant_id()  RETURNS uuid  LANGUAGE sql  SECURITY DEFINER AS $function$   SELECT id FROM public.restaurants   WHERE owner_id = auth.uid()   LIMIT 1; $function$ "
+FUNZIONE,update_updated_at,"CREATE OR REPLACE FUNCTION public.update_updated_at()  RETURNS trigger  LANGUAGE plpgsql AS $function$ BEGIN   NEW.updated_at = NOW();   RETURN NEW; END; $function$ "
+TRIGGER,menu_items,menu_items_updated_at: CREATE TRIGGER menu_items_updated_at BEFORE UPDATE ON public.menu_items FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+TRIGGER,orders,orders_updated_at: CREATE TRIGGER orders_updated_at BEFORE UPDATE ON public.orders FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+TRIGGER,restaurants,restaurants_updated_at: CREATE TRIGGER restaurants_updated_at BEFORE UPDATE ON public.restaurants FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+REALTIME,supabase_realtime,"profiles, restaurants, restaurant_hours, menu_categories, menu_items, delivery_zones, promos, orders, order_items, bookings, platform_settings"

@@ -100,7 +100,26 @@ export function useRestaurantSettings(slugOrId: string) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         slugOrId
       );
-      const query = supabase.from('restaurants').select('*, restaurant_hours(*)');
+      // Elenco esplicito invece di '*': la vetrina è consultata da utenti
+      // anonimi, e la migration 017 revoca ad `anon` il permesso di lettura su
+      // email, owner_id, vat_number, online_payment_account, iban_holder,
+      // paypal_email e stripe_account_label. Con select('*') PostgreSQL
+      // espanderebbe la query su TUTTE le colonne e fallirebbe con
+      // "permission denied for column". Ogni colonna aggiunta qui deve essere
+      // presente anche nella GRANT della 017.
+      const query = supabase.from('restaurants').select(
+        `id, name, slug, status, tagline, description,
+         address, city, province, cap, phone, category,
+         logo_url, background_url,
+         delivery_enabled, pickup_enabled, table_enabled,
+         delivery_fee, min_order, free_delivery_threshold, free_delivery_active,
+         card_delivery, card_pickup, card_table,
+         cash_delivery, cash_pickup, cash_table,
+         paypal_enabled, paypal_connected, paypal_delivery, paypal_pickup, paypal_table,
+         stripe_enabled, stripe_connected, stripe_delivery, stripe_pickup, stripe_table,
+         iban_enabled, scheduled_orders, hours_config, tables_count,
+         restaurant_hours(*)`
+      );
 
       const { data: restaurant, error } = isUuid
         ? await query.eq('id', slugOrId).maybeSingle()
@@ -181,7 +200,8 @@ export function useRestaurantSettings(slugOrId: string) {
           tagline: restaurant.tagline || restaurant.description || '',
           address: restaurant.address || '',
           phone: restaurant.phone || '',
-          email: restaurant.email || '',
+          // Non selezionata: non leggibile dagli utenti anonimi (migration 017).
+          email: '',
           logoUrl: restaurant.logo_url || '',
           image: restaurant.background_url || '',
           imageAlt: restaurant.name,
@@ -211,19 +231,18 @@ export function useRestaurantSettings(slugOrId: string) {
             paypal: !!restaurant.paypal_enabled,
             paypal_enabled: !!restaurant.paypal_enabled,
             paypal_connected: !!restaurant.paypal_connected,
-            paypal_email: restaurant.paypal_email || '',
             paypal_delivery: restaurant.paypal_delivery !== false,
             paypal_pickup: restaurant.paypal_pickup !== false,
             paypal_table: restaurant.paypal_table !== false,
             stripe_enabled: !!restaurant.stripe_enabled,
             stripe_connected: !!restaurant.stripe_connected,
-            stripe_account_label: restaurant.stripe_account_label || '',
             stripe_delivery: restaurant.stripe_delivery !== false,
             stripe_pickup: restaurant.stripe_pickup !== false,
             stripe_table: restaurant.stripe_table !== false,
             iban_enabled: !!restaurant.iban_enabled,
-            onlinePaymentAccount: restaurant.online_payment_account || '',
-            ibanHolder: restaurant.iban_holder || '',
+            // paypal_email, stripe_account_label, onlinePaymentAccount e
+            // ibanHolder non sono più selezionati: non sono leggibili dagli
+            // utenti anonimi (migration 017) e la vetrina non li usava.
           },
           scheduledOrders: restaurant.scheduled_orders || undefined,
           openingHours,
