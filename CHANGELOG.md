@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.29.3](https://github.com/innovagodev/iGOdelivering/compare/v1.29.2...v1.29.3) (2026-09-22)
+
+
+### Bug Fixes
+
+* ripristino vetrina e checkout pubblici, storage per tenant ([ff609ac](https://github.com/innovagodev/iGOdelivering/commit/ff609ac55bfcca197f5d0d2f682e7af9b64071e6))
+
 ### [1.29.2](https://github.com/innovagodev/iGOdelivering/compare/v1.29.1...v1.29.2) (2026-09-10)
 
 
