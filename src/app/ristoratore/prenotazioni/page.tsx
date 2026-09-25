@@ -6,7 +6,6 @@ import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
-import { generateId } from '@/lib/id-generator';
 import { supabase } from '@/lib/supabase';
 import {
   Calendar,
@@ -191,12 +190,28 @@ export default function PrenotazioniPage() {
             0
           );
 
-        // 1. Create order in Supabase
+        // 1. Numero d'ordine assegnato dal database, come nel checkout della
+        // vetrina. L'ordine nasce da una prenotazione al tavolo, quindi il
+        // tipo è 'tavolo'; `bookings` non ha una colonna per il numero del
+        // tavolo, perciò p_table_number viene omesso e il prefisso risulta
+        // TAV senza cifra.
+        const { data: generatedNumber, error: numberError } = await supabase.rpc(
+          'generate_order_number',
+          { p_restaurant_id: restaurantId, p_order_type: 'tavolo' }
+        );
+
+        if (numberError || !generatedNumber) {
+          console.error('Error generating order number:', numberError);
+          alert('Impossibile creare l’ordine, riprova.');
+          return;
+        }
+
+        // 2. Create order in Supabase
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .insert({
             restaurant_id: restaurantId,
-            order_number: `ORD-${targetBooking.id.slice(0, 8).toUpperCase()}`,
+            order_number: generatedNumber,
             type: 'tavolo',
             status: 'preparing', // "accettato" in cucina
             customer_name: targetBooking.name,
@@ -211,7 +226,7 @@ export default function PrenotazioniPage() {
 
         if (orderError) throw orderError;
 
-        // 2. Create order items
+        // 3. Create order items
         if (orderData && targetBooking.preOrderItems) {
           const itemsPayload = targetBooking.preOrderItems.map((item: any) => ({
             order_id: orderData.id,
