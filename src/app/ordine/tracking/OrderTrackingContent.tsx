@@ -14,10 +14,10 @@ import {
   Utensils,
   ChevronRight,
   Package,
+  AlertCircle,
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -98,15 +98,19 @@ const dbStatusToTracking = (dbStatus: string): TrackingStatus => {
 
 export default function OrderTrackingContent() {
   const searchParams = useSearchParams();
+  // UUID dell'ordine. Non `order_number`: quello è corto e sequenziale per
+  // ristorante, quindi enumerabile da chiunque. Resta mostrato a schermo come
+  // riferimento leggibile, ma non è più la chiave di lookup.
   const orderId = searchParams.get('id') ?? '';
 
   const [currentStatus, setCurrentStatus] = useState<TrackingStatus>('confirmed');
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>('');
+  const [orderNumber, setOrderNumber] = useState<string>('');
   const [orderType, setOrderType] = useState<string>('');
   const [address, setAddress] = useState<string>('');
-  const [dbOrderId, setDbOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'not_found' | 'fetch_failed' | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [subtotal, setSubtotal] = useState<number>(0);
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
@@ -123,103 +127,130 @@ export default function OrderTrackingContent() {
     }
   }, []);
 
-  // Fetch initial order data from Supabase
+  // Fetch initial order data.
+  //
+  // Passa da /api/order-status/[orderId], che gira lato server con la service
+  // role key. Una query diretta su `orders` con la chiave anon non funziona: il
+  // cliente non ha alcuna policy di lettura, quindi RLS filtra la riga e la
+  // query torna `data: null` con `error: null` — la pagina restava vuota senza
+  // alcun segnale.
   useEffect(() => {
     if (!orderId) {
+      setLoadError('not_found');
       setIsLoading(false);
       return;
     }
 
+    let cancelled = false;
+
     const fetchOrder = async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id, status, type, customer_address, scheduled_at, restaurant_id,
-          subtotal, delivery_fee, discount, total,
-          order_items ( name, price, qty, note ),
-          restaurants ( name )
-        `)
-        .eq('order_number', orderId)
-        .maybeSingle();
+      try {
+        const res = await fetch(`/api/order-status/${encodeURIComponent(orderId)}`, {
+          cache: 'no-store',
+        });
 
-      if (error || !data) {
+        if (cancelled) return;
+
+        if (!res.ok) {
+          // 400 = id non è un UUID (tipicamente un vecchio link che portava
+          // ancora `order_number`), 404 = ordine inesistente. Per il cliente
+          // sono lo stesso caso: il link non porta a un ordine valido.
+          const notFound = res.status === 404 || res.status === 400;
+          setLoadError(notFound ? 'not_found' : 'fetch_failed');
+          setIsLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        setLoadError(null);
+        setCurrentStatus(dbStatusToTracking(data.status));
+        setOrderNumber(data.orderNumber || '');
+        setOrderType(data.orderType || '');
+        setAddress(data.address || '');
+        setSubtotal(data.subtotal || 0);
+        setDeliveryFee(data.deliveryFee || 0);
+        setDiscount(data.discount || 0);
+        setTotal(data.total || 0);
+        setItems(data.items || []);
+        if (data.restaurant?.name) setRestaurantName(data.restaurant.name);
+
+        // Estimated minutes based on type
+        const mins =
+          data.orderType === 'domicilio' ? 35 : data.orderType === 'asporto' ? 20 : 15;
+        setEstimatedMinutes(mins);
         setIsLoading(false);
-        return;
+      } catch (e) {
+        if (cancelled) return;
+        console.error('[tracking] fetch error:', e);
+        setLoadError('fetch_failed');
+        setIsLoading(false);
       }
-
-      setDbOrderId(data.id);
-      setCurrentStatus(dbStatusToTracking(data.status));
-      setOrderType(data.type || '');
-      setAddress(data.customer_address || '');
-      setSubtotal(parseFloat(data.subtotal) || 0);
-      setDeliveryFee(parseFloat(data.delivery_fee) || 0);
-      setDiscount(parseFloat(data.discount) || 0);
-      setTotal(parseFloat(data.total) || 0);
-      setItems((data as any).order_items || []);
-
-      // Try to get restaurant name
-      const restData = data.restaurants as any;
-      if (restData?.name) setRestaurantName(restData.name);
-
-      // Estimated minutes based on type
-      const mins =
-        data.type === 'domicilio' ? 35 : data.type === 'asporto' ? 20 : 15;
-      setEstimatedMinutes(mins);
-      setIsLoading(false);
     };
 
     fetchOrder();
-  }, [orderId]);
-
-  // Subscribe to Supabase Realtime for status updates
-  useEffect(() => {
-    if (!dbOrderId) return;
-
-    const channel = supabase
-      .channel(`order-tracking-${dbOrderId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `id=eq.${dbOrderId}`,
-        },
-        (payload) => {
-          const newStatus = payload.new?.status;
-          if (newStatus) {
-            const trackingStatus = dbStatusToTracking(newStatus);
-            setCurrentStatus(trackingStatus);
-
-            // Update estimated minutes as order progresses
-            if (trackingStatus === 'preparing') setEstimatedMinutes(20);
-            else if (trackingStatus === 'ready') setEstimatedMinutes(10);
-            else if (trackingStatus === 'delivering') setEstimatedMinutes(5);
-            else if (trackingStatus === 'delivered') setEstimatedMinutes(0);
-
-            // Browser notification
-            if (
-              typeof window !== 'undefined' &&
-              'Notification' in window &&
-              Notification.permission === 'granted'
-            ) {
-              const step = STEPS.find((s) => s.id === trackingStatus);
-              if (step) {
-                new Notification(`Stato Ordine: ${step.label}`, {
-                  body: step.description,
-                  icon: '/favicon.ico',
-                });
-              }
-            }
-          }
-        }
-      )
-      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
     };
-  }, [dbOrderId]);
+  }, [orderId]);
+
+  // Poll the same server-side endpoint for status updates.
+  //
+  // Sostituisce la subscription Realtime su `orders`: anche i postgres_changes
+  // passano da RLS, quindi con la chiave anon il canale si sottoscrive ma non
+  // consegna mai un evento. È lo stesso polling già usato dal tracker in-pagina
+  // dopo il checkout.
+  useEffect(() => {
+    if (!orderId || loadError) return;
+    if (currentStatus === 'delivered') return;
+
+    const POLL_MS = 15000;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/order-status/${encodeURIComponent(orderId)}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!data?.status) return;
+
+        const trackingStatus = dbStatusToTracking(data.status);
+        if (trackingStatus === currentStatus) return;
+
+        setCurrentStatus(trackingStatus);
+
+        // Update estimated minutes as order progresses
+        if (trackingStatus === 'preparing') setEstimatedMinutes(20);
+        else if (trackingStatus === 'ready') setEstimatedMinutes(10);
+        else if (trackingStatus === 'delivering') setEstimatedMinutes(5);
+        else if (trackingStatus === 'delivered') setEstimatedMinutes(0);
+
+        // Browser notification
+        if (
+          typeof window !== 'undefined' &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
+          const step = STEPS.find((s) => s.id === trackingStatus);
+          if (step) {
+            new Notification(`Stato Ordine: ${step.label}`, {
+              body: step.description,
+              icon: '/favicon.ico',
+            });
+          }
+        }
+      } catch (e) {
+        console.error('[tracking] poll error:', e);
+      }
+    };
+
+    const interval = setInterval(poll, POLL_MS);
+    return () => clearInterval(interval);
+  }, [orderId, loadError, currentStatus]);
 
   const currentIdx = STATUS_ORDER.indexOf(currentStatus);
   const isDelivered = currentStatus === 'delivered';
@@ -237,6 +268,49 @@ export default function OrderTrackingContent() {
       : orderType === 'asporto'
         ? ShoppingBag
         : Utensils;
+
+  // ── Errore: ordine non trovato o endpoint irraggiungibile ──
+  // Prima questo caso era silenzioso (return anticipato senza stato d'errore) e
+  // la pagina restava sullo scheletro vuoto, con il primo step acceso come se
+  // l'ordine fosse stato confermato.
+  if (!isLoading && loadError) {
+    const isNotFound = loadError === 'not_found';
+
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center py-10 px-4">
+        <AppLogo className="h-8 mb-8" />
+        <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-sm px-6 py-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-muted border border-border flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={24} className="text-muted-foreground" />
+          </div>
+          <h1 className="text-lg font-bold text-foreground mb-2">
+            {isNotFound ? 'Ordine non trovato' : 'Impossibile caricare l’ordine'}
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            {isNotFound
+              ? 'Il link di tracking non è valido o l’ordine non esiste più. Controlla di aver aperto il link completo ricevuto via email.'
+              : 'C’è stato un problema nel recupero dei dati. Controlla la connessione e riprova.'}
+          </p>
+          <div className="flex gap-3">
+            {!isNotFound && (
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold text-sm py-3 rounded-xl transition-colors"
+              >
+                Riprova
+              </button>
+            )}
+            <Link
+              href="/"
+              className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-3 border border-border transition-colors"
+            >
+              Torna alla home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-start py-10 px-4">
@@ -259,7 +333,7 @@ export default function OrderTrackingContent() {
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
                   Ordine
                 </p>
-                <h1 className="text-base font-bold text-foreground">{orderId || '—'}</h1>
+                <h1 className="text-base font-bold text-foreground">{orderNumber || '—'}</h1>
                 {restaurantName && (
                   <p className="text-sm text-muted-foreground mt-0.5">{restaurantName}</p>
                 )}

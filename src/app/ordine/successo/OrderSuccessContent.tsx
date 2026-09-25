@@ -24,6 +24,9 @@ interface OrderItem {
 }
 
 interface OrderData {
+  /** UUID dell'ordine: è la chiave di lookup del tracking. */
+  id: string;
+  /** Riferimento leggibile mostrato all'utente, mai usato per il lookup. */
   orderNumber: string;
   type: 'domicilio' | 'asporto' | 'tavolo';
   estimatedMinutes: number;
@@ -114,6 +117,7 @@ export default function OrderSuccessContent() {
       orderType === 'domicilio' ? 35 : orderType === 'asporto' ? 20 : 15;
 
     setOrder({
+      id: rawOrder.id || '',
       orderNumber: rawOrder.order_number || rawOrder.id || '—',
       type: orderType,
       estimatedMinutes,
@@ -130,9 +134,9 @@ export default function OrderSuccessContent() {
     });
   }, [searchParams]);
 
-  const trackingUrl = order
-    ? `/ordine/tracking?id=${encodeURIComponent(order.orderNumber)}`
-    : '/';
+  // Il tracking è indicizzato per UUID, non per `order_number` (corto e
+  // sequenziale, quindi enumerabile). Senza UUID non c'è link da offrire.
+  const trackingUrl = order?.id ? `/ordine/tracking?id=${encodeURIComponent(order.id)}` : '/';
 
   useEffect(() => {
     if (!order) return;
