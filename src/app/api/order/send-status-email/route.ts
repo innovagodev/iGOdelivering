@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
+/**
+ * POST /api/order/send-status-email  { orderId, status }
+ *
+ * Invia al cliente l'email di cambio stato di un ordine.
+ *
+ * La route usa la service role key e legge l'ordine completo (nome, email,
+ * telefono, indirizzo, articoli) per comporre il messaggio. Finora non
+ * verificava nulla: chiunque, senza sessione, poteva inviare email di
+ * "ordine accettato" o "ordine annullato" a nome di qualunque ristorante,
+ * per qualunque orderId. Ora richiede una sessione ristoratore o admin e, per
+ * il ristoratore, che l'ordine appartenga al proprio ristorante.
+ *
+ * Nota sul perimetro: l'unico chiamante è `updateOrderStatus` in
+ * src/hooks/useOrders.ts, che gira nel pannello del ristoratore autenticato per
+ * i passaggi a 'preparing' e 'cancelled'. Non esiste oggi un invio post-checkout
+ * anonimo — l'email di conferma al cliente non passa da qui — quindi non serve
+ * una deroga senza sessione. Se un giorno la si aggiunge, va vincolata a un
+ * ordine creato da pochi minuti, non a un orderId qualsiasi.
+ */
 export async function POST(request: Request) {
   try {
     const { orderId, status } = await request.json();
@@ -25,10 +46,42 @@ export async function POST(request: Request) {
       },
     });
 
-    // 2. Fetch order details with nested items and restaurant info
+    // 2. Verifica sessione e ruolo (stesso schema di /api/admin/send-activation-email)
+    const cookieStore = await cookies();
+    const supabaseServer = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll() {},
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabaseServer.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabaseServer
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || (profile.role !== 'ristoratore' && profile.role !== 'admin')) {
+      return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
+    }
+
+    // 3. Fetch order details with nested items and restaurant info
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .select('*, order_items(*), restaurants(name, slug)')
+      .select('*, order_items(*), restaurants(name, slug, owner_id)')
       .eq('id', orderId)
       .single();
 
@@ -36,7 +89,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ordine non trovato' }, { status: 404 });
     }
 
-    // 3. Skip email if it is a table order
+    // 4. Un ristoratore può inviare email solo per gli ordini del proprio
+    //    locale; l'admin non ha questo vincolo.
+    if (profile.role === 'ristoratore') {
+      const ownerId = (order.restaurants as any)?.owner_id;
+      if (!ownerId || ownerId !== user.id) {
+        return NextResponse.json({ error: 'Non autorizzato' }, { status: 403 });
+      }
+    }
+
+    // 5. Skip email if it is a table order
     if (order.type === 'tavolo' || order.customer_email === 'tavolo@internal.it' || !order.customer_email) {
       return NextResponse.json({ success: true, message: 'Invio email saltato per ordine al tavolo o email mancante' });
     }
@@ -73,11 +135,14 @@ export async function POST(request: Request) {
     const serviceIt = type === 'domicilio' ? 'Consegna a domicilio' : 'Asporto (Ritiro presso il locale)';
     const serviceEn = type === 'domicilio' ? 'Home Delivery' : 'Takeaway (Pickup at store)';
 
-    // 4. Determine subject and html template based on status
+    // 6. Determine subject and html template based on status
     let subject = '';
     let emailHtml = '';
 
-    const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/ordine/tracking?id=${orderNumber}`;
+    // Il link di tracking usa l'UUID, non `order_number`: quest'ultimo è corto e
+    // sequenziale per ristorante, quindi indovinabile. Resta mostrato nel testo
+    // dell'email come riferimento leggibile per il cliente.
+    const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/ordine/tracking?id=${encodeURIComponent(order.id)}`;
 
     if (status === 'preparing') {
       subject = `Ordine Accettato - ${restaurantName} #${orderNumber}`;
@@ -192,7 +257,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Nessuna email prevista per questo cambio di stato' });
     }
 
-    // 5. Send email via Resend (with local mock console fallback)
+    // 7. Send email via Resend (with local mock console fallback)
     const resendApiKey = process.env.RESEND_API_KEY;
     const resendFrom = process.env.RESEND_FROM || 'iGOdelivering <noreply@igodelivering.it>';
 
