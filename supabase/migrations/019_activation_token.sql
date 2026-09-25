@@ -26,20 +26,19 @@
 --   Verificato:
 --     · activation_token             uuid,        nullable, nessun default
 --     · activation_token_expires_at  timestamptz, nullable, nessun default
---     · un vincolo di unicità su activation_token, il cui nome emerge da una
---       violazione provocata di proposito:
---           23505 duplicate key value violates unique constraint
---           "restaurants_activation_token_key"
+--     · unicità su activation_token, realizzata come INDICE UNIVOCO PARZIALE e
+--       non come vincolo, di nome restaurants_activation_token_key
 --     · due righe con activation_token NULL sono entrambe accettate
 --
---   `restaurants_activation_token_key` è il nome che PostgreSQL assegna da sé a
---   un vincolo UNIQUE di colonna (<tabella>_<colonna>_key), ed è la forma
---   riprodotta qui sotto. Un indice univoco PARZIALE
---   (CREATE UNIQUE INDEX … WHERE activation_token IS NOT NULL) avrebbe lo
---   stesso comportamento osservabile — un UNIQUE semplice ammette già più NULL,
---   come la sonda conferma — ma porterebbe un nome scelto da chi lo ha creato.
---   Se in produzione è davvero un indice parziale, sostituire il blocco del
---   vincolo con la CREATE UNIQUE INDEX corrispondente e il suo nome reale.
+--   Il nome emerge da una violazione provocata di proposito:
+--       23505 duplicate key value violates unique constraint
+--       "restaurants_activation_token_key"
+--
+--   Che sia un indice e non un vincolo è emerso da un secondo tentativo: una
+--   ADD CONSTRAINT con quel nome, eseguita dopo aver verificato che
+--   pg_constraint non contenesse nulla, è stata rifiutata con
+--       42P07 relation "restaurants_activation_token_key" already exists
+--   Il nome è dunque occupato da una relazione che non è un vincolo: un indice.
 -- ============================================================================
 
 -- ─── Colonne ────────────────────────────────────────────────────────────────
@@ -66,18 +65,9 @@ COMMENT ON COLUMN public.restaurants.activation_token_expires_at IS
 -- I NULL restano ammessi senza limite, ed è indispensabile: il token viene
 -- azzerato all'uso, quindi tutti i ristoranti già attivati hanno NULL.
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-     WHERE conrelid = 'public.restaurants'::regclass
-       AND conname = 'restaurants_activation_token_key'
-  ) THEN
-    ALTER TABLE public.restaurants
-      ADD CONSTRAINT restaurants_activation_token_key UNIQUE (activation_token);
-  END IF;
-END
-$$;
+CREATE UNIQUE INDEX IF NOT EXISTS restaurants_activation_token_key
+  ON public.restaurants (activation_token)
+  WHERE activation_token IS NOT NULL;
 
 -- ─── Privilegi ──────────────────────────────────────────────────────────────
 --
