@@ -20,7 +20,12 @@
 
 La prima stesura di questo report si basava sui file in `supabase/migrations/`, assumendo che descrivessero il database in esercizio. **Non lo descrivono.** Una ricognizione del catalogo di sistema (`scripts/inspect-schema.sql`) e una serie di sonde con la chiave anon hanno mostrato che produzione e migration divergono in entrambe le direzioni: alcune migration non sono mai state applicate, e alcune policy presenti in produzione non compaiono in nessuna migration.
 
-Di conseguenza **tre rilievi classificati Critico nella prima stesura si sono rivelati infondati** (C1, C2, C3), e altri due descrivevano una situazione diversa da quella reale (A3, A5). Sono riportati per intero nella sezione *Rilievi smentiti*, perché il fatto che fossero plausibili e sbagliati è esso stesso il sintomo del problema di fondo: senza uno schema versionato e allineato non è possibile ragionare in modo affidabile sulla sicurezza del sistema.
+Di conseguenza alcuni rilievi della prima stesura descrivevano una situazione diversa da quella reale. Vanno però distinti due casi che la prima revisione aveva confuso:
+
+- **C1, C2 e A3 erano problemi reali, già chiusi da un intervento manuale diretto sul database** eseguito prima che l'audit avesse visibilità sul progetto. Non comparivano nella cronologia perché quell'intervento non ha lasciato un record formale, non perché il problema non fosse mai esistito. Sono nella sezione *Risolti — intervento diretto sul database*.
+- **C3, C5 e A5 erano effettivamente infondati o derivati** da altri rilievi, e restano nella sezione *Rilievi smentiti*.
+
+Il fatto che la prima stesura li avesse tutti sbagliati, sia pure in modi diversi, è esso stesso il sintomo del problema di fondo: senza uno schema versionato e allineato non è possibile ragionare in modo affidabile sulla sicurezza del sistema, né distinguere un problema mai esistito da uno risolto senza lasciare traccia.
 
 I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 
@@ -34,6 +39,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | | |
 |---|---|
 | ✅ **Risolto** | intervento applicato in produzione e verificato |
+| ✅◆ **Risolto fuori migration** | chiuso da un intervento manuale diretto sul database, privo di un record formale nella sequenza di migration |
 | ⚠️ **Aperto** | confermato e non affrontato |
 | ❌ **Smentito** | non sussiste |
 
@@ -86,12 +92,12 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | B2 | Dati | `orders_count` letto ma mai incrementato: sempre 0 | Basso | ⚠️ Aperto | codice |
 | B3 | Codice | Moduli morti (`services/restaurants.ts`, `lib/formatters.ts`, …) | Basso | ⚠️ Aperto | codice |
 | B4 | Docs | `docs/supabase_schema.md` descrive uno schema inesistente | Basso | ⚠️ Aperto | codice |
-| ~~C1~~ | ~~Multi-tenant~~ | ~~`orders`/`order_items` leggibili da chiunque~~ | — | ❌ Smentito | prod |
-| ~~C2~~ | ~~Multi-tenant~~ | ~~`bookings` leggibili da chiunque~~ | — | ❌ Smentito | prod |
+| C1 | Multi-tenant | `orders`/`order_items` leggibili da chiunque | **Critico** | ✅◆ Risolto fuori migration | prod |
+| C2 | Multi-tenant | `bookings` leggibili da chiunque | **Critico** | ✅◆ Risolto fuori migration | prod |
+| A3 | Storage | Storage senza separazione per tenant | **Alto** | ✅◆ Risolto fuori migration | prod |
 | ~~C5~~ | ~~Privacy~~ | ~~"I miei ordini" espone lo storico altrui~~ | — | ❌ Smentito | prod |
-| ~~A3~~ | ~~Storage~~ | ~~Storage senza separazione per tenant~~ | — | ❌ Smentito | prod |
 | ~~A5~~ | ~~Ordini~~ | ~~`order_number` senza UNIQUE~~ | — | ❌ Smentito → vedi N8 | prod |
-| **N8** | Ordini | Collisione `order_number` → INSERT rifiutato: il 2° cliente del giorno non ordina | **Alto** | ⚠️ Aperto | prod |
+| **N8** | Ordini | Collisione `order_number` → INSERT rifiutato: il 2° cliente del giorno non ordina | **Alto** | ✅ Risolto | prod |
 
 ---
 
@@ -113,17 +119,57 @@ L'isolamento multi-tenant, che la prima stesura indicava come area critica, **in
 
 ---
 
+## Risolti — intervento diretto sul database, non riflesso nelle migration formali
+
+C1, C2 e A3 **erano problemi reali**. Sono stati chiusi da un intervento manuale eseguito direttamente sul database — `DROP POLICY` sulle letture pubbliche di `orders` e `bookings`, `CREATE POLICY` per le `tenant storage: owner *` — prima che questo audit avesse visibilità sul progetto. La prima revisione li ha classificati come infondati perché non ne trovava traccia; era la conclusione sbagliata da un'osservazione giusta.
+
+> **Il punto di metodo.** L'assenza di un intervento dalla cronologia delle migration non prova l'assenza originaria del problema: prova solo l'assenza di un record formale dell'intervento. Sono due affermazioni diverse, e la prima revisione le ha scambiate.
+>
+> Quanto è stato possibile verificare, e cosa no:
+>
+> | Fonte | Esito |
+> |---|---|
+> | `git log -S "orders: public read"` / `"bookings: public read"` | solo le migration 007/014 e la loro neutralizzazione |
+> | `git log -S "tenant storage"` | solo `ff609ac`, il commit dell'audit stesso |
+> | `query.csv` — dump del catalogo, commit `ff609ac` del 22 set 2026 17:13 | letture pubbliche **assenti**, `tenant storage: owner insert/update/delete` **presenti** |
+> | `scripts/logs/` | due soli file, migrazione storage del 22 set 14:33 e 14:36, nessun riferimento a policy |
+>
+> Il dump è una **fotografia dello stato**, non una cronologia: mostra com'era il database in quel momento, e non può distinguere "policy mai esistita" da "policy rimossa prima dello scatto". La riclassificazione poggia quindi sulla ricostruzione di chi ha eseguito l'intervento, non su una prova recuperabile dagli artefatti del progetto. È precisamente la situazione che rende necessario il versionamento dello schema.
+
+### ✅◆ C1 — `orders` e `order_items` leggibili da chiunque
+
+**Il problema.** Una policy `FOR SELECT USING (true)` su entrambe le tabelle — la stessa che la migration `007_public_order_read.sql` descrive — esponeva `customer_name`, `customer_email`, `customer_phone`, `customer_address`, `notes` e `total` di tutti i clienti di tutti i ristoranti a chiunque possedesse la chiave anon, che è pubblica per costruzione.
+
+**Come è stato chiuso.** `DROP POLICY` diretto sul database. Al momento della ricognizione `orders` ha quattro policy (`owner read`, `owner update`, `public insert`, `public update expired`) e nessuna lettura pubblica. Sonda con chiave anon: 7 ordini reali in tabella, **0 righe restituite**; idem per `order_items`, 8 righe reali e 0 restituite.
+
+La migration 007 è stata neutralizzata perché, essendo rimasta nella sequenza, avrebbe ricreato la policy su ogni ambiente nuovo.
+
+### ✅◆ C2 — `bookings` leggibili da chiunque
+
+Stessa dinamica e stessa chiusura, con `014_public_booking_read.sql` come descrizione della policy rimossa. Al momento della ricognizione `bookings` ha solo `owner all` e `public insert`. Anche la 014 è stata neutralizzata.
+
+### ✅◆ A3 — Storage senza separazione per tenant
+
+**Il problema.** Le policy di storage concedevano INSERT/UPDATE/DELETE a qualunque utente autenticato su tutti i bucket, senza vincolo di percorso: un ristoratore poteva sovrascrivere o cancellare i file di un altro.
+
+**Come è stato chiuso.** Sostituite da `tenant storage: owner insert/update/delete`, che verificano
+`(storage.foldername(name))[1] = my_restaurant_id()::text OR is_admin()`.
+
+Da leggere insieme a **N3**: quelle policy erano attive su un'applicazione che scriveva su path piatti, quindi *bloccavano* gli upload invece di limitarli. La separazione era corretta, il codice non vi si era adeguato.
+
+---
+
 ## Rilievi smentiti
 
 Sezione conservata deliberatamente: documenta un errore di metodo utile da ricordare.
 
-> **⚠️ Le migration che li avrebbero causati sono ancora nel repository.**
-> C1 e C2 non sussistono perché le migration 007 e 014 non sono mai state
-> applicate. Da quando lo schema è sotto versionamento, però, chiunque
-> allestisca un ambiente nuovo eseguendo la sequenza in ordine le applicherebbe,
-> trasformando due rilievi smentiti in due falle reali. **Entrambi i file sono
-> stati neutralizzati** (contenuto sostituito da `SELECT 1;` con la spiegazione
-> in testa) e conservati solo per non alterare la numerazione.
+> **⚠️ Le migration che descrivono le policy di C1 e C2 erano ancora nel repository.**
+> Le policy sono state rimosse dal database (vedi la sezione precedente), ma i
+> file 007 e 014 restavano nella sequenza: chiunque allestisse un ambiente nuovo
+> eseguendola in ordine le avrebbe ricreate, riaprendo davvero le due falle.
+> **Entrambi i file sono stati neutralizzati** (contenuto sostituito da
+> `SELECT 1;` con la spiegazione in testa) e conservati solo per non alterare la
+> numerazione.
 >
 > Il rischio è aggravato dal fatto che `anon` possiede un `GRANT SELECT` di
 > tabella su `orders`, `order_items` e `bookings`: non esiste alcuna
@@ -131,27 +177,9 @@ Sezione conservata deliberatamente: documenta un errore di metodo utile da ricor
 > difesa è l'assenza di una policy permissiva. Lo si vede nella sezione
 > `PRIVILEGI_anon` di `scripts/inspect-schema.sql`.
 
-### ❌ C1 — `orders` e `order_items` leggibili da chiunque
-
-**Cosa dicevo.** La migration `007_public_order_read.sql` imposta `FOR SELECT USING (true)` su entrambe le tabelle, esponendo anagrafica e storico di tutti i clienti di tutti i ristoranti.
-
-**Realtà.** La migration **non è mai stata applicata**. In produzione `orders` ha quattro policy (`owner read`, `owner update`, `public insert`, `public update expired`) e nessuna lettura pubblica. Sonda con chiave anon: 7 ordini reali in tabella, **0 righe restituite**. Idem per `order_items` (8 righe reali, 0 restituite).
-
-### ❌ C2 — `bookings` leggibili da chiunque
-
-Stessa dinamica: `014_public_booking_read.sql` non è stata applicata. In produzione `bookings` ha solo `owner all` e `public insert`.
-
 ### ❌ C5 — "I miei ordini" espone lo storico altrui
 
 Dipendeva interamente da C1. Senza lettura pubblica su `orders`, la funzione non restituisce nulla a un utente anonimo — **è anzi non funzionante**, il che è un difetto diverso e molto minore.
-
-### ❌ A3 — Storage senza separazione per tenant
-
-**Cosa dicevo.** La migration 009 concede INSERT/UPDATE/DELETE a qualunque utente autenticato su tutti i bucket, senza vincolo di percorso.
-
-**Realtà.** In produzione quelle policy sono state sostituite da `tenant storage: owner insert/update/delete`, che verificano
-`(storage.foldername(name))[1] = my_restaurant_id()::text OR is_admin()`.
-La separazione per tenant **esisteva già** e non compare in nessuna migration. Vedere però N3: era attiva su un'applicazione che scriveva su path piatti, quindi bloccava gli upload invece di limitarli.
 
 ### ❌ A5 — `order_number` senza vincolo UNIQUE
 
@@ -197,15 +225,36 @@ Le policy per tenant di N-A3 richiedono che il primo segmento del percorso sia i
 
 **Risolto**: gli upload di logo e banner scrivono ora sotto `<restaurantId>/` (le immagini piatto lo facevano già), e `scripts/migrate-storage-to-tenant-folders.js` ha spostato i 2 oggetti esistenti aggiornando i riferimenti in `restaurants`.
 
-### ⚠️ N8 — Collisione di `order_number`: il secondo cliente del giorno non riesce a ordinare
+### ✅ N8 — Collisione di `order_number`: il secondo cliente del giorno non riesce a ordinare *(risolto)*
 
-`generateId()` costruisce il numero d'ordine da un contatore in `localStorage`, che riparte da `0001` su **ogni dispositivo**. In produzione esiste `UNIQUE (restaurant_id, order_number)`.
+**Il problema.** `generateId()` costruiva il numero d'ordine da un contatore in `localStorage`, che riparte da `0001` su **ogni dispositivo**. In produzione esiste `UNIQUE (restaurant_id, order_number)`. Due clienti dello stesso ristorante, stesso giorno, browser diversi generavano entrambi `ORD-ggmm-0001`: il secondo INSERT violava il vincolo e falliva. Non era un caso limite, era il funzionamento normale a partire dal secondo ordine giornaliero.
 
-Due clienti dello stesso ristorante, stesso giorno, browser diversi generano entrambi `ORD-ggmm-0001`: il secondo INSERT viola il vincolo e fallisce. Non è un caso limite, è il funzionamento normale a partire dal secondo ordine giornaliero.
+**Risolto** spostando l'assegnazione del numero sul database, con la RPC `generate_order_number(p_restaurant_id, p_order_type, p_table_number)`. Commit `fe1c8b9` (prenotazioni) e `c6e9802` (checkout della vetrina), entrambi del 25 settembre 2026, che versionano lavoro svolto nella tornata precedente.
 
-Il vincolo è per ristorante, quindi numeri identici fra ristoranti diversi restano possibili. **A6, che dipendeva da questo, è però già chiuso**: il tracking non cerca più per `order_number` ma per UUID, che è univoco globalmente. Resta il solo problema dell'INSERT descritto qui sopra.
+**Copertura verificata.** `generate_order_number` è richiamata in due soli punti, e sono i due che scrivono `order_number`:
 
-**Non affrontato.** La correzione è generare il numero lato database con una sequenza per ristorante.
+| Punto | File:riga |
+|---|---|
+| Checkout della vetrina (`handleOrder`) | `src/app/menu/[slug]/page.tsx:2283` |
+| Conversione prenotazione → ordine | `src/app/ristoratore/prenotazioni/page.tsx:199` |
+
+Nessun altro punto del codice costruisce un `order_number`. `generateId()` sopravvive in `src/lib/id-generator.ts` ma **non è più richiamato da nessuna parte**: è codice morto, da rimuovere insieme al resto di B3.
+
+**Sonda di concorrenza**, 12 checkout simultanei sullo stesso ristorante e nello stesso giorno, ciascuno da un client anonimo distinto — lo scenario esatto in cui il contatore in `localStorage` collideva:
+
+```
+numeri assegnati : ASP-2509-0003 … ASP-2509-0014
+insert riusciti  : 12/12
+numeri distinti  : 12 (nessun duplicato)
+violazioni UNIQUE (23505): 0
+
+secondo giro sequenziale : ASP-2509-0015, 0016, 0017  (la sequenza prosegue)
+controprova: insert forzato con un numero già usato → 23505 respinto
+```
+
+La controprova serve a escludere la spiegazione alternativa più banale, cioè che le collisioni non si vedano perché il vincolo è sparito: è ancora attivo e respinge un duplicato inserito di proposito.
+
+Resta possibile che due ristoranti diversi abbiano lo stesso numero, perché il vincolo è per ristorante. **A6, che dipendeva da questo, è comunque già chiuso** per una via diversa: il tracking non cerca più per `order_number` ma per UUID, univoco globalmente.
 
 ### ✅ N7 — PAT GitHub in chiaro *(rimosso e revocato)*
 
@@ -411,7 +460,7 @@ Nel checkout il consumo è stato **spostato prima dell'insert dell'ordine**. Con
 
 Il tracking cercava con `.eq('order_number', …).maybeSingle()`. Il difetto è chiuso alla radice: la ricerca avviene ora per **UUID**, che è univoco globalmente, quindi la collisione fra ristoranti non può più manifestarsi. Vedere N9 per il resto dell'intervento.
 
-`order_number` resta visualizzato come riferimento leggibile per il cliente, ma non è più chiave di lookup in alcuna query o route. N8 (collisione in fase di INSERT) **resta aperto** e va chiuso separatamente.
+`order_number` resta visualizzato come riferimento leggibile per il cliente, ma non è più chiave di lookup in alcuna query o route. N8, la collisione in fase di INSERT, è stato chiuso separatamente spostando la numerazione su una sequenza di database.
 
 ### ✅ A12 — `/api/order/send-status-email` senza autenticazione *(risolto)*
 
@@ -482,7 +531,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 ### Blocco 2 — Integrità dei dati d'ordine
 
 - [ ] Ricalcolare importi e prezzi **lato server** a partire da `menu_items.price`, ignorando quanto inviato dal client
-- [ ] Generare `order_number` lato database con una sequenza per ristorante (chiude N8; A6 è già chiuso dal passaggio del tracking a UUID)
+- [x] Generare `order_number` lato database con una sequenza per ristorante (N8; A6 è chiuso a parte, dal passaggio del tracking a UUID)
 - [x] Spostare lato server la scadenza degli ordini (A7, mig. 018)
 - [ ] Unificare il vocabolario degli stati fra CHECK, Kanban, tracking ed email
 - [x] Incrementare `promos.used_count` in modo atomico e far rispettare `max_uses` (A8, mig. 018)

@@ -22,13 +22,22 @@ autenticazione sulle route.
 La prima stesura del report si basava sui file in `supabase/migrations/`, dando
 per scontato che descrivessero il database in esercizio. **Non lo descrivevano.**
 
-Da lì, due conseguenze opposte:
+Da lì, tre conseguenze:
 
-- **Tre rilievi Critici erano infondati** (C1, C2, C3): le migration che li
-  causavano non erano mai state applicate.
 - **Due guasti reali e gravi non erano visibili dal codice**, perché il codice
   era corretto rispetto alle migration: la vetrina pubblica era invisibile agli
   utenti anonimi e il checkout perdeva gli ordini senza salvarli.
+- **Tre rilievi Critici sono stati dichiarati infondati per errore** (C1, C2 e
+  A3): erano problemi reali, chiusi da un intervento manuale diretto sul
+  database che non ha lasciato alcun record formale. Non trovarne traccia non
+  significava che non fossero mai esistiti.
+- **Un rilievo era davvero infondato** (C3) e due erano derivati da altri
+  (C5, A5).
+
+> **Il punto di metodo, in una riga.** L'assenza di un intervento dalla
+> cronologia delle migration prova solo che manca il record dell'intervento,
+> non che il problema non sia mai esistito. `query.csv` è una fotografia dello
+> stato al 22 settembre, non una cronologia: non può distinguere i due casi.
 
 Morale operativa: **su questo progetto non si conclude nulla sulla sicurezza o
 sul comportamento leggendo solo il sorgente.** Va verificato sul database.
@@ -128,11 +137,12 @@ Nessun errore, nessun effetto. *L'assenza di errori non è prova che una
 restrizione sia attiva: verificare con la sezione `PRIVILEGI_anon`.*
 
 **4. Le migration 007 e 014 sono svuotate, non cancellate.**
-Aprivano `orders`, `order_items` e `bookings` in lettura anonima (i rilievi C1 e
-C2). Mai applicate in produzione — ma dal momento in cui lo schema è finito sotto
-versionamento, chiunque allestisca un ambiente nuovo eseguendo la sequenza le
-avrebbe applicate, creando davvero la falla. Contenuto sostituito da `SELECT 1;`
-con la spiegazione in testa; i file restano per non alterare la numerazione.
+Descrivono le policy che aprivano `orders`, `order_items` e `bookings` in lettura
+anonima: i rilievi C1 e C2, che erano **problemi reali**, rimossi dal database con
+un `DROP POLICY` manuale. I file però restavano nella sequenza, e chiunque
+allestisse un ambiente nuovo eseguendola in ordine le avrebbe ricreate, riaprendo
+le due falle. Contenuto sostituito da `SELECT 1;` con la spiegazione in testa; i
+file restano per non alterare la numerazione.
 *Non "ripristinarle" pensando che siano state svuotate per errore.*
 
 **5. Gli upload di storage vanno sotto `<restaurantId>/`.**
@@ -249,29 +259,22 @@ articoli arrivano dal browser e nessuna funzione server li ricalcola.
 **2. Overbooking illimitato** (C9). Nessun controllo di capienza: né vincolo DB,
 né lock, né conteggio. `tables_count` serve solo ai QR code.
 
-**3. Collisione `order_number`** (N8). Il contatore sta in `localStorage` e
-riparte da `0001` su ogni dispositivo, ma in DB esiste
-`UNIQUE (restaurant_id, order_number)`: **dal secondo ordine giornaliero dello
-stesso ristorante da un browser diverso, l'insert viene rifiutato.** Il checkout
-della vetrina e la conversione delle prenotazioni usano già
-`generate_order_number`; resta da verificare che non sopravvivano altri punti con
-il vecchio schema. A6, che dipendeva da questo, è già chiuso.
-
-**4. Quattro punti con lo stesso difetto silenzioso** (N13). Il più urgente è
+**3. Quattro punti con lo stesso difetto silenzioso** (N13). Il più urgente è
 `loadHistoryOrders` in `menu/[slug]/page.tsx`, la modale "I miei ordini": stessa
 dinamica della promo `first_order`, verosimilmente **già non funzionante in
 produzione**. Gli altri tre sono latenti ma fragili.
 
-**5. Nessun rate limit** su alcun endpoint pubblico. Gli INSERT anonimi di ordini
+**4. Nessun rate limit** su alcun endpoint pubblico. Gli INSERT anonimi di ordini
 e prenotazioni non hanno né limite né captcha.
 
-**6. Compensazione mancante su `used_count`.** Se l'insert dell'ordine fallisce
+**5. Compensazione mancante su `used_count`.** Se l'insert dell'ordine fallisce
 subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
 Preferibile a regalare sconti illimitati, ma andrà chiuso.
 
-**7. Ruolo utente nel cookie client-side** (A1) e **nessuna suite di test**:
+**6. Ruolo utente nel cookie client-side** (A1) e **nessuna suite di test**:
 nessuno dei guasti trovati in queste due sessioni sarebbe stato intercettato
 automaticamente.
 
-Il quadro completo — 16 rilievi risolti, 28 aperti, 5 smentiti — è in
+Il quadro completo — 20 rilievi risolti (3 dei quali chiusi fuori migration), 27
+aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.
