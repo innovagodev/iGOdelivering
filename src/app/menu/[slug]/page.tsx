@@ -64,7 +64,6 @@ import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
 import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
-import { generateId } from '@/lib/id-generator';
 import { supabase } from '@/lib/supabase';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 
@@ -899,6 +898,7 @@ function CheckoutModal({
   applyPromo,
   promoError,
   appliedPromoDetail,
+  onPromoUnavailable,
   guests,
   setGuests,
   lastCreatedOrder,
@@ -939,6 +939,13 @@ function CheckoutModal({
   applyPromo: () => void;
   promoError?: string | null;
   appliedPromoDetail?: any;
+  /**
+   * Invocata quando il codice promozionale non è più consumabile al momento
+   * dell'invio dell'ordine (limite di utilizzi esaurito nel frattempo, o RPC in
+   * errore). Deve azzerare lo sconto applicato, così il cliente rivede il
+   * totale corretto prima di riprovare.
+   */
+  onPromoUnavailable: (message: string) => void;
   guests: number;
   setGuests: (v: number) => void;
   lastCreatedOrder: any;
@@ -1338,18 +1345,61 @@ function CheckoutModal({
     };
 
     // Helper: trigger the expired state and persist it to the DB
+    //
+    // Passa dalla RPC `expire_order` (SECURITY DEFINER) e non da un UPDATE
+    // diretto: con la chiave anon quell'UPDATE veniva scartato da RLS senza
+    // errore (PostgREST risponde 204 anche per zero righe toccate), quindi la
+    // scadenza non raggiungeva mai il database. Il cliente vedeva "scaduto"
+    // mentre per il ristoratore l'ordine restava 'new' e accettabile.
     const triggerExpired = () => {
       stopTimer();
-      setPhase('expired');
       setSecondsLeft(0);
+
+      // Le prenotazioni non hanno uno stato 'expired' sul database: la scadenza
+      // resta solo lato interfaccia, come prima.
+      if (isBooking) {
+        setPhase('expired');
+        return;
+      }
+
       (async () => {
         try {
-          await supabase.from('orders').update({ status: 'expired' }).eq('id', orderId);
+          const { data: didExpire, error } = await supabase.rpc('expire_order', {
+            p_order_id: orderId,
+          });
+          if (error) throw error;
+
+          if (didExpire) {
+            setPhase('expired');
+            setLastCreatedOrder((prev: any) => {
+              const next = { ...prev, status: 'expired' };
+              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
+              return next;
+            });
+            return;
+          }
+
+          // FALSE = la riga non era più in 'new'/'pending': il ristoratore l'ha
+          // presa in carico proprio mentre il countdown finiva. Dichiarare la
+          // scadenza sarebbe una bugia, quindi si legge lo stato reale
+          // dall'endpoint server-side e si mostra quello.
+          const res = await fetch(`/api/order-status/${encodeURIComponent(orderId)}`, {
+            cache: 'no-store',
+          });
+          if (!res.ok) return;
+
+          const json = await res.json();
+          const realStatus: string | undefined = json?.status;
+          if (!realStatus) return;
+
           setLastCreatedOrder((prev: any) => {
-            const next = { ...prev, status: 'expired' };
+            const next = { ...prev, status: realStatus };
             sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
             return next;
           });
+
+          const resolved = resolvePhase(realStatus);
+          if (resolved) setPhase(resolved);
         } catch (e) { console.error(e); }
       })();
     };
@@ -2193,12 +2243,61 @@ function CheckoutModal({
     try {
       const discount = checkoutDiscount;
 
-      const orderNumber =
-        deliveryType === 'domicilio'
-          ? generateId('ORD')
-          : deliveryType === 'asporto'
-            ? generateId('ASP')
-            : generateId('TAV', tableNumber || undefined);
+      // Il codice promozionale va consumato PRIMA di creare l'ordine.
+      //
+      // Finora l'incremento di `used_count` avveniva dopo l'insert, con un
+      // UPDATE diretto su `promos` che RLS scartava in silenzio (la tabella ha
+      // solo "promos: owner write"): il contatore restava a zero e il limite
+      // `max_uses` impostato dal ristoratore non entrava mai in funzione.
+      //
+      // La RPC fa controllo e incremento nello stesso UPDATE, quindi il limite
+      // regge anche fra checkout concorrenti. Se torna FALSE l'ultimo utilizzo
+      // è stato preso da qualcun altro fra la validazione del codice e l'invio
+      // dell'ordine: lo sconto non è più dovuto e l'ordine non va creato con
+      // quel totale.
+      if (appliedPromoDetail) {
+        const { data: promoConsumed, error: promoUsageError } = await supabase.rpc(
+          'increment_promo_usage',
+          { p_promo_id: appliedPromoDetail.id }
+        );
+
+        if (promoUsageError || promoConsumed !== true) {
+          console.error('Promo non consumabile:', promoUsageError ?? 'limite raggiunto');
+          onPromoUnavailable(
+            promoUsageError
+              ? 'Non è stato possibile applicare il codice sconto. Controlla il riepilogo e riprova.'
+              : 'Il codice sconto ha appena raggiunto il limite massimo di utilizzi. Controlla il nuovo totale e conferma di nuovo.'
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Il numero d'ordine è assegnato dal database tramite una sequenza per
+      // ristorante. Il contatore precedente stava in localStorage e ripartiva
+      // da 0001 su ogni dispositivo: dal secondo ordine giornaliero dello
+      // stesso ristorante da un browser diverso, l'insert violava
+      // UNIQUE(restaurant_id, order_number) e il cliente non riusciva a
+      // ordinare.
+      const { data: orderNumber, error: numberError } = await supabase.rpc(
+        'generate_order_number',
+        {
+          p_restaurant_id: rId,
+          // stesso valore scritto in orders.type poco sotto: determina il
+          // prefisso (DOM / ASP / TAV)
+          p_order_type: deliveryType,
+          ...(deliveryType === 'tavolo' && tableNumber
+            ? { p_table_number: String(tableNumber) }
+            : {}),
+        }
+      );
+
+      if (numberError || !orderNumber) {
+        console.error('Error generating order number:', numberError);
+        alert('Impossibile creare l’ordine, riprova.');
+        setLoading(false);
+        return;
+      }
 
       // L'id è generato qui e non dal DB: il cliente è anonimo e non ha una
       // policy SELECT su orders, quindi un insert().select() fallirebbe (il
@@ -2255,12 +2354,8 @@ function CheckoutModal({
 
       if (itemsError) throw itemsError;
 
-      if (appliedPromoDetail) {
-        await supabase
-          .from('promos')
-          .update({ used_count: (appliedPromoDetail.usedCount || 0) + 1 })
-          .eq('id', appliedPromoDetail.id);
-      }
+      // `used_count` è già stato incrementato prima dell'insert, tramite la RPC
+      // increment_promo_usage.
 
       const trackedOrder = {
         ...orderPayload,
@@ -6391,6 +6486,11 @@ function StorefrontContent() {
         applyPromo={applyPromo}
         promoError={promoError}
         appliedPromoDetail={appliedPromoDetail}
+        onPromoUnavailable={(message) => {
+          setPromoApplied(false);
+          setAppliedPromoDetail(null);
+          setPromoError(message);
+        }}
         guests={guests}
         setGuests={setGuests}
         lastCreatedOrder={lastCreatedOrder}
