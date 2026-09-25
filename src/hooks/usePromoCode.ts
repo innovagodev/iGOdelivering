@@ -169,16 +169,32 @@ export function usePromoCode(slugOrId: string) {
         }
         const cleanEmail = email.trim().toLowerCase();
 
-        // Count orders for this email
-        const { count, error: countError } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('restaurant_id', restaurant.id)
-          .eq('customer_email', cleanEmail);
+        // Conteggio degli ordini precedenti per questa email.
+        //
+        // Deve passare dalla RPC `count_customer_orders` (SECURITY DEFINER) e non
+        // da una SELECT diretta su `orders`: il cliente è anonimo e non ha alcuna
+        // policy di lettura sulla tabella, quindi una query diretta viene filtrata
+        // da RLS e torna `count: 0` con `error: null` — indistinguibile da "nessun
+        // ordine precedente". Il codice risulterebbe riutilizzabile all'infinito.
+        const { data: previousOrders, error: countError } = await supabase.rpc(
+          'count_customer_orders',
+          { p_restaurant_id: restaurant.id, p_customer_email: cleanEmail }
+        );
 
-        if (countError) {
-          console.error('Error querying orders count:', countError);
-        } else if (count && count > 0) {
+        // Fail closed: senza un conteggio attendibile non si può stabilire che sia
+        // davvero il primo ordine, e concedere lo sconto per default renderebbe un
+        // guasto della RPC un modo per aggirare la promo. Vale anche per un `data`
+        // nullo senza errore, che non è un conteggio valido.
+        if (countError || typeof previousOrders !== 'number') {
+          console.error('Error querying orders count:', countError ?? previousOrders);
+          return {
+            isValid: false,
+            error:
+              'Non è stato possibile verificare questa promo in questo momento. Riprova tra poco.',
+          };
+        }
+
+        if (previousOrders > 0) {
           return {
             isValid: false,
             error:
