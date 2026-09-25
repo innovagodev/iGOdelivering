@@ -1,9 +1,34 @@
--- ─────────────────────────────────────────────
--- Abilita la lettura pubblica delle prenotazioni
--- Questo è necessario per permettere ai clienti (non autenticati)
--- di visualizzare lo stato della propria prenotazione nel popup di tracking.
--- ─────────────────────────────────────────────
+-- ============================================================================
+-- 014 — NEUTRALIZZATA · NON APPLICARE IL CONTENUTO ORIGINALE
+-- ============================================================================
+--
+--   Questa migration non è mai stata applicata al database di produzione, ed
+--   è stato un bene: il suo contenuto originale apriva in lettura anonima
+--   tutte le prenotazioni della piattaforma.
+--
+-- CONTENUTO ORIGINALE (conservato solo come documentazione, NON eseguirlo):
+--
+--     CREATE POLICY "bookings: public read" ON public.bookings
+--       FOR SELECT USING (true);
+--
+-- PERCHÉ È PERICOLOSO
+--   Stessa dinamica della 007. `bookings` contiene name, phone, email e
+--   `notes`, campo che il form della vetrina invita esplicitamente a usare per
+--   allergie e occasioni speciali: informazioni potenzialmente sanitarie.
+--   La policy avrebbe reso il tutto leggibile da chiunque possieda la chiave
+--   anon, per tutti i ristoranti, annullando "bookings: owner all".
+--
+--   Il ruolo `anon` ha un GRANT SELECT di tabella su `bookings`, quindi non
+--   esiste restrizione per colonna che faccia da rete di sicurezza.
+--
+-- MOTIVO ORIGINALE E ALTERNATIVA CORRETTA
+--   Serviva al popup di tracking della prenotazione. Come per gli ordini, il
+--   caso d'uso è già coperto da /api/order-status/[orderId], che gira lato
+--   server e restituisce il solo `status`.
+--
+-- Il file è conservato, vuoto di effetti, per non alterare la numerazione
+-- della sequenza di migration. Cfr. AUDIT_REPORT.md, rilievo C2.
+-- ============================================================================
 
-DROP POLICY IF EXISTS "bookings: public read" ON public.bookings;
-CREATE POLICY "bookings: public read" ON public.bookings
-  FOR SELECT USING (true);
+-- Nessuna operazione.
+SELECT 1;

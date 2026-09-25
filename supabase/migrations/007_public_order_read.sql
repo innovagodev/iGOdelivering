@@ -1,13 +1,43 @@
--- ─────────────────────────────────────────────
--- Abilita la lettura pubblica degli ordini e dei relativi articoli
--- Questo è necessario per permettere ai clienti (non autenticati)
--- di visualizzare lo stato e il riepilogo del proprio ordine nella pagina di tracking.
--- ─────────────────────────────────────────────
+-- ============================================================================
+-- 007 — NEUTRALIZZATA · NON APPLICARE IL CONTENUTO ORIGINALE
+-- ============================================================================
+--
+--   Questa migration non è mai stata applicata al database di produzione, ed
+--   è stato un bene: il suo contenuto originale apriva in lettura anonima
+--   l'intero archivio ordini della piattaforma.
+--
+-- CONTENUTO ORIGINALE (conservato solo come documentazione, NON eseguirlo):
+--
+--     CREATE POLICY "orders: public read" ON public.orders
+--       FOR SELECT USING (true);
+--     CREATE POLICY "order_items: public read" ON public.order_items
+--       FOR SELECT USING (true);
+--
+-- PERCHÉ È PERICOLOSO
+--   `USING (true)` su una SELECT rende la tabella leggibile da chiunque
+--   possieda la chiave anon — che è pubblica per costruzione, essendo inclusa
+--   nel bundle JavaScript servito a ogni visitatore. Le policy permissive si
+--   sommano in OR, quindi questa avrebbe annullato "orders: owner read".
+--
+--   Sarebbero diventati leggibili da chiunque, per tutti i ristoranti:
+--   customer_name, customer_email, customer_phone, customer_address, notes,
+--   total. Un archivio di dati personali esposto integralmente.
+--
+--   Il ruolo `anon` ha un GRANT SELECT di tabella su `orders` e `order_items`
+--   (impostazione predefinita Supabase), quindi non esiste alcuna restrizione
+--   per colonna che faccia da rete di sicurezza: l'unica difesa è l'assenza di
+--   una policy permissiva. Vedere la sezione PRIVILEGI_anon di
+--   scripts/inspect-schema.sql.
+--
+-- MOTIVO ORIGINALE E ALTERNATIVA CORRETTA
+--   Serviva a mostrare al cliente lo stato del proprio ordine nella pagina di
+--   tracking. Quel caso d'uso è già coperto da /api/order-status/[orderId],
+--   che gira lato server con la service role key e restituisce il solo campo
+--   `status`, senza esporre nulla d'altro.
+--
+-- Il file è conservato, vuoto di effetti, per non alterare la numerazione
+-- della sequenza di migration. Cfr. AUDIT_REPORT.md, rilievo C1.
+-- ============================================================================
 
-DROP POLICY IF EXISTS "orders: public read" ON public.orders;
-CREATE POLICY "orders: public read" ON public.orders
-  FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "order_items: public read" ON public.order_items;
-CREATE POLICY "order_items: public read" ON public.order_items
-  FOR SELECT USING (true);
+-- Nessuna operazione.
+SELECT 1;

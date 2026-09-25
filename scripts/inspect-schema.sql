@@ -13,12 +13,21 @@
 -- SCOPO
 --   Riconciliare le migration in supabase/migrations/ con il database in
 --   esercizio. Le prime righe (sezione DIAGNOSI) rispondono direttamente ai
---   rilievi A5, A7 e A14 di AUDIT_REPORT.md; le sezioni POLICY e
---   POLICY_STORAGE servono come base per la migration RLS per-tenant.
+--   rilievi A5, A7 e A14 di AUDIT_REPORT.md.
+--
+--   Due sezioni meritano attenzione a ogni esecuzione:
+--     POLICY / POLICY_STORAGE — quali RLS sono davvero in vigore
+--     PRIVILEGI_anon          — quali COLONNE il ruolo anonimo può leggere.
+--                               Le RLS filtrano righe, i GRANT filtrano
+--                               colonne: senza questa sezione una restrizione
+--                               per colonna può risultare assente pur essendo
+--                               stata "applicata" senza errori.
 --
 -- SE UN BLOCCO DÀ ERRORE DI PERMESSI
 --   Elimina il blocco "union all" corrispondente e riesegui il resto. Il
---   valore principale sta nelle sezioni DIAGNOSI, CHECK, INDICI e POLICY.
+--   valore principale sta nelle sezioni DIAGNOSI, CHECK, INDICI, POLICY e
+--   PRIVILEGI_anon. (La sezione PRIVILEGI_anon presuppone che esista il ruolo
+--   `anon`: su Supabase c'è sempre, altrove va adattata.)
 -- ============================================================================
 
 select sezione, oggetto, dettaglio
@@ -165,6 +174,27 @@ from (
                    from pg_publication_tables
                    where pubname = 'supabase_realtime'),
                   'nessuna tabella')
+
+  -- ── PRIVILEGI DI COLONNA PER IL RUOLO anon ────────────────────────────────
+  -- Le policy RLS filtrano righe; i GRANT filtrano colonne. Questa sezione
+  -- esiste perché una restrizione per colonna può essere inefficace senza dare
+  -- alcun errore: una REVOKE per colonna non sottrae nulla a una GRANT di
+  -- tabella. Qui si vede lo stato effettivo, non quello che si crede di avere.
+  union all
+  select 14, 'PRIVILEGI_anon', c.relname::text,
+         case
+           when has_table_privilege('anon', c.oid, 'SELECT')
+             then 'SELECT su TUTTA la tabella'
+           else 'SELECT solo su: ' || coalesce((
+                  select string_agg(a.attname::text, ', ' order by a.attname)
+                  from pg_attribute a
+                  where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+                    and has_column_privilege('anon', c.oid, a.attname, 'SELECT')
+                ), '(nessuna colonna)')
+         end
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r'
 
 ) t
 order by ord, oggetto;
