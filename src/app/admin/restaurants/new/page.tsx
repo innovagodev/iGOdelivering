@@ -97,6 +97,9 @@ export default function NewRestaurantPage() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [published, setPublished] = useState(false);
+  // Link di attivazione restituito dal server alla pubblicazione: contiene il
+  // token monouso e non è ricostruibile lato client.
+  const [activationLink, setActivationLink] = useState('');
 
   // --- STATE ---
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(
@@ -447,7 +450,10 @@ export default function NewRestaurantPage() {
       .replace(/--+/g, '-');
   };
 
-  const sendPublicationEmail = async (restaurantId: string) => {
+  // Restituisce il link di attivazione generato dal server, da mostrare nella
+  // schermata di conferma. Non è più ricostruibile nel browser: contiene un
+  // token monouso che vive solo su restaurants.activation_token.
+  const sendPublicationEmail = async (restaurantId: string): Promise<string> => {
     try {
       const response = await fetch('/api/admin/send-activation-email', {
         method: 'POST',
@@ -456,14 +462,16 @@ export default function NewRestaurantPage() {
         },
         body: JSON.stringify({ restaurantId }),
       });
+      const data = await response.json();
       if (!response.ok) {
-        const errData = await response.json();
-        console.error('Failed to send activation email:', errData.error);
-      } else {
-        console.log('Activation email sent successfully.');
+        console.error('Failed to send activation email:', data.error);
+        return '';
       }
+      console.log('Activation email sent successfully.');
+      return data.activationLink || '';
     } catch (err) {
       console.error('Error triggering activation email:', err);
+      return '';
     }
   };
 
@@ -902,7 +910,7 @@ export default function NewRestaurantPage() {
 
     if (status === 'published') {
       if (dbRestaurantId) {
-        await sendPublicationEmail(dbRestaurantId);
+        setActivationLink(await sendPublicationEmail(dbRestaurantId));
       }
       setPublished(true);
     } else {
@@ -925,7 +933,7 @@ export default function NewRestaurantPage() {
         <PublishedSuccess
           restaurantName={info.name}
           email={info.email}
-          restaurantId={savedRestaurantId || ''}
+          activationLink={activationLink}
         />
       </div>
     );

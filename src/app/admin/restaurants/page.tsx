@@ -209,6 +209,37 @@ export default function AdminRestaurantsPage() {
     }
   };
 
+  /**
+   * Chiede al server un nuovo link di attivazione e lo copia negli appunti.
+   *
+   * Il link non è più costruibile nel browser: contiene un token monouso che
+   * solo il server può generare e salvare su `restaurants.activation_token`.
+   * Di conseguenza ogni copia **ruota** il token e invalida i link emessi in
+   * precedenza, compresa l'email di attivazione già inviata.
+   */
+  const handleCopyActivationLink = async (restaurantId: string) => {
+    try {
+      const response = await fetch('/api/admin/activation-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.activationLink) {
+        showFeedback(data.error || 'Impossibile generare il link di attivazione.', 'error');
+        return;
+      }
+
+      await navigator.clipboard.writeText(data.activationLink);
+      showFeedback('Nuovo link di attivazione copiato. I link precedenti non sono più validi.');
+    } catch (e) {
+      console.error('Error generating activation link:', e);
+      showFeedback('Impossibile generare il link di attivazione.', 'error');
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     const previous = [...restaurants];
@@ -515,11 +546,7 @@ export default function AdminRestaurantsPage() {
                                 </Link>
                                 {!r.owner_id && (
                                   <button
-                                    onClick={() => {
-                                      const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
-                                      navigator.clipboard.writeText(link);
-                                      showFeedback('Link di attivazione copiato negli appunti!');
-                                    }}
+                                    onClick={() => handleCopyActivationLink(r.id)}
                                     className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-primary transition-colors cursor-pointer"
                                     title="Copia link attivazione"
                                   >
@@ -675,11 +702,7 @@ export default function AdminRestaurantsPage() {
                           </Link>
                           {!r.owner_id && (
                             <button
-                              onClick={() => {
-                                const link = `${window.location.origin}/register?email=${encodeURIComponent(r.email)}&restaurant_id=${r.id}`;
-                                navigator.clipboard.writeText(link);
-                                showFeedback('Link di attivazione copiato negli appunti!');
-                              }}
+                              onClick={() => handleCopyActivationLink(r.id)}
                               className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted hover:bg-border text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors cursor-pointer border border-border/50"
                               title="Copia link attivazione"
                             >

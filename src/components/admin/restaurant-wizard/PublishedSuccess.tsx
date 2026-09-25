@@ -5,19 +5,20 @@ import { Check, Copy, CheckSquare } from 'lucide-react';
 interface PublishedSuccessProps {
   restaurantName: string;
   email: string;
-  restaurantId?: string;
+  /**
+   * Link di attivazione generato dal server al momento della pubblicazione.
+   * Non è ricostruibile qui: contiene un token monouso con scadenza, salvato su
+   * restaurants.activation_token e leggibile solo con la service role key.
+   */
+  activationLink: string;
 }
 
 export default function PublishedSuccess({
   restaurantName,
   email,
-  restaurantId,
+  activationLink,
 }: PublishedSuccessProps) {
   const [copied, setCopied] = useState(false);
-  const activationLink =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/register?email=${encodeURIComponent(email)}&restaurant_id=${restaurantId || ''}`
-      : '';
 
   const handleCopy = () => {
     if (!activationLink) return;
@@ -53,21 +54,23 @@ export default function PublishedSuccess({
               <input
                 type="text"
                 readOnly
-                value={activationLink}
+                value={activationLink || 'Link non disponibile'}
                 className="w-full px-3 py-2 text-xs bg-muted border border-border rounded-xl text-muted-foreground focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-colors cursor-pointer shrink-0"
+                disabled={!activationLink}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs bg-primary text-white font-bold rounded-xl hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer shrink-0"
               >
                 {copied ? <CheckSquare size={13} /> : <Copy size={13} />}
                 {copied ? 'Copiato' : 'Copia'}
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-              Il proprietario dovrà cliccare su questo link per impostare la propria password e
-              attivare l&apos;utenza.
+              {activationLink
+                ? 'Il proprietario dovrà cliccare su questo link per impostare la propria password e attivare l’utenza. Il link scade dopo 7 giorni ed è utilizzabile una sola volta.'
+                : 'Non è stato possibile generare il link di attivazione. Puoi rigenerarlo dalla lista ristoranti con il pulsante “Link Attivazione”.'}
             </p>
           </div>
         </div>

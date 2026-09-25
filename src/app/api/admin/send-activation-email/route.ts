@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { issueActivationLink } from '@/lib/activationToken';
 
 export async function POST(request: Request) {
   try {
@@ -75,8 +76,19 @@ export async function POST(request: Request) {
     }
 
     // 3. Generate secure activation link
+    //
+    // Il link porta un token monouso con scadenza, non più `restaurant_id`:
+    // quell'id è un identificatore pubblico del ristorante, non un segreto, e
+    // bastava conoscerlo (insieme all'email, anch'essa nota) per rivendicare
+    // l'account di un locale non ancora attivato.
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:4028';
-    const activationLink = `${siteUrl}/register?email=${encodeURIComponent(restaurant.email)}&restaurant_id=${restaurant.id}`;
+    const issued = await issueActivationLink(supabaseAdmin, restaurant, siteUrl);
+
+    if ('error' in issued) {
+      return NextResponse.json({ error: issued.error }, { status: 500 });
+    }
+
+    const { activationLink } = issued;
 
     // 4. Create premium responsive HTML email body
     const emailHtml = `

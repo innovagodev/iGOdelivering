@@ -63,7 +63,9 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [emailParam, setEmailParam] = useState('');
-  const [restaurantId, setRestaurantId] = useState('');
+  // Unica credenziale del link. L'email in query string serve solo a riempire
+  // il campo di conferma: il server non la usa per autorizzare.
+  const [token, setToken] = useState('');
 
   const {
     register,
@@ -84,9 +86,8 @@ export default function RegisterPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const email = params.get('email') || '';
-      const rId = params.get('restaurant_id') || '';
       setEmailParam(email);
-      setRestaurantId(rId);
+      setToken(params.get('token') || '');
       if (email) {
         setValue('email', email);
       }
@@ -105,9 +106,8 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           name: data.name,
-          email: emailParam || data.email,
           password: data.password,
-          restaurantId: restaurantId,
+          token,
         }),
       });
 
@@ -260,7 +260,7 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                disabled={loading || !restaurantId}
+                disabled={loading || !token}
                 className="w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover disabled:opacity-50 transition-all duration-150 active:scale-95 flex items-center justify-center gap-2 text-sm cursor-pointer"
               >
                 {loading ? (
@@ -273,9 +273,10 @@ export default function RegisterPage() {
                 )}
               </button>
 
-              {!restaurantId && (
+              {!token && (
                 <p className="text-center text-xs text-[var(--danger)] mt-2 font-medium">
-                  Link di attivazione non valido (ID ristorante mancante).
+                  Link di attivazione non valido: manca il token. Richiedi un nuovo link
+                  all’amministratore.
                 </p>
               )}
             </form>
