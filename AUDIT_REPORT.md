@@ -23,7 +23,8 @@ La prima stesura di questo report si basava sui file in `supabase/migrations/`, 
 Di conseguenza alcuni rilievi della prima stesura descrivevano una situazione diversa da quella reale. Vanno però distinti due casi che la prima revisione aveva confuso:
 
 - **C1, C2 e A3 erano problemi reali, già chiusi da un intervento manuale diretto sul database** eseguito prima che l'audit avesse visibilità sul progetto. Non comparivano nella cronologia perché quell'intervento non ha lasciato un record formale, non perché il problema non fosse mai esistito. Sono nella sezione *Risolti — intervento diretto sul database*.
-- **C3, C5 e A5 erano effettivamente infondati o derivati** da altri rilievi, e restano nella sezione *Rilievi smentiti*.
+- **C5 e A5 erano effettivamente infondati o derivati** da altri rilievi, e restano nella sezione *Rilievi smentiti*.
+- **C3 non appartiene a nessuna delle due categorie.** Non è stato smentito ma riformulato in **C3′**, ed è **risolto** dalla migration 017. La prima revisione lo elencava fra gli infondati; era un errore di classificazione, non una conclusione verificata.
 
 Il fatto che la prima stesura li avesse tutti sbagliati, sia pure in modi diversi, è esso stesso il sintomo del problema di fondo: senza uno schema versionato e allineato non è possibile ragionare in modo affidabile sulla sicurezza del sistema, né distinguere un problema mai esistito da uno risolto senza lasciare traccia.
 

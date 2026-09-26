@@ -31,8 +31,17 @@ Da lì, tre conseguenze:
   A3): erano problemi reali, chiusi da un intervento manuale diretto sul
   database che non ha lasciato alcun record formale. Non trovarne traccia non
   significava che non fossero mai esistiti.
-- **Un rilievo era davvero infondato** (C3) e due erano derivati da altri
-  (C5, A5).
+- **Due rilievi erano effettivamente infondati o derivati** (C5, A5). Sono i
+  soli due rimasti nella sezione *Rilievi smentiti*.
+
+**C3 è un caso a sé, e non va contato fra gli smentiti.** Non è stato smentito
+ma riformulato in **C3′**, ed è risolto dalla migration 017. La policy che
+espone la riga intera di `restaurants` — email del proprietario e, quando
+saranno compilati, IBAN e P.IVA — risultava assente all'ispezione, e quella
+assenza era essa stessa il guasto N1. La migration 015 l'ha dovuta
+**reintrodurre**, perché senza la vetrina non funziona, rendendo l'esposizione
+concreta; la 017 l'ha chiusa con `REVOKE` di tabella e `GRANT` per colonna,
+verificato con la chiave anon (`select('*')` → `permission denied`).
 
 > **Il punto di metodo, in una riga.** L'assenza di un intervento dalla
 > cronologia delle migration prova solo che manca il record dell'intervento,
