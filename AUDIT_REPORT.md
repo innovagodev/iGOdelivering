@@ -134,8 +134,11 @@ C1, C2 e A3 **erano problemi reali**. Sono stati chiusi da un intervento manuale
 > | `git log -S "tenant storage"` | solo `ff609ac`, il commit dell'audit stesso |
 > | `query.csv` — dump del catalogo, commit `ff609ac` del 22 set 2026 17:13 | letture pubbliche **assenti**, `tenant storage: owner insert/update/delete` **presenti** |
 > | `scripts/logs/` | due soli file, migrazione storage del 22 set 14:33 e 14:36, nessun riferimento a policy |
+> | Sonda N2 con chiave anon, 22 set 2026 (precede il fix in `ff609ac`) | `orders`: `insert().select().single()` → **`42501`** new row violates row-level security policy |
 >
-> Il dump è una **fotografia dello stato**, non una cronologia: mostra com'era il database in quel momento, e non può distinguere "policy mai esistita" da "policy rimossa prima dello scatto". La riclassificazione poggia quindi sulla ricostruzione di chi ha eseguito l'intervento, non su una prova recuperabile dagli artefatti del progetto. È precisamente la situazione che rende necessario il versionamento dello schema.
+> La sonda di N2 è un'evidenza **comportamentale e indipendente dal dump**: un `INSERT … RETURNING` richiede che una policy SELECT copra la riga inserita, quindi se `orders: public read` (`FOR SELECT USING (true)`) fosse stata attiva l'istruzione sarebbe riuscita. Il `42501` conferma per via diversa che quel giorno su `orders` non c'era alcuna lettura pubblica. Vale per `orders`, l'unica tabella di cui N2 riporta l'output: per `bookings` N2 descrive la stessa dinamica senza riportarne l'esito, e `order_items` non è stata sondata in questa forma.
+>
+> Sia il dump sia la sonda sono però **fotografie dello stato**, non una cronologia: mostrano com'era il database in quel momento, e non possono distinguere "policy mai esistita" da "policy rimossa prima dello scatto". La riclassificazione poggia quindi sulla ricostruzione di chi ha eseguito l'intervento, non su una prova recuperabile dagli artefatti del progetto. È precisamente la situazione che rende necessario il versionamento dello schema.
 
 ### ✅◆ C1 — `orders` e `order_items` leggibili da chiunque
 
