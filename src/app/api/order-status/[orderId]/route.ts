@@ -20,7 +20,8 @@ import { createClient } from '@supabase/supabase-js';
  *
  * Response (order):
  *   { status, type: 'order', orderNumber, orderType, address, tableNumber,
- *     scheduledAt, items: [{ name, price, qty, note }],
+ *     scheduledAt, createdAt,
+ *     items: [{ name, price, qty, note, addedIngredients, removedIngredients }],
  *     subtotal, deliveryFee, discount, total,
  *     restaurant: { name, slug } | null }
  * Response (booking): { status, type: 'booking' }
@@ -62,8 +63,8 @@ export async function GET(
     .select(
       `
       id, order_number, status, type, customer_address, table_number, scheduled_at,
-      subtotal, delivery_fee, discount, total,
-      order_items ( name, price, qty, note ),
+      created_at, subtotal, delivery_fee, discount, total,
+      order_items ( name, price, qty, note, added_ingredients, removed_ingredients ),
       restaurants ( name, slug )
     `
     )
@@ -88,11 +89,14 @@ export async function GET(
       address: order.customer_address,
       tableNumber: order.table_number,
       scheduledAt: order.scheduled_at,
+      createdAt: order.created_at,
       items: (order.order_items || []).map((item: any) => ({
         name: item.name,
         price: parseFloat(item.price) || 0,
         qty: item.qty,
         note: item.note,
+        addedIngredients: item.added_ingredients || [],
+        removedIngredients: item.removed_ingredients || [],
       })),
       subtotal: parseFloat(order.subtotal) || 0,
       deliveryFee: parseFloat(order.delivery_fee) || 0,

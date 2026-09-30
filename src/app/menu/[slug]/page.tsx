@@ -116,6 +116,38 @@ const cartToLines = (cart: CartItem[]) =>
     note: item.note || '',
   }));
 
+/**
+ * Storico "I miei ordini": gli UUID degli ordini creati da questo dispositivo.
+ *
+ * Lo storico si basava sulla sola email, con una SELECT anonima su `orders`:
+ * RLS la filtrava e la modale restava sempre vuota (N13a). Renderla
+ * funzionante per email avrebbe riaperto C5 — chiunque digiti l'email di un
+ * altro ne vedrebbe gli ordini. L'UUID invece lo possiede solo chi ha creato
+ * l'ordine, ed è la stessa prova di possesso usata dal tracking.
+ */
+const ORDER_HISTORY_LIMIT = 20;
+const orderHistoryKey = (slug: string) => `iGO_order_history_${slug}`;
+
+const readOrderHistory = (slug: string): string[] => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(orderHistoryKey(slug)) || '[]');
+    return Array.isArray(raw) ? raw.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeOrderHistory = (slug: string, ids: string[]) => {
+  try {
+    localStorage.setItem(orderHistoryKey(slug), JSON.stringify(ids.slice(0, ORDER_HISTORY_LIMIT)));
+  } catch {
+    // storage non disponibile (navigazione privata): lo storico resta vuoto
+  }
+};
+
+const rememberOrder = (slug: string, orderId: string) =>
+  writeOrderHistory(slug, [orderId, ...readOrderHistory(slug).filter((id) => id !== orderId)]);
+
 interface RestaurantType {
   name: string;
   tagline: string;
@@ -2275,6 +2307,7 @@ function CheckoutModal({
 
       setLastCreatedOrder(trackedOrder);
       sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
+      rememberOrder(slug, orderPayload.id);
       clearCart();
 
       setLoading(false);
@@ -4034,55 +4067,71 @@ function StorefrontContent() {
   }, [lastCreatedOrder?.id, slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
-  const [myOrdersEmail, setMyOrdersEmail] = useState('');
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<any | null>(null);
 
-  const loadHistoryOrders = async (custEmail: string) => {
-    if (!custEmail || !restaurantSettings.id) return;
+  const loadHistoryOrders = async () => {
+    const ids = readOrderHistory(slug);
+    // Chi ha ordinato prima che esistesse lo storico ha almeno l'ultimo
+    // ordine della sessione.
+    const lastId = lastCreatedOrderRef.current?.id;
+    if (typeof lastId === 'string' && !ids.includes(lastId)) ids.unshift(lastId);
+    if (ids.length === 0) {
+      setHistoryOrders([]);
+      return;
+    }
+
+    setHistoryLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('restaurant_id', restaurantSettings.id)
-        .eq('customer_email', custEmail.trim().toLowerCase())
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await fetch(`/api/order-status/${id}`);
+            if (res.status === 404 || res.status === 400) return { id, gone: true };
+            if (!res.ok) return { id };
+            return { id, data: await res.json() };
+          } catch {
+            return { id };
+          }
+        })
+      );
 
-      if (error) throw error;
+      // Via dallo storico solo ciò che il server dice non esistere più; un
+      // errore di rete non deve cancellare nulla.
+      writeOrderHistory(
+        slug,
+        results.filter((r: any) => !r.gone).map((r) => r.id)
+      );
 
-      const mapped = (data || []).map((o: any) => ({
-        id: o.order_number,
-        db_id: o.id,
-        timestamp: o.created_at,
-        type: o.type,
-        status: o.status,
-        customerName: o.customer_name,
-        customerPhone: o.customer_phone,
-        customerAddress: o.customer_address,
-        scheduledAt: o.scheduled_at,
-        subtotal: parseFloat(o.subtotal),
-        deliveryFee: parseFloat(o.delivery_fee),
-        discount: parseFloat(o.discount),
-        total: parseFloat(o.total),
-        payMethod: 'cash',
-        itemsCount: (o.order_items || []).reduce((s: number, item: any) => s + item.qty, 0),
-        items: (o.order_items || []).map((oi: any) => ({
-          name: oi.name,
-          price: parseFloat(oi.price),
-          qty: oi.qty,
-          addedIngredients: oi.added_ingredients || [],
-          removedIngredients: oi.removed_ingredients || [],
-        })),
-      }));
+      const mapped = results
+        .filter((r: any) => r.data && r.data.type === 'order')
+        .map(({ id, data: o }: any) => ({
+          id: o.orderNumber,
+          order_number: o.orderNumber,
+          db_id: id,
+          timestamp: o.createdAt,
+          type: o.orderType,
+          status: o.status,
+          customerAddress: o.address,
+          customer: { address: o.address },
+          tableNumber: o.tableNumber,
+          scheduledAt: o.scheduledAt,
+          subtotal: o.subtotal,
+          deliveryFee: o.deliveryFee,
+          discount: o.discount,
+          total: o.total,
+          payMethod: 'cash',
+          itemsCount: (o.items || []).reduce((s: number, item: any) => s + item.qty, 0),
+          items: o.items || [],
+        }))
+        .sort((x: any, y: any) => String(y.timestamp).localeCompare(String(x.timestamp)));
 
       setHistoryOrders(mapped);
-    } catch (err) {
-      console.error('Error loading history orders:', err);
+    } finally {
+      setHistoryLoading(false);
     }
   };
-  const [historyEmailInput, setHistoryEmailInput] = useState('');
-  const [historyEmailError, setHistoryEmailError] = useState<string | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const handleShare = () => {
     if (typeof window !== 'undefined') {
@@ -4280,16 +4329,22 @@ function StorefrontContent() {
             </div>
           ) : (
             <>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Cliente:</span>
-                <span className="font-semibold text-foreground">
-                  {order.customer?.name || order.customerName}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Telefono:</span>
-                <span className="font-semibold text-foreground">{order.customer?.phone}</span>
-              </div>
+              {/* Nello storico "I miei ordini" nome e telefono non ci sono:
+                  /api/order-status non restituisce dati personali. */}
+              {(order.customer?.name || order.customerName) && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cliente:</span>
+                  <span className="font-semibold text-foreground">
+                    {order.customer?.name || order.customerName}
+                  </span>
+                </div>
+              )}
+              {order.customer?.phone && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Telefono:</span>
+                  <span className="font-semibold text-foreground">{order.customer.phone}</span>
+                </div>
+              )}
               {order.type === 'domicilio' && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Indirizzo:</span>
@@ -4653,10 +4708,7 @@ function StorefrontContent() {
         const data = JSON.parse(saved);
         if (data.name) setName(data.name);
         if (data.phone) setPhone(data.phone);
-        if (data.email) {
-          setEmail(data.email);
-          setMyOrdersEmail(data.email.trim().toLowerCase());
-        }
+        if (data.email) setEmail(data.email);
         if (data.address) setAddress(data.address);
         if (data.deliveryType) setDeliveryType(data.deliveryType);
       }
@@ -5649,11 +5701,7 @@ function StorefrontContent() {
                 <button
                   onClick={() => {
                     setShowMyOrdersModal(true);
-                    if (myOrdersEmail) {
-                      loadHistoryOrders(myOrdersEmail);
-                    } else {
-                      setHistoryOrders([]);
-                    }
+                    loadHistoryOrders();
                   }}
                   title={lang === 'en' ? 'My orders' : 'I miei ordini'}
                   className="flex items-center justify-center w-9 h-9 rounded-xl transition-all active:scale-95 shadow-sm bg-card text-foreground hover:bg-muted border border-border"
@@ -5741,11 +5789,7 @@ function StorefrontContent() {
               <button
                 onClick={() => {
                   setShowMyOrdersModal(true);
-                  if (myOrdersEmail) {
-                    loadHistoryOrders(myOrdersEmail);
-                  } else {
-                    setHistoryOrders([]);
-                  }
+                  loadHistoryOrders();
                 }}
                 title={lang === 'en' ? 'My orders' : 'I miei ordini'}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 shadow-sm ${!isScrolled
@@ -6821,83 +6865,22 @@ function StorefrontContent() {
                   onPrint={() => handlePrintReceipt(selectedHistoryOrder)}
                 />
               </div>
-            ) : !myOrdersEmail ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                  if (!historyEmailInput.trim()) {
-                    setHistoryEmailError("L'email è obbligatoria.");
-                    return;
-                  }
-                  if (!emailRegex.test(historyEmailInput.trim())) {
-                    setHistoryEmailError('Inserisci un indirizzo email valido.');
-                    return;
-                  }
-                  setHistoryEmailError(null);
-                  const cleanedEmail = historyEmailInput.trim().toLowerCase();
-                  setMyOrdersEmail(cleanedEmail);
-                  loadHistoryOrders(cleanedEmail);
-                }}
-                className="space-y-4 py-4 text-center"
-              >
-                <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
-                  <History size={24} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-foreground">Visualizza i tuoi ordini</h3>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    Inserisci l&apos;email utilizzata per gli ordini per recuperare lo storico dei tuoi
-                    ultimi 10 acquisti.
-                  </p>
-                </div>
-                <div className="max-w-xs mx-auto space-y-3">
-                  <input
-                    type="email"
-                    required
-                    value={historyEmailInput}
-                    onChange={(e) => {
-                      setHistoryEmailInput(e.target.value);
-                      if (historyEmailError) setHistoryEmailError(null);
-                    }}
-                    placeholder="La tua email..."
-                    className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-foreground placeholder:text-muted-foreground/50"
-                  />
-                  {historyEmailError && (
-                    <p className="text-xs text-red-500 font-semibold mt-1 text-left px-1">
-                      {historyEmailError}
-                    </p>
-                  )}
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-hover transition-colors"
-                  >
-                    Cerca Ordini
-                  </button>
-                </div>
-              </form>
             ) : (
               <div className="space-y-4 py-1">
-                <div className="flex justify-between items-center px-4 py-2 bg-muted/40 border border-border/40 rounded-xl text-xs">
-                  <span className="text-muted-foreground font-medium">
-                    Ordini per: <strong className="text-foreground">{myOrdersEmail}</strong>
-                  </span>
-                  <button
-                    onClick={() => {
-                      setMyOrdersEmail('');
-                      setHistoryEmailInput('');
-                      setHistoryOrders([]);
-                    }}
-                    className="text-xs text-red-500 font-extrabold hover:underline"
-                  >
-                    Modifica
-                  </button>
+                <div className="px-4 py-2 bg-muted/40 border border-border/40 rounded-xl text-xs text-muted-foreground font-medium">
+                  Ordini effettuati da questo dispositivo
                 </div>
 
-                {historyOrders.length === 0 ? (
+                {historyLoading && historyOrders.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    Caricamento…
+                  </div>
+                ) : historyOrders.length === 0 ? (
                   <div className="text-center py-8 space-y-2 text-muted-foreground">
-                    <p className="text-sm font-semibold">Nessun ordine trovato per questa email.</p>
-                    <p className="text-xs text-muted-foreground/70">Gli ordini effettuati compariranno qui.</p>
+                    <p className="text-sm font-semibold">Nessun ordine effettuato da questo dispositivo.</p>
+                    <p className="text-xs text-muted-foreground/70">
+                      Gli ordini che invierai da qui compariranno in questa lista.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1 scrollbar-thin">
@@ -6972,12 +6955,14 @@ function StorefrontContent() {
 
                           {/* Row 2+: Grid details */}
                           <div className="space-y-2 pt-2.5 border-t border-border/50">
-                            <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
-                              <span className="text-muted-foreground/80 font-medium">Nominativo</span>
-                              <span className="font-extrabold text-foreground text-right">
-                                {order.customerName || 'N/A'}
-                              </span>
-                            </div>
+                            {order.customerName && (
+                              <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
+                                <span className="text-muted-foreground/80 font-medium">Nominativo</span>
+                                <span className="font-extrabold text-foreground text-right">
+                                  {order.customerName}
+                                </span>
+                              </div>
+                            )}
 
                             {order.type === 'domicilio' && order.customerAddress && (
                               <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">

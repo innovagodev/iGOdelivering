@@ -60,7 +60,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N10** | Promozioni | Promo `first_order` scavalcabile: il conteggio ordini torna sempre 0 | **Alto** | ✅ Risolto | prod |
 | **N11** | Auth | Rollback di registrazione silenzioso: un utente Auth orfano blocca l'attivazione per sempre | **Alto** | ✅ Risolto | prod |
 | **N12** | Schema | `activation_token`/`activation_token_expires_at` esistono in produzione ma in nessuna migration | Medio | ✅ Risolto (mig. 019) | prod |
-| **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto | codice |
+| **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ⚠️ Aperto | prod |
 | **N16** | Feature | La vetrina ignora le opzioni configurate nel wizard e offre un listino di extra fisso e generico | Medio | ⚠️ Aperto | codice |
@@ -335,12 +335,16 @@ Una ricognizione mirata sui contesti anonimi (`src/app/menu/`, `src/app/ordine/`
 
 | # | Punto | Cosa assume | Perché è lo stesso pattern |
 |---|---|---|---|
-| a | `menu/[slug]/page.tsx` — `loadHistoryOrders` | modale "I miei ordini": SELECT anon su `orders` per `customer_email` | Identico a N10. `data` è `[]` con `error: null`, il `catch` non scatta mai, l'utente legge "nessun ordine" invece di "non posso mostrarteli". Verosimilmente **già morto in produzione** — è il residuo di C5 |
+| ✅ a | `menu/[slug]/page.tsx` — `loadHistoryOrders` | modale "I miei ordini": SELECT anon su `orders` per `customer_email` | Identico a N10. `data` è `[]` con `error: null`, il `catch` non scatta mai, l'utente legge "nessun ordine" invece di "non posso mostrarteli". **Risolto il 30 settembre 2026**, vedi sotto |
 | b | `menu/[slug]/page.tsx` — canale Realtime anon su `orders`/`bookings` | che i `postgres_changes` arrivino | Passano da RLS: il canale si sottoscrive senza mai consegnare un evento. Oggi mascherato dal polling su `/api/order-status`, che fa tutto il lavoro |
 | c | `usePromoCode.ts` — `SELECT id FROM restaurants` | `!restaurant` ⇒ "Ristorante non trovato" | Non rotto oggi (`restaurants` è leggibile da anon), ma il messaggio afferma l'inesistenza sulla base di un risultato vuoto: un futuro restringimento lo renderebbe fuorviante invece che rumoroso |
 | d | `useRestaurantSettings.ts` — `maybeSingle()` su `restaurants` | `if (restaurant) {…}` senza ramo else | Come c. Il `throw error` copre solo l'errore esplicito; un vuoto da RLS cade nel nulla e la pagina resta sui `DEFAULT_SETTINGS` |
 
-Il candidato più urgente è **a**, che è lo stesso difetto di N10 su una terza superficie. **Non affrontati** al 30 settembre 2026.
+**a — risolto il 30 settembre 2026.** Ripararlo "per email" con una route server avrebbe riaperto C5: chiunque digitasse l'email di un altro ne avrebbe visto gli ordini. Lo storico usa ora gli UUID degli ordini creati dal dispositivo, salvati in `localStorage` alla conferma, e li rilegge da `/api/order-status/[orderId]`: è la stessa prova di possesso del tracking, e la risposta non contiene dati personali. La modale non chiede più l'email. La route è stata estesa con data dell'ordine e personalizzazioni delle righe.
+
+Verificato in Chrome sulla vetrina locale: due ordini reali in storico compaiono con tipologia, data e totale, lo scontrino si apre, e un UUID inesistente viene rimosso dallo storico (404). Limite dichiarato: lo storico è per dispositivo e per browser; senza autenticazione del cliente non può essere altrimenti.
+
+b, c e d **non affrontati** al 30 settembre 2026.
 
 ### ⚠️ N4 · N5 · N6 — Divergenze minori fra migration e produzione
 
