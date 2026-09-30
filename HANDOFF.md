@@ -28,8 +28,8 @@ Da lì, tre conseguenze:
 - **Due guasti reali e gravi non erano visibili dal codice**, perché il codice
   era corretto rispetto alle migration: la vetrina pubblica era invisibile agli
   utenti anonimi e il checkout perdeva gli ordini senza salvarli.
-- **Tre rilievi Critici sono stati dichiarati infondati per errore** (C1, C2 e
-  A3): erano problemi reali, chiusi da un intervento manuale diretto sul
+- **Tre rilievi sono stati dichiarati infondati per errore** (C1 e C2, Critici;
+  A3, Alto): erano problemi reali, chiusi da un intervento manuale diretto sul
   database che non ha lasciato alcun record formale. Non trovarne traccia non
   significava che non fossero mai esistiti.
 - **Due rilievi erano effettivamente infondati o derivati** (C5, A5). Sono i
@@ -263,8 +263,8 @@ articoli arrivano dal browser e nessuna funzione server li ricalcola.
 
 > **C8 viene prima di tutto il resto del blocco pagamenti.** Integrare un gateway
 > senza aver spostato il calcolo lato server significa addebitare la cifra decisa
-> dal cliente. È anche l'occasione giusta per generare `order_number` con una
-> sequenza di database e chiudere N8.
+> dal cliente. (`order_number` è già generato dal database: N8 è chiuso dal
+> 25 settembre con la RPC `generate_order_number`.)
 
 **2. Overbooking illimitato** (C9). Nessun controllo di capienza: né vincolo DB,
 né lock, né conteggio. `tables_count` serve solo ai QR code.

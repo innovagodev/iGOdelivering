@@ -116,7 +116,7 @@ Chiusi quelli, restano tre lacune strutturali:
 
 Il rimedio adottato è sempre lo stesso: spostare l'operazione dietro una funzione `SECURITY DEFINER` o una route con service role key, e farle restituire un esito esplicito — un boolean, un conteggio, un 404 — che il chiamante non possa confondere con un risultato vuoto.
 
-L'isolamento multi-tenant, che la prima stesura indicava come area critica, **in produzione regge**: le policy per proprietario sono corrette, le API admin verificano il ruolo server-side prima di usare la service role key, e le letture pubbliche indiscriminate ipotizzate non esistono. Il problema reale non è che le RLS siano permissive — è che **nessuno sa con certezza quali siano**, perché lo schema non era versionato e le migration non corrispondono alla produzione.
+L'isolamento multi-tenant, che la prima stesura indicava come area critica, **oggi in produzione regge**: le policy per proprietario sono corrette, le API admin verificano il ruolo server-side prima di usare la service role key, e le letture pubbliche indiscriminate su `orders`, `order_items` e `bookings` (C1, C2) — problemi reali, non ipotizzati — erano già state rimosse con un intervento manuale prima che l'audit avesse visibilità sul progetto. Il problema reale non è che le RLS siano permissive — è che **nessuno sa con certezza quali siano**, perché lo schema non era versionato e le migration non corrispondono alla produzione.
 
 ---
 
@@ -512,7 +512,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 - [x] Lettura pubblica di `restaurants` ristretta alle sole colonne della vetrina (mig. 017)
 - [x] Upload storage allineati alle policy per tenant, oggetti esistenti migrati
 - [x] 13 indici creati sui percorsi di accesso reali (mig. 016)
-- [x] `expired` ammesso dal CHECK (mig. 016) — ma la scrittura resta inefficace, vedi A7
+- [x] `expired` ammesso dal CHECK (mig. 016) — la scrittura restava inefficace per RLS; chiusa il 25 settembre dalla mig. 018, vedi A7
 - [x] Schema Supabase riportato sotto versionamento
 - [x] PAT GitHub rimosso dalla configurazione locale
 
@@ -526,7 +526,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 - [ ] Rate limit sugli endpoint pubblici *(resta aperto: nessun endpoint ne ha)*
 - [x] Neutralizzate le migration 007 e 014, che avrebbero reintrodotto C1 e C2 su ogni ambiente nuovo
 - [ ] Riconciliare le restanti migration 001-013 con lo schema reale e correggerle
-- [ ] Aggiungere la migration mancante per `activation_token`/`activation_token_expires_at` (N12)
+- [x] Aggiungere la migration mancante per `activation_token`/`activation_token_expires_at` (N12, mig. 019)
 - [ ] Valutare una restrizione per colonna anche su `orders` e `bookings`: oggi `anon` ha un `GRANT SELECT` di tabella e l'unica difesa è l'assenza di policy permissive
 
 ### Blocco 2 — Integrità dei dati d'ordine
@@ -581,7 +581,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 
 ## Lezione di metodo
 
-Il guasto più grave — vetrina e checkout non funzionanti per i clienti — **non era individuabile leggendo il codice**, perché il codice era corretto rispetto alle migration. Era la produzione a essere diversa. Allo stesso tempo, i tre rilievi Critici poi smentiti derivavano dall'aver trattato le migration come descrizione affidabile del database.
+Il guasto più grave — vetrina e checkout non funzionanti per i clienti — **non era individuabile leggendo il codice**, perché il codice era corretto rispetto alle migration. Era la produzione a essere diversa. Allo stesso tempo, la prima revisione ha dichiarato infondati C1, C2 (Critici) e A3 (Alto), che erano invece problemi reali già chiusi da un intervento manuale sul database: non trovandone traccia né nelle migration né nel catalogo, ha scambiato l'assenza di un record dell'intervento per l'assenza del problema. Gli unici rilievi davvero smentiti sono C5 e A5.
 
 Entrambi gli errori hanno la stessa radice: nessuna fonte di verità sullo schema. Tenerlo versionato e riconciliato non è ordine formale — è la precondizione perché qualunque ragionamento sulla sicurezza di questo sistema sia attendibile.
 
