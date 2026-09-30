@@ -1,18 +1,18 @@
 # AUDIT REPORT — iGOdelivering v1.29.2
 
-**Commit di riferimento:** `c144d72` (branch `main`)
+**Commit di partenza dell'audit:** `c144d72` (v1.29.2, 10 settembre 2026, branch `main`)
 **Prima stesura:** 22 settembre 2026 — analisi statica del codice
 **Revisione:** 22 settembre 2026 — verifica contro il database di produzione
-**Ultimo aggiornamento:** 25 settembre 2026 — chiusura di A6, A7, A8, A12, C4, N9, N10, N11, N12; nuovo rilievo N13
+**Seconda tornata:** 25 settembre 2026 — chiusura di A6, A7, A8, A12, C4, N8, N9, N10, N11, N12; nuovo rilievo N13; riclassificazione di C1, C2, A3 (25 set) e di C3 (26 set)
+**Ultimo aggiornamento:** 30 settembre 2026 — correzioni di coerenza interna fra tabella, nota metodologica e dettaglio; nessun nuovo rilievo
 **Perimetro:** 39.443 righe TypeScript/TSX in `src/` (100% dei file), 19 migration SQL, configurazione Next.js, documentazione, storico Git.
 
-> **⚠️ Stato del codice al momento di questo aggiornamento.** I rilievi segnati
-> ✅ in questa tornata (A6, A7, A8, A12, C4, N9, N10, N11) sono corretti e
-> verificati con sonde sul database reale, ma **le modifiche al codice sono
-> ancora nell'albero di lavoro e non committate**. Su `main` non c'è nulla di
-> tutto questo. Le sole cose già presenti sul database di produzione sono le
-> migration 018 e le colonne del token di attivazione; la 019 versiona queste
-> ultime e non va eseguita.
+> **Stato del codice.** Tutti gli interventi descritti come risolti sono
+> committati su `main` (verificabile con `git log`): la prima tornata in
+> `ff609ac` (22 settembre), la seconda in nove commit da `6d044c3` a `819190d`
+> (25 settembre), seguiti dai soli commit di documentazione. Sul database di
+> produzione sono applicate le migration 015, 016, 017 e 018; la 019 versiona
+> colonne che in produzione esistono già e non va eseguita.
 
 ---
 

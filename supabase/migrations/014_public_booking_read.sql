@@ -2,9 +2,13 @@
 -- 014 — NEUTRALIZZATA · NON APPLICARE IL CONTENUTO ORIGINALE
 -- ============================================================================
 --
---   Questa migration non è mai stata applicata al database di produzione, ed
---   è stato un bene: il suo contenuto originale apriva in lettura anonima
---   tutte le prenotazioni della piattaforma.
+--   Il contenuto originale apriva in lettura anonima tutte le prenotazioni
+--   della piattaforma. La policy che definisce era attiva in produzione ed è
+--   stata rimossa con un DROP POLICY manuale, prima che l'audit avesse
+--   visibilità sul progetto: cfr. AUDIT_REPORT.md, sezione "Risolti —
+--   intervento diretto sul database", rilievo C2. Come sia arrivata in
+--   produzione — da questo file o da un intervento separato — non è
+--   documentato e resta una domanda aperta.
 --
 -- CONTENUTO ORIGINALE (conservato solo come documentazione, NON eseguirlo):
 --

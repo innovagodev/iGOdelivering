@@ -2,9 +2,13 @@
 -- 007 — NEUTRALIZZATA · NON APPLICARE IL CONTENUTO ORIGINALE
 -- ============================================================================
 --
---   Questa migration non è mai stata applicata al database di produzione, ed
---   è stato un bene: il suo contenuto originale apriva in lettura anonima
---   l'intero archivio ordini della piattaforma.
+--   Il contenuto originale apriva in lettura anonima l'intero archivio ordini
+--   della piattaforma. Le policy che definisce erano attive in produzione e
+--   sono state rimosse con un DROP POLICY manuale, prima che l'audit avesse
+--   visibilità sul progetto: cfr. AUDIT_REPORT.md, sezione "Risolti —
+--   intervento diretto sul database", rilievo C1. Come siano arrivate in
+--   produzione — da questo file o da un intervento separato — non è
+--   documentato e resta una domanda aperta.
 --
 -- CONTENUTO ORIGINALE (conservato solo come documentazione, NON eseguirlo):
 --
@@ -32,8 +36,9 @@
 -- MOTIVO ORIGINALE E ALTERNATIVA CORRETTA
 --   Serviva a mostrare al cliente lo stato del proprio ordine nella pagina di
 --   tracking. Quel caso d'uso è già coperto da /api/order-status/[orderId],
---   che gira lato server con la service role key e restituisce il solo campo
---   `status`, senza esporre nulla d'altro.
+--   che gira lato server con la service role key, cerca per UUID e
+--   restituisce i soli campi che la pagina di tracking mostra, senza alcun
+--   dato personale del cliente (nome, email, telefono). Cfr. rilievo N9.
 --
 -- Il file è conservato, vuoto di effetti, per non alterare la numerazione
 -- della sequenza di migration. Cfr. AUDIT_REPORT.md, rilievo C1.

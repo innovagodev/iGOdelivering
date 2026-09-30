@@ -1,13 +1,14 @@
 # Handoff — stato del progetto dopo le sessioni di audit
 
-**Aggiornato:** 25 settembre 2026 · **Riferimento:** `5cf33ef` su `main`
+**Aggiornato:** 30 settembre 2026 · **Riferimento:** `main` — codice in `ff609ac` (22 set) e in `6d044c3`…`819190d` (25 set), poi solo documentazione
 **Da leggere insieme a:** `AUDIT_REPORT.md`
 
 > **L'audit non è più di sola lettura.** Il prompt iniziale chiedeva una diagnosi
 > senza modifiche. Quella fase è conclusa da tempo: i rilievi marcati ✅ nel
-> report sono stati corretti, cinque migration sono applicate in produzione e il
-> codice è su `main`. Chi riprende il lavoro deve partire da qui, non dal commit
-> iniziale.
+> report sono stati corretti, quattro migration (015–018) sono applicate in
+> produzione e tutto il codice è committato su `main` (verificabile con
+> `git log`). Chi riprende il lavoro deve partire da qui, non dal commit
+> iniziale `c144d72`.
 
 Il lavoro si è svolto in **due tornate**. La prima (22–23 settembre) ha
 ripristinato il servizio: vetrina invisibile e checkout che perdeva gli ordini.
