@@ -4,7 +4,7 @@
 **Prima stesura:** 22 settembre 2026 — analisi statica del codice
 **Revisione:** 22 settembre 2026 — verifica contro il database di produzione
 **Seconda tornata:** 25 settembre 2026 — chiusura di A6, A7, A8, A12, C4, N8, N9, N10, N11, N12; nuovo rilievo N13; riclassificazione di C1, C2, A3 (25 set) e di C3 (26 set)
-**Ultimo aggiornamento:** 30 settembre 2026 — correzioni di coerenza interna fra tabella, nota metodologica e dettaglio; nessun nuovo rilievo
+**Ultimo aggiornamento:** 30 settembre 2026 — correzioni di coerenza interna; fix di C8 pronto (attende la migration 020); nuovi rilievi N14, N15, N16
 **Perimetro:** 39.443 righe TypeScript/TSX in `src/` (100% dei file), 19 migration SQL, configurazione Next.js, documentazione, storico Git.
 
 > **Stato del codice.** Tutti gli interventi descritti come risolti sono
@@ -61,10 +61,13 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N11** | Auth | Rollback di registrazione silenzioso: un utente Auth orfano blocca l'attivazione per sempre | **Alto** | ✅ Risolto | prod |
 | **N12** | Schema | `activation_token`/`activation_token_expires_at` esistono in produzione ma in nessuna migration | Medio | ✅ Risolto (mig. 019) | prod |
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto | codice |
+| **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
+| **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ⚠️ Aperto | prod |
+| **N16** | Feature | La vetrina ignora le opzioni configurate nel wizard e offre un listino di extra fisso e generico | Medio | ⚠️ Aperto | codice |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
-| C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ⚠️ Aperto | prod |
+| C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ⚠️ Aperto — fix nel codice, attende mig. 020 | prod |
 | C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ⚠️ Aperto | codice |
 | A1 | Auth | Ruolo letto da cookie non-httpOnly scritto dal client | **Alto** | ⚠️ Aperto | codice |
 | A2 | Multi-tenant | `my_restaurant_id()` usa `LIMIT 1`: un owner con più locali ne governa uno solo | **Alto** | ⚠️ Aperto | prod |
@@ -345,6 +348,24 @@ Il candidato più urgente è **a**, che è lo stesso difetto di N10 su una terza
 - Esiste un bucket `menu-images` che nessuna migration crea e che nessun codice usa.
 - Realtime è attivo su tutte e 11 le tabelle; la migration 005 ne prevedeva due (`orders`, `bookings`). Le RLS restano applicate anche via Realtime, quindi non è un'esposizione, ma è più ampio del previsto.
 
+### ⚠️ N14 — Due RPC in produzione senza migration
+
+`generate_order_number(p_restaurant_id, p_order_type, p_table_number)` e `count_customer_orders(p_restaurant_id, p_customer_email)` sono esposte da PostgREST e usate dal codice (N8, N10), ma nessun file in `supabase/migrations/` le crea. È la stessa deriva di N12: un ambiente costruito dalla sequenza di migration non ha né la numerazione degli ordini né la verifica del primo ordine. La 020 ne ricava la firma dal catalogo proprio per questo. Da versionare leggendone la definizione con `pg_get_functiondef`.
+
+### ⚠️ N15 — A convivium nessun ordine a domicilio è completabile *(Alto)*
+
+Emerso il 30 settembre 2026 durante il lavoro su C8. L'unica zona di consegna di convivium è attiva, con consegna a 2,50 €, ma ha `caps` vuoto. La vetrina considera servito un CAP solo se compare nell'elenco della zona, quindi per qualunque CAP il checkout a domicilio resta non confermabile. `/api/orders` applica la stessa regola e risponde `zone_unavailable`.
+
+Non è un difetto di codice ma di configurazione: va compilato l'elenco CAP della zona dal pannello. Prima della correzione di C8 la vetrina mostrava tre zone di esempio inventate (CAP milanesi) quando un ristorante non ne aveva alcuna; sono state rimosse.
+
+### ⚠️ N16 — Le opzioni dei piatti configurate nel wizard non arrivano alla vetrina
+
+Il wizard admin permette di definire gruppi di opzioni con prezzo per ogni piatto, salvati in `menu_items.option_groups`. La vetrina non li legge: offre invece un listino fisso per nome di categoria (`pizza`, `primi`, `secondi`, `antipasti`, `dolci`, `bevande`) con extra generici come "Doppia Mozzarella 1,50 €", uguali per tutti i ristoranti. Su convivium, le cui categorie si chiamano `PIZZE CLASSICHE`, `PRIMI` e simili, il listino si applica solo a `PRIMI`, `DOLCI` e `BEVANDE`; le pizze ricevono solo gli stili di cottura.
+
+Il listino è ora in `src/lib/pricing.ts` e il server lo applica, quindi i prezzi degli extra mostrati sono anche quelli addebitati. Resta il difetto funzionale: il ristoratore non controlla le proprie aggiunte.
+
+Stessa famiglia: i flag `delivery_enabled`, `pickup_enabled` e `table_enabled` del ristorante vengono letti da `useRestaurantSettings` ma la vetrina non li applica. In particolare il link QR `?tavolo=N` apre l'ordine al tavolo anche su un locale con `table_enabled = false`, com'è oggi convivium. `/api/orders` si allinea deliberatamente alla vetrina e non li controlla, per non rifiutare all'ultimo passo un ordine che l'interfaccia ha lasciato comporre: il rimedio va fatto nei due punti insieme.
+
 ---
 
 ## Rilievi della prima stesura confermati — dettaglio (aperti e risolti)
@@ -391,11 +412,35 @@ In `handleOrder` la variabile `payMethod` non compare nel payload: il metodo sce
 
 *(TypeScript conferma il punto: `cardNumber`, `cardExpiry` e `cardCvv` risultano dichiarati e mai letti.)*
 
-### C8 — Prezzi e totali decisi dal client *(Critico, aperto)*
+### C8 — Prezzi e totali decisi dal client *(Critico, aperto — fix pronto, attende la migration 020)*
 
 `orders: public insert WITH CHECK (TRUE)` — confermata in produzione — consente di inserire una riga con qualsiasi contenuto. `subtotal`, `delivery_fee`, `discount`, `total` e il `price` di ogni articolo arrivano già calcolati dal browser, e nulla li ricalcola a partire da `menu_items.price`.
 
 Sonda: un ordine con `total: 1` è stato inserito come utente anonimo senza alcuna obiezione. Anche `order_number`, `status` e `restaurant_id` sono scelti dal client, quindi è possibile inserire ordini falsi nel pannello di un concorrente o crearli già in stato `preparing`.
+
+**Fix (30 settembre 2026).** Ordini e prenotazioni della vetrina passano ora da due route server con service role key, `/api/orders` e `/api/bookings`. Il browser invia solo *cosa* ordina: id del piatto, quantità, nomi delle aggiunte, dati del cliente. Ogni importo viene ricalcolato:
+
+| Voce | Fonte lato server |
+|---|---|
+| prezzo base | `menu_items.price`, solo piatti `available` dello stesso ristorante |
+| aggiunte e cotture | `src/lib/pricing.ts`, listino ora condiviso fra vetrina e server |
+| consegna, gratuità, ordine minimo | `delivery_zones`, stessa regola di corrispondenza del CAP |
+| sconto | `promos`, riverificato per intero (date, modalità, minimo, primo ordine) |
+| `order_number`, `status`, `restaurant_id` | database e route, mai dal client |
+
+Il client invia anche il totale che il cliente ha visto; se non coincide con il ricalcolo, l'ordine **non viene creato** (409). Il consumo della promo resta prima dell'insert, e se l'insert fallisce l'utilizzo viene restituito: questo chiude anche l'effetto residuo di A8. Il pre-ordine delle prenotazioni è prezzato allo stesso modo, perché alla conferma del ristoratore diventa un ordine vero.
+
+Verificato in locale contro il database di produzione, sui soli percorsi di rifiuto (conteggi di `orders` e `bookings` invariati prima e dopo):
+
+```
+totale manomesso (atteso 24,70)   → 409 price_changed, ricalcolo 18 + 1,20 + 4 + 1,50 = 24,70
+aggiunta fuori listino            → 409          stile pizza su un primo → 409
+piatto inesistente / di altri     → 409          CAP non servito        → 409
+promo inesistente                 → 409
+payload malformato (qty 0, id non UUID, carrello vuoto, orario 25:00) → 400
+```
+
+**Resta aperto finché non è applicata la migration 020**, da eseguire *dopo* il deploy: rimuove `public insert` da `orders`, `order_items` e `bookings`, e toglie ad `anon` l'esecuzione di `increment_promo_usage` (con cui chiunque poteva esaurire gli utilizzi di una promo) e di `generate_order_number`. Fino ad allora l'INSERT anonimo diretto resta possibile, e con esso la manomissione.
 
 ### C9 — Overbooking illimitato *(Critico, aperto)*
 
@@ -470,7 +515,7 @@ UPDATE diretto anon su promos → data [] (resta bloccato)
 
 Nel checkout il consumo è stato **spostato prima dell'insert dell'ordine**. Con l'ordine precedente la riga era già scritta con lo sconto applicato quando si scopriva il limite esaurito, e non restava nulla da non-applicare. Se la RPC torna `false`, il checkout si ferma, lo sconto viene azzerato e il cliente rivede il totale corretto.
 
-**Effetto collaterale noto, non compensato:** se l'insert dell'ordine fallisce dopo l'incremento, quell'utilizzo resta consumato a vuoto. Perdere un'unità di `max_uses` in un caso raro è preferibile a regalare sconti illimitati, ma chiudere il cerchio richiederebbe una funzione di decremento.
+**Effetto collaterale noto:** se l'insert dell'ordine fallisce dopo l'incremento, quell'utilizzo resta consumato a vuoto. *Compensato dal 30 settembre 2026* in `/api/orders` (vedi C8), che restituisce l'utilizzo quando l'ordine non va a buon fine.
 
 ### ✅ A6 — Tracking per `order_number` *(risolto)*
 
@@ -547,12 +592,12 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 
 ### Blocco 2 — Integrità dei dati d'ordine
 
-- [ ] Ricalcolare importi e prezzi **lato server** a partire da `menu_items.price`, ignorando quanto inviato dal client
+- [ ] Ricalcolare importi e prezzi **lato server** a partire da `menu_items.price`, ignorando quanto inviato dal client *(codice pronto: `/api/orders`, `/api/bookings`; si chiude applicando la mig. 020 dopo il deploy — C8)*
 - [x] Generare `order_number` lato database con una sequenza per ristorante (N8; A6 è chiuso a parte, dal passaggio del tracking a UUID)
 - [x] Spostare lato server la scadenza degli ordini (A7, mig. 018)
 - [ ] Unificare il vocabolario degli stati fra CHECK, Kanban, tracking ed email
 - [x] Incrementare `promos.used_count` in modo atomico e far rispettare `max_uses` (A8, mig. 018)
-- [ ] Compensare l'incremento di `used_count` se l'insert dell'ordine fallisce subito dopo (A8, effetto residuo)
+- [x] Compensare l'incremento di `used_count` se l'insert dell'ordine fallisce subito dopo (A8, effetto residuo — in `/api/orders`)
 - [ ] Sostituire il delete-and-reinsert del menu con un upsert per chiave stabile
 
 ### Blocco 3 — Pagamenti *(il blocco più grande, oggi interamente assente)*

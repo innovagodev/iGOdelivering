@@ -117,6 +117,11 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 **Migration applicate:** 015, 016, 017, 018. La **019 non va eseguita**: versiona
 colonne che in produzione esistono già.
 
+**Migration 020 — da applicare solo DOPO il deploy** del codice con
+`/api/orders` e `/api/bookings`. Toglie ad `anon` gli INSERT diretti: applicata
+prima, il checkout ancora in produzione verrebbe rifiutato e nessuno potrebbe
+ordinare. In fondo al file ci sono le query di verifica.
+
 ---
 
 ## Le decisioni non ovvie, e perché
@@ -124,13 +129,18 @@ colonne che in produzione esistono già.
 Sono i punti dove il codice sembra strano se non si conosce il motivo. Toccarli
 senza sapere il perché rimette in produzione un guasto.
 
-**1. L'id di ordini e prenotazioni è generato dal client, non dal database.**
-`src/app/menu/[slug]/page.tsx`, tre punti di inserimento. Il pattern precedente
-`insert(payload).select().single()` **falliva sempre** per gli utenti anonimi:
-in PostgreSQL un `INSERT … RETURNING` richiede anche una policy **SELECT** che
-copra la riga, e il cliente anonimo non ne ha alcuna su `orders`/`bookings`.
-L'istruzione veniva annullata per intero: l'utente vedeva "Errore di rete" e
-l'ordine non veniva salvato. *Non reintrodurre `.select()` dopo l'insert.*
+**1. La vetrina non scrive mai `orders`, `order_items` o `bookings`: passa da `/api/orders` e `/api/bookings`.**
+Dal 30 settembre 2026 (C8). Il browser invia solo id dei piatti, quantità, nomi
+delle aggiunte e il totale che il cliente ha visto; la route ricalcola tutto
+dal database e da `src/lib/pricing.ts`, e rifiuta l'ordine (409) se il totale
+non coincide. *Non reintrodurre un INSERT dal client, e non accettare importi
+dal body della richiesta.* Ogni prezzo di aggiunta o cottura va cambiato in
+`pricing.ts`, che è letto sia dalla vetrina sia dal server.
+
+Storia utile: prima di C8 l'insert era anonimo, e il pattern
+`insert(payload).select().single()` falliva sempre, perché un `INSERT …
+RETURNING` richiede anche una policy SELECT che copra la riga (N2). Il problema
+non si pone più per la vetrina, ma vale per qualunque nuova scrittura anonima.
 
 **2. `useRestaurantSettings` usa un elenco esplicito di colonne, non `select('*')`.**
 La migration 017 revoca ad `anon` il permesso su 7 colonne di `restaurants`.
@@ -163,9 +173,11 @@ restituisce alcun segmento, quindi **ogni upload su path piatto veniva rifiutato
 immagine. Nel wizard admin l'UUID del ristorante è generato prima dell'insert
 proprio per poter costruire il path.
 
-**6. Le scritture pubbliche passano da RPC `SECURITY DEFINER`, non da UPDATE diretti.**
+**6. Le scritture pubbliche passano da RPC `SECURITY DEFINER` o da route server, non da UPDATE diretti.**
 `expire_order()` e `increment_promo_usage()` (migration 018) esistono perché gli
-UPDATE anonimi equivalenti venivano scartati in silenzio. Entrambe **restituiscono
+UPDATE anonimi equivalenti venivano scartati in silenzio. Dalla migration 020
+`increment_promo_usage` è eseguibile solo dalla service role, cioè da
+`/api/orders`. Entrambe **restituiscono
 un boolean** che dice se hanno davvero toccato una riga, e il chiamante lo deve
 usare. *Non sostituirle con un `supabase.from(...).update(...)`: sembrerebbe
 funzionare e non farebbe nulla.*
@@ -247,6 +259,17 @@ ristoratore riceve "already registered" e il pannello admin mostra il locale com
 | `src/components/admin/restaurant-wizard/PublishedSuccess.tsx` | riceve il link come prop |
 | `src/app/ristoratore/prenotazioni/page.tsx` | `order_number` dalla sequenza del database |
 
+### Terza tornata (30 settembre) — C8
+
+| File | Modifica |
+|---|---|
+| `src/lib/pricing.ts` | **nuovo** — listino aggiunte e cotture, regole dello sconto; unica fonte per vetrina e server |
+| `src/lib/orderServer.ts` | **nuovo** — validazione del carrello e prezzatura dal database |
+| `src/app/api/orders/route.ts` | **nuova** — crea l'ordine ricalcolando ogni importo; 409 se il totale mostrato non coincide |
+| `src/app/api/bookings/route.ts` | **nuova** — crea la prenotazione, pre-ordine prezzato dal database |
+| `src/app/menu/[slug]/page.tsx` | checkout e "Solo Tavolo" chiamano le route; rimosse le zone di consegna di esempio |
+| `supabase/migrations/020_server_side_checkout.sql` | toglie ad `anon` gli INSERT diretti — **da applicare dopo il deploy** |
+
 > **Attenzione operativa.** Ogni emissione di un link di attivazione **ruota il
 > token**: premere "Copia link attivazione" invalida il link già spedito per
 > email. È corretto per un monouso, ma cambia l'abitudine di lavoro.
@@ -254,6 +277,10 @@ ristoratore riceve "already registered" e il pannello admin mostra il locale com
 ---
 
 ## Cosa resta aperto, in ordine di gravità
+
+**0. Configurare le zone di consegna di convivium** (N15). L'unica zona ha
+l'elenco CAP vuoto: oggi nessun ordine a domicilio è completabile. È una
+modifica di dati dal pannello, non di codice.
 
 **1. I pagamenti non esistono** (C6, C7, C8). Nessun gateway, nessun webhook,
 nessuna colonna `payment_status`. Il checkout raccoglie PAN e CVV in chiaro in un
@@ -263,7 +290,8 @@ articoli arrivano dal browser e nessuna funzione server li ricalcola.
 
 > **C8 viene prima di tutto il resto del blocco pagamenti.** Integrare un gateway
 > senza aver spostato il calcolo lato server significa addebitare la cifra decisa
-> dal cliente. (`order_number` è già generato dal database: N8 è chiuso dal
+> dal cliente. Il calcolo lato server è pronto (`/api/orders`); C8 si chiude
+> applicando la migration 020 dopo il deploy. (`order_number` è già generato dal database: N8 è chiuso dal
 > 25 settembre con la RPC `generate_order_number`.)
 
 **2. Overbooking illimitato** (C9). Nessun controllo di capienza: né vincolo DB,
@@ -285,6 +313,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 20 rilievi risolti (3 dei quali chiusi fuori migration), 27
-aperti, 2 smentiti — è in
+Il quadro completo — 20 rilievi risolti (3 dei quali chiusi fuori migration), 30
+aperti (C8 con il fix pronto), 2 smentiti — è in
 `AUDIT_REPORT.md`.
