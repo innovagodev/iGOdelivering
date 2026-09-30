@@ -26,7 +26,8 @@ import {
  * Qui il client indica solo COSA ordina — id del piatto, quantità, nomi delle
  * aggiunte — e ogni importo è ricalcolato da:
  *   · menu_items.price           prezzo base, solo piatti disponibili del locale
- *   · src/lib/pricing.ts         listino delle aggiunte e regole dello sconto
+ *   · menu_items.option_groups   prezzi delle opzioni configurate dal ristoratore
+ *   · src/lib/pricing.ts         regole dello sconto
  *   · delivery_zones             consegna, soglia di gratuità, ordine minimo
  *   · promos                     validità del codice, riverificata per intero
  *

@@ -63,7 +63,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ⚠️ Aperto | prod |
-| **N16** | Feature | La vetrina ignora le opzioni configurate nel wizard e offre un listino di extra fisso e generico | Medio | ⚠️ Aperto | codice |
+| **N16** | Feature | La vetrina non applica i flag consegna / asporto / tavolo del ristorante | Medio | ⚠️ Aperto | codice |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
@@ -362,13 +362,11 @@ Emerso il 30 settembre 2026 durante il lavoro su C8. L'unica zona di consegna di
 
 Non è un difetto di codice ma di configurazione: va compilato l'elenco CAP della zona dal pannello. Prima della correzione di C8 la vetrina mostrava tre zone di esempio inventate (CAP milanesi) quando un ristorante non ne aveva alcuna; sono state rimosse.
 
-### ⚠️ N16 — Le opzioni dei piatti configurate nel wizard non arrivano alla vetrina
+### ⚠️ N16 — La vetrina non applica i flag delle modalità d'ordine
 
-Il wizard admin permette di definire gruppi di opzioni con prezzo per ogni piatto, salvati in `menu_items.option_groups`. La vetrina non li legge: offre invece un listino fisso per nome di categoria (`pizza`, `primi`, `secondi`, `antipasti`, `dolci`, `bevande`) con extra generici come "Doppia Mozzarella 1,50 €", uguali per tutti i ristoranti. Su convivium, le cui categorie si chiamano `PIZZE CLASSICHE`, `PRIMI` e simili, il listino si applica solo a `PRIMI`, `DOLCI` e `BEVANDE`; le pizze ricevono solo gli stili di cottura.
+> **Correzione del 30 settembre 2026.** La prima stesura di N16 sosteneva che la vetrina ignorasse le opzioni dei piatti configurate nel wizard e usasse un listino generico. **Era sbagliato.** La personalizzazione avviene in `ProductDetailSheet`, che legge `menu_items.option_groups` con i prezzi del ristoratore; il listino generico stava in `CustomizationView`, un componente definito ma **mai montato**. La diagnosi era stata fatta leggendo il codice senza verificare quale componente fosse in uso, e ha prodotto una regressione, descritta in C8. `CustomizationView` è stato rimosso.
 
-Il listino è ora in `src/lib/pricing.ts` e il server lo applica, quindi i prezzi degli extra mostrati sono anche quelli addebitati. Resta il difetto funzionale: il ristoratore non controlla le proprie aggiunte.
-
-Stessa famiglia: i flag `delivery_enabled`, `pickup_enabled` e `table_enabled` del ristorante vengono letti da `useRestaurantSettings` ma la vetrina non li applica. In particolare il link QR `?tavolo=N` apre l'ordine al tavolo anche su un locale con `table_enabled = false`, com'è oggi convivium. `/api/orders` si allinea deliberatamente alla vetrina e non li controlla, per non rifiutare all'ultimo passo un ordine che l'interfaccia ha lasciato comporre: il rimedio va fatto nei due punti insieme.
+Quello che resta vero: i flag `delivery_enabled`, `pickup_enabled` e `table_enabled` del ristorante vengono letti da `useRestaurantSettings` ma la vetrina non li applica. In particolare il link QR `?tavolo=N` apre l'ordine al tavolo anche su un locale con `table_enabled = false`, com'è oggi convivium. `/api/orders` si allinea deliberatamente alla vetrina e non li controlla, per non rifiutare all'ultimo passo un ordine che l'interfaccia ha lasciato comporre: il rimedio va fatto nei due punti insieme.
 
 ---
 
@@ -427,7 +425,7 @@ Sonda: un ordine con `total: 1` è stato inserito come utente anonimo senza alcu
 | Voce | Fonte lato server |
 |---|---|
 | prezzo base | `menu_items.price`, solo piatti `available` dello stesso ristorante |
-| aggiunte e cotture | `src/lib/pricing.ts`, listino ora condiviso fra vetrina e server |
+| opzioni del piatto | `menu_items.option_groups`, i gruppi configurati dal ristoratore nel wizard |
 | consegna, gratuità, ordine minimo | `delivery_zones`, stessa regola di corrispondenza del CAP |
 | sconto | `promos`, riverificato per intero (date, modalità, minimo, primo ordine) |
 | `order_number`, `status`, `restaurant_id` | database e route, mai dal client |
@@ -443,6 +441,12 @@ piatto inesistente / di altri     → 409          CAP non servito        → 40
 promo inesistente                 → 409
 payload malformato (qty 0, id non UUID, carrello vuoto, orario 25:00) → 400
 ```
+
+> **Regressione, introdotta e corretta il 30 settembre 2026.** La prima versione di `/api/orders` validava le aggiunte contro il listino generico di `CustomizationView` (vedi la correzione in N16), non contro le opzioni vere dei piatti. Dal deploy fino alla correzione, **ogni ordine con un'opzione scelta — per esempio un impasto o un ingrediente aggiunto — veniva rifiutato** con "Le opzioni di un piatto sono cambiate". Gli ordini senza opzioni passavano. Le sonde non l'avevano intercettato perché usavano esse stesse il listino sbagliato.
+>
+> Corretto validando ogni aggiunta contro gli `option_groups` del piatto letti dal database: il nome deve esistere e il prezzo inviato deve coincidere con uno di quelli configurati per quel nome, altrimenti la riga è rifiutata. Il prezzo addebitato è sempre quello del menu.
+>
+> Verificato questa volta **attraverso l'interfaccia**, in Chrome, con la chiamata a `/api/orders` intercettata prima del server: piatto con impasto "Ai Cereali" (+2 €) e "Bufala" (+4 €), totale mostrato 21,00 €, totale ricalcolato dal server sullo stesso payload 21,00 €. Sonde dirette: 2 × (15 + 2 + 4) = 42 € ricalcolato correttamente; prezzo di un'opzione manomesso a 0, opzione inesistente, vecchio formato e vecchio listino generico → rifiutati.
 
 **Chiuso dalla migration 020**, applicata il 30 settembre 2026 dopo il deploy: rimuove `public insert` da `orders`, `order_items` e `bookings`, e toglie ad `anon` l'esecuzione di `increment_promo_usage` (con cui chiunque poteva esaurire gli utilizzi di una promo) e di `generate_order_number`.
 

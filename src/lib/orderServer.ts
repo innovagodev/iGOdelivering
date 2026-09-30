@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { allowedAdditionsFor, toCents } from '@/lib/pricing';
+import { toCents } from '@/lib/pricing';
 
 /**
  * Parte server del checkout, condivisa da /api/orders e /api/bookings:
@@ -24,7 +24,7 @@ export const str = (v: unknown, max: number): string =>
 export interface LineInput {
   menuItemId: string;
   qty: number;
-  added: string[];
+  added: { name: string; price: number }[];
   removed: string[];
   note: string;
 }
@@ -42,11 +42,19 @@ export function parseLines(raw: unknown): LineInput[] | null {
     const added = Array.isArray(o.added) ? o.added : [];
     const removed = Array.isArray(o.removed) ? o.removed : [];
     if (added.length > 30 || removed.length > 30) return null;
-    if (![...added, ...removed].every((x) => typeof x === 'string')) return null;
+    if (!removed.every((x) => typeof x === 'string')) return null;
+    const validAdded = added.every(
+      (x) =>
+        !!x &&
+        typeof x === 'object' &&
+        typeof (x as { name?: unknown }).name === 'string' &&
+        Number.isFinite((x as { price?: unknown }).price)
+    );
+    if (!validAdded) return null;
     lines.push({
       menuItemId: o.menuItemId,
       qty: o.qty as number,
-      added: added as string[],
+      added: added as { name: string; price: number }[],
       removed: (removed as string[]).map((x) => x.slice(0, 80)),
       note: str(o.note, 300),
     });
@@ -65,8 +73,38 @@ export interface PricedLine {
 }
 
 /**
+ * Prezzi ammessi per ogni opzione di un piatto, in centesimi, dagli
+ * `option_groups` configurati dal ristoratore nel wizard. La stessa opzione
+ * può comparire in più gruppi con prezzi diversi: per questo un nome mappa su
+ * un insieme di prezzi. `defaultOption` di un gruppo vale 0 (è la scelta
+ * preselezionata che la vetrina aggiunge al carrello, es. "Impasto classico").
+ */
+function optionPrices(optionGroups: unknown): Map<string, Set<number>> {
+  const prices = new Map<string, Set<number>>();
+  const add = (name: unknown, cents: number) => {
+    if (typeof name !== 'string' || !name) return;
+    if (!prices.has(name)) prices.set(name, new Set());
+    prices.get(name)!.add(cents);
+  };
+  if (!Array.isArray(optionGroups)) return prices;
+  for (const g of optionGroups) {
+    if (!g || typeof g !== 'object') continue;
+    add(g.defaultOption, 0);
+    for (const c of Array.isArray(g.choices) ? g.choices : []) {
+      add(c?.name, toCents(Number(c?.price) || 0));
+    }
+  }
+  return prices;
+}
+
+/**
  * Prezza le righe con i dati del database. Condivisa con /api/bookings, che
  * registra il pre-ordine di una prenotazione con gli stessi prezzi.
+ *
+ * Il prezzo di un'aggiunta inviato dal client serve solo a scegliere fra due
+ * opzioni omonime: è accettato se coincide con uno dei prezzi configurati per
+ * quel nome su quel piatto, altrimenti la riga è rifiutata. In nessun caso un
+ * valore del client entra nel totale se non è già un prezzo del menu.
  */
 export async function priceLines(
   admin: SupabaseClient,
@@ -76,7 +114,7 @@ export async function priceLines(
   const ids = [...new Set(lines.map((l) => l.menuItemId))];
   const { data: items, error } = await admin
     .from('menu_items')
-    .select('id, name, price, category_name, available, customization_enabled')
+    .select('id, name, price, option_groups, available, customization_enabled')
     .eq('restaurant_id', restaurantId)
     .in('id', ids);
 
@@ -101,20 +139,20 @@ export async function priceLines(
       );
     }
 
-    const allowed = allowedAdditionsFor(item.category_name as string);
+    const allowed = optionPrices(item.option_groups);
     const added: { name: string; price: number }[] = [];
     let unitCents = toCents(Number(item.price));
-    for (const name of l.added) {
-      if (item.customization_enabled === false || !allowed.has(name)) {
+    for (const a of l.added) {
+      const cents = toCents(a.price);
+      if (item.customization_enabled === false || !allowed.get(a.name)?.has(cents)) {
         return fail(
           409,
           'price_changed',
           'Le opzioni di un piatto sono cambiate. Ricarica il menu e riprova.'
         );
       }
-      const price = allowed.get(name) as number;
-      added.push({ name, price });
-      unitCents += toCents(price);
+      added.push({ name: a.name, price: cents / 100 });
+      unitCents += cents;
     }
 
     itemsCents += unitCents * l.qty;

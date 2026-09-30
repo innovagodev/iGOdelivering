@@ -20,8 +20,8 @@ import {
  * quando il ristoratore conferma la prenotazione, quei prezzi diventano un
  * ordine vero (rilievo C8 di AUDIT_REPORT.md).
  *
- * Il pre-ordine è prezzato come un ordine, dal database e dal listino in
- * src/lib/pricing.ts. Nessuno sconto e nessuna consegna: il codice promo non
+ * Il pre-ordine è prezzato come un ordine, dai prezzi dei piatti e delle
+ * opzioni letti dal database. Nessuno sconto e nessuna consegna: il codice promo non
  * viene consumato su una prenotazione, quindi non viene nemmeno applicato.
  * Il totale salvato è quello ricalcolato, e torna al client per la conferma.
  */

@@ -130,12 +130,18 @@ Sono i punti dove il codice sembra strano se non si conosce il motivo. Toccarli
 senza sapere il perché rimette in produzione un guasto.
 
 **1. La vetrina non scrive mai `orders`, `order_items` o `bookings`: passa da `/api/orders` e `/api/bookings`.**
-Dal 30 settembre 2026 (C8). Il browser invia solo id dei piatti, quantità, nomi
-delle aggiunte e il totale che il cliente ha visto; la route ricalcola tutto
-dal database e da `src/lib/pricing.ts`, e rifiuta l'ordine (409) se il totale
-non coincide. *Non reintrodurre un INSERT dal client, e non accettare importi
-dal body della richiesta.* Ogni prezzo di aggiunta o cottura va cambiato in
-`pricing.ts`, che è letto sia dalla vetrina sia dal server.
+Dal 30 settembre 2026 (C8). Il browser invia id dei piatti, quantità, le
+opzioni scelte (nome e prezzo) e il totale che il cliente ha visto; la route
+ricalcola tutto dal database — `menu_items.price` e `menu_items.option_groups`
+— e rifiuta l'ordine (409) se un'opzione non esiste con quel prezzo o se il
+totale non coincide. *Non reintrodurre un INSERT dal client, e non accettare
+importi dal body della richiesta se non come chiave di ricerca.*
+
+**Attenzione a una trappola già costata una regressione:** la personalizzazione
+dei piatti è in `src/components/menu/ProductDetailSheet.tsx`. In
+`menu/[slug]/page.tsx` c'era un secondo componente, `CustomizationView`, con un
+listino di extra generico e *mai montato*: prenderlo per quello vero ha fatto
+rifiutare per qualche ora tutti gli ordini con opzioni. È stato rimosso.
 
 Storia utile: prima di C8 l'insert era anonimo, e il pattern
 `insert(payload).select().single()` falliva sempre, perché un `INSERT …
@@ -263,8 +269,8 @@ ristoratore riceve "already registered" e il pannello admin mostra il locale com
 
 | File | Modifica |
 |---|---|
-| `src/lib/pricing.ts` | **nuovo** — listino aggiunte e cotture, regole dello sconto; unica fonte per vetrina e server |
-| `src/lib/orderServer.ts` | **nuovo** — validazione del carrello e prezzatura dal database |
+| `src/lib/pricing.ts` | **nuovo** — centesimi e regole dello sconto |
+| `src/lib/orderServer.ts` | **nuovo** — validazione del carrello e prezzatura dal database, opzioni comprese |
 | `src/app/api/orders/route.ts` | **nuova** — crea l'ordine ricalcolando ogni importo; 409 se il totale mostrato non coincide |
 | `src/app/api/bookings/route.ts` | **nuova** — crea la prenotazione, pre-ordine prezzato dal database |
 | `src/app/menu/[slug]/page.tsx` | checkout e "Solo Tavolo" chiamano le route; rimosse le zone di consegna di esempio |
