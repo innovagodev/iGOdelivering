@@ -4,15 +4,15 @@
 **Prima stesura:** 22 settembre 2026 — analisi statica del codice
 **Revisione:** 22 settembre 2026 — verifica contro il database di produzione
 **Seconda tornata:** 25 settembre 2026 — chiusura di A6, A7, A8, A12, C4, N8, N9, N10, N11, N12; nuovo rilievo N13; riclassificazione di C1, C2, A3 (25 set) e di C3 (26 set)
-**Ultimo aggiornamento:** 30 settembre 2026 — correzioni di coerenza interna; fix di C8 pronto (attende la migration 020); nuovi rilievi N14, N15, N16
+**Ultimo aggiornamento:** 30 settembre 2026 — correzioni di coerenza interna; chiusura di C8 (migration 020); nuovi rilievi N14, N15, N16
 **Perimetro:** 39.443 righe TypeScript/TSX in `src/` (100% dei file), 19 migration SQL, configurazione Next.js, documentazione, storico Git.
 
 > **Stato del codice.** Tutti gli interventi descritti come risolti sono
 > committati su `main` (verificabile con `git log`): la prima tornata in
 > `ff609ac` (22 settembre), la seconda in nove commit da `6d044c3` a `819190d`
 > (25 settembre), seguiti dai soli commit di documentazione. Sul database di
-> produzione sono applicate le migration 015, 016, 017 e 018; la 019 versiona
-> colonne che in produzione esistono già e non va eseguita.
+> produzione sono applicate le migration 015, 016, 017, 018 e 020; la 019
+> versiona colonne che in produzione esistono già e non va eseguita.
 
 ---
 
@@ -67,7 +67,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
-| C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ⚠️ Aperto — fix nel codice, attende mig. 020 | prod |
+| C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ✅ Risolto (mig. 020) | prod |
 | C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ⚠️ Aperto | codice |
 | A1 | Auth | Ruolo letto da cookie non-httpOnly scritto dal client | **Alto** | ⚠️ Aperto | codice |
 | A2 | Multi-tenant | `my_restaurant_id()` usa `LIMIT 1`: un owner con più locali ne governa uno solo | **Alto** | ⚠️ Aperto | prod |
@@ -86,7 +86,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | M1 | Multi-tenant | `platform_settings` leggibile da chiunque (oggi vuota) | Medio | ⚠️ Aperto | prod |
 | M2 | Multi-tenant | Nessuna UPDATE self su `profiles`; nessuna UPDATE/DELETE su `order_items` | Medio | ⚠️ Aperto | prod |
 | M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente | Medio | ⚠️ Aperto | codice |
-| M4 | Prenotazioni | INSERT pubblico senza rate limit né captcha | Medio | ⚠️ Aperto | prod |
+| M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni (oggi via `/api/orders`, `/api/bookings`) senza rate limit né captcha | Medio | ⚠️ Aperto | prod |
 | M5 | Qualità | `ignoreBuildErrors` + `ignoreDuringBuilds` attivi | Medio | ⚠️ Aperto | codice |
 | M6 | Qualità | 108 blocchi `catch` su 133 si limitano a `console.error` | Medio | ⚠️ Aperto | codice |
 | M7 | Performance | Dashboard admin: `select('*')` su tutti gli ordini senza limite | Medio | ⚠️ Aperto | codice |
@@ -111,10 +111,10 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 
 Il progetto è funzionalmente ricco e l'interfaccia è completa. Al momento dell'audit, però, **la piattaforma era inutilizzabile dai clienti finali**: la vetrina pubblica non mostrava nulla a chi non era autenticato, e ordini e prenotazioni fallivano senza essere salvati. Entrambi i problemi erano invisibili dal pannello del ristoratore, che continuava a funzionare perché opera da utente autenticato. Sono stati individuati e corretti nella prima tornata di lavoro (22–23 settembre 2026).
 
-Chiusi quelli, restano tre lacune strutturali:
+Chiusi quelli, restavano tre lacune strutturali. La seconda è chiusa dal 30 settembre 2026:
 
 1. **Non esiste alcuna integrazione di pagamento.** Niente Stripe, niente PayPal, nessun webhook, nessuna colonna `payment_status` — verificato sullo schema reale. Il checkout raccoglie PAN e CVV in chiaro, li valida e li scarta: l'ordine viene creato senza che nulla venga addebitato.
-2. **Gli importi sono decisi dal client.** `subtotal`, `discount`, `total` e il prezzo di ogni articolo arrivano dal browser e nessuna funzione server li ricalcola. Anche introducendo un gateway, si addebiterebbe la cifra scelta dal cliente.
+2. ~~**Gli importi sono decisi dal client.**~~ *Risolto (C8).* `subtotal`, `discount`, `total` e il prezzo di ogni articolo arrivavano dal browser e nessuna funzione server li ricalcolava: anche con un gateway si sarebbe addebitata la cifra scelta dal cliente. Ora li calcola `/api/orders` dai dati del database.
 3. **Le prenotazioni non hanno alcun controllo di capienza.** `tables_count` serve solo a generare i QR code. Nessun vincolo, nessun lock, nessun conteggio: l'overbooking è illimitato.
 
 **Aggiornamento del 25 settembre.** Una seconda tornata ha chiuso i rilievi che dipendevano dal silenzio di RLS sulle operazioni lato client (A7, A8, N9, N10) e due sull'autenticazione delle route (C4, A12). Il filo conduttore dei primi quattro merita di essere isolato, perché è una classe di difetto e non quattro incidenti: **PostgreSQL non distingue "non esiste" da "non ti è permesso vederlo"**, e PostgREST restituisce in entrambi i casi un risultato vuoto con `error: null`. Ogni punto in cui il codice legge o scrive `orders`, `bookings` o `promos` con la chiave anon e interpreta il vuoto come stato legittimo è un guasto silenzioso in attesa. Quattro punti residui sono censiti in N13.
@@ -412,7 +412,7 @@ In `handleOrder` la variabile `payMethod` non compare nel payload: il metodo sce
 
 *(TypeScript conferma il punto: `cardNumber`, `cardExpiry` e `cardCvv` risultano dichiarati e mai letti.)*
 
-### C8 — Prezzi e totali decisi dal client *(Critico, aperto — fix pronto, attende la migration 020)*
+### ✅ C8 — Prezzi e totali decisi dal client *(Critico, risolto — migration 020)*
 
 `orders: public insert WITH CHECK (TRUE)` — confermata in produzione — consente di inserire una riga con qualsiasi contenuto. `subtotal`, `delivery_fee`, `discount`, `total` e il `price` di ogni articolo arrivano già calcolati dal browser, e nulla li ricalcola a partire da `menu_items.price`.
 
@@ -440,7 +440,19 @@ promo inesistente                 → 409
 payload malformato (qty 0, id non UUID, carrello vuoto, orario 25:00) → 400
 ```
 
-**Resta aperto finché non è applicata la migration 020**, da eseguire *dopo* il deploy: rimuove `public insert` da `orders`, `order_items` e `bookings`, e toglie ad `anon` l'esecuzione di `increment_promo_usage` (con cui chiunque poteva esaurire gli utilizzi di una promo) e di `generate_order_number`. Fino ad allora l'INSERT anonimo diretto resta possibile, e con esso la manomissione.
+**Chiuso dalla migration 020**, applicata il 30 settembre 2026 dopo il deploy: rimuove `public insert` da `orders`, `order_items` e `bookings`, e toglie ad `anon` l'esecuzione di `increment_promo_usage` (con cui chiunque poteva esaurire gli utilizzi di una promo) e di `generate_order_number`.
+
+Prima della migration, un ordine di prova completo, creato dalla route in locale e rimosso subito, è stato registrato con numero dalla sequenza, righe e importi del server: 2 × (18 + 1,20) + (4 + 1,50) = 43,90 €. Dopo la migration, sonda con chiave anon e route in produzione, nessuna scrittura (conteggi invariati):
+
+```
+anon INSERT orders / order_items / bookings   → 42501 new row violates row-level security policy
+anon RPC increment_promo_usage                → 42501 permission denied
+anon RPC generate_order_number                → 42501 permission denied
+anon RPC expire_order                         → OK (resta pubblica, come previsto)
+PROD /api/orders con totale errato            → 409 price_changed, ricalcolo 18,00 €
+```
+
+**Non verificato con una sonda:** l'INSERT del proprietario tramite la nuova `orders: owner insert`, usata quando il ristoratore conferma una prenotazione con pre-ordine. Richiede una sessione autenticata da ristoratore.
 
 ### C9 — Overbooking illimitato *(Critico, aperto)*
 
@@ -592,7 +604,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 
 ### Blocco 2 — Integrità dei dati d'ordine
 
-- [ ] Ricalcolare importi e prezzi **lato server** a partire da `menu_items.price`, ignorando quanto inviato dal client *(codice pronto: `/api/orders`, `/api/bookings`; si chiude applicando la mig. 020 dopo il deploy — C8)*
+- [x] Ricalcolare importi e prezzi **lato server** a partire da `menu_items.price`, ignorando quanto inviato dal client (C8: `/api/orders`, `/api/bookings`, mig. 020)
 - [x] Generare `order_number` lato database con una sequenza per ristorante (N8; A6 è chiuso a parte, dal passaggio del tracking a UUID)
 - [x] Spostare lato server la scadenza degli ordini (A7, mig. 018)
 - [ ] Unificare il vocabolario degli stati fra CHECK, Kanban, tracking ed email

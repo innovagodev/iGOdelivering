@@ -5,7 +5,7 @@
 
 > **L'audit non è più di sola lettura.** Il prompt iniziale chiedeva una diagnosi
 > senza modifiche. Quella fase è conclusa da tempo: i rilievi marcati ✅ nel
-> report sono stati corretti, quattro migration (015–018) sono applicate in
+> report sono stati corretti, cinque migration (015–018 e 020) sono applicate in
 > produzione e tutto il codice è committato su `main` (verificabile con
 > `git log`). Chi riprende il lavoro deve partire da qui, non dal commit
 > iniziale `c144d72`.
@@ -101,7 +101,7 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | Area | Stato |
 |---|---|
 | Vetrina pubblica `/menu/[slug]` | ✅ visibile agli anonimi |
-| Checkout e prenotazioni | ✅ funzionanti, verificati end-to-end |
+| Checkout e prenotazioni | ✅ funzionanti, creati lato server con importi ricalcolati (C8) |
 | Colonne sensibili di `restaurants` | ✅ non leggibili da `anon` |
 | Indici database | ✅ 13 |
 | Storage per tenant | ✅ path annidati, oggetti migrati |
@@ -114,13 +114,13 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | `send-status-email` | ✅ richiede sessione ristoratore o admin |
 | Pagamenti | ❌ **inesistenti** — vedi sotto |
 
-**Migration applicate:** 015, 016, 017, 018. La **019 non va eseguita**: versiona
-colonne che in produzione esistono già.
+**Migration applicate:** 015, 016, 017, 018, 020. La **019 non va eseguita**:
+versiona colonne che in produzione esistono già.
 
-**Migration 020 — da applicare solo DOPO il deploy** del codice con
-`/api/orders` e `/api/bookings`. Toglie ad `anon` gli INSERT diretti: applicata
-prima, il checkout ancora in produzione verrebbe rifiutato e nessuno potrebbe
-ordinare. In fondo al file ci sono le query di verifica.
+La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e
+prenotazioni. Da qui in poi la vetrina scrive solo tramite `/api/orders` e
+`/api/bookings`: un nuovo flusso pubblico che scrive nel database va fatto
+passare da una route server, non da una nuova policy anonima.
 
 ---
 
@@ -268,7 +268,7 @@ ristoratore riceve "already registered" e il pannello admin mostra il locale com
 | `src/app/api/orders/route.ts` | **nuova** — crea l'ordine ricalcolando ogni importo; 409 se il totale mostrato non coincide |
 | `src/app/api/bookings/route.ts` | **nuova** — crea la prenotazione, pre-ordine prezzato dal database |
 | `src/app/menu/[slug]/page.tsx` | checkout e "Solo Tavolo" chiamano le route; rimosse le zone di consegna di esempio |
-| `supabase/migrations/020_server_side_checkout.sql` | toglie ad `anon` gli INSERT diretti — **da applicare dopo il deploy** |
+| `supabase/migrations/020_server_side_checkout.sql` | toglie ad `anon` gli INSERT diretti — **applicata** dopo il deploy |
 
 > **Attenzione operativa.** Ogni emissione di un link di attivazione **ruota il
 > token**: premere "Copia link attivazione" invalida il link già spedito per
@@ -282,16 +282,16 @@ ristoratore riceve "already registered" e il pannello admin mostra il locale com
 l'elenco CAP vuoto: oggi nessun ordine a domicilio è completabile. È una
 modifica di dati dal pannello, non di codice.
 
-**1. I pagamenti non esistono** (C6, C7, C8). Nessun gateway, nessun webhook,
+**1. I pagamenti non esistono** (C6, C7). Nessun gateway, nessun webhook,
 nessuna colonna `payment_status`. Il checkout raccoglie PAN e CVV in chiaro in un
 form custom — violazione PCI-DSS — li valida e li **scarta**: l'ordine è creato
-senza addebito. In più `subtotal`, `discount`, `total` e i prezzi dei singoli
-articoli arrivano dal browser e nessuna funzione server li ricalcola.
+senza addebito. Gli importi, almeno, sono già ricalcolati lato server (C8):
+un gateway addebiterebbe la cifra giusta.
 
-> **C8 viene prima di tutto il resto del blocco pagamenti.** Integrare un gateway
+> **C8 andava chiuso prima di tutto il resto del blocco pagamenti.** Integrare un gateway
 > senza aver spostato il calcolo lato server significa addebitare la cifra decisa
-> dal cliente. Il calcolo lato server è pronto (`/api/orders`); C8 si chiude
-> applicando la migration 020 dopo il deploy. (`order_number` è già generato dal database: N8 è chiuso dal
+> dal cliente. Questo passo è fatto: C8 è chiuso dal 30 settembre
+> (`/api/orders`, migration 020). (`order_number` è già generato dal database: N8 è chiuso dal
 > 25 settembre con la RPC `generate_order_number`.)
 
 **2. Overbooking illimitato** (C9). Nessun controllo di capienza: né vincolo DB,
@@ -302,8 +302,9 @@ né lock, né conteggio. `tables_count` serve solo ai QR code.
 dinamica della promo `first_order`, verosimilmente **già non funzionante in
 produzione**. Gli altri tre sono latenti ma fragili.
 
-**4. Nessun rate limit** su alcun endpoint pubblico. Gli INSERT anonimi di ordini
-e prenotazioni non hanno né limite né captcha.
+**4. Nessun rate limit** su alcun endpoint pubblico. Ordini e prenotazioni
+passano ora da `/api/orders` e `/api/bookings`, ma nessuna delle due ha limite
+di frequenza né captcha (M4).
 
 **5. Compensazione mancante su `used_count`.** Se l'insert dell'ordine fallisce
 subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
@@ -313,6 +314,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 20 rilievi risolti (3 dei quali chiusi fuori migration), 30
-aperti (C8 con il fix pronto), 2 smentiti — è in
+Il quadro completo — 21 rilievi risolti (3 dei quali chiusi fuori migration), 29
+aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.
