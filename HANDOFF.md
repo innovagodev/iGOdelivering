@@ -282,8 +282,8 @@ subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
 Preferibile a regalare sconti illimitati, ma andrà chiuso.
 
 **6. Ruolo utente nel cookie client-side** (A1) e **nessuna suite di test**:
-nessuno dei guasti trovati in queste due sessioni sarebbe stato intercettato
-automaticamente.
+nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
+stato intercettato automaticamente.
 
 Il quadro completo — 20 rilievi risolti (3 dei quali chiusi fuori migration), 27
 aperti, 2 smentiti — è in

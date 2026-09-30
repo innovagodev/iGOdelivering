@@ -35,12 +35,14 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 
 ---
 
-## Stato dei lavori al termine della sessione
+## Legenda degli stati (al 30 settembre 2026)
 
 | | |
 |---|---|
 | ✅ **Risolto** | intervento applicato in produzione e verificato |
 | ✅◆ **Risolto fuori migration** | chiuso da un intervento manuale diretto sul database, privo di un record formale nella sequenza di migration |
+| ✅ **Rimosso e revocato** | segreto rimosso dalla configurazione in cui era esposto e invalidato presso il provider (N7) |
+| ✅ **Ruotata** | segreto invalidato e sostituito; resta leggibile nello storico Git, ma non è più valido (A11) |
 | ⚠️ **Aperto** | confermato e non affrontato |
 | ❌ **Smentito** | non sussiste |
 
@@ -91,7 +93,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N5** | Storage | Bucket `menu-images` in produzione, assente da migration e codice | Basso | ⚠️ Aperto | prod |
 | **N6** | Dati | Realtime attivo su tutte e 11 le tabelle (la 005 ne prevedeva 2) | Basso | ⚠️ Aperto | prod |
 | B2 | Dati | `orders_count` letto ma mai incrementato: sempre 0 | Basso | ⚠️ Aperto | codice |
-| B3 | Codice | Moduli morti (`services/restaurants.ts`, `lib/formatters.ts`, …) | Basso | ⚠️ Aperto | codice |
+| B3 | Codice | Moduli morti (`services/restaurants.ts`, `lib/formatters.ts`, `lib/id-generator.ts`, …) | Basso | ⚠️ Aperto | codice |
 | B4 | Docs | `docs/supabase_schema.md` descrive uno schema inesistente | Basso | ⚠️ Aperto | codice |
 | C1 | Multi-tenant | `orders`/`order_items` leggibili da chiunque | **Critico** | ✅◆ Risolto fuori migration | prod |
 | C2 | Multi-tenant | `bookings` leggibili da chiunque | **Critico** | ✅◆ Risolto fuori migration | prod |
@@ -104,7 +106,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 
 ## Executive summary
 
-Il progetto è funzionalmente ricco e l'interfaccia è completa. Al momento dell'audit, però, **la piattaforma era inutilizzabile dai clienti finali**: la vetrina pubblica non mostrava nulla a chi non era autenticato, e ordini e prenotazioni fallivano senza essere salvati. Entrambi i problemi erano invisibili dal pannello del ristoratore, che continuava a funzionare perché opera da utente autenticato. Sono stati individuati e corretti nel corso di questa sessione.
+Il progetto è funzionalmente ricco e l'interfaccia è completa. Al momento dell'audit, però, **la piattaforma era inutilizzabile dai clienti finali**: la vetrina pubblica non mostrava nulla a chi non era autenticato, e ordini e prenotazioni fallivano senza essere salvati. Entrambi i problemi erano invisibili dal pannello del ristoratore, che continuava a funzionare perché opera da utente autenticato. Sono stati individuati e corretti nella prima tornata di lavoro (22–23 settembre 2026).
 
 Chiusi quelli, restano tre lacune strutturali:
 
@@ -223,7 +225,7 @@ L'intera istruzione veniva annullata: il cliente vedeva `Errore di rete` **e l'o
 
 ### ✅ N3 — I path piatti bloccavano gli upload *(risolto)*
 
-Le policy per tenant di N-A3 richiedono che il primo segmento del percorso sia il `restaurantId`. Per un oggetto nella radice del bucket `storage.foldername()` non restituisce alcun segmento, quindi la condizione era sempre falsa: **ogni upload su path piatto veniva rifiutato**, admin compreso.
+Le policy per tenant di A3 richiedono che il primo segmento del percorso sia il `restaurantId`. Per un oggetto nella radice del bucket `storage.foldername()` non restituisce alcun segmento, quindi la condizione era sempre falsa: **ogni upload su path piatto veniva rifiutato**, admin compreso.
 
 **Ipotesi coerente con i dati, non dimostrata:** è la ragione per cui il bucket `dish-images` è vuoto e **159 `menu_items` su 159 non hanno immagine**. Logo e banner esistenti stanno su path piatti, quindi risalgono a prima che le policy per tenant fossero introdotte.
 
@@ -325,7 +327,7 @@ Una ricognizione mirata sui contesti anonimi (`src/app/menu/`, `src/app/ordine/`
 | c | `usePromoCode.ts` — `SELECT id FROM restaurants` | `!restaurant` ⇒ "Ristorante non trovato" | Non rotto oggi (`restaurants` è leggibile da anon), ma il messaggio afferma l'inesistenza sulla base di un risultato vuoto: un futuro restringimento lo renderebbe fuorviante invece che rumoroso |
 | d | `useRestaurantSettings.ts` — `maybeSingle()` su `restaurants` | `if (restaurant) {…}` senza ramo else | Come c. Il `throw error` copre solo l'errore esplicito; un vuoto da RLS cade nel nulla e la pagina resta sui `DEFAULT_SETTINGS` |
 
-Il candidato più urgente è **a**, che è lo stesso difetto di N10 su una terza superficie. **Non affrontati** in questa sessione.
+Il candidato più urgente è **a**, che è lo stesso difetto di N10 su una terza superficie. **Non affrontati** al 30 settembre 2026.
 
 ### ⚠️ N4 · N5 · N6 — Divergenze minori fra migration e produzione
 
@@ -335,7 +337,7 @@ Il candidato più urgente è **a**, che è lo stesso difetto di N10 su una terza
 
 ---
 
-## Rilievi confermati — dettaglio
+## Rilievi della prima stesura confermati — dettaglio (aperti e risolti)
 
 ### ✅ C4 — Chiunque poteva rivendicare un ristorante non ancora attivato *(Critico, risolto)*
 
@@ -490,6 +492,7 @@ Verificato: POST anonimo → 401 su entrambi gli stati; POST con cookie di sessi
 | `src/components/ristoratore/RevenueChart.tsx` | 115 righe, mai montato. |
 | `src/components/ui/AppVersion.tsx` | Mai montato, benché `version.json` sia aggiornato a ogni build. |
 | `restaurant-utils.ts` → `getRestaurantId()` | Restituisce lo slug immutato; `isMockRestaurant()` sempre `false`. |
+| `src/lib/id-generator.ts` → `generateId()` | Non più richiamato da quando `order_number` viene dalla RPC `generate_order_number` (N8, 25 settembre 2026). |
 
 ### Funzionalità con interfaccia ma senza sostanza
 
@@ -508,7 +511,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 
 ## Cosa manca per considerare il gestionale davvero completo
 
-### ✅ Blocco 0 — Ripristino del servizio *(completato in questa sessione)*
+### ✅ Blocco 0 — Ripristino del servizio *(completato nella prima tornata, 22–23 settembre 2026)*
 
 - [x] Ripristinata la lettura pubblica della vetrina (mig. 015)
 - [x] Corretto il checkout: ordini e prenotazioni tornano a salvarsi
@@ -576,7 +579,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 - [ ] Disattivare `ignoreBuildErrors` e `ignoreDuringBuilds`, sanare quanto emerge
 - [ ] Sostituire i 108 `catch` muti con stati d'errore visibili
 - [ ] Sostituire i 25 `alert()` e gli 11 `confirm()` nativi
-- [ ] Introdurre una suite di test: oggi non ne esiste alcuna, e **nessuno dei guasti trovati in questa sessione sarebbe stato intercettato automaticamente**
+- [ ] Introdurre una suite di test: oggi non ne esiste alcuna, e **nessuno dei guasti trovati durante l'audit (22–25 settembre 2026) sarebbe stato intercettato automaticamente**
 - [ ] Paginare le query non limitate
 - [ ] Rimuovere il codice morto
 
@@ -590,6 +593,6 @@ Entrambi gli errori hanno la stessa radice: nessuna fonte di verità sullo schem
 
 `scripts/inspect-schema.sql` è in repo proprio per questo: rieseguirlo periodicamente e confrontarlo con le migration è il modo più economico per accorgersi in tempo della prossima deriva. N12 mostra che la deriva continua: due colonne su cui poggia il flusso di attivazione esistono in produzione e in nessuna migration.
 
-**Corollario dalla sessione del 25 settembre.** Leggere il codice non basta a stabilire se una scrittura abbia effetto. Tre dei rilievi chiusi presentavano codice apparentemente corretto — l'`await` c'era, il `catch` c'era, l'`error` veniva controllato — e non facevano nulla. Solo una sonda che esegue l'operazione e poi **rilegge lo stato con un'identità diversa** lo rende visibile. Da qui la forma usata in tutte le verifiche di questa sessione: agire con la chiave anon, rileggere con la service role key, confrontare.
+**Corollario dalla tornata del 25 settembre.** Leggere il codice non basta a stabilire se una scrittura abbia effetto. Tre dei rilievi chiusi presentavano codice apparentemente corretto — l'`await` c'era, il `catch` c'era, l'`error` veniva controllato — e non facevano nulla. Solo una sonda che esegue l'operazione e poi **rilegge lo stato con un'identità diversa** lo rende visibile. Da qui la forma usata in tutte le verifiche della tornata del 25 settembre: agire con la chiave anon, rileggere con la service role key, confrontare.
 
 Vale anche in senso inverso: la stessa disciplina ha smentito una mia conclusione. Avevo dedotto dall'UPDATE a zero righe che la policy `orders: public update expired` non fosse attiva; l'ispezione del catalogo registrata in C1 la elenca invece fra le policy presenti. La causa era un'altra — la mancanza di una policy SELECT che rendesse la riga individuabile — e il commento della migration 018 è stato corretto di conseguenza. Un'inferenza da sintomo non sostituisce una verifica diretta, nemmeno quando il sintomo è reale.
