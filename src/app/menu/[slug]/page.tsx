@@ -65,6 +65,7 @@ import Footer from '@/components/layout/Footer';
 import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { supabase } from '@/lib/supabase';
+import { COOKING_STYLES, getCustomizationOptions, hasCookingStyles } from '@/lib/pricing';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 
 
@@ -101,6 +102,19 @@ interface CartItem extends MenuItemType {
   removedIngredients?: string[];
   selectedOptions?: any[];
 }
+
+/**
+ * Righe del carrello nella forma accettata da /api/orders e /api/bookings:
+ * solo cosa è stato scelto, nessun prezzo. I prezzi li decide il server.
+ */
+const cartToLines = (cart: CartItem[]) =>
+  cart.map((item) => ({
+    menuItemId: item.id,
+    qty: item.qty,
+    added: (item.addedIngredients || []).map((a) => a.name),
+    removed: item.removedIngredients || [],
+    note: item.note || '',
+  }));
 
 interface RestaurantType {
   name: string;
@@ -1811,36 +1825,11 @@ function CheckoutModal({
             }));
             setZones(mappedZones);
           } else {
-            // Fallback mock zones
-            setZones([
-              {
-                id: 'zone-1',
-                name: 'Zona Centro (Vicino)',
-                minOrder: 0,
-                deliveryFee: 2.0,
-                freeDeliveryThreshold: 25,
-                enabled: true,
-                caps: '20121, 20122, 20123',
-              },
-              {
-                id: 'zone-2',
-                name: 'Zona Periferia (Medio)',
-                minOrder: 0,
-                deliveryFee: 4.0,
-                freeDeliveryThreshold: 35,
-                enabled: true,
-                caps: '20124, 20125, 20126',
-              },
-              {
-                id: 'zone-3',
-                name: 'Fuori Comune (Lontano)',
-                minOrder: 0,
-                deliveryFee: 6.0,
-                freeDeliveryThreshold: 50,
-                enabled: false,
-                caps: '20127, 20128, 20129',
-              },
-            ]);
+            // Nessuna zona configurata: nessun CAP è servito. Le zone di
+            // esempio mostrate prima in questo caso erano inventate, e /api/orders
+            // non le conosce: il cliente arrivava in fondo al checkout e l'ordine
+            // veniva rifiutato.
+            setZones([]);
           }
         } catch (e) {
           console.error('Error fetching delivery zones from Supabase:', e);
@@ -2172,40 +2161,36 @@ function CheckoutModal({
 
     if (bookingContext) {
       try {
-        // L'id è generato qui e non dal DB: il cliente è anonimo e non ha una
-        // policy SELECT su bookings, quindi un insert().select() fallirebbe
-        // (il RETURNING richiede anche il permesso di lettura sulla riga).
-        const bookingId = crypto.randomUUID();
-        const bookingCreatedAt = new Date().toISOString();
-
-        const bookingPayload = {
-          id: bookingId,
-          restaurant_id: rId,
-          name: bookingContext.name.trim(),
-          phone: bookingContext.phone.trim(),
-          email: email.trim().toLowerCase() || null,
-          guests: bookingContext.guests,
-          date: bookingContext.date,
-          time: `${bookingContext.time}:00`,
-          status: 'pending',
-          notes: bookingContext.note.trim(),
-          pre_order_items: cart,
-          pre_order_total: total,
-        };
-
-        const { error: bookingError } = await supabase.from('bookings').insert(bookingPayload);
-
-        if (bookingError) {
-          throw bookingError;
+        // La prenotazione passa da /api/bookings, che prezza il pre-ordine con
+        // i dati del database: i prezzi calcolati qui diventerebbero un ordine
+        // vero alla conferma del ristoratore (rilievo C8).
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            restaurantId: rId,
+            name: bookingContext.name,
+            phone: bookingContext.phone,
+            email,
+            guests: bookingContext.guests,
+            date: bookingContext.date,
+            time: bookingContext.time,
+            notes: bookingContext.note,
+            items: cartToLines(cart),
+          }),
+        });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(result.message || 'Impossibile completare la prenotazione');
         }
 
+        const bookingPayload = result.booking;
         const trackedBooking = {
           ...bookingPayload,
-          created_at: bookingCreatedAt,
           type: 'prenotazione_tavolo',
-          timestamp: bookingCreatedAt,
+          timestamp: bookingPayload.created_at,
           payMethod: payMethod,
-          total: total,
+          total: bookingPayload.pre_order_total,
         };
 
         setLastCreatedOrder(trackedBooking);
@@ -2217,7 +2202,7 @@ function CheckoutModal({
         setStep('success');
       } catch (err: any) {
         console.error('Error saving booking:', err);
-        alert(`Errore di rete: ${err.message || 'Impossibile completare la prenotazione'}`);
+        alert(err.message || 'Impossibile completare la prenotazione');
         setLoading(false);
       }
       return;
@@ -2241,127 +2226,50 @@ function CheckoutModal({
     }
 
     try {
-      const discount = checkoutDiscount;
+      // L'ordine è creato da /api/orders, che ricalcola ogni importo dai dati
+      // del database e dal listino condiviso (src/lib/pricing.ts): da qui
+      // partono solo i piatti scelti, i dati del cliente e il totale mostrato,
+      // che il server confronta con il proprio e rifiuta se diverso (C8).
+      // Numero d'ordine e consumo del codice promo avvengono lato server.
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId: rId,
+          type: deliveryType,
+          items: cartToLines(cart),
+          name,
+          email,
+          phone,
+          address,
+          cap,
+          tableNumber: deliveryType === 'tavolo' && tableNumber ? String(tableNumber) : '',
+          guests: deliveryType === 'tavolo' ? guests : null,
+          scheduledAt:
+            deliveryType !== 'tavolo' && selectedDate && deliveryTime && deliveryTime !== 'asap'
+              ? new Date(`${selectedDate}T${deliveryTime}:00`).toISOString()
+              : null,
+          notes,
+          promoCode: appliedPromoDetail ? appliedPromoDetail.code : '',
+          expectedTotal: finalTotal,
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
 
-      // Il codice promozionale va consumato PRIMA di creare l'ordine.
-      //
-      // Finora l'incremento di `used_count` avveniva dopo l'insert, con un
-      // UPDATE diretto su `promos` che RLS scartava in silenzio (la tabella ha
-      // solo "promos: owner write"): il contatore restava a zero e il limite
-      // `max_uses` impostato dal ristoratore non entrava mai in funzione.
-      //
-      // La RPC fa controllo e incremento nello stesso UPDATE, quindi il limite
-      // regge anche fra checkout concorrenti. Se torna FALSE l'ultimo utilizzo
-      // è stato preso da qualcun altro fra la validazione del codice e l'invio
-      // dell'ordine: lo sconto non è più dovuto e l'ordine non va creato con
-      // quel totale.
-      if (appliedPromoDetail) {
-        const { data: promoConsumed, error: promoUsageError } = await supabase.rpc(
-          'increment_promo_usage',
-          { p_promo_id: appliedPromoDetail.id }
-        );
-
-        if (promoUsageError || promoConsumed !== true) {
-          console.error('Promo non consumabile:', promoUsageError ?? 'limite raggiunto');
-          onPromoUnavailable(
-            promoUsageError
-              ? 'Non è stato possibile applicare il codice sconto. Controlla il riepilogo e riprova.'
-              : 'Il codice sconto ha appena raggiunto il limite massimo di utilizzi. Controlla il nuovo totale e conferma di nuovo.'
-          );
+      if (!res.ok) {
+        if (result.error === 'promo_unavailable') {
+          onPromoUnavailable(result.message);
           setLoading(false);
           return;
         }
+        throw new Error(result.message || "Impossibile completare l'ordine");
       }
 
-      // Il numero d'ordine è assegnato dal database tramite una sequenza per
-      // ristorante. Il contatore precedente stava in localStorage e ripartiva
-      // da 0001 su ogni dispositivo: dal secondo ordine giornaliero dello
-      // stesso ristorante da un browser diverso, l'insert violava
-      // UNIQUE(restaurant_id, order_number) e il cliente non riusciva a
-      // ordinare.
-      const { data: orderNumber, error: numberError } = await supabase.rpc(
-        'generate_order_number',
-        {
-          p_restaurant_id: rId,
-          // stesso valore scritto in orders.type poco sotto: determina il
-          // prefisso (DOM / ASP / TAV)
-          p_order_type: deliveryType,
-          ...(deliveryType === 'tavolo' && tableNumber
-            ? { p_table_number: String(tableNumber) }
-            : {}),
-        }
-      );
-
-      if (numberError || !orderNumber) {
-        console.error('Error generating order number:', numberError);
-        alert('Impossibile creare l’ordine, riprova.');
-        setLoading(false);
-        return;
-      }
-
-      // L'id è generato qui e non dal DB: il cliente è anonimo e non ha una
-      // policy SELECT su orders, quindi un insert().select() fallirebbe (il
-      // RETURNING richiede anche il permesso di lettura sulla riga appena
-      // creata) e l'ordine non verrebbe salvato affatto.
-      const orderId = crypto.randomUUID();
-      const orderCreatedAt = new Date().toISOString();
-
-      const orderPayload = {
-        id: orderId,
-        restaurant_id: rId,
-        order_number: orderNumber,
-        type: deliveryType,
-        status: 'new',
-        customer_name: deliveryType === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
-        customer_email:
-          deliveryType === 'tavolo' ? 'tavolo@internal.it' : email.trim().toLowerCase(),
-        customer_phone: deliveryType === 'tavolo' ? null : phone,
-        customer_address: deliveryType === 'domicilio' ? `${address} (CAP: ${cap})` : null,
-        table_number: deliveryType === 'tavolo' ? tableNumber : null,
-        guests: deliveryType === 'tavolo' ? guests : null,
-        subtotal: itemsTotal,
-        delivery_fee: currentDeliveryFee,
-        discount: discount,
-        total: finalTotal,
-        promo_code: appliedPromoDetail ? appliedPromoDetail.code : null,
-        promo_applied: !!appliedPromoDetail,
-        scheduled_at:
-          deliveryType !== 'tavolo' && selectedDate && deliveryTime && deliveryTime !== 'asap'
-            ? new Date(`${selectedDate}T${deliveryTime}:00`).toISOString()
-            : null,
-        notes: notes || '',
-      };
-
-      const { error: orderError } = await supabase.from('orders').insert(orderPayload);
-
-      if (orderError) {
-        throw orderError;
-      }
-
-      const orderItemsPayload = cart.map((item) => ({
-        order_id: orderId,
-        menu_item_id: item.id.startsWith('sf-') || item.id.startsWith('bk-') ? null : item.id,
-        name: item.name,
-        price: item.price,
-        qty: item.qty,
-        note: item.note || null,
-        added_ingredients: item.addedIngredients || [],
-        removed_ingredients: item.removedIngredients || [],
-        selected_options: item.selectedOptions || [],
-      }));
-
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItemsPayload);
-
-      if (itemsError) throw itemsError;
-
-      // `used_count` è già stato incrementato prima dell'insert, tramite la RPC
-      // increment_promo_usage.
-
+      const orderPayload = result.order;
       const trackedOrder = {
         ...orderPayload,
-        created_at: orderCreatedAt,
         items: cart,
-        timestamp: orderCreatedAt,
+        timestamp: orderPayload.created_at,
         payMethod: payMethod,
       };
 
@@ -2373,7 +2281,7 @@ function CheckoutModal({
       setStep('success');
     } catch (err: any) {
       console.error('Error saving order:', err);
-      alert(`Errore di rete: ${err.message || "Impossibile completare l'ordine"}`);
+      alert(err.message || "Impossibile completare l'ordine");
       setLoading(false);
     }
   };
@@ -3417,53 +3325,6 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
   );
 }
 
-const getCustomizationOptions = (category: string) => {
-  const normalized = (category || '').toLowerCase();
-  if (normalized === 'pizza') {
-    return {
-      extras: [
-        { name: 'Doppia Mozzarella', price: 1.5 },
-        { name: 'Prosciutto Cotto', price: 1.5 },
-        { name: 'Funghi Champignon', price: 1.0 },
-        { name: 'Salame Piccante', price: 1.5 },
-        { name: 'Olive Nere', price: 0.8 },
-      ],
-      removes: ['Basilico', 'Origano', 'Mozzarella'],
-    };
-  }
-  if (normalized === 'primi' || normalized === 'secondi' || normalized === 'antipasti') {
-    return {
-      extras: [
-        { name: 'Parmigiano Reggiano', price: 1.2 },
-        { name: 'Pane extra', price: 1.0 },
-        { name: 'Olio al tartufo', price: 2.0 },
-        { name: 'Pancetta croccante', price: 1.5 },
-      ],
-      removes: ['Pepe', 'Cipolla', 'Aglio', 'Prezzemolo'],
-    };
-  }
-  if (normalized === 'dolci') {
-    return {
-      extras: [
-        { name: 'Panna montata', price: 1.0 },
-        { name: 'Granella di nocciole', price: 0.8 },
-        { name: 'Cioccolato fuso', price: 1.2 },
-      ],
-      removes: [],
-    };
-  }
-  if (normalized === 'bevande') {
-    return {
-      extras: [
-        { name: 'Ghiaccio', price: 0.0 },
-        { name: 'Fetta di limone', price: 0.5 },
-      ],
-      removes: ['Ghiaccio'],
-    };
-  }
-  return { extras: [], removes: [] };
-};
-
 function CustomizationView({
   item,
   cartItem,
@@ -3613,18 +3474,15 @@ function CustomizationView({
     },
   ].filter((c) => c.items.length > 0);
 
-  const stylePrice = cookingStyle === 'schiacciata' ? 1.5 : 0.0;
+  const stylePrice = COOKING_STYLES.find((s) => s.id === cookingStyle)?.price ?? 0;
   const unitPrice = item.price + added.reduce((sum, e) => sum + e.price, 0) + stylePrice;
   const totalPrice = unitPrice * qty;
 
   const handleConfirm = () => {
     const finalAdded = [...added];
-    if (cookingStyle === 'schiacciata') {
-      finalAdded.push({ name: 'Stile: A Schiacciata', price: 1.5 });
-    } else if (cookingStyle === 'calzone') {
-      finalAdded.push({ name: 'Stile: A Calzone', price: 0.0 });
-    } else if (cookingStyle === 'ben-cotto') {
-      finalAdded.push({ name: 'Cottura: Ben Cotto', price: 0.0 });
+    const style = COOKING_STYLES.find((s) => s.id === cookingStyle);
+    if (style?.cartName) {
+      finalAdded.push({ name: style.cartName, price: style.price });
     }
     onConfirm(qty, finalAdded, removed, note);
   };
@@ -3790,20 +3648,13 @@ function CustomizationView({
         )}
 
         {/* 3. Style / Cooking */}
-        {(item.category.toLowerCase().includes('pizz') ||
-          item.category.toLowerCase().includes('panin') ||
-          item.category.toLowerCase().includes('burger')) && (
+        {hasCookingStyles(item.category) && (
             <div className="space-y-2">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                 Impasti & Cotture
               </h4>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'classico', label: 'Classico', price: 0.0 },
-                  { id: 'ben-cotto', label: 'Ben Cotto', price: 0.0 },
-                  { id: 'calzone', label: 'A Calzone', price: 0.0 },
-                  { id: 'schiacciata', label: 'A Schiacciata', price: 1.5 },
-                ].map((style) => {
+                {COOKING_STYLES.map((style) => {
                   const isSelected = cookingStyle === style.id;
                   return (
                     <button
@@ -6823,41 +6674,32 @@ function StorefrontContent() {
                         return;
                       }
 
-                      // Id generato qui e non dal DB: il cliente è anonimo e
-                      // non ha una policy SELECT su bookings, quindi un
-                      // insert().select() fallirebbe (il RETURNING richiede
-                      // anche il permesso di lettura sulla riga).
-                      const bookingId = crypto.randomUUID();
-                      const bookingCreatedAt = new Date().toISOString();
-
-                      const bookingPayload = {
-                        id: bookingId,
-                        restaurant_id: rId,
-                        name: bookingName.trim(),
-                        phone: bookingPhone.trim(),
-                        email: '',
-                        guests: bookingGuests,
-                        date: bookingDate,
-                        time: `${bookingTime}:00`,
-                        status: 'pending',
-                        notes: bookingNote.trim(),
-                        pre_order_items: [],
-                        pre_order_total: 0,
-                      };
-
-                      const { error: bookingError } = await supabase
-                        .from('bookings')
-                        .insert(bookingPayload);
-
-                      if (bookingError) {
-                        throw bookingError;
+                      // Stessa route della prenotazione con pre-ordine: gli
+                      // INSERT anonimi diretti su bookings non sono più ammessi.
+                      const res = await fetch('/api/bookings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          restaurantId: rId,
+                          name: bookingName,
+                          phone: bookingPhone,
+                          guests: bookingGuests,
+                          date: bookingDate,
+                          time: bookingTime,
+                          notes: bookingNote,
+                          items: [],
+                        }),
+                      });
+                      const result = await res.json().catch(() => ({}));
+                      if (!res.ok) {
+                        throw new Error(result.message || 'Impossibile completare la prenotazione');
                       }
 
+                      const bookingPayload = result.booking;
                       const trackedBooking = {
                         ...bookingPayload,
-                        created_at: bookingCreatedAt,
                         type: 'prenotazione_tavolo',
-                        timestamp: bookingCreatedAt,
+                        timestamp: bookingPayload.created_at,
                         total: 0,
                       };
 
