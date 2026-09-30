@@ -26,8 +26,9 @@
 --   Verificato:
 --     · activation_token             uuid,        nullable, nessun default
 --     · activation_token_expires_at  timestamptz, nullable, nessun default
---     · unicità su activation_token, realizzata come INDICE UNIVOCO PARZIALE e
---       non come vincolo, di nome restaurants_activation_token_key
+--     · unicità su activation_token, realizzata come indice univoco e non come
+--       vincolo, di nome restaurants_activation_token_key
+--     · l'indice è PARZIALE (WHERE activation_token IS NOT NULL)
 --     · due righe con activation_token NULL sono entrambe accettate
 --
 --   Il nome emerge da una violazione provocata di proposito:
@@ -39,6 +40,16 @@
 --   pg_constraint non contenesse nulla, è stata rifiutata con
 --       42P07 relation "restaurants_activation_token_key" already exists
 --   Il nome è dunque occupato da una relazione che non è un vincolo: un indice.
+--
+--   Quel 42P07 non diceva però se l'indice fosse parziale o pieno: le due
+--   forme accettano entrambe più NULL, quindi nessuna sonda le distingue. La
+--   definizione esatta è stata letta dal catalogo il 30 settembre 2026:
+--       SELECT indexdef FROM pg_indexes
+--        WHERE indexname = 'restaurants_activation_token_key';
+--       → CREATE UNIQUE INDEX restaurants_activation_token_key
+--           ON public.restaurants USING btree (activation_token)
+--           WHERE (activation_token IS NOT NULL)
+--   L'istruzione qui sotto la riproduce testualmente.
 -- ============================================================================
 
 -- ─── Colonne ────────────────────────────────────────────────────────────────

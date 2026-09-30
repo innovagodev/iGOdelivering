@@ -310,9 +310,19 @@ Le colonne `restaurants.activation_token` e `activation_token_expires_at` sono p
 
 Verificato: leggibili con la service role key, e `anon` riceve `permission denied for table restaurants` (effetto della 017). L'esposizione non c'è; il problema è che chi allestisse un ambiente nuovo dalla sequenza di migration si troverebbe la registrazione ristoratore non funzionante, senza una causa evidente.
 
-**Risolto** dalla migration 019, che le versiona senza essere eseguita in produzione (dove esistono già). Ricostruita per introspezione, perché il testo del DDL originale non è recuperabile dal database: tipi e nullabilità dallo spec OpenAPI di PostgREST, nome dell'oggetto di unicità da una violazione provocata.
+**Risolto** dalla migration 019, che le versiona senza essere eseguita in produzione (dove esistono già). Ricostruita per introspezione, perché il testo del DDL originale non è recuperabile dal database: tipi e nullabilità dallo spec OpenAPI di PostgREST, nome dell'oggetto di unicità da una violazione provocata, definizione dell'indice da `pg_indexes`.
 
-Una deduzione sbagliata lungo il percorso, corretta: il nome `restaurants_activation_token_key` è quello che PostgreSQL genera da sé per un vincolo `UNIQUE` di colonna, e la prima stesura lo trattava come tale. Eseguendo la migration si è visto che `pg_constraint` non contiene nulla con quel nome, mentre `ADD CONSTRAINT` viene rifiutata con `42P07 relation already exists`: il nome è occupato da un **indice univoco parziale**, non da un vincolo. Le due forme hanno comportamento identico — un `UNIQUE` semplice ammette già più NULL — quindi nessuna sonda le distingue; è stato il tentativo di crearlo a rivelarlo.
+Una deduzione sbagliata lungo il percorso, corretta: il nome `restaurants_activation_token_key` è quello che PostgreSQL genera da sé per un vincolo `UNIQUE` di colonna, e la prima stesura lo trattava come tale. Eseguendo la migration si è visto che `pg_constraint` non contiene nulla con quel nome, mentre `ADD CONSTRAINT` viene rifiutata con `42P07 relation already exists`: il nome è occupato da un **indice univoco**, non da un vincolo. È stato il tentativo di crearlo a rivelarlo.
+
+Quel `42P07` non stabiliva però se l'indice fosse parziale o pieno, e la prima versione di questa sezione lo dava per parziale senza averlo verificato. Le due forme hanno comportamento identico — un `UNIQUE` pieno ammette già più NULL — quindi nessuna sonda le distingue. La definizione è stata letta dal catalogo il 30 settembre 2026:
+
+```
+SELECT indexdef FROM pg_indexes WHERE indexname = 'restaurants_activation_token_key';
+→ CREATE UNIQUE INDEX restaurants_activation_token_key ON public.restaurants
+    USING btree (activation_token) WHERE (activation_token IS NOT NULL)
+```
+
+L'indice è **parziale**, e la migration 019 lo riproduce testualmente.
 
 ### ⚠️ N13 — Stesso pattern, punti ancora aperti
 
