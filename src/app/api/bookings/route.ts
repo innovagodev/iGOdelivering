@@ -112,8 +112,41 @@ export async function POST(request: Request) {
     preOrderTotal = fromCents(priced.itemsCents);
   }
 
+  // Controllo di capienza e inserimento nella stessa funzione, sotto un lock
+  // per (ristorante, data): due richieste simultanee per la stessa fascia non
+  // possono superare insieme la capienza (C9, migration 022).
+  const { data: result, error } = await admin.rpc('create_booking', {
+    p_restaurant_id: restaurantId,
+    p_name: name,
+    p_phone: phone,
+    p_email: email,
+    p_guests: guests as number,
+    p_date: date,
+    p_time: `${time}:00`,
+    p_notes: notes,
+    p_pre_order_items: preOrderItems,
+    p_pre_order_total: preOrderTotal,
+  });
+  if (error || !result) {
+    console.error('[bookings] create_booking error:', error?.message);
+    return reply(fail(500, 'server_error', 'Impossibile completare la prenotazione, riprova.'));
+  }
+  if (result.ok !== true) {
+    const available = Number(result.available) || 0;
+    return reply(
+      fail(
+        409,
+        'booking_full',
+        available > 0
+          ? `Per quest'orario restano solo ${available} posti. Riduci il numero di persone o scegli un altro orario.`
+          : "Non ci sono più posti disponibili per quest'orario. Scegli un altro orario.",
+        { available }
+      )
+    );
+  }
+
   const booking = {
-    id: crypto.randomUUID(),
+    id: result.id as string,
     restaurant_id: restaurantId,
     name,
     phone,
@@ -125,20 +158,8 @@ export async function POST(request: Request) {
     notes,
     pre_order_items: preOrderItems,
     pre_order_total: preOrderTotal,
+    created_at: result.created_at as string,
   };
 
-  const { data: created, error } = await admin
-    .from('bookings')
-    .insert(booking)
-    .select('created_at')
-    .single();
-  if (error) {
-    console.error('[bookings] insert error:', error.message);
-    return reply(fail(500, 'server_error', 'Impossibile completare la prenotazione, riprova.'));
-  }
-
-  return NextResponse.json(
-    { booking: { ...booking, created_at: created.created_at } },
-    { status: 201 }
-  );
+  return NextResponse.json({ booking }, { status: 201 });
 }

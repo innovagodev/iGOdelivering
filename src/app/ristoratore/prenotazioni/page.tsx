@@ -23,7 +23,6 @@ import {
   Store,
 } from 'lucide-react';
 
-
 export default function PrenotazioniPage() {
   const { user, isLoading } = useAuth();
   const restaurantId = user?.restaurantId || '';
@@ -85,6 +84,94 @@ export default function PrenotazioniPage() {
 
   const [loading, setLoading] = useState(true);
 
+  // ─── Capienza (C9, migration 022) ─────────────────────────────────────────
+  // NULL = nessun limite automatico: ogni richiesta resta da confermare a mano.
+  const [capacity, setCapacity] = useState<number | null>(null);
+  const [slotMinutes, setSlotMinutes] = useState(90);
+  const [capacityInput, setCapacityInput] = useState('');
+  const [slotInput, setSlotInput] = useState(90);
+  const [capacitySaving, setCapacitySaving] = useState(false);
+  const [capacityMessage, setCapacityMessage] = useState<string | null>(null);
+
+  const fetchCapacity = async () => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    const { data, error } = await supabase
+      .from('restaurants')
+      .select('booking_capacity, booking_slot_minutes')
+      .eq('id', restaurantId)
+      .maybeSingle();
+    if (error) {
+      console.error('Error fetching booking capacity:', error.message);
+      return;
+    }
+    // data null con error null = riga non visibile: non è "capienza assente".
+    if (!data) return;
+    setCapacity(data.booking_capacity ?? null);
+    setSlotMinutes(data.booking_slot_minutes ?? 90);
+    setCapacityInput(data.booking_capacity ? String(data.booking_capacity) : '');
+    setSlotInput(data.booking_slot_minutes ?? 90);
+  };
+
+  const saveCapacity = async () => {
+    const trimmed = capacityInput.trim();
+    const value = trimmed === '' ? null : Number(trimmed);
+    if (value !== null && (!Number.isInteger(value) || value < 1)) {
+      setCapacityMessage('Inserisci un numero intero di coperti, oppure lascia vuoto.');
+      return;
+    }
+    setCapacitySaving(true);
+    setCapacityMessage(null);
+    const { data, error } = await supabase
+      .from('restaurants')
+      .update({ booking_capacity: value, booking_slot_minutes: slotInput })
+      .eq('id', restaurantId)
+      .select('booking_capacity, booking_slot_minutes');
+    setCapacitySaving(false);
+    // .select() distingue "salvato" da "nessuna riga aggiornata", che RLS
+    // restituirebbe senza errore.
+    if (error || !data || data.length === 0) {
+      console.error('Error saving booking capacity:', error?.message ?? 'nessuna riga aggiornata');
+      setCapacityMessage('Salvataggio non riuscito. Riprova.');
+      return;
+    }
+    setCapacity(data[0].booking_capacity ?? null);
+    setSlotMinutes(data[0].booking_slot_minutes ?? 90);
+    setCapacityMessage('Salvato.');
+  };
+
+  const toMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  /**
+   * Picco di coperti occupati nella fascia [time, time + turno) del giorno.
+   * Stessa regola di booking_peak_covers nel database: contano le richieste
+   * in attesa e quelle confermate, e il picco si valuta all'inizio della
+   * fascia e all'inizio di ogni prenotazione che vi cade dentro.
+   */
+  const peakCovers = (date: string, time: string) => {
+    const start = toMinutes(time);
+    const relevant = bookings
+      .filter(
+        (b) =>
+          b.date === date &&
+          (b.status === 'pending' || b.status === 'confirmed') &&
+          Math.abs(toMinutes(b.time) - start) < slotMinutes
+      )
+      .map((b) => ({ m: toMinutes(b.time), guests: b.guests }));
+    const points = [
+      start,
+      ...relevant.map((r) => r.m).filter((m) => m > start && m < start + slotMinutes),
+    ];
+    return Math.max(
+      0,
+      ...points.map((c) =>
+        relevant.filter((r) => r.m <= c && c < r.m + slotMinutes).reduce((s, r) => s + r.guests, 0)
+      )
+    );
+  };
+
   const fetchBookings = async () => {
     if (!restaurantId || restaurantId === 'r-001') {
       setLoading(false);
@@ -134,6 +221,7 @@ export default function PrenotazioniPage() {
 
   useEffect(() => {
     fetchBookings();
+    fetchCapacity();
   }, [restaurantId]);
 
   const handleOpenAddModal = () => {
@@ -375,7 +463,9 @@ export default function PrenotazioniPage() {
             {isLoading || (loading && bookings.length === 0) ? (
               <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground text-sm font-medium animate-pulse">Caricamento prenotazioni in corso...</p>
+                <p className="text-muted-foreground text-sm font-medium animate-pulse">
+                  Caricamento prenotazioni in corso...
+                </p>
               </div>
             ) : !restaurantId || restaurantId === 'r-001' ? (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8 bg-card border border-border rounded-2xl shadow-sm">
@@ -384,7 +474,8 @@ export default function PrenotazioniPage() {
                 </div>
                 <h2 className="text-xl font-bold text-foreground">Nessun Ristorante Collegato</h2>
                 <p className="text-muted-foreground text-sm max-w-md mt-2">
-                  Il tuo account non è ancora collegato a un ristorante attivo. Contatta l'amministratore per completare la configurazione e l'attivazione del tuo profilo.
+                  Il tuo account non è ancora collegato a un ristorante attivo. Contatta
+                  l'amministratore per completare la configurazione e l'attivazione del tuo profilo.
                 </p>
               </div>
             ) : (
@@ -441,6 +532,66 @@ export default function PrenotazioniPage() {
                 </p>
               </div>
             </div>
+
+                {/* Capienza prenotazioni (C9) */}
+                <div
+                  className={`rounded-xl border p-4 shadow-card flex flex-col lg:flex-row gap-4 lg:items-end justify-between ${
+                    capacity === null
+                      ? 'bg-[var(--warning-bg)] border-[var(--warning)]/30'
+                      : 'bg-card border-border'
+                  }`}
+                >
+                  <div className="space-y-1 max-w-xl">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Users size={14} /> Capienza prenotazioni
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {capacity === null
+                        ? 'Capienza non impostata: le richieste non vengono filtrate e vanno valutate una per una. Impostala per rifiutare in automatico quelle che superano i posti disponibili.'
+                        : `Accetti fino a ${capacity} coperti in contemporanea; ogni prenotazione occupa i suoi posti per ${slotMinutes} minuti. Contano le richieste in attesa e quelle confermate.`}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
+                      Coperti
+                      <input
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        value={capacityInput}
+                        onChange={(e) => setCapacityInput(e.target.value)}
+                        placeholder="Nessun limite"
+                        className="w-32 px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
+                      Durata turno
+                      <select
+                        value={slotInput}
+                        onChange={(e) => setSlotInput(Number(e.target.value))}
+                        className="px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground"
+                      >
+                        {[60, 90, 120, 150, 180].map((m) => (
+                          <option key={m} value={m}>
+                            {m} min
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      onClick={saveCapacity}
+                      disabled={capacitySaving}
+                      className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                    >
+                      {capacitySaving ? 'Salvataggio…' : 'Salva'}
+                    </button>
+                    {capacityMessage && (
+                      <span className="text-xs text-muted-foreground w-full">
+                        {capacityMessage}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
             {/* Filters panel */}
             <div className="bg-card border border-border rounded-xl p-4 flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between shadow-card">
@@ -572,10 +723,14 @@ export default function PrenotazioniPage() {
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="w-12 h-12 rounded-lg bg-card border border-border flex flex-col items-center justify-center shadow-sm">
                           <span className="text-[10px] uppercase font-bold text-primary tracking-wider">
-                            {new Date(booking.date).toLocaleDateString('it-IT', { month: 'short' })}
+                                {new Date(booking.date).toLocaleDateString('it-IT', {
+                                  month: 'short',
+                                })}
                           </span>
                           <span className="text-base font-extrabold text-foreground leading-none">
-                            {new Date(booking.date).toLocaleDateString('it-IT', { day: 'numeric' })}
+                                {new Date(booking.date).toLocaleDateString('it-IT', {
+                                  day: 'numeric',
+                                })}
                           </span>
                         </div>
                         <div className="flex flex-col">
@@ -601,6 +756,21 @@ export default function PrenotazioniPage() {
                             <Badge variant="primary" className="text-[10px] px-1.5 py-0">
                               {booking.guests} {booking.guests === 1 ? 'ospite' : 'ospiti'}
                             </Badge>
+                                {booking.status !== 'cancelled' &&
+                                  (() => {
+                                    const occupied = peakCovers(booking.date, booking.time);
+                                    const over = capacity !== null && occupied > capacity;
+                                    return (
+                                      <Badge
+                                        variant={over ? 'danger' : 'neutral'}
+                                        className="text-[10px] px-1.5 py-0"
+                                      >
+                                        {capacity !== null
+                                          ? `Fascia ${occupied}/${capacity} coperti`
+                                          : `Fascia ${occupied} coperti`}
+                                      </Badge>
+                                    );
+                                  })()}
                             <Badge
                               variant={
                                 booking.status === 'confirmed'
