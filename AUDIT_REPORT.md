@@ -63,7 +63,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ⚠️ Aperto | prod |
-| **N16** | Feature | La vetrina non applica i flag consegna / asporto / tavolo del ristorante | Medio | ⚠️ Aperto | codice |
+| **N16** | Ordini | Orari e sospensione del servizio applicati solo dalla vetrina, non da `/api/orders` | Medio | ⚠️ Aperto | codice |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
@@ -362,11 +362,13 @@ Emerso il 30 settembre 2026 durante il lavoro su C8. L'unica zona di consegna di
 
 Non è un difetto di codice ma di configurazione: va compilato l'elenco CAP della zona dal pannello. Prima della correzione di C8 la vetrina mostrava tre zone di esempio inventate (CAP milanesi) quando un ristorante non ne aveva alcuna; sono state rimosse.
 
-### ⚠️ N16 — La vetrina non applica i flag delle modalità d'ordine
+### ⚠️ N16 — Orari e sospensione del servizio non sono verificati dal server
 
-> **Correzione del 30 settembre 2026.** La prima stesura di N16 sosteneva che la vetrina ignorasse le opzioni dei piatti configurate nel wizard e usasse un listino generico. **Era sbagliato.** La personalizzazione avviene in `ProductDetailSheet`, che legge `menu_items.option_groups` con i prezzi del ristoratore; il listino generico stava in `CustomizationView`, un componente definito ma **mai montato**. La diagnosi era stata fatta leggendo il codice senza verificare quale componente fosse in uso, e ha prodotto una regressione, descritta in C8. `CustomizationView` è stato rimosso.
+> **Due correzioni a questo rilievo, entrambe del 30 settembre – 1 ottobre 2026.** La prima stesura sosteneva che la vetrina ignorasse le opzioni dei piatti: **era sbagliato** (vedi la regressione in C8; il listino generico stava in `CustomizationView`, componente mai montato, ora rimosso). La seconda stesura sosteneva che la vetrina ignorasse i flag `delivery_enabled`, `pickup_enabled` e `table_enabled`: è vero, ma **i flag sono vestigiali** e applicarli sarebbe stato un errore. Il wizard salva `pickup_enabled` sempre a `true`, `delivery_enabled` come "esiste almeno una zona attiva" (regola che il server applica già tramite le zone), e `table_enabled` da un'impostazione `tableBooking.enabled` che parte da `false` e non ha alcun controllo nell'interfaccia: imporlo avrebbe bloccato gli ordini al tavolo a tutti i ristoranti.
 
-Quello che resta vero: i flag `delivery_enabled`, `pickup_enabled` e `table_enabled` del ristorante vengono letti da `useRestaurantSettings` ma la vetrina non li applica. In particolare il link QR `?tavolo=N` apre l'ordine al tavolo anche su un locale con `table_enabled = false`, com'è oggi convivium. `/api/orders` si allinea deliberatamente alla vetrina e non li controlla, per non rifiutare all'ultimo passo un ordine che l'interfaccia ha lasciato comporre: il rimedio va fatto nei due punti insieme.
+Il controllo operativo reale è `hours_config`: orari per servizio, chiusure temporanee e `serviceSuspended`, che il ristoratore gestisce dalla pagina Orari. La vetrina lo applica — blocca la consegna sospesa, propone l'ordine per dopo quando il locale è chiuso — ma `/api/orders` no: una pagina rimasta aperta o una chiamata diretta possono creare un ordine per un servizio appena sospeso. Va replicata lato server la stessa logica, che ha casi non banali (ordini programmati ammessi a locale chiuso), quindi con una verifica attraverso l'interfaccia e non solo per sonda.
+
+**Corretto nel frattempo (1 ottobre 2026):** un residuo di una funzione di test di maggio ("Simula 12:15 — Solo Asporto") era rimasto agganciato all'orologio reale. Ogni giorno alle 12:15 il pulsante della consegna a domicilio si disattivava e chi lo aveva scelto veniva spostato su asporto. Rimosso; checkout riverificato in Chrome con la richiesta intercettata (totale mostrato e ricalcolato coincidono, nessun errore di pagina).
 
 ---
 

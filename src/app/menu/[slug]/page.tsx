@@ -2106,12 +2106,6 @@ function CheckoutModal({
   const showAsapOption = false;
 
   useEffect(() => {
-    if (currentTimeStr === '12:15' && deliveryType === 'domicilio') {
-      setDeliveryType('asporto');
-    }
-  }, [currentTimeStr, deliveryType, setDeliveryType]);
-
-  useEffect(() => {
     if (showAsapOption) {
       if (!deliveryTime || (deliveryTime !== 'asap' && !timeSlots.includes(deliveryTime))) {
         setDeliveryTime('asap');
@@ -2565,11 +2559,8 @@ function CheckoutModal({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    disabled={currentTimeStr === '12:15'}
                     onClick={() => setDeliveryType('domicilio')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${currentTimeStr === '12:15'
-                      ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-50'
-                      : deliveryType === 'domicilio'
+                    className={`flex items-center justify-center py-2.5 rounded-lg border text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${deliveryType === 'domicilio'
                         ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary/20'
                         : 'border-border/60 text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
                       }`}
