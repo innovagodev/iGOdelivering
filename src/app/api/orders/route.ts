@@ -6,8 +6,10 @@ import {
   EMAIL_RE,
   fail,
   Fail,
+  clientIp,
   isFail,
   parseLines,
+  rateLimited,
   priceLines,
   str,
   UUID_RE,
@@ -41,6 +43,14 @@ import {
 
 const ORDER_TYPES: OrderType[] = ['domicilio', 'asporto', 'tavolo'];
 
+// Limiti per connessione (M4). Per IP *e* ristorante, perché i clienti al
+// tavolo usano spesso il Wi-Fi del locale e condividono lo stesso IP: un limite
+// per solo IP bloccherebbe una sala piena. Il tetto globale ferma chi colpisce
+// molti ristoranti dalla stessa connessione.
+const WINDOW_SECONDS = 600;
+const LIMIT_PER_RESTAURANT = 30;
+const LIMIT_GLOBAL = 100;
+
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
   try {
@@ -55,12 +65,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'server_error' }, { status: 500 });
   }
 
-  const result = await createOrder(admin, body);
+  const result = await createOrder(admin, body, clientIp(request));
   if (isFail(result)) return NextResponse.json(result.body, { status: result.status });
   return NextResponse.json(result, { status: 201 });
 }
 
-async function createOrder(admin: SupabaseClient, body: Record<string, unknown>) {
+async function createOrder(admin: SupabaseClient, body: Record<string, unknown>, ip: string) {
   const invalid = fail(400, 'bad_request', 'Dati dell’ordine non validi.');
 
   // ─── Input ────────────────────────────────────────────────────────────────
@@ -68,6 +78,16 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>)
   const type = body.type as OrderType;
   if (typeof restaurantId !== 'string' || !UUID_RE.test(restaurantId)) return invalid;
   if (!ORDER_TYPES.includes(type)) return invalid;
+
+  const limited = await rateLimited(admin, [
+    {
+      key: `orders:${ip}:${restaurantId}`,
+      limit: LIMIT_PER_RESTAURANT,
+      windowSeconds: WINDOW_SECONDS,
+    },
+    { key: `orders:${ip}`, limit: LIMIT_GLOBAL, windowSeconds: WINDOW_SECONDS },
+  ]);
+  if (limited) return limited;
 
   const lines = parseLines(body.items);
   if (!lines) return invalid;

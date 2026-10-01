@@ -179,3 +179,50 @@ export function adminClient(): SupabaseClient | null {
 
 export const isFail = (x: unknown): x is Fail =>
   !!x && typeof x === 'object' && 'status' in x && 'body' in x;
+
+/**
+ * IP del cliente. Su Vercel `x-real-ip` e il primo elemento di
+ * `x-forwarded-for` sono impostati dalla piattaforma e non dal browser.
+ */
+export function clientIp(request: Request): string {
+  const real = request.headers.get('x-real-ip');
+  if (real) return real.trim();
+  const fwd = request.headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0].trim();
+  return 'unknown';
+}
+
+export interface RateRule {
+  key: string;
+  limit: number;
+  windowSeconds: number;
+}
+
+/**
+ * Applica una o più regole di rate limit (rilievo M4, migration 021).
+ *
+ * Fail open: se il contatore non risponde la richiesta passa e l'errore va
+ * nei log. Un guasto del rate limit non deve impedire ai clienti di ordinare;
+ * il prezzo è che, finché dura il guasto, il limite non c'è.
+ */
+export async function rateLimited(admin: SupabaseClient, rules: RateRule[]): Promise<Fail | null> {
+  for (const r of rules) {
+    const { data, error } = await admin.rpc('check_rate_limit', {
+      p_key: r.key,
+      p_limit: r.limit,
+      p_window_seconds: r.windowSeconds,
+    });
+    if (error) {
+      console.error('[rate-limit] check_rate_limit error:', error.message);
+      return null;
+    }
+    if (data === false) {
+      return fail(
+        429,
+        'rate_limited',
+        'Troppe richieste in poco tempo da questa connessione. Riprova tra qualche minuto.'
+      );
+    }
+  }
+  return null;
+}

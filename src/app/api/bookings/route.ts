@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { fromCents } from '@/lib/pricing';
 import {
   adminClient,
+  clientIp,
   EMAIL_RE,
   fail,
   isFail,
   parseLines,
   priceLines,
+  rateLimited,
   str,
   UUID_RE,
 } from '@/lib/orderServer';
@@ -45,6 +47,15 @@ export async function POST(request: Request) {
 
   const restaurantId = body.restaurantId;
   if (typeof restaurantId !== 'string' || !UUID_RE.test(restaurantId)) return reply(invalid);
+
+  // Limiti per connessione (M4): più bassi degli ordini, perché una
+  // prenotazione occupa coperti e nessuno ne fa decine in pochi minuti.
+  const ip = clientIp(request);
+  const limited = await rateLimited(admin, [
+    { key: `bookings:${ip}:${restaurantId}`, limit: 10, windowSeconds: 600 },
+    { key: `bookings:${ip}`, limit: 30, windowSeconds: 600 },
+  ]);
+  if (limited) return reply(limited);
 
   const name = str(body.name, 120);
   const phone = str(body.phone, 40);

@@ -62,7 +62,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N12** | Schema | `activation_token`/`activation_token_expires_at` esistono in produzione ma in nessuna migration | Medio | ✅ Risolto (mig. 019) | prod |
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
-| **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ⚠️ Aperto | prod |
+| **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ✅ Risolto | prod |
 | **N16** | Ordini | Orari e sospensione del servizio applicati solo dalla vetrina, non da `/api/orders` | Medio | ⚠️ Aperto | codice |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
@@ -86,7 +86,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | M1 | Multi-tenant | `platform_settings` leggibile da chiunque (oggi vuota) | Medio | ⚠️ Aperto | prod |
 | M2 | Multi-tenant | Nessuna UPDATE self su `profiles`; nessuna UPDATE/DELETE su `order_items` | Medio | ⚠️ Aperto | prod |
 | M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente | Medio | ⚠️ Aperto | codice |
-| M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni (oggi via `/api/orders`, `/api/bookings`) senza rate limit né captcha | Medio | ⚠️ Aperto | prod |
+| M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni (oggi via `/api/orders`, `/api/bookings`) senza rate limit né captcha | Medio | ⚠️ Aperto — rate limit nel codice, attende mig. 021 | prod |
 | M5 | Qualità | `ignoreBuildErrors` + `ignoreDuringBuilds` attivi | Medio | ⚠️ Aperto | codice |
 | M6 | Qualità | 108 blocchi `catch` su 133 si limitano a `console.error` | Medio | ⚠️ Aperto | codice |
 | M7 | Performance | Dashboard admin: `select('*')` su tutti gli ordini senza limite | Medio | ⚠️ Aperto | codice |
@@ -356,11 +356,11 @@ b, c e d **non affrontati** al 30 settembre 2026.
 
 `generate_order_number(p_restaurant_id, p_order_type, p_table_number)` e `count_customer_orders(p_restaurant_id, p_customer_email)` sono esposte da PostgREST e usate dal codice (N8, N10), ma nessun file in `supabase/migrations/` le crea. È la stessa deriva di N12: un ambiente costruito dalla sequenza di migration non ha né la numerazione degli ordini né la verifica del primo ordine. La 020 ne ricava la firma dal catalogo proprio per questo. Da versionare leggendone la definizione con `pg_get_functiondef`.
 
-### ⚠️ N15 — A convivium nessun ordine a domicilio è completabile *(Alto)*
+### ✅ N15 — A convivium nessun ordine a domicilio era completabile *(Alto, risolto)*
 
 Emerso il 30 settembre 2026 durante il lavoro su C8. L'unica zona di consegna di convivium è attiva, con consegna a 2,50 €, ma ha `caps` vuoto. La vetrina considera servito un CAP solo se compare nell'elenco della zona, quindi per qualunque CAP il checkout a domicilio resta non confermabile. `/api/orders` applica la stessa regola e risponde `zone_unavailable`.
 
-Non è un difetto di codice ma di configurazione: va compilato l'elenco CAP della zona dal pannello. Prima della correzione di C8 la vetrina mostrava tre zone di esempio inventate (CAP milanesi) quando un ristorante non ne aveva alcuna; sono state rimosse.
+Non era un difetto di codice ma di configurazione. **Risolto il 1 ottobre 2026** compilando l'elenco CAP (oggi `97019`). Verificato in produzione: un ordine a domicilio per quel CAP è accettato e la consegna è calcolata a 2,50 €. Se il locale consegna anche in altri comuni, i CAP vanno aggiunti nello stesso campo, separati da virgola. Prima della correzione di C8 la vetrina mostrava tre zone di esempio inventate (CAP milanesi) quando un ristorante non ne aveva alcuna; sono state rimosse.
 
 ### ⚠️ N16 — Orari e sospensione del servizio non sono verificati dal server
 

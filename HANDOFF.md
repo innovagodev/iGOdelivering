@@ -284,10 +284,6 @@ ristoratore riceve "already registered" e il pannello admin mostra il locale com
 
 ## Cosa resta aperto, in ordine di gravità
 
-**0. Configurare le zone di consegna di convivium** (N15). L'unica zona ha
-l'elenco CAP vuoto: oggi nessun ordine a domicilio è completabile. È una
-modifica di dati dal pannello, non di codice.
-
 **1. I pagamenti non esistono** (C6, C7). Nessun gateway, nessun webhook,
 nessuna colonna `payment_status`. Il checkout raccoglie PAN e CVV in chiaro in un
 form custom — violazione PCI-DSS — li valida e li **scarta**: l'ordine è creato
@@ -308,9 +304,9 @@ né lock, né conteggio. `tables_count` serve solo ai QR code.
 dinamica della promo `first_order`, verosimilmente **già non funzionante in
 produzione**. Gli altri tre sono latenti ma fragili.
 
-**4. Nessun rate limit** su alcun endpoint pubblico. Ordini e prenotazioni
-passano ora da `/api/orders` e `/api/bookings`, ma nessuna delle due ha limite
-di frequenza né captcha (M4).
+**4. Rate limit** (M4): nel codice dal 1 ottobre su `/api/orders` e
+`/api/bookings`, per IP e ristorante; si attiva applicando la migration 021.
+Finché non è applicata le route lasciano passare tutto (fail open).
 
 **5. Compensazione mancante su `used_count`.** Se l'insert dell'ordine fallisce
 subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
@@ -320,6 +316,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 21 rilievi risolti (3 dei quali chiusi fuori migration), 29
+Il quadro completo — 22 rilievi risolti (3 dei quali chiusi fuori migration), 28
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.
