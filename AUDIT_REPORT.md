@@ -86,7 +86,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | M1 | Multi-tenant | `platform_settings` leggibile da chiunque (oggi vuota) | Medio | ⚠️ Aperto | prod |
 | M2 | Multi-tenant | Nessuna UPDATE self su `profiles`; nessuna UPDATE/DELETE su `order_items` | Medio | ⚠️ Aperto | prod |
 | M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente | Medio | ⚠️ Aperto | codice |
-| M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni (oggi via `/api/orders`, `/api/bookings`) senza rate limit né captcha | Medio | ⚠️ Aperto — rate limit nel codice, attende mig. 021 | prod |
+| M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni senza rate limit | Medio | ✅ Risolto (mig. 021) | prod |
 | M5 | Qualità | `ignoreBuildErrors` + `ignoreDuringBuilds` attivi | Medio | ⚠️ Aperto | codice |
 | M6 | Qualità | 108 blocchi `catch` su 133 si limitano a `console.error` | Medio | ⚠️ Aperto | codice |
 | M7 | Performance | Dashboard admin: `select('*')` su tutti gli ordini senza limite | Medio | ⚠️ Aperto | codice |
@@ -355,6 +355,19 @@ b, c e d **non affrontati** al 30 settembre 2026.
 ### ⚠️ N14 — Due RPC in produzione senza migration
 
 `generate_order_number(p_restaurant_id, p_order_type, p_table_number)` e `count_customer_orders(p_restaurant_id, p_customer_email)` sono esposte da PostgREST e usate dal codice (N8, N10), ma nessun file in `supabase/migrations/` le crea. È la stessa deriva di N12: un ambiente costruito dalla sequenza di migration non ha né la numerazione degli ordini né la verifica del primo ordine. La 020 ne ricava la firma dal catalogo proprio per questo. Da versionare leggendone la definizione con `pg_get_functiondef`.
+
+### ✅ M4 — Ordini e prenotazioni pubblici senza rate limit *(Medio, risolto — migration 021)*
+
+`/api/orders` e `/api/bookings` sono pubbliche per necessità. Dal 1 ottobre 2026 hanno un limite per connessione, con contatore in Postgres (`check_rate_limit`, `SECURITY DEFINER`, eseguibile solo dalla service role): su Vercel le istanze non condividono memoria.
+
+| | per IP e ristorante | per IP in totale |
+|---|---|---|
+| ordini | 30 / 10 min | 100 / 10 min |
+| prenotazioni | 10 / 10 min | 30 / 10 min |
+
+Il conteggio per ristorante esiste perché i clienti al tavolo usano spesso il Wi-Fi del locale e condividono l'IP pubblico. Fail open: se il contatore non risponde la richiesta passa e l'errore va nei log.
+
+Verificato in locale dopo la migration: richieste 1-10 accettate, 11ª e 12ª → 429; con la chiave anon la tabella `rate_limits` è illeggibile e la funzione non eseguibile. Nessun captcha: da valutare solo se il limite non bastasse.
 
 ### ✅ N15 — A convivium nessun ordine a domicilio era completabile *(Alto, risolto)*
 

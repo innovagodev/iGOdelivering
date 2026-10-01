@@ -114,7 +114,7 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | `send-status-email` | ✅ richiede sessione ristoratore o admin |
 | Pagamenti | ❌ **inesistenti** — vedi sotto |
 
-**Migration applicate:** 015, 016, 017, 018, 020. La **019 non va eseguita**:
+**Migration applicate:** 015, 016, 017, 018, 020, 021. La **019 non va eseguita**:
 versiona colonne che in produzione esistono già.
 
 La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e
@@ -304,9 +304,10 @@ né lock, né conteggio. `tables_count` serve solo ai QR code.
 dinamica della promo `first_order`, verosimilmente **già non funzionante in
 produzione**. Gli altri tre sono latenti ma fragili.
 
-**4. Rate limit** (M4): nel codice dal 1 ottobre su `/api/orders` e
-`/api/bookings`, per IP e ristorante; si attiva applicando la migration 021.
-Finché non è applicata le route lasciano passare tutto (fail open).
+**4. Rate limit** (M4): attivo dal 1 ottobre su `/api/orders` e
+`/api/bookings`, per IP e ristorante (migration 021). Le soglie sono costanti
+nelle due route: un ristorante molto grande che ordina dal QR sul proprio
+Wi-Fi potrebbe richiedere di alzarle.
 
 **5. Compensazione mancante su `used_count`.** Se l'insert dell'ordine fallisce
 subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
@@ -316,6 +317,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 22 rilievi risolti (3 dei quali chiusi fuori migration), 28
+Il quadro completo — 23 rilievi risolti (3 dei quali chiusi fuori migration), 27
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.
