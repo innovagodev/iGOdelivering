@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.30.0](https://github.com/innovagodev/iGOdelivering/compare/v1.29.3...v1.30.0) (2026-10-01)
+
+
+### Features
+
+* **api:** rate limit su /api/orders e /api/bookings, contatore in Postgres ([97d73cf](https://github.com/innovagodev/iGOdelivering/commit/97d73cfa4223e2d22914a58711577ee6659cb3d0))
+* **auth:** attivazione ristoratore con token monouso a scadenza ([819190d](https://github.com/innovagodev/iGOdelivering/commit/819190d30c7f08d1882cc8d2e7ad5fb6696213a3))
+* **prenotazioni:** capienza in coperti per fascia, controllo atomico nel database ([dd3d035](https://github.com/innovagodev/iGOdelivering/commit/dd3d035b56f73fecb096a3a9b8a0519347d4258e))
+
+
+### Bug Fixes
+
+* **api:** send-status-email richiede sessione ristoratore o admin ([57a6a62](https://github.com/innovagodev/iGOdelivering/commit/57a6a622191070d2de085d6993725d358ed6c3b3))
+* **checkout:** le opzioni dei piatti si validano sugli option_groups, non su un listino generico ([bcc0d69](https://github.com/innovagodev/iGOdelivering/commit/bcc0d693296f4d73697d6b936778ef2bb0a6cf02))
+* **checkout:** ordini e prenotazioni creati lato server con importi ricalcolati ([58fd6f4](https://github.com/innovagodev/iGOdelivering/commit/58fd6f43f2eb8a336f50b1336f33e43fe900f892))
+* **db:** l'unicita' del token di attivazione e' un indice parziale, non un vincolo ([9c5dca7](https://github.com/innovagodev/iGOdelivering/commit/9c5dca771c6e5e3febfe4e162a7ede9c99d02b6e))
+* **ordini,promo:** scadenza e consumo promo via RPC, non piu' UPDATE anonimi ([c6e9802](https://github.com/innovagodev/iGOdelivering/commit/c6e980254435f610697ec58793a2ed190b19dea1))
+* **prenotazioni:** numero d'ordine dalla sequenza del database ([fe1c8b9](https://github.com/innovagodev/iGOdelivering/commit/fe1c8b97ce92c4b51db0ce897a4322988287d39d))
+* **promo:** la verifica first_order passa da una RPC e nega in caso di errore ([27878c3](https://github.com/innovagodev/iGOdelivering/commit/27878c36444f88f99dbd2cd43ee8b8350a68f5c7))
+* **tracking:** la pagina ordine legge da route server-side e cerca per UUID ([1921861](https://github.com/innovagodev/iGOdelivering/commit/1921861a35cc8644d418dfc898aeb1a2ffbc7e47))
+* **vetrina:** "I miei ordini" legge gli ordini del dispositivo, non cerca per email ([59152ac](https://github.com/innovagodev/iGOdelivering/commit/59152ac84b7d1a021117694d8a80c24b29ffc139))
+* **vetrina:** rimossa la disattivazione della consegna alle 12:15 ([d29d701](https://github.com/innovagodev/iGOdelivering/commit/d29d701a2e25e054687020df746f9fb6d17ef279))
+
 ### [1.29.3](https://github.com/innovagodev/iGOdelivering/compare/v1.29.2...v1.29.3) (2026-09-22)
 
 
