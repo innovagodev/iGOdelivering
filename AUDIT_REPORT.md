@@ -68,7 +68,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N16** | Ordini | Orari e sospensione del servizio applicati solo dalla vetrina, non da `/api/orders` | Medio | ✅ Risolto | prod |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
-| C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
+| C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ✅ Risolto (modulo rimosso) | codice |
 | C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ✅ Risolto (mig. 020) | prod |
 | C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ✅ Risolto (mig. 022) | prod |
 | A1 | Auth | Ruolo letto da cookie non-httpOnly scritto dal client | **Alto** | ✅ Risolto | prod |
@@ -511,11 +511,13 @@ In `handleOrder` la variabile `payMethod` non compare nel payload: il metodo sce
 
 `docs/ROADMAP.md:91` registra "Integrazione Reale PayPal" come `[ ]` e la riga 82 annota che i metodi sono "attualmente mockati": la lacuna è nota. Quello che non è tracciato è che l'interfaccia la presenta all'utente finale come funzionante.
 
-### C7 — Dati completi di carta raccolti in chiaro nel browser *(Critico, aperto)*
+### ✅ C7 — Dati completi di carta raccolti in chiaro nel browser *(Critico, risolto)*
 
 `CardPaymentForm.tsx` implementa a mano numero carta, scadenza e CVV con validazione Luhn locale, e i valori risalgono agli state `cardNumber`, `cardExpiry`, `cardCvv` del componente padre. È ciò che PCI-DSS vieta a un merchant senza certificazione SAQ-D: PAN e CVV devono stare in un iframe del gateway, non nel DOM dell'applicazione. Che i dati non vengano poi trasmessi non elimina il rischio, lo sposta: un'estensione del browser o uno script di terze parti li intercetterebbe.
 
 *(TypeScript conferma il punto: `cardNumber`, `cardExpiry` e `cardCvv` risultano dichiarati e mai letti.)*
+
+**Risolto il 2 ottobre 2026** rimuovendo `CardPaymentForm` e le opzioni "Carta di Credito" e "PayPal" dal checkout: erano mostrate a chiunque avesse autodichiarato il collegamento a Stripe o PayPal (A9) e non incassavano nulla (C6). Finché non arriva l'integrazione Stripe Connect il cliente sceglie fra POS e contanti; verificato in Chrome. Il pagamento online tornerà con il Payment Element di Stripe, in un iframe del gateway: nessun dato di carta passerà dalla pagina. Rimossi nello stesso intervento i campi IBAN/bonifico, mai usati da alcun flusso.
 
 ### ✅ C8 — Prezzi e totali decisi dal client *(Critico, risolto — migration 020)*
 

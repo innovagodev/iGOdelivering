@@ -43,10 +43,6 @@ export default function PagamentiPage() {
   const [paypalTable, setPaypalTable] = useState(true);
   const [showPaypalModal, setShowPaypalModal] = useState(false);
 
-  // IBAN payment details (Not used in form currently, but kept for DB consistency)
-  const [ibanEnabled, setIbanEnabled] = useState(false);
-  const [onlinePaymentAccount, setOnlinePaymentAccount] = useState('');
-  const [ibanHolder, setIbanHolder] = useState('');
 
   useEffect(() => {
     // Restore sidebar state
@@ -108,9 +104,6 @@ export default function PagamentiPage() {
           setStripePickup(data.stripe_pickup !== false);
           setStripeTable(data.stripe_table !== false);
 
-          setIbanEnabled(!!data.iban_enabled);
-          setOnlinePaymentAccount(data.online_payment_account || '');
-          setIbanHolder(data.iban_holder || '');
         }
       } catch (err: any) {
         console.warn('Error loading settings from Supabase:', err.message || err);
@@ -147,9 +140,6 @@ export default function PagamentiPage() {
           stripe_delivery: stripeDelivery,
           stripe_pickup: stripePickup,
           stripe_table: stripeTable,
-          iban_enabled: ibanEnabled,
-          online_payment_account: onlinePaymentAccount,
-          iban_holder: ibanHolder,
         })
         .eq('id', restaurantId);
 

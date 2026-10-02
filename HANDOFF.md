@@ -342,6 +342,6 @@ con chiave anon e service role, giri del checkout in Chrome con la richiesta
 intercettata, ristoranti di prova creati e cancellati — sono la base naturale
 per scriverne una. (A1, il ruolo nel cookie, è chiuso dal 2 ottobre.)
 
-Il quadro completo — 28 rilievi risolti (3 dei quali chiusi fuori migration), 24
+Il quadro completo — 29 rilievi risolti (3 dei quali chiusi fuori migration), 23
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.

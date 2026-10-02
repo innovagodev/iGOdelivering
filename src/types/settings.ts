@@ -50,9 +50,6 @@ export interface RestaurantPaymentMethods {
   paypal_pickup?: boolean;
   paypal_table?: boolean;
   // IBAN (dato pubblico, nessun OAuth)
-  iban_enabled?: boolean;
-  onlinePaymentAccount?: string; // Codice IBAN
-  ibanHolder?: string; // Intestatario conto
 }
 
 export interface RestaurantSettingsFull {
@@ -105,9 +102,6 @@ export interface RestaurantSettings {
     paypal_pickup?: boolean;
     paypal_table?: boolean;
     // IBAN
-    iban_enabled?: boolean;
-    onlinePaymentAccount?: string;
-    ibanHolder?: string;
   };
   openingHours?: { start: string; end: string }[];
   deliveryHours?: { start: string; end: string }[];

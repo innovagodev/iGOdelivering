@@ -336,9 +336,6 @@ export default function RestaurantConfigurePage() {
     paypal_delivery: true,
     paypal_pickup: true,
     paypal_table: true,
-    iban_enabled: false,
-    onlinePaymentAccount: '',
-    ibanHolder: '',
   });
 
   const [menuCategories, setMenuCategories] = useState<{ name: string; name_en?: string }[]>(() =>
@@ -546,9 +543,6 @@ export default function RestaurantConfigurePage() {
           paypal_delivery: restaurant.paypal_delivery !== false,
           paypal_pickup: restaurant.paypal_pickup !== false,
           paypal_table: restaurant.paypal_table !== false,
-          iban_enabled: restaurant.iban_enabled ?? false,
-          onlinePaymentAccount: restaurant.online_payment_account || '',
-          ibanHolder: restaurant.iban_holder || '',
         };
         setPaymentConfig(paymentConfigData);
 
@@ -1139,9 +1133,6 @@ export default function RestaurantConfigurePage() {
         stripe_delivery: !!paymentConfig.stripe_delivery,
         stripe_pickup: !!paymentConfig.stripe_pickup,
         stripe_table: !!paymentConfig.stripe_table,
-        iban_enabled: !!paymentConfig.iban_enabled,
-        online_payment_account: paymentConfig.onlinePaymentAccount || null,
-        iban_holder: paymentConfig.ibanHolder || null,
         scheduled_orders: scheduledOrders,
         hours_config: serviceHoursDataToSave,
         tables_count: tableCount,

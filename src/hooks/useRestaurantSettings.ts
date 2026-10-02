@@ -37,9 +37,6 @@ export interface UnifiedSettings extends RestaurantSettings {
     paypal_delivery?: boolean;
     paypal_pickup?: boolean;
     paypal_table?: boolean;
-    iban_enabled?: boolean;
-    onlinePaymentAccount?: string;
-    ibanHolder?: string;
   };
   hours_config?: any;
 }
@@ -118,7 +115,7 @@ export function useRestaurantSettings(slugOrId: string) {
          cash_delivery, cash_pickup, cash_table,
          paypal_enabled, paypal_connected, paypal_delivery, paypal_pickup, paypal_table,
          stripe_enabled, stripe_connected, stripe_delivery, stripe_pickup, stripe_table,
-         iban_enabled, scheduled_orders, hours_config, tables_count`;
+         scheduled_orders, hours_config, tables_count`;
 
       const lookup = (source: 'restaurants_public' | 'restaurants') => {
         const q = supabase.from(source).select(COLUMNS);
@@ -257,10 +254,9 @@ export function useRestaurantSettings(slugOrId: string) {
             stripe_delivery: restaurant.stripe_delivery !== false,
             stripe_pickup: restaurant.stripe_pickup !== false,
             stripe_table: restaurant.stripe_table !== false,
-            iban_enabled: !!restaurant.iban_enabled,
-            // paypal_email, stripe_account_label, onlinePaymentAccount e
-            // ibanHolder non sono più selezionati: non sono leggibili dagli
-            // utenti anonimi (migration 017) e la vetrina non li usava.
+            // paypal_email e stripe_account_label non sono selezionati: non
+            // sono leggibili dagli utenti anonimi (migration 017) e la
+            // vetrina non li usa. I campi IBAN/bonifico sono stati rimossi.
           },
           scheduledOrders: restaurant.scheduled_orders || undefined,
           openingHours,

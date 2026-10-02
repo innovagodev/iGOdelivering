@@ -25,9 +25,6 @@ export interface PaymentConfig {
   paypal_pickup: boolean;
   paypal_table: boolean;
   // IBAN (dato pubblico, nessun OAuth)
-  iban_enabled: boolean;
-  onlinePaymentAccount: string;
-  ibanHolder: string;
 }
 
 interface PaymentStepProps {
