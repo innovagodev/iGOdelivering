@@ -53,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Self-healing: if auth session is active but profile is missing/error, sign out to clear session
           await supabase.auth.signOut();
-          document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
           if (isMounted) {
             setUser(null);
@@ -77,8 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (restaurant.status === 'suspended') {
               console.warn('Restaurant is suspended. Logging out.');
               await supabase.auth.signOut();
-              document.cookie =
-                'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
               if (isMounted) {
                 setUser(null);
                 setIsLoading(false);
@@ -153,9 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     const isAdmin = user?.role === 'admin';
     await supabase.auth.signOut();
-
-    // Clear the role cookie
-    document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
     if (typeof window !== 'undefined') {
       window.location.href = isAdmin ? '/admin' : '/login';

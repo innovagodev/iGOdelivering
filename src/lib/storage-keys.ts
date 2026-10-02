@@ -4,7 +4,6 @@
 export const STORAGE_KEYS = {
   // Global Platform Keys
   AUTH: 'igodelivering_auth',
-  AUTH_ROLE: 'igodelivering_role',
   RESTAURANTS: 'iGOdelivering_restaurants',
   SIDEBAR_COLLAPSED: 'iGO_sidebar_collapsed',
   ALLERGENS_LIST: 'iGO_allergens_list',

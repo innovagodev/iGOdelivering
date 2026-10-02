@@ -42,41 +42,35 @@ export async function middleware(request: NextRequest) {
   const isRistoratorePath = pathname.startsWith('/ristoratore');
   const isAdminPath = pathname.startsWith('/admin') && pathname !== '/admin';
 
+  // Cookie `igodelivering_role` delle versioni precedenti: non è più letto da
+  // nessuno, lo si cancella dove ancora presente.
+  const clearLegacyRoleCookie = (res: NextResponse) => {
+    if (request.cookies.get('igodelivering_role')) res.cookies.delete('igodelivering_role');
+    return res;
+  };
+
   if (!user) {
     if (isRistoratorePath) {
-      // Clear cookie if present but user not authenticated
-      response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('igodelivering_role');
-      return response;
+      return clearLegacyRoleCookie(NextResponse.redirect(new URL('/login', request.url)));
     }
     if (isAdminPath) {
-      response = NextResponse.redirect(new URL('/admin', request.url));
-      response.cookies.delete('igodelivering_role');
-      return response;
+      return clearLegacyRoleCookie(NextResponse.redirect(new URL('/admin', request.url)));
     }
-    return response;
+    return clearLegacyRoleCookie(response);
   }
 
-  // Get role from cookie
-  let role = request.cookies.get('igodelivering_role')?.value;
-
-  // If role is missing, fetch from database
-  if (!role) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile && profile.role) {
-      role = profile.role;
-      response.cookies.set('igodelivering_role', profile.role, {
-        path: '/',
-        maxAge: 86400,
-        sameSite: 'lax',
-      });
-    }
-  }
+  // Il ruolo si legge dal database a ogni navigazione protetta. Prima veniva
+  // da un cookie scritto dal browser e modificabile da chiunque: un
+  // ristoratore poteva impostarlo ad 'admin' ed entrare nelle pagine
+  // dell'area admin (rilievo A1). I dati restavano protetti da RLS e dai
+  // controlli delle route API, ma il confine dell'area non deve dipendere da
+  // un valore che il client sceglie.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  const role: string | undefined = profile?.role;
 
   // 1. Protection for Ristoratore area
   if (isRistoratorePath) {
@@ -132,7 +126,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return response;
+  return clearLegacyRoleCookie(response);
 }
 
 export const config = {

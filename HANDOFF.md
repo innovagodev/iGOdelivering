@@ -336,10 +336,12 @@ Wi-Fi potrebbe richiedere di alzarle.
 subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
 Preferibile a regalare sconti illimitati, ma andrà chiuso.
 
-**6. Ruolo utente nel cookie client-side** (A1) e **nessuna suite di test**:
-nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
-stato intercettato automaticamente.
+**6. Nessuna suite di test.** Nessuno dei guasti trovati dal 22 settembre
+sarebbe stato intercettato automaticamente. Le verifiche fatte finora — sonde
+con chiave anon e service role, giri del checkout in Chrome con la richiesta
+intercettata, ristoranti di prova creati e cancellati — sono la base naturale
+per scriverne una. (A1, il ruolo nel cookie, è chiuso dal 2 ottobre.)
 
-Il quadro completo — 27 rilievi risolti (3 dei quali chiusi fuori migration), 25
+Il quadro completo — 28 rilievi risolti (3 dei quali chiusi fuori migration), 24
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.

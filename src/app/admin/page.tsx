@@ -57,8 +57,6 @@ export default function AdminLoginPage() {
           return;
         }
 
-        // Set role cookie for middleware
-        document.cookie = `igodelivering_role=admin; path=/; max-age=86400; SameSite=Lax`;
         window.location.href = '/admin/dashboard';
       }
     } catch (err: any) {

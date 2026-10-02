@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      // Fetch user profile to set igodelivering_role cookie and redirect
+      // Fetch user profile to redirect to the right area
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -118,7 +118,6 @@ export default function ResetPasswordPage() {
           .single();
 
         if (profile) {
-          document.cookie = `igodelivering_role=${profile.role}; path=/; max-age=86400; SameSite=Lax`;
           setSuccess(true);
           setTimeout(() => {
             window.location.href =

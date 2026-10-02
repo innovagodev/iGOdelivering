@@ -147,7 +147,6 @@ export default function LoginPage() {
 
           if (restaurant && restaurant.status === 'suspended') {
             await supabase.auth.signOut();
-            document.cookie = 'igodelivering_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             setLoginError(
               "Il tuo account ristorante è stato sospeso dall'amministratore. Contatta il supporto per assistenza."
             );
@@ -156,8 +155,7 @@ export default function LoginPage() {
           }
         }
 
-        // Set role cookie for middleware redirect rules
-        document.cookie = `igodelivering_role=${profile.role}; path=/; max-age=86400; SameSite=Lax`;
+        // Il middleware ricava il ruolo dal database: nessun cookie da impostare.
 
         // Check if first login is required
         if (user.user_metadata?.is_first_login) {

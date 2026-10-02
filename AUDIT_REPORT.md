@@ -71,7 +71,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
 | C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ✅ Risolto (mig. 020) | prod |
 | C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ✅ Risolto (mig. 022) | prod |
-| A1 | Auth | Ruolo letto da cookie non-httpOnly scritto dal client | **Alto** | ⚠️ Aperto | codice |
+| A1 | Auth | Ruolo letto da cookie non-httpOnly scritto dal client | **Alto** | ✅ Risolto | prod |
 | A2 | Multi-tenant | `my_restaurant_id()` usa `LIMIT 1`: un owner con più locali ne governa uno solo | **Alto** | ⚠️ Aperto | prod |
 | A4 | Multi-tenant | Codici sconto attivi enumerabili in anonimo (oggi 0 promo a sistema) | **Alto** | ⚠️ Aperto | prod |
 | A6 | Ordini | Tracking per `order_number` con `maybeSingle()`: rotto su collisione fra ristoranti | **Alto** | ✅ Risolto | prod |
@@ -590,7 +590,7 @@ capienza vuota                      → x20 accettata
 route in produzione                 → 201; poi x4 con 2 posti → 409 "restano solo 2 posti"
 ```
 
-Non verificato con una sessione reale: la scheda Capienza e il badge di occupazione nel pannello del ristoratore, che richiedono un login da ristoratore. Il calcolo del badge replica in TypeScript quello della funzione SQL.
+Verificato il 2 ottobre 2026 anche dal pannello, con un ristoratore di prova poi cancellato: la scheda Capienza compare con l'avviso "non impostata" e il salvataggio scrive `booking_capacity` nel database. Il badge di occupazione non è stato visto con prenotazioni reali; il suo calcolo replica in TypeScript quello della funzione SQL.
 
 ### ✅ C3′ — Lettura pubblica di `restaurants` per riga intera *(Medio, risolto)*
 
@@ -610,6 +610,23 @@ Confermati come nella prima stesura. In particolare, verificati sul DB:
 - **A4** — `promos: public read active` è presente e consente di enumerare i codici sconto attivi di tutti i ristoranti pubblicati. Oggi latente: 0 promo a sistema.
 
 *(A6, A8 e A12 sono stati chiusi e hanno una sezione propria qui sopra.)*
+
+### ✅ A1 — Area admin decisa da un cookie scritto dal browser *(Alto, risolto)*
+
+Il middleware richiedeva una sessione Supabase valida, ma sceglieva l'area da aprire in base al cookie `igodelivering_role`, impostato dal browser al login e modificabile da chiunque. Un ristoratore autenticato poteva impostarlo ad `admin` ed entrare nelle pagine `/admin/*`. I dati restavano protetti — RLS su `is_admin()` e controllo del ruolo nel database nelle 6 route `/api/admin/*`, verificate una per una — ma il confine dell'area dipendeva da un valore scelto dal client.
+
+**Risolto il 2 ottobre 2026:** il middleware legge il ruolo da `profiles` a ogni navigazione protetta; le scritture del cookie dal browser (login, reset password, accesso admin, AuthContext) sono rimosse e il middleware cancella il cookie dove ancora presente.
+
+Verificato in Chrome con un ristoratore di prova poi cancellato, login dalla pagina reale:
+
+```
+anonimo su /ristoratore/* e /admin/*            → /login e /admin, anche con cookie "admin"
+login ristoratore                               → /ristoratore/dashboard
+ristoratore con cookie falso "admin" su /admin  → respinto verso /ristoratore/dashboard
+cookie legacy                                   → cancellato dal middleware
+```
+
+Non verificato con un account admin reale: il ramo admin del middleware è simmetrico a quello del ristoratore.
 
 ### ✅ A14 — Zero indici *(risolto)*
 
@@ -728,7 +745,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 - [x] PAT GitHub revocato e rigenerato
 - [x] Chiave Resend revocata e ruotata *(resta nello storico Git, ma non è più valida)*
 - [x] Autenticare `/api/ristoratore/register` con un token monouso a scadenza (C4)
-- [ ] Portare il ruolo utente fuori dal cookie client-side
+- [x] Portare il ruolo utente fuori dal cookie client-side (A1)
 - [x] Autenticare `/api/order/send-status-email` (A12)
 - [ ] Rate limit sugli endpoint pubblici *(resta aperto: nessun endpoint ne ha)*
 - [x] Neutralizzate le migration 007 e 014, che avrebbero reintrodotto C1 e C2 su ogni ambiente nuovo
