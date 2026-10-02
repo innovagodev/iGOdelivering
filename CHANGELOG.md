@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.30.2](https://github.com/innovagodev/iGOdelivering/compare/v1.30.1...v1.30.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **auth:** token di attivazione in una tabella accessibile solo dal server ([58dcbc9](https://github.com/innovagodev/iGOdelivering/commit/58dcbc9c24be6c7ad61d44699d84be46ca50dbe9))
+* **db:** rimossa la policy profiles self insert (N17) ([3840917](https://github.com/innovagodev/iGOdelivering/commit/38409171d87806e2598fbf280807f9e31436260f))
+
 ### [1.30.1](https://github.com/innovagodev/iGOdelivering/compare/v1.30.0...v1.30.1) (2026-10-02)
 
 
