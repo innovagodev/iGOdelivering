@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.30.4](https://github.com/innovagodev/iGOdelivering/compare/v1.30.3...v1.30.4) (2026-10-02)
+
+
+### Bug Fixes
+
+* **auth:** il middleware legge il ruolo dal database, non da un cookie del browser ([49d362d](https://github.com/innovagodev/iGOdelivering/commit/49d362da16a8eb4dac397c5bb90ae7bee8d136e0))
+
 ### [1.30.3](https://github.com/innovagodev/iGOdelivering/compare/v1.30.2...v1.30.3) (2026-10-02)
 
 
