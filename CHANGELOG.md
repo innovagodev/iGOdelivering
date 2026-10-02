@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.30.1](https://github.com/innovagodev/iGOdelivering/compare/v1.30.0...v1.30.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ordini:** orari, sospensioni e ferie verificati anche da /api/orders ([eb97f01](https://github.com/innovagodev/iGOdelivering/commit/eb97f017431febd4a1de748953d0f95f90c89d57))
+
 ## [1.30.0](https://github.com/innovagodev/iGOdelivering/compare/v1.29.3...v1.30.0) (2026-10-01)
 
 
