@@ -11,7 +11,7 @@ export function usePromoCode(slugOrId: string) {
         slugOrId
       );
 
-      const query = supabase.from('restaurants').select('id');
+      const query = supabase.from('restaurants_public').select('id');
       const { data: restaurant } = isUuid
         ? await query.eq('id', slugOrId).maybeSingle()
         : await query.eq('slug', slugOrId).maybeSingle();
@@ -83,7 +83,7 @@ export function usePromoCode(slugOrId: string) {
         slugOrId
       );
 
-      const query = supabase.from('restaurants').select('id');
+      const query = supabase.from('restaurants_public').select('id');
       const { data: restaurant } = isUuid
         ? await query.eq('id', slugOrId).maybeSingle()
         : await query.eq('slug', slugOrId).maybeSingle();

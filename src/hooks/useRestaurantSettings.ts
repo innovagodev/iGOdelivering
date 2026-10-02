@@ -100,15 +100,16 @@ export function useRestaurantSettings(slugOrId: string) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         slugOrId
       );
-      // Elenco esplicito invece di '*': la vetrina è consultata da utenti
-      // anonimi, e la migration 017 revoca ad `anon` il permesso di lettura su
-      // email, owner_id, vat_number, online_payment_account, iban_holder,
-      // paypal_email e stripe_account_label. Con select('*') PostgreSQL
-      // espanderebbe la query su TUTTE le colonne e fallirebbe con
-      // "permission denied for column". Ogni colonna aggiunta qui deve essere
-      // presente anche nella GRANT della 017.
-      const query = supabase.from('restaurants').select(
-        `id, name, slug, status, tagline, description,
+      // La vetrina legge da `restaurants_public` (migration 026): la vista
+      // espone le sole colonne pubbliche dei locali pubblicati e funziona allo
+      // stesso modo per un visitatore anonimo e per un utente loggato. Sulla
+      // tabella `restaurants` un utente loggato vede solo il proprio locale
+      // (migration 027, rilievo N18), quindi leggere da lì romperebbe la
+      // vetrina a un ristoratore che apre il locale di un altro.
+      //
+      // Elenco esplicito invece di '*': ogni colonna qui deve esistere nella
+      // vista, che è anche il confine di ciò che è pubblico.
+      const COLUMNS = `id, name, slug, status, tagline, description,
          address, city, province, cap, phone, category,
          logo_url, background_url,
          delivery_enabled, pickup_enabled, table_enabled,
@@ -117,19 +118,36 @@ export function useRestaurantSettings(slugOrId: string) {
          cash_delivery, cash_pickup, cash_table,
          paypal_enabled, paypal_connected, paypal_delivery, paypal_pickup, paypal_table,
          stripe_enabled, stripe_connected, stripe_delivery, stripe_pickup, stripe_table,
-         iban_enabled, scheduled_orders, hours_config, tables_count,
-         restaurant_hours(*)`
-      );
+         iban_enabled, scheduled_orders, hours_config, tables_count`;
 
-      const { data: restaurant, error } = isUuid
-        ? await query.eq('id', slugOrId).maybeSingle()
-        : await query.eq('slug', slugOrId).maybeSingle();
+      const lookup = (source: 'restaurants_public' | 'restaurants') => {
+        const q = supabase.from(source).select(COLUMNS);
+        return isUuid ? q.eq('id', slugOrId).maybeSingle() : q.eq('slug', slugOrId).maybeSingle();
+      };
 
+      let { data: restaurant, error } = await lookup('restaurants_public');
       if (error) throw error;
+
+      // Locale non pubblicato: la vista non lo contiene. Il titolare e l'admin
+      // lo vedono comunque sulla tabella (anteprima della bozza), gli altri no.
+      if (!restaurant) {
+        ({ data: restaurant, error } = await lookup('restaurants'));
+        if (error) throw error;
+      }
+
+      let restaurantHours: any[] = [];
+      if (restaurant) {
+        const { data: hoursRows, error: hoursError } = await supabase
+          .from('restaurant_hours')
+          .select('*')
+          .eq('restaurant_id', (restaurant as any).id);
+        if (hoursError) throw hoursError;
+        restaurantHours = hoursRows || [];
+      }
 
       if (restaurant) {
         // Map hours (deduplicating and sorting unique lunch & dinner slots)
-        const rawHours = restaurant.restaurant_hours || [];
+        const rawHours = restaurantHours;
         const hoursConfig = restaurant.hours_config;
         let openingHours = DEFAULT_SETTINGS.openingHours;
         let deliveryHours = DEFAULT_SETTINGS.openingHours;
