@@ -32,8 +32,11 @@ export const ACTIVATION_INVALID_MESSAGE =
  * Ogni chiamata **ruota** il token: i link emessi in precedenza per lo stesso
  * ristorante smettono di funzionare.
  *
- * @param supabaseAdmin client con service role key — `activation_token` non è
- *   leggibile né scrivibile con la chiave anon.
+ * Il token vive in `restaurant_activation_tokens`, una tabella senza policy
+ * accessibile solo con la service role key (migration 024). Sulla riga di
+ * `restaurants` era leggibile da qualunque utente autenticato (N18).
+ *
+ * @param supabaseAdmin client con service role key.
  */
 export async function issueActivationLink(
   supabaseAdmin: SupabaseClient,
@@ -46,9 +49,11 @@ export async function issueActivationLink(
   ).toISOString();
 
   const { error } = await supabaseAdmin
-    .from('restaurants')
-    .update({ activation_token: token, activation_token_expires_at: expiresAt })
-    .eq('id', restaurant.id);
+    .from('restaurant_activation_tokens')
+    .upsert(
+      { restaurant_id: restaurant.id, token, expires_at: expiresAt },
+      { onConflict: 'restaurant_id' }
+    );
 
   if (error) {
     console.error('[activation] impossibile salvare il token:', error.message);

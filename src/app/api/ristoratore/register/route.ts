@@ -197,7 +197,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Tutti i campi sono obbligatori' }, { status: 400 });
     }
 
-    if (!token) {
+    // Il token è un UUID: qualunque altra stringa è invalida senza bisogno di
+    // interrogare il database (e senza sporcarne i log con errori di cast).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!token || typeof token !== 'string' || !UUID_RE.test(token)) {
       return NextResponse.json({ error: ACTIVATION_INVALID_MESSAGE }, { status: 400 });
     }
 
@@ -217,18 +220,26 @@ export async function POST(request: Request) {
       },
     });
 
-    // 1. Risolvi il ristorante a partire dal solo token
-    const { data: restaurant, error: restError } = await supabaseAdmin
-      .from('restaurants')
-      .select('id, email, owner_id, activation_token_expires_at')
-      .eq('activation_token', token)
+    // 1. Risolvi il ristorante a partire dal solo token. Il token sta in
+    // restaurant_activation_tokens, accessibile solo con la service role key
+    // (migration 024, rilievo N18).
+    const { data: tokenRow, error: restError } = await supabaseAdmin
+      .from('restaurant_activation_tokens')
+      .select('expires_at, restaurants ( id, email, owner_id )')
+      .eq('token', token)
       .maybeSingle();
 
-    // Token inesistente, già consumato (viene azzerato all'uso), scaduto, o
+    // A seconda di come PostgREST risolve l'embed, `restaurants` arriva come
+    // oggetto o come array di un elemento.
+    const embedded = tokenRow?.restaurants as any;
+    const restaurant: { id: string; email: string; owner_id: string | null } | null =
+      (Array.isArray(embedded) ? embedded[0] : embedded) ?? null;
+
+    // Token inesistente, già consumato (viene cancellato all'uso), scaduto, o
     // ristorante già rivendicato: stessa risposta per tutti, così un tentativo
     // di indovinare un token non riceve alcun riscontro su quale sia lo stato
     // reale di quello provato.
-    const expiresAt = restaurant?.activation_token_expires_at;
+    const expiresAt = tokenRow?.expires_at;
     const isExpired = !expiresAt || new Date(expiresAt).getTime() <= Date.now();
 
     if (restError || !restaurant || isExpired || restaurant.owner_id) {
@@ -299,25 +310,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Assegna il proprietario e consuma il token nella stessa operazione.
+    // 4. Assegna il proprietario e consuma il token nella stessa transazione.
     //
-    // I filtri `activation_token` + `owner_id IS NULL` rendono il consumo
-    // atomico: se due richieste partono con lo stesso token, la prima azzera il
-    // token e la seconda non trova più righe da aggiornare. Il `.select()`
-    // serve proprio a distinguere "aggiornata" da "nessuna riga".
-    const { data: claimed, error: linkError } = await supabaseAdmin
-      .from('restaurants')
-      .update({
-        owner_id: userId,
-        activation_token: null,
-        activation_token_expires_at: null,
-      })
-      .eq('id', restaurant.id)
-      .eq('activation_token', token)
-      .is('owner_id', null)
-      .select('id');
+    // claim_restaurant() aggiorna owner_id solo se il token esiste, non è
+    // scaduto e il locale non ha ancora un proprietario, e cancella il token
+    // insieme: se due richieste partono con lo stesso token, la seconda
+    // attende il lock di riga e non trova più nulla. Restituisce l'id del
+    // ristorante o NULL, così "assegnato" e "nessuna riga" restano distinti.
+    const { data: claimedId, error: linkError } = await supabaseAdmin.rpc('claim_restaurant', {
+      p_token: token,
+      p_user_id: userId,
+    });
+    const claimed = claimedId === restaurant.id;
 
-    if (linkError || !claimed || claimed.length === 0) {
+    if (linkError || !claimed) {
       const cleaned = await rollbackPartialRegistration(supabaseAdmin, {
         userId,
         email,
