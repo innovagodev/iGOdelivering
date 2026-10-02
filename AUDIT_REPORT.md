@@ -61,6 +61,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N11** | Auth | Rollback di registrazione silenzioso: un utente Auth orfano blocca l'attivazione per sempre | **Alto** | ✅ Risolto | prod |
 | **N12** | Schema | `activation_token`/`activation_token_expires_at` esistono in produzione ma in nessuna migration | Medio | ✅ Risolto (mig. 019) | prod |
 | **N17** | Auth | Registrazione pubblica aperta + `profiles: self insert` senza vincolo di ruolo: chiunque può diventare admin | **Critico** | ✅ Risolto (mig. 023 + registrazione disattivata) | prod |
+| **N18** | Auth | `activation_token` e colonne sensibili di `restaurants` leggibili da qualunque utente autenticato | **Alto** | ⚠️ Aperto — token: mig. 024 e codice pronti, attende mig. 025; colonne sensibili da fare | prod |
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ✅ Risolto | prod |
@@ -353,6 +354,25 @@ utente autenticato senza profilo (creato dal server per la prova):
   is_admin()                              → false
 pulizia                                   → utente di test cancellato; 3 utenti, 1 admin come prima
 ```
+
+### ⚠️ N18 — Colonne sensibili di `restaurants` leggibili da ogni utente autenticato *(Alto)*
+
+Emerso il 2 ottobre 2026. La migration 017 restringe per colonna solo il ruolo `anon`; la policy `restaurants: public read published` vale invece per tutti i ruoli. Un utente autenticato qualsiasi — oggi, con la registrazione chiusa, un ristoratore — legge quindi **tutte** le colonne dei ristoranti pubblicati: `activation_token`, email del titolare, `owner_id`, IBAN, partita IVA, account di pagamento. Verificato con un utente di test, poi cancellato.
+
+**Token di attivazione (la parte grave).** Chi lo legge può impossessarsi di un locale pubblicato ma non ancora attivato. Spostato in `restaurant_activation_tokens`, tabella senza policy accessibile solo con la service role key (migration 024); il consumo resta atomico con `claim_restaurant()`, che assegna il proprietario e cancella il token nella stessa transazione. Verificato in locale su ristoranti di prova poi cancellati, 13/13:
+
+```
+anon e utente autenticato        → permission denied sulla tabella e sulla funzione
+token valido                     → 200, owner_id assegnato, profilo creato, token cancellato
+stesso link di nuovo             → 400, messaggio unico
+token scaduto / inesistente /
+  malformato / ruotato           → 400, nessun proprietario
+3 registrazioni simultanee       → [200, 400, 400], nessun falso allarme di utente orfano
+```
+
+Si chiude applicando la **migration 025** dopo il deploy, che elimina le vecchie colonne da `restaurants`.
+
+**Email, IBAN, P.IVA fra ristoratori.** Ancora aperto. Una restrizione per colonna per `authenticated` romperebbe le `select('*')` su `restaurants` del pannello (`AuthContext` e altre), lo stesso problema già incontrato con la 017: vanno prima sostituite con elenchi espliciti.
 
 ### ⚠️ N13 — Stesso pattern, punti ancora aperti
 

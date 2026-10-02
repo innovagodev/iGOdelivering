@@ -187,7 +187,8 @@ async function rollbackPartialRegistration(
  * che possiede quel token, e l'email è quella registrata sul ristorante — il
  * valore inviato dal form non viene usato per autorizzare.
  *
- * Il token è monouso: viene azzerato nella stessa UPDATE che assegna owner_id.
+ * Il token è monouso: claim_restaurant() lo cancella nella stessa transazione
+ * che assegna owner_id (migration 024).
  */
 export async function POST(request: Request) {
   try {
