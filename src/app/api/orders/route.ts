@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { computeDiscountCents, fromCents, OrderType, toCents } from '@/lib/pricing';
 import {
+  checkSchedule,
+  HoursConfig,
+  nowInZone,
+  ScheduledOrdersConfig,
+} from '@/lib/serviceHours';
+import {
   adminClient,
   EMAIL_RE,
   fail,
@@ -124,7 +130,7 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
   // ─── Ristorante ───────────────────────────────────────────────────────────
   const { data: restaurant, error: rErr } = await admin
     .from('restaurants')
-    .select('id, status')
+    .select('id, status, hours_config, scheduled_orders')
     .eq('id', restaurantId)
     .maybeSingle();
 
@@ -135,11 +141,36 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
   if (!restaurant || restaurant.status !== 'published') {
     return fail(404, 'restaurant_not_found', 'Ristorante non disponibile.');
   }
-  // Nessun controllo su delivery_enabled / pickup_enabled / table_enabled: la
-  // vetrina non li applica (il link QR `?tavolo=N` apre l'ordine al tavolo in
-  // ogni caso), e rifiutare qui un ordine che l'interfaccia lascia comporre
-  // produrrebbe solo checkout falliti all'ultimo passo. Il disallineamento è
-  // annotato in AUDIT_REPORT.md, N16.
+  // I flag delivery_enabled / pickup_enabled / table_enabled non si
+  // controllano: sono vestigiali (AUDIT_REPORT.md, N16). Il controllo reale è
+  // hours_config, qui sotto.
+
+  // ─── Orari e sospensioni (N16) ────────────────────────────────────────────
+  // Stesse regole con cui la vetrina genera gli orari selezionabili
+  // (src/lib/serviceHours.ts), valutate sull'ora di Roma. Gli ordini al
+  // tavolo sono esclusi: il cliente è già nel locale.
+  if (type !== 'tavolo') {
+    const service = type === 'domicilio' ? 'delivery' : 'pickup';
+    const check = checkSchedule(
+      restaurant.hours_config as HoursConfig | null,
+      restaurant.scheduled_orders as ScheduledOrdersConfig | null,
+      service,
+      scheduledAt ? nowInZone('Europe/Rome', new Date(scheduledAt)) : null,
+      nowInZone('Europe/Rome')
+    );
+    if (!check.ok) {
+      const label = service === 'delivery' ? 'consegna a domicilio' : 'asporto';
+      const message =
+        check.reason === 'closed_holiday'
+          ? 'Il locale è chiuso in questo periodo e non accetta ordini.'
+          : check.reason === 'suspended'
+            ? `Il servizio di ${label} è sospeso in questo momento.`
+            : check.reason === 'missing_time'
+              ? 'Scegli un orario di consegna o ritiro.'
+              : 'L’orario scelto non è più disponibile. Scegline un altro.';
+      return fail(409, 'schedule_unavailable', message, { reason: check.reason });
+    }
+  }
 
   // ─── Articoli ─────────────────────────────────────────────────────────────
   const pricedResult = await priceLines(admin, restaurantId, lines);

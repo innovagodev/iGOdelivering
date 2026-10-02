@@ -65,6 +65,12 @@ import Footer from '@/components/layout/Footer';
 import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { supabase } from '@/lib/supabase';
+import {
+  isServiceOpenAt,
+  isSuspended,
+  isTemporarilyClosed,
+  minNoticeMinutes as sharedMinNoticeMinutes,
+} from '@/lib/serviceHours';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 
 
@@ -1943,12 +1949,20 @@ function CheckoutModal({
   }, [isScheduledEnabled, scheduledOrdersConfig, deliveryType]);
 
   const minNoticeMinutes = React.useMemo(() => {
+    // Domicilio e asporto usano la regola condivisa con /api/orders, che
+    // riconosce anche le unità salvate dal pannello in italiano ("ore").
+    if (deliveryType === 'domicilio' || deliveryType === 'asporto') {
+      return sharedMinNoticeMinutes(
+        scheduledOrdersConfig as any,
+        deliveryType === 'domicilio' ? 'delivery' : 'pickup'
+      );
+    }
     if (!currentConfig) return 30; // default 30 mins
     const val = currentConfig.minNoticeValue || 0;
     const unit = currentConfig.minNoticeUnit || 'minutes';
     if (unit === 'hours') return val * 60;
     return val;
-  }, [currentConfig]);
+  }, [currentConfig, deliveryType, scheduledOrdersConfig]);
 
   const timeInterval = React.useMemo(() => {
     if (deliveryType === 'domicilio' && currentConfig && 'timeWindowMinutes' in currentConfig) {
@@ -2023,6 +2037,22 @@ function CheckoutModal({
     let activeRanges: { start: string; end: string }[] = [];
     const hoursConfig = restaurantSettings?.hours_config;
     const activeServiceType = deliveryType === 'domicilio' ? 'delivery' : 'pickup';
+
+    // Servizio sospeso o locale chiuso per ferie: nessun orario selezionabile,
+    // nemmeno per dopo. Prima la vetrina proponeva comunque ordini
+    // programmati quando entrambi i servizi risultavano chiusi, e /api/orders
+    // li avrebbe rifiutati all'ultimo passo (N16).
+    {
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (
+        isSuspended(hoursConfig, activeServiceType) ||
+        isTemporarilyClosed(hoursConfig, todayStr) ||
+        (selectedDate && isTemporarilyClosed(hoursConfig, selectedDate))
+      ) {
+        return [];
+      }
+    }
 
     if (hoursConfig && hoursConfig.serviceHours) {
       const useGeneral =
@@ -4347,6 +4377,13 @@ function StorefrontContent() {
 
         if (config.serviceSuspended?.[serviceType] === true) {
           return false;
+        }
+        if (serviceType !== 'reservation') {
+          // Regola condivisa con /api/orders: "00:00" come fine fascia vale
+          // mezzanotte. Il confronto fra stringhe qui sotto faceva risultare
+          // chiuso per tutta la sera un locale aperto fino a mezzanotte.
+          const [hh, mm] = getCurrentTimeStr().split(':').map(Number);
+          return isServiceOpenAt(config, serviceType, getCurrentDateStr(), hh * 60 + mm);
         }
         const DAYS_MAP = [
           'Domenica',

@@ -227,6 +227,13 @@ attivazione di quel ristorante può riuscire, nemmeno con un token nuovo: il
 ristoratore riceve "already registered" e il pannello admin mostra il locale come
 "non ancora attivato". Nessuna pulizia è automatica, di proposito.
 
+
+**13. Orari e preavvisi stanno in `src/lib/serviceHours.ts`, usato da vetrina e server.**
+Non duplicare quella logica e non confrontare orari come stringhe: con una
+chiusura a mezzanotte (`"00:00"`), `"20:00" <= "00:00"` è falso e il locale
+risulta chiuso per tutta la sera. Il pannello salva le unità del preavviso in
+italiano (`"ore"`, `"minuti"`). `/api/orders` valuta gli orari sull'ora di
+Roma con 15 minuti di tolleranza; gli ordini al tavolo sono esclusi.
 ---
 
 ## Cosa è cambiato nel codice
@@ -319,6 +326,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 24 rilievi risolti (3 dei quali chiusi fuori migration), 26
+Il quadro completo — 25 rilievi risolti (3 dei quali chiusi fuori migration), 25
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.

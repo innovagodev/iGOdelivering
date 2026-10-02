@@ -63,7 +63,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ✅ Risolto | prod |
-| **N16** | Ordini | Orari e sospensione del servizio applicati solo dalla vetrina, non da `/api/orders` | Medio | ⚠️ Aperto | codice |
+| **N16** | Ordini | Orari e sospensione del servizio applicati solo dalla vetrina, non da `/api/orders` | Medio | ✅ Risolto | prod |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
@@ -375,11 +375,34 @@ Emerso il 30 settembre 2026 durante il lavoro su C8. L'unica zona di consegna di
 
 Non era un difetto di codice ma di configurazione. **Risolto il 1 ottobre 2026** compilando l'elenco CAP (oggi `97019`). Verificato in produzione: un ordine a domicilio per quel CAP è accettato e la consegna è calcolata a 2,50 €. Se il locale consegna anche in altri comuni, i CAP vanno aggiunti nello stesso campo, separati da virgola. Prima della correzione di C8 la vetrina mostrava tre zone di esempio inventate (CAP milanesi) quando un ristorante non ne aveva alcuna; sono state rimosse.
 
-### ⚠️ N16 — Orari e sospensione del servizio non sono verificati dal server
+### ✅ N16 — Orari e sospensione del servizio non erano verificati dal server *(risolto)*
 
 > **Due correzioni a questo rilievo, entrambe del 30 settembre – 1 ottobre 2026.** La prima stesura sosteneva che la vetrina ignorasse le opzioni dei piatti: **era sbagliato** (vedi la regressione in C8; il listino generico stava in `CustomizationView`, componente mai montato, ora rimosso). La seconda stesura sosteneva che la vetrina ignorasse i flag `delivery_enabled`, `pickup_enabled` e `table_enabled`: è vero, ma **i flag sono vestigiali** e applicarli sarebbe stato un errore. Il wizard salva `pickup_enabled` sempre a `true`, `delivery_enabled` come "esiste almeno una zona attiva" (regola che il server applica già tramite le zone), e `table_enabled` da un'impostazione `tableBooking.enabled` che parte da `false` e non ha alcun controllo nell'interfaccia: imporlo avrebbe bloccato gli ordini al tavolo a tutti i ristoranti.
 
 Il controllo operativo reale è `hours_config`: orari per servizio, chiusure temporanee e `serviceSuspended`, che il ristoratore gestisce dalla pagina Orari. La vetrina lo applica — blocca la consegna sospesa, propone l'ordine per dopo quando il locale è chiuso — ma `/api/orders` no: una pagina rimasta aperta o una chiamata diretta possono creare un ordine per un servizio appena sospeso. Va replicata lato server la stessa logica, che ha casi non banali (ordini programmati ammessi a locale chiuso), quindi con una verifica attraverso l'interfaccia e non solo per sonda.
+
+**Fix (2 ottobre 2026).** Le regole stanno ora in un solo modulo, `src/lib/serviceHours.ts`, usato sia dalla vetrina sia da `/api/orders`. Per consegna e asporto il server rifiuta (409 `schedule_unavailable`) un ordine se il locale è chiuso per ferie, se il servizio è sospeso, se manca l'orario, o se l'orario è passato, oltre il preavviso massimo o fuori dalle fasce di quel giorno. Valuta sull'ora di Roma, con 15 minuti di tolleranza sul preavviso minimo per il tempo di compilazione del modulo. Gli ordini al tavolo sono esclusi.
+
+Ricostruendo la logica sono emersi tre difetti della vetrina, corretti insieme perché vetrina e server devono dire la stessa cosa:
+
+- **Chiusura a mezzanotte.** Il controllo "aperto ora" confrontava gli orari come stringhe: con una fascia 18:30–00:00, alle 20:00 `"20:00" <= "00:00"` è falso. **Convivium risultava chiuso per tutto il servizio serale** e il cliente vedeva "Locale Chiuso — puoi ordinare per dopo". "00:00" come fine fascia vale ora mezzanotte.
+- **Preavviso in italiano.** Il pannello salva l'unità come `"ore"` / `"minuti"`, la vetrina riconosceva solo `"hours"`: il preavviso di 1 ora per la consegna di convivium valeva 1 minuto.
+- **Sospensione aggirabile.** Quando entrambi i servizi risultavano chiusi la vetrina proponeva gli ordini per dopo anche per un servizio sospeso. Ora un servizio sospeso o un locale in ferie non offre orari.
+
+Verificato:
+
+```
+modulo, sulla configurazione reale di convivium          21/21 scenari
+  (mezzanotte, giorno di chiusura, pranzo disattivato, preavviso "1 ore",
+   oltre 4 giorni, sospensione di un solo servizio, ferie, conversione di fuso)
+Chrome, checkout intercettato: primo orario proposto per asporto e per
+  domicilio accettato dal server, totale coincidente (21,00 e 23,50)
+route: senza orario, giorno chiuso, orario passato, oltre il preavviso
+  massimo, fascia disattivata → 409 schedule_unavailable;
+  orario valido e ordine al tavolo → proseguono
+```
+
+**Limite noto, legato ad A13:** l'elenco dei giorni nella vetrina usa la data UTC (`toISOString`). Fra mezzanotte e le 2 ora italiana "Oggi" corrisponde ancora al giorno precedente, e il server rifiuterebbe come passato un orario scelto lì. La finestra cade fuori dagli orari di quasi tutti i locali; si chiude con la gestione dei fusi.
 
 **Corretto nel frattempo (1 ottobre 2026):** un residuo di una funzione di test di maggio ("Simula 12:15 — Solo Asporto") era rimasto agganciato all'orologio reale. Ogni giorno alle 12:15 il pulsante della consegna a domicilio si disattivava e chi lo aveva scelto veniva spostato su asporto. Rimosso; checkout riverificato in Chrome con la richiesta intercettata (totale mostrato e ricalcolato coincidono, nessun errore di pagina).
 
