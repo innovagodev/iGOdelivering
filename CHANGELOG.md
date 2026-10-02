@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.30.5](https://github.com/innovagodev/iGOdelivering/compare/v1.30.4...v1.30.5) (2026-10-02)
+
+
+### Bug Fixes
+
+* **vetrina:** rimossi il modulo carta e le opzioni di pagamento online non reali ([6fad1d2](https://github.com/innovagodev/iGOdelivering/commit/6fad1d2146ee65c59bbf45f8cedaeda4c6c879da))
+
 ### [1.30.4](https://github.com/innovagodev/iGOdelivering/compare/v1.30.3...v1.30.4) (2026-10-02)
 
 
