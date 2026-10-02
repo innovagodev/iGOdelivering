@@ -114,7 +114,7 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | `send-status-email` | ✅ richiede sessione ristoratore o admin |
 | Pagamenti | ❌ **inesistenti** — vedi sotto |
 
-**Migration applicate:** 015, 016, 017, 018, 020, 021, 022. La **019 non va eseguita**:
+**Migration applicate:** 015, 016, 017, 018, 020–027. La **019 non va eseguita**:
 versiona colonne che in produzione esistono già.
 
 La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e
@@ -234,6 +234,20 @@ chiusura a mezzanotte (`"00:00"`), `"20:00" <= "00:00"` è falso e il locale
 risulta chiuso per tutta la sera. Il pannello salva le unità del preavviso in
 italiano (`"ore"`, `"minuti"`). `/api/orders` valuta gli orari sull'ora di
 Roma con 15 minuti di tolleranza; gli ordini al tavolo sono esclusi.
+
+**14. La vetrina legge i ristoranti da `restaurants_public`, non da `restaurants`.**
+Sulla tabella un utente loggato vede solo il proprio locale (migration 027):
+leggere da lì farebbe sparire la vetrina a un ristoratore che apre il locale di
+un altro. La vista è il confine di ciò che è pubblico: *ogni colonna aggiunta
+alla vista diventa leggibile da chiunque.* Le policy pubbliche delle tabelle
+collegate usano `is_published_restaurant()`; una nuova tabella pubblica deve
+fare lo stesso, non una sottoquery su `restaurants`.
+
+**15. Registrazione pubblica di Supabase disattivata, e deve restarlo.**
+Con la registrazione aperta chiunque otteneva una sessione autenticata (N17).
+Gli account dei ristoratori nascono solo da `auth.admin.createUser` nelle route
+server. Il token di attivazione sta in `restaurant_activation_tokens`, leggibile
+solo dal server; il consumo passa da `claim_restaurant()`.
 ---
 
 ## Cosa è cambiato nel codice
@@ -326,6 +340,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 25 rilievi risolti (3 dei quali chiusi fuori migration), 25
+Il quadro completo — 27 rilievi risolti (3 dei quali chiusi fuori migration), 25
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.
