@@ -98,13 +98,26 @@ CREATE POLICY "promos: public read active" ON public.promos
 
 -- ─── 3. Vista pubblica dei ristoranti ──────────────────────────────────────
 --
--- Le stesse colonne che la 017 concede ad `anon`, solo locali pubblicati.
+-- In produzione esisteva già una vista con questo nome, creata a mano e in
+-- nessuna migration (stessa deriva di N12 e N14), che nessun codice usa. Le
+-- sue colonne erano quelle pubbliche più `plan`; nessuna colonna sensibile.
+-- La prima versione di questo file usava CREATE OR REPLACE senza `plan` e
+-- falliva con "42P16 cannot drop columns from view" (lo script è stato
+-- annullato per intero). La vista viene ora ricreata con una definizione
+-- esplicita, compreso il filtro sui soli locali pubblicati che per quella
+-- esistente non era verificabile, e conserva `plan` per non rompere un
+-- eventuale utilizzatore sconosciuto.
+--
+-- Le stesse colonne che la 017 concede ad `anon`, più `plan`, solo locali
+-- pubblicati.
 -- È una vista con i privilegi del proprietario (comportamento predefinito):
 -- non applica le RLS di `restaurants` a chi la interroga, ed è il motivo per
 -- cui esiste. Il filtro sullo stato e l'elenco delle colonne SONO il
 -- controllo d'accesso: ogni colonna aggiunta qui diventa pubblica.
 
-CREATE OR REPLACE VIEW public.restaurants_public AS
+DROP VIEW IF EXISTS public.restaurants_public;
+
+CREATE VIEW public.restaurants_public AS
 SELECT
   id, name, slug, status, tagline, description,
   address, city, province, cap, phone, category,
@@ -119,6 +132,7 @@ SELECT
   stripe_delivery, stripe_pickup, stripe_table,
   iban_enabled,
   scheduled_orders, hours_config, tables_count,
+  plan,
   published_at, created_at, updated_at
 FROM public.restaurants
 WHERE status = 'published';
