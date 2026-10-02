@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.30.3](https://github.com/innovagodev/iGOdelivering/compare/v1.30.2...v1.30.3) (2026-10-02)
+
+
+### Bug Fixes
+
+* **db:** la 026 ricrea restaurants_public invece di sostituirla ([0ec653d](https://github.com/innovagodev/iGOdelivering/commit/0ec653dc9821b46d3b50618fd74bb06f998cc0bf))
+* **vetrina:** lettura dei ristoranti dalla vista pubblica restaurants_public ([6f4574a](https://github.com/innovagodev/iGOdelivering/commit/6f4574ade09f82c5fec33ea86bb8f3fb756bcd35))
+
 ### [1.30.2](https://github.com/innovagodev/iGOdelivering/compare/v1.30.1...v1.30.2) (2026-10-02)
 
 
