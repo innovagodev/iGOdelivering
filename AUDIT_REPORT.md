@@ -60,6 +60,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N10** | Promozioni | Promo `first_order` scavalcabile: il conteggio ordini torna sempre 0 | **Alto** | ✅ Risolto | prod |
 | **N11** | Auth | Rollback di registrazione silenzioso: un utente Auth orfano blocca l'attivazione per sempre | **Alto** | ✅ Risolto | prod |
 | **N12** | Schema | `activation_token`/`activation_token_expires_at` esistono in produzione ma in nessuna migration | Medio | ✅ Risolto (mig. 019) | prod |
+| **N17** | Auth | Registrazione pubblica aperta + `profiles: self insert` senza vincolo di ruolo: chiunque può diventare admin | **Critico** | ⚠️ Aperto — mig. 023 e disattivazione della registrazione | prod |
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
 | **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ✅ Risolto | prod |
@@ -326,6 +327,20 @@ SELECT indexdef FROM pg_indexes WHERE indexname = 'restaurants_activation_token_
 ```
 
 L'indice è **parziale**, e la migration 019 lo riproduce testualmente.
+
+### ⚠️ N17 — Chiunque può registrarsi e promuoversi admin *(Critico)*
+
+Emerso il 2 ottobre 2026 lavorando su A1. Tre condizioni insieme:
+
+- la registrazione pubblica di Supabase è attiva (`disable_signup: false`) e la conferma email è automatica (`mailer_autoconfirm: true`), quindi con la chiave anon — pubblica per costruzione — chiunque ottiene una sessione autenticata;
+- la policy `profiles: self insert` ammette `INSERT` con `CHECK (id = auth.uid())`, senza alcun vincolo sul ruolo;
+- il vincolo di tabella su `profiles.role` ammette `'admin'`.
+
+Un estraneo poteva quindi registrarsi, inserire il proprio profilo con `role = 'admin'` e ottenere `is_admin() = true`: lettura e scrittura su ordini, clienti, prenotazioni, ristoranti e utenti di tutta la piattaforma.
+
+**Non sfruttato:** al 2 ottobre esistono 3 utenti Auth e 3 profili — un solo admin (`admin@igodelivering.it`, giugno 2026) e due ristoratori — e nessun utente senza profilo. La catena non è stata eseguita come sonda, per non creare un admin in produzione nemmeno temporaneamente: le tre condizioni sono verificate singolarmente (impostazioni Auth dall'endpoint pubblico, policy e vincolo dal catalogo).
+
+**Rimedio:** la migration 023 rimuove la policy, che nessun codice usa (i profili sono creati solo con la service role key), e la registrazione pubblica va disattivata dal pannello Supabase: gli account dei ristoratori nascono da `auth.admin.createUser`, che funziona anche a registrazione disattivata.
 
 ### ⚠️ N13 — Stesso pattern, punti ancora aperti
 

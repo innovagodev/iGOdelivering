@@ -1,0 +1,35 @@
+-- ============================================================================
+-- 023 — NESSUN AUTO-INSERIMENTO IN profiles
+-- ============================================================================
+--
+-- La policy "profiles: self insert" permetteva a qualunque utente autenticato
+-- di creare la propria riga in profiles, con CHECK (id = auth.uid()) e nessun
+-- vincolo sul ruolo. Con la registrazione pubblica di Supabase attiva e la
+-- conferma email automatica, la catena era:
+--
+--   1. supabase.auth.signUp() con la chiave anon, che è pubblica
+--   2. INSERT INTO profiles (id, role) VALUES (auth.uid(), 'admin')
+--   3. is_admin() = true → lettura e scrittura su tutti i dati di tutti i
+--      ristoranti
+--
+-- Nessun codice usa questa policy: i profili sono creati solo da
+-- /api/admin/create-ristoratore e /api/ristoratore/register con la service
+-- role key, che non è soggetta a RLS. Verificato al 2 ottobre 2026: 3 utenti,
+-- 1 admin legittimo, nessun profilo anomalo.
+--
+-- Va abbinata alla disattivazione della registrazione pubblica nel pannello
+-- Supabase (Authentication → Sign In / Providers → "Allow new users to sign
+-- up"): gli account dei ristoratori sono creati con auth.admin.createUser,
+-- che funziona anche a registrazione disattivata.
+-- ============================================================================
+
+DROP POLICY IF EXISTS "profiles: self insert" ON public.profiles;
+
+-- ─── Verifica ───────────────────────────────────────────────────────────────
+--
+--   SELECT policyname, cmd FROM pg_policies
+--    WHERE schemaname = 'public' AND tablename = 'profiles';
+--   -- attese: "profiles: admin all" (ALL), "profiles: self read" (SELECT)
+--
+--   SELECT id, role FROM public.profiles WHERE role = 'admin';
+--   -- atteso: il solo account admin@igodelivering.it
