@@ -11,8 +11,8 @@
 > committati su `main` (verificabile con `git log`): la prima tornata in
 > `ff609ac` (22 settembre), la seconda in nove commit da `6d044c3` a `819190d`
 > (25 settembre), seguiti dai soli commit di documentazione. Sul database di
-> produzione sono applicate le migration 015, 016, 017, 018 e 020; la 019
-> versiona colonne che in produzione esistono già e non va eseguita.
+> produzione sono applicate le migration 015, 016, 017, 018, 020, 021 e 022;
+> la 019 versiona colonne che in produzione esistono già e non va eseguita.
 
 ---
 
@@ -68,7 +68,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ⚠️ Aperto | codice |
 | C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ✅ Risolto (mig. 020) | prod |
-| C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ⚠️ Aperto | codice |
+| C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ✅ Risolto (mig. 022) | prod |
 | A1 | Auth | Ruolo letto da cookie non-httpOnly scritto dal client | **Alto** | ⚠️ Aperto | codice |
 | A2 | Multi-tenant | `my_restaurant_id()` usa `LIMIT 1`: un owner con più locali ne governa uno solo | **Alto** | ⚠️ Aperto | prod |
 | A4 | Multi-tenant | Codici sconto attivi enumerabili in anonimo (oggi 0 promo a sistema) | **Alto** | ⚠️ Aperto | prod |
@@ -477,9 +477,32 @@ PROD /api/orders con totale errato            → 409 price_changed, ricalcolo 1
 
 **Non verificato con una sonda:** l'INSERT del proprietario tramite la nuova `orders: owner insert`, usata quando il ristoratore conferma una prenotazione con pre-ordine. Richiede una sessione autenticata da ristoratore.
 
-### C9 — Overbooking illimitato *(Critico, aperto)*
+### ✅ C9 — Overbooking illimitato *(Critico, risolto — migration 022)*
 
 `tables_count` compare solo in `/ristoratore/tavoli` (QR code) e nel wizard admin, mai nel flusso di prenotazione. Non esiste `UNIQUE`, non esiste `EXCLUDE`, non esiste advisory lock, non esiste conteggio delle prenotazioni sullo slot, non esiste una tabella dei tavoli. Non è una race condition da chiudere: la verifica è assente, quindi il problema si manifesta anche con richieste sequenziali. `guests` è raccolto ma mai confrontato con una capienza.
+
+**Fix (1-2 ottobre 2026).** Modello a coperti per fascia ("pacing"), lo stesso livello di base delle piattaforme di prenotazione; i tavoli come entità restano un'estensione futura.
+
+- `restaurants.booking_capacity` (coperti accettati in contemporanea) e `booking_slot_minutes` (durata del turno, default 90), impostabili dal ristoratore nella pagina Prenotazioni.
+- `/api/bookings` crea la prenotazione con `create_booking()`, che calcola il **picco** di coperti nella fascia e inserisce sotto un advisory lock per (ristorante, data). Ristoranti diversi non si attendono mai a vicenda.
+- Contano le richieste `pending` e `confirmed`, non le cancellate.
+- **Capienza vuota = nessun limite automatico**, per scelta: ogni prenotazione nasce in attesa e il ristoratore la conferma a mano, mentre un valore predefinito sarebbe sbagliato per quasi tutti i locali. Il pannello mostra un avviso finché la capienza non è impostata e, accanto a ogni prenotazione, i coperti occupati nella fascia.
+
+Verificato il 2 ottobre 2026 su un ristorante fittizio in bozza (capienza 8, turno 90 minuti), creato e poi cancellato senza residui; 13 scenari su 13 superati:
+
+```
+20:00 x4, 20:30 x4                  → accettate (picco 8/8)
+21:00 x1                            → rifiutata, 0 posti
+21:30 x2                            → accettata (il tavolo delle 20:00 si è liberato)
+19:50 x4 fra 19:00 x4 e 20:40 x4    → accettata: i due tavoli non sono mai insieme
+x4 con 3 posti liberi               → rifiutata, available 3;  x3 → accettata
+dopo una cancellazione da 5         → x5 accettata
+12 richieste simultanee x1          → 8 accettate, 4 rifiutate, 8 coperti salvati
+capienza vuota                      → x20 accettata
+route in produzione                 → 201; poi x4 con 2 posti → 409 "restano solo 2 posti"
+```
+
+Non verificato con una sessione reale: la scheda Capienza e il badge di occupazione nel pannello del ristoratore, che richiedono un login da ristoratore. Il calcolo del badge replica in TypeScript quello della funzione SQL.
 
 ### ✅ C3′ — Lettura pubblica di `restaurants` per riga intera *(Medio, risolto)*
 

@@ -114,7 +114,7 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | `send-status-email` | ✅ richiede sessione ristoratore o admin |
 | Pagamenti | ❌ **inesistenti** — vedi sotto |
 
-**Migration applicate:** 015, 016, 017, 018, 020, 021. La **019 non va eseguita**:
+**Migration applicate:** 015, 016, 017, 018, 020, 021, 022. La **019 non va eseguita**:
 versiona colonne che in produzione esistono già.
 
 La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e
@@ -296,8 +296,10 @@ un gateway addebiterebbe la cifra giusta.
 > (`/api/orders`, migration 020). (`order_number` è già generato dal database: N8 è chiuso dal
 > 25 settembre con la RPC `generate_order_number`.)
 
-**2. Overbooking illimitato** (C9). Nessun controllo di capienza: né vincolo DB,
-né lock, né conteggio. `tables_count` serve solo ai QR code.
+**2. Capienza prenotazioni** (C9): chiuso il 2 ottobre con la migration 022.
+Resta da fare, quando servirà: i tavoli come entità (piantina, abbinamento
+tavolo-gruppo). Ogni ristoratore deve impostare la propria capienza dalla
+pagina Prenotazioni: finché è vuota non c'è limite automatico.
 
 **3. Quattro punti con lo stesso difetto silenzioso** (N13). Il più urgente è
 `loadHistoryOrders` in `menu/[slug]/page.tsx`, la modale "I miei ordini": stessa
@@ -317,6 +319,6 @@ Preferibile a regalare sconti illimitati, ma andrà chiuso.
 nessuno dei guasti trovati nelle due tornate (22–25 settembre 2026) sarebbe
 stato intercettato automaticamente.
 
-Il quadro completo — 23 rilievi risolti (3 dei quali chiusi fuori migration), 27
+Il quadro completo — 24 rilievi risolti (3 dei quali chiusi fuori migration), 26
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.

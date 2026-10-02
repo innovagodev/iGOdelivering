@@ -47,9 +47,10 @@ COMMENT ON COLUMN public.restaurants.booking_slot_minutes IS
 -- falserebbe i confronti. Il picco si raggiunge all'inizio dell'intervallo o
 -- all'inizio di una prenotazione che cade al suo interno, quindi basta
 -- valutare quei punti. Sommare tutte le prenotazioni che si sovrappongono
--- all'intervallo sarebbe più semplice ma sbagliato: due prenotazioni alle
--- 19:00 e alle 20:20 si sovrappongono entrambe a una alle 19:40 senza essere
--- mai contemporanee fra loro.
+-- all'intervallo sarebbe più semplice ma sbagliato: con turni da 90 minuti,
+-- due prenotazioni alle 19:00 e alle 20:40 si sovrappongono entrambe a una
+-- alle 19:50 senza essere mai contemporanee fra loro (la prima si libera alle
+-- 20:30).
 
 CREATE OR REPLACE FUNCTION public.booking_peak_covers(
   p_restaurant_id uuid,
