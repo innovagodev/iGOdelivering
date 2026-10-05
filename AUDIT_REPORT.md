@@ -63,11 +63,11 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N17** | Auth | Registrazione pubblica aperta + `profiles: self insert` senza vincolo di ruolo: chiunque può diventare admin | **Critico** | ✅ Risolto (mig. 023 + registrazione disattivata) | prod |
 | **N18** | Auth | `activation_token` e colonne sensibili di `restaurants` leggibili da qualunque utente autenticato | **Alto** | ✅ Risolto (mig. 024–027) | prod |
 | **N13** | Qualità | Altri 4 punti trattano un risultato vuoto da RLS come "non esiste" | Medio | ⚠️ Aperto (a risolto il 30 set) | codice |
-| **N14** | Schema | `generate_order_number` e `count_customer_orders` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
+| **N14** | Schema | `generate_order_number`, `count_customer_orders` e la tabella `order_number_counters` esistono in produzione ma in nessuna migration | Medio | ⚠️ Aperto | prod |
 | **N15** | Dati | L'unica zona di consegna di convivium ha l'elenco CAP vuoto: nessun ordine a domicilio è completabile | **Alto** | ✅ Risolto | prod |
 | **N16** | Ordini | Orari e sospensione del servizio applicati solo dalla vetrina, non da `/api/orders` | Medio | ✅ Risolto | prod |
 | C4 | Auth | `/api/ristoratore/register` autorizzava con `restaurantId` + email, entrambi noti | **Critico** | ✅ Risolto | prod |
-| C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto | codice |
+| C6 | Pagamenti | Nessun gateway: l'ordine è creato senza alcun addebito | **Critico** | ⚠️ Aperto — Stripe Connect in corso (fase 1 pronta, mig. 028) | codice |
 | C7 | Pagamenti | PAN + CVV raccolti in chiaro in un form custom (PCI-DSS) | **Critico** | ✅ Risolto (modulo rimosso) | codice |
 | C8 | Pagamenti | Prezzi, sconto e totale calcolati dal client e inseriti senza validazione | **Critico** | ✅ Risolto (mig. 020) | prod |
 | C9 | Prenotazioni | Nessun controllo di capienza: overbooking illimitato | **Critico** | ✅ Risolto (mig. 022) | prod |
@@ -417,7 +417,9 @@ b, c e d **non affrontati** al 30 settembre 2026.
 - Esiste un bucket `menu-images` che nessuna migration crea e che nessun codice usa.
 - Realtime è attivo su tutte e 11 le tabelle; la migration 005 ne prevedeva due (`orders`, `bookings`). Le RLS restano applicate anche via Realtime, quindi non è un'esposizione, ma è più ampio del previsto.
 
-### ⚠️ N14 — Due RPC in produzione senza migration
+### ⚠️ N14 — Due RPC e una tabella in produzione senza migration
+
+*Aggiornamento del 5 ottobre 2026:* l'elenco degli oggetti esposti dall'API mostra anche la tabella `order_number_counters`, presumibilmente il contatore di `generate_order_number`, anch'essa creata a mano e assente da ogni migration. Va versionata insieme alle due funzioni leggendone la definizione dal catalogo.
 
 `generate_order_number(p_restaurant_id, p_order_type, p_table_number)` e `count_customer_orders(p_restaurant_id, p_customer_email)` sono esposte da PostgREST e usate dal codice (N8, N10), ma nessun file in `supabase/migrations/` le crea. È la stessa deriva di N12: un ambiente costruito dalla sequenza di migration non ha né la numerazione degli ordini né la verifica del primo ordine. La 020 ne ricava la firma dal catalogo proprio per questo. Da versionare leggendone la definizione con `pg_get_functiondef`.
 
