@@ -114,7 +114,7 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | `send-status-email` | ✅ richiede sessione ristoratore o admin |
 | Pagamenti | ❌ **inesistenti** — vedi sotto |
 
-**Migration applicate:** 015, 016, 017, 018, 020–027. La **019 non va eseguita**:
+**Migration applicate:** 015, 016, 017, 018, 020–029. La **019 non va eseguita**:
 versiona colonne che in produzione esistono già.
 
 La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e

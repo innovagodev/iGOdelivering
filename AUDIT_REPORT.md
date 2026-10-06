@@ -77,7 +77,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | A6 | Ordini | Tracking per `order_number` con `maybeSingle()`: rotto su collisione fra ristoranti | **Alto** | ✅ Risolto | prod |
 | A7 | Ordini | Lo stato `expired` non viene mai persistito | **Alto** | ✅ Risolto (mig. 016 + 018) | prod |
 | A8 | Promozioni | `used_count` non incrementa: `max_uses` mai applicato | **Alto** | ✅ Risolto (mig. 018) | prod |
-| A9 | Pagamenti | `stripe_connected`/`paypal_connected` auto-dichiarati | **Alto** | ⚠️ Aperto | codice |
+| A9 | Pagamenti | `stripe_connected`/`paypal_connected` auto-dichiarati | **Alto** | ⚠️ Aperto — bloccato a database (mig. 028–029), pannello da rifare (fase 3) | prod |
 | A10 | Pagamenti | Nessun flusso di rimborso, ma l'email di annullamento lo promette | **Alto** | ⚠️ Aperto | codice |
 | A11 | Segreti | Chiave API Resend reale nello storico Git | **Alto** | ✅ Ruotata | codice |
 | A12 | Auth | `/api/order/send-status-email` senza autenticazione | **Alto** | ✅ Risolto | prod |
@@ -606,7 +606,13 @@ Oggi l'esposizione concreta è limitata a `restaurants.email` (indirizzo persona
 
 > **Nota su un errore da non ripetere.** La prima stesura della 017 usava solo una `REVOKE` per colonna. In PostgreSQL una revoca per-colonna non sottrae nulla a una concessione per-tabella, e Supabase assegna ad `anon` un `GRANT SELECT` sull'intera tabella: la migration è passata **senza errori e senza alcun effetto**. È il motivo per cui il file contiene ora una sezione di verifica esplicita — l'assenza di errori non è prova che una restrizione sia attiva.
 
-### A2 · A4 · A9 · A10 · A13 · A15 — invariati
+### ⚠️ A9 — Collegamento ai gateway autodichiarato *(Alto, in corso)*
+
+Il pannello Pagamenti e il wizard scrivevano `stripe_connected` e `paypal_connected` da una finestra demo che chiedeva solo un'email. Dal 6 ottobre 2026 (migration 028, corretta dalla 029) un trigger su `restaurants` impedisce a titolari e admin di modificare lo stato del collegamento, l'id dell'account Stripe, l'etichetta e i dati PayPal: li scrive solo il server. I salvataggi che rimandano gli stessi valori passano, quindi il pannello attuale continua a funzionare; la finestra demo "Connetti" produce invece un errore, ed è voluto. Si chiude con la fase 3 del piano pagamenti, che sostituisce la demo con il collegamento reale a Stripe.
+
+Collaudo della base dei pagamenti (028 + 029), su ristorante e titolare di prova poi cancellati, 43/43: autodichiarazione Stripe e PayPal bloccata con 42501; ordine in attesa di pagamento che il titolare può solo annullare; stati e importi di pagamento non scrivibili dal browser; pagamento online al tavolo, rimborso oltre l'incassato e PaymentIntent duplicato rifiutati dal database; registro eventi del webhook inaccessibile e senza doppioni; restituzione dei promo una sola volta; colonne IBAN eliminate e vista pubblica funzionante. La prima versione del trigger rispondeva 22P02 invece di 42501 (accumulo con `text[] || 'nome'`): bloccava comunque, con il messaggio sbagliato; corretto dalla 029.
+
+### A2 · A4 · A10 · A13 · A15 — invariati
 
 Confermati come nella prima stesura. In particolare, verificati sul DB:
 
