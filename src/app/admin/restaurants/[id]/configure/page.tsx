@@ -1121,18 +1121,15 @@ export default function RestaurantConfigurePage() {
         cash_delivery: !!paymentConfig.cash_delivery,
         cash_pickup: !!paymentConfig.cash_pickup,
         cash_table: !!paymentConfig.cash_table,
-        paypal_enabled: !!paymentConfig.paypal_enabled,
-        paypal_connected: !!paymentConfig.paypal_connected,
-        paypal_email: paymentConfig.paypal_email || null,
+        paypal_enabled: false, // PayPal non ancora integrato
         paypal_delivery: !!paymentConfig.paypal_delivery,
         paypal_pickup: !!paymentConfig.paypal_pickup,
         paypal_table: !!paymentConfig.paypal_table,
-        stripe_enabled: !!paymentConfig.stripe_enabled,
-        stripe_connected: !!paymentConfig.stripe_connected,
-        stripe_account_label: paymentConfig.stripe_account_label || null,
+        // Online solo con account Stripe attivo (stato scritto dal server).
+        stripe_enabled: !!paymentConfig.stripe_connected && (!!paymentConfig.stripe_delivery || !!paymentConfig.stripe_pickup),
         stripe_delivery: !!paymentConfig.stripe_delivery,
         stripe_pickup: !!paymentConfig.stripe_pickup,
-        stripe_table: !!paymentConfig.stripe_table,
+        stripe_table: false, // al tavolo solo cassa e POS
         scheduled_orders: scheduledOrders,
         hours_config: serviceHoursDataToSave,
         tables_count: tableCount,

@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import KPIBentoGrid from '@/components/ristoratore/KPIBentoGrid';
 import OrderHistoryTable from '@/components/ristoratore/OrderHistoryTable';
+import PaymentsSetupBanner from '@/components/ristoratore/PaymentsSetupBanner';
 import { Search, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/hooks/useOrders';
@@ -140,6 +141,8 @@ export default function RestaurantDashboardPage() {
                     </p>
                   </div>
                 </div>
+
+                <PaymentsSetupBanner restaurantId={restaurantId} />
 
                 {/* KPIs */}
                 <KPIBentoGrid orders={orders} loading={loading} />
