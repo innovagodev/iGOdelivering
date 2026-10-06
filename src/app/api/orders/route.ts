@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { computeDiscountCents, fromCents, OrderType, toCents } from '@/lib/pricing';
-import {
-  checkSchedule,
-  HoursConfig,
-  nowInZone,
-  ScheduledOrdersConfig,
-} from '@/lib/serviceHours';
+import { checkSchedule, HoursConfig, nowInZone, ScheduledOrdersConfig } from '@/lib/serviceHours';
+import { getStripe } from '@/lib/stripeServer';
 import {
   adminClient,
   EMAIL_RE,
@@ -110,6 +106,12 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
   const notes = str(body.notes, 1000);
   const promoCode = str(body.promoCode, 50).toUpperCase();
   const guests = Number.isInteger(body.guests) ? (body.guests as number) : null;
+  const paymentMethod =
+    body.paymentMethod === 'online' || body.paymentMethod === 'pos' ? body.paymentMethod : 'cash';
+  const isOnline = paymentMethod === 'online';
+  // Al tavolo niente pagamento online (decisione di prodotto, vincolo anche
+  // nel database: orders_no_online_table).
+  if (isOnline && type === 'tavolo') return invalid;
 
   if (!name) return invalid;
   if (type === 'tavolo') {
@@ -130,7 +132,9 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
   // ─── Ristorante ───────────────────────────────────────────────────────────
   const { data: restaurant, error: rErr } = await admin
     .from('restaurants')
-    .select('id, status, hours_config, scheduled_orders')
+    .select(
+      'id, status, hours_config, scheduled_orders, stripe_account_id, stripe_connected, stripe_enabled, stripe_delivery, stripe_pickup'
+    )
     .eq('id', restaurantId)
     .maybeSingle();
 
@@ -169,6 +173,29 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
               ? 'Scegli un orario di consegna o ritiro.'
               : 'L’orario scelto non è più disponibile. Scegline un altro.';
       return fail(409, 'schedule_unavailable', message, { reason: check.reason });
+    }
+  }
+
+  // ─── Pagamento online disponibile? ────────────────────────────────────────
+  // Lo stato del collegamento (stripe_connected, stripe_account_id) lo scrive
+  // solo il server leggendolo da Stripe; le scelte per servizio le fa il
+  // titolare dal suo pannello.
+  if (isOnline) {
+    const serviceAllowed =
+      type === 'domicilio'
+        ? restaurant.stripe_delivery !== false
+        : restaurant.stripe_pickup !== false;
+    if (
+      !restaurant.stripe_connected ||
+      !restaurant.stripe_account_id ||
+      !restaurant.stripe_enabled ||
+      !serviceAllowed
+    ) {
+      return fail(
+        409,
+        'online_unavailable',
+        'Il pagamento online non è disponibile per questo ristorante. Scegli un altro metodo.'
+      );
     }
   }
 
@@ -244,6 +271,21 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     );
   }
 
+  // Importo minimo di Stripe per un pagamento in euro.
+  if (isOnline && totalCents < 50) {
+    return fail(
+      409,
+      'online_minimum',
+      'Il pagamento online richiede un totale di almeno € 0,50. Scegli un altro metodo.'
+    );
+  }
+
+  const stripe = isOnline ? getStripe() : null;
+  if (isOnline && !stripe) {
+    console.error('[orders] STRIPE_SECRET_KEY mancante');
+    return fail(503, 'online_unavailable', 'Il pagamento online non è disponibile al momento.');
+  }
+
   // ─── Scritture ────────────────────────────────────────────────────────────
   // Ordine delle operazioni: numero → consumo promo → ordine → righe. Il
   // consumo va prima dell'ordine perché un ordine creato con lo sconto e poi
@@ -276,20 +318,10 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     }
   }
 
+  // Restituzione atomica dell'utilizzo (migration 028).
   const releasePromo = async () => {
     if (!promo) return;
-    const { data: row } = await admin
-      .from('promos')
-      .select('used_count')
-      .eq('id', promo.id)
-      .maybeSingle();
-    const current = Number(row?.used_count) || 0;
-    if (current <= 0) return;
-    const { error } = await admin
-      .from('promos')
-      .update({ used_count: current - 1 })
-      .eq('id', promo.id)
-      .eq('used_count', current);
+    const { error } = await admin.rpc('release_promo_usage', { p_promo_id: promo.id });
     if (error) console.error('[orders] promo release failed:', promo.id, error.message);
   };
 
@@ -299,7 +331,13 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     restaurant_id: restaurantId,
     order_number: orderNumber as string,
     type,
-    status: 'new',
+    // Un ordine online nasce fuori dalla cucina: ci entra (status 'new')
+    // solo quando il webhook di Stripe conferma il pagamento.
+    status: isOnline ? 'awaiting_payment' : 'new',
+    payment_method: paymentMethod,
+    payment_status: isOnline ? 'pending' : 'unpaid',
+    stripe_account_id: isOnline ? (restaurant.stripe_account_id as string) : null,
+    payment_expires_at: isOnline ? new Date(Date.now() + 30 * 60_000).toISOString() : null,
     customer_name: type === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
     customer_email: type === 'tavolo' ? 'tavolo@internal.it' : email,
     customer_phone: type === 'tavolo' ? null : phone,
@@ -350,12 +388,60 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     return fail(500, 'server_error', 'Impossibile creare l’ordine, riprova.');
   }
 
+  // ─── Pagamento online ─────────────────────────────────────────────────────
+  // PaymentIntent creato direttamente sull'account Stripe del ristorante
+  // (direct charge): l'incasso va a lui, nessuna commissione per la
+  // piattaforma. Importo: il totale calcolato qui, mai quello del client.
+  let payment: { clientSecret: string; stripeAccount: string; amount: number } | null = null;
+  if (isOnline && stripe) {
+    const accountId = restaurant.stripe_account_id as string;
+    try {
+      const intent = await stripe.paymentIntents.create(
+        {
+          amount: totalCents,
+          currency: 'eur',
+          automatic_payment_methods: { enabled: true },
+          description: `Ordine ${orderNumber}`,
+          receipt_email: email || undefined,
+          metadata: {
+            order_id: orderId,
+            order_number: String(orderNumber),
+            restaurant_id: restaurantId,
+          },
+        },
+        { stripeAccount: accountId, idempotencyKey: `igo-order-${orderId}` }
+      );
+      const { error: piError } = await admin
+        .from('orders')
+        .update({ stripe_payment_intent_id: intent.id })
+        .eq('id', orderId);
+      if (piError) throw new Error(`salvataggio PaymentIntent: ${piError.message}`);
+      payment = {
+        clientSecret: intent.client_secret as string,
+        stripeAccount: accountId,
+        amount: totalCents,
+      };
+    } catch (e: any) {
+      console.error('[orders] creazione pagamento fallita:', orderId, e?.message);
+      await admin.from('order_items').delete().eq('order_id', orderId);
+      const { error: delError } = await admin.from('orders').delete().eq('id', orderId);
+      if (delError) console.error('[orders] rollback failed for order', orderId, delError.message);
+      await releasePromo();
+      return fail(
+        502,
+        'payment_unavailable',
+        'Non è stato possibile avviare il pagamento online. Riprova o scegli un altro metodo.'
+      );
+    }
+  }
+
   return {
     order: {
       ...orderRow,
       created_at: created.created_at,
     },
     items: itemRows,
+    payment,
   };
 }
 

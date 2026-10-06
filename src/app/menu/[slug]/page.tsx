@@ -64,6 +64,7 @@ import Footer from '@/components/layout/Footer';
 import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { supabase } from '@/lib/supabase';
+import StripePayment from '@/components/menu/StripePayment';
 import {
   isServiceOpenAt,
   isSuspended,
@@ -1008,7 +1009,15 @@ function CheckoutModal({
   isCurrentlyClosed?: boolean;
 }) {
   const { t, lang } = useLang();
-  const [step, setStep] = useState<'details' | 'payment' | 'success'>('details');
+  const [step, setStep] = useState<'details' | 'payment' | 'pay' | 'success'>('details');
+  // Pagamento online in corso: l'ordine esiste già (in attesa di pagamento),
+  // il cliente sta compilando il Payment Element di Stripe.
+  const [pendingPayment, setPendingPayment] = useState<{
+    clientSecret: string;
+    stripeAccount: string;
+    amount: number;
+    trackedOrder: any;
+  } | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const { settings: restaurantSettings } = useRestaurantSettings(slug);
 
@@ -1116,7 +1125,7 @@ function CheckoutModal({
               <div class="row"><strong>${t('receipt_date_time').replace(' & ORA', '').replace(' & TIME', '')}:</strong> <span>${new Date(order.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT')}</span></div>
               <div class="row"><strong>${t('receipt_service').replace(':', '')}:</strong> <span style="text-transform: capitalize;">${order.type === 'domicilio' ? t('checkout_home_delivery') : order.type === 'asporto' ? t('checkout_takeaway') : t('checkout_your_table')}</span></div>
               ${tableRow}
-              <div class="row"><strong>${t('receipt_payment').replace(':', '')}:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? t('receipt_pay_card') : order.payMethod === 'pos' ? t('receipt_pay_pos') : t('receipt_pay_cash')}</span></div>
+              <div class="row"><strong>${t('receipt_payment').replace(':', '')}:</strong> <span>${order.payMethod === 'online' ? (lang === 'en' ? 'Online (card)' : 'Online (carta)') : order.payMethod === 'card' ? t('receipt_pay_card') : order.payMethod === 'pos' ? t('receipt_pay_pos') : t('receipt_pay_cash')}</span></div>
             </div>
             
             <div class="section">
@@ -1212,7 +1221,7 @@ function CheckoutModal({
             <span className="text-muted-foreground">{t('receipt_payment')}</span>
             <span className="font-semibold text-foreground uppercase">
               {order.payMethod === 'online'
-                ? 'PayPal (Online)'
+                ? (lang === 'en' ? 'Online (card)' : 'Online (carta)')
                 : order.payMethod === 'card'
                   ? t('receipt_pay_card')
                   : order.payMethod === 'pos'
@@ -2131,6 +2140,14 @@ function CheckoutModal({
     if (open && paymentMethods) {
       let isPosEnabled = false;
       let isCashEnabled = false;
+      const isOnlineEnabled =
+        !bookingContext &&
+        deliveryType !== 'tavolo' &&
+        !!paymentMethods.stripe_enabled &&
+        !!paymentMethods.stripe_connected &&
+        (deliveryType === 'domicilio'
+          ? paymentMethods.stripe_delivery !== false
+          : paymentMethods.stripe_pickup !== false);
 
       if (bookingContext) {
         isCashEnabled = true;
@@ -2145,7 +2162,9 @@ function CheckoutModal({
         isCashEnabled = !!paymentMethods.cash_table;
       }
 
-      if (isPosEnabled) {
+      if (isOnlineEnabled) {
+        setPayMethod('online');
+      } else if (isPosEnabled) {
         setPayMethod('pos');
       } else if (isCashEnabled) {
         setPayMethod('cash');
@@ -2263,6 +2282,7 @@ function CheckoutModal({
           notes,
           promoCode: appliedPromoDetail ? appliedPromoDetail.code : '',
           expectedTotal: finalTotal,
+          paymentMethod: payMethod === 'online' ? 'online' : payMethod === 'pos' ? 'pos' : 'cash',
         }),
       });
       const result = await res.json().catch(() => ({}));
@@ -2284,6 +2304,20 @@ function CheckoutModal({
         payMethod: payMethod,
       };
 
+      // Pagamento online: l'ordine è stato creato in attesa di pagamento. Il
+      // carrello resta intatto finché il cliente non paga.
+      if (result.payment?.clientSecret) {
+        setPendingPayment({
+          clientSecret: result.payment.clientSecret,
+          stripeAccount: result.payment.stripeAccount,
+          amount: result.payment.amount,
+          trackedOrder,
+        });
+        setLoading(false);
+        setStep('pay');
+        return;
+      }
+
       setLastCreatedOrder(trackedOrder);
       sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
       rememberOrder(slug, orderPayload.id);
@@ -2296,6 +2330,21 @@ function CheckoutModal({
       alert(err.message || "Impossibile completare l'ordine");
       setLoading(false);
     }
+  };
+
+  // Pagamento confermato da Stripe nel browser. L'ordine entra in cucina
+  // quando il webhook lo conferma al server, di norma entro pochi secondi; il
+  // conto alla rovescia dell'accettazione parte da ora, non dalla creazione.
+  const handleOnlinePaid = () => {
+    if (!pendingPayment) return;
+    const paidAt = new Date().toISOString();
+    const trackedOrder = { ...pendingPayment.trackedOrder, timestamp: paidAt };
+    setLastCreatedOrder(trackedOrder);
+    sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(trackedOrder));
+    rememberOrder(slug, trackedOrder.id);
+    clearCart();
+    setPendingPayment(null);
+    setStep('success');
   };
 
   const detailsValid = bookingContext
@@ -2813,11 +2862,33 @@ function CheckoutModal({
       {step === 'payment' && (
         <div className="space-y-4">
           {(() => {
-            // Pagamento online (carta, PayPal) assente finché non arriva
-            // l'integrazione Stripe Connect: il modulo precedente raccoglieva
-            // numero e CVV nella pagina senza addebitare nulla (rilievi C6, C7)
-            // e il collegamento a Stripe/PayPal era autodichiarato (A9).
+            // Pagamento online con Stripe (Payment Element, iframe del
+            // gateway): nessun dato di carta passa dalla pagina (C7).
             const payOptions = [
+              {
+                id: 'online',
+                title: lang === 'en' ? 'Pay online' : 'Paga online',
+                desc:
+                  lang === 'en'
+                    ? 'Card, Apple Pay or Google Pay'
+                    : 'Carta, Apple Pay o Google Pay',
+                icon: (
+                  <CreditCard
+                    size={18}
+                    className={payMethod === 'online' ? 'text-primary' : 'text-muted-foreground'}
+                  />
+                ),
+                // Solo consegna e asporto, solo con account Stripe attivo
+                // (stripe_connected lo scrive il server leggendolo da Stripe).
+                enabled:
+                  !bookingContext &&
+                  deliveryType !== 'tavolo' &&
+                  !!paymentMethods?.stripe_enabled &&
+                  !!paymentMethods?.stripe_connected &&
+                  (deliveryType === 'domicilio'
+                    ? paymentMethods?.stripe_delivery !== false
+                    : paymentMethods?.stripe_pickup !== false),
+              },
               {
                 id: 'pos',
                 title: bookingContext
@@ -3074,6 +3145,31 @@ function CheckoutModal({
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {step === 'pay' && pendingPayment && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-card border border-border/60 rounded-lg p-4 text-sm">
+            <span className="font-semibold text-foreground">{t('cart_total')}</span>
+            <span className="font-extrabold text-primary tabular-nums">
+              € {(pendingPayment.amount / 100).toFixed(2)}
+            </span>
+          </div>
+          <StripePayment
+            clientSecret={pendingPayment.clientSecret}
+            stripeAccount={pendingPayment.stripeAccount}
+            amountCents={pendingPayment.amount}
+            orderId={pendingPayment.trackedOrder.id}
+            lang={lang === 'en' ? 'en' : 'it'}
+            onPaid={handleOnlinePaid}
+            onCancel={() => {
+              // L'ordine non pagato resta fuori dalla cucina e scade da solo
+              // dopo 30 minuti, restituendo l'eventuale codice promo.
+              setPendingPayment(null);
+              setStep('payment');
+            }}
+          />
         </div>
       )}
 
@@ -3718,7 +3814,7 @@ function StorefrontContent() {
               <div class="row"><strong>${t('receipt_date_time').replace(' & ORA', '').replace(' & TIME', '')}:</strong> <span>${new Date(order.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT')}</span></div>
               <div class="row"><strong>${t('receipt_service').replace(':', '')}:</strong> <span style="text-transform: capitalize;">${order.type === 'domicilio' ? t('checkout_home_delivery') : order.type === 'asporto' ? t('checkout_takeaway') : t('checkout_your_table')}</span></div>
               ${tableRow}
-              <div class="row"><strong>${t('receipt_payment').replace(':', '')}:</strong> <span>${order.payMethod === 'online' ? 'PayPal (Online)' : order.payMethod === 'card' ? t('receipt_pay_card') : order.payMethod === 'pos' ? t('receipt_pay_pos') : t('receipt_pay_cash')}</span></div>
+              <div class="row"><strong>${t('receipt_payment').replace(':', '')}:</strong> <span>${order.payMethod === 'online' ? (lang === 'en' ? 'Online (card)' : 'Online (carta)') : order.payMethod === 'card' ? t('receipt_pay_card') : order.payMethod === 'pos' ? t('receipt_pay_pos') : t('receipt_pay_cash')}</span></div>
             </div>
             
             <div class="section">
@@ -3838,7 +3934,7 @@ function StorefrontContent() {
             <span className="text-muted-foreground">Pagamento:</span>
             <span className="font-semibold text-foreground uppercase">
               {order.payMethod === 'online'
-                ? 'PayPal (Online)'
+                ? (lang === 'en' ? 'Online (card)' : 'Online (carta)')
                 : order.payMethod === 'card'
                   ? 'Carta di Credito (Online)'
                   : order.payMethod === 'pos'

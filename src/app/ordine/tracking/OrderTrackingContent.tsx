@@ -104,6 +104,12 @@ export default function OrderTrackingContent() {
   const orderId = searchParams.get('id') ?? '';
 
   const [currentStatus, setCurrentStatus] = useState<TrackingStatus>('confirmed');
+  // Stato grezzo del database: serve a distinguere un ordine ancora in attesa
+  // di pagamento online ('awaiting_payment') o scaduto senza essere pagato.
+  const [rawStatus, setRawStatus] = useState<string>('');
+  // Esito del reindirizzamento di Stripe (metodi come PayPal o i bonifici
+  // istantanei riportano qui il cliente con ?redirect_status=…).
+  const redirectStatus = searchParams.get('redirect_status');
   const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [orderNumber, setOrderNumber] = useState<string>('');
@@ -165,6 +171,7 @@ export default function OrderTrackingContent() {
         if (cancelled) return;
 
         setLoadError(null);
+        setRawStatus(data.status || '');
         setCurrentStatus(dbStatusToTracking(data.status));
         setOrderNumber(data.orderNumber || '');
         setOrderType(data.orderType || '');
@@ -206,7 +213,9 @@ export default function OrderTrackingContent() {
     if (!orderId || loadError) return;
     if (currentStatus === 'delivered') return;
 
-    const POLL_MS = 15000;
+    // In attesa della conferma del pagamento si controlla più spesso: il
+    // webhook di Stripe arriva di norma entro pochi secondi.
+    const POLL_MS = rawStatus === 'awaiting_payment' ? 4000 : 15000;
 
     const poll = async () => {
       try {
@@ -218,6 +227,7 @@ export default function OrderTrackingContent() {
         const data = await res.json();
         if (!data?.status) return;
 
+        if (data.status !== rawStatus) setRawStatus(data.status);
         const trackingStatus = dbStatusToTracking(data.status);
         if (trackingStatus === currentStatus) return;
 
@@ -250,7 +260,7 @@ export default function OrderTrackingContent() {
 
     const interval = setInterval(poll, POLL_MS);
     return () => clearInterval(interval);
-  }, [orderId, loadError, currentStatus]);
+  }, [orderId, loadError, currentStatus, rawStatus]);
 
   const currentIdx = STATUS_ORDER.indexOf(currentStatus);
   const isDelivered = currentStatus === 'delivered';
@@ -320,6 +330,37 @@ export default function OrderTrackingContent() {
       </div>
 
       <div className="w-full max-w-lg space-y-4">
+        {/* ── Pagamento online ── */}
+        {!isLoading && rawStatus === 'awaiting_payment' && redirectStatus === 'failed' && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900/40 px-5 py-4 text-sm text-red-700 dark:text-red-400">
+            <p className="font-bold">Pagamento non riuscito</p>
+            <p className="text-xs mt-1">
+              L&apos;ordine non è stato inviato al ristorante e nessun importo è stato addebitato.
+              Torna al menu per riprovare.
+            </p>
+          </div>
+        )}
+        {!isLoading && rawStatus === 'awaiting_payment' && redirectStatus !== 'failed' && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900/40 px-5 py-4 text-sm text-blue-700 dark:text-blue-400 flex items-center gap-3">
+            <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+            <div>
+              <p className="font-bold">Stiamo confermando il pagamento…</p>
+              <p className="text-xs mt-0.5">
+                L&apos;ordine arriverà al ristorante appena Stripe conferma l&apos;incasso, di
+                solito in pochi secondi.
+              </p>
+            </div>
+          </div>
+        )}
+        {!isLoading && rawStatus === 'expired' && (
+          <div className="rounded-2xl border border-border bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
+            <p className="font-bold text-foreground">Ordine scaduto</p>
+            <p className="text-xs mt-1">
+              L&apos;ordine non è stato confermato in tempo e non verrà preparato.
+            </p>
+          </div>
+        )}
+
         {/* ── Header Card ── */}
         <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-5">
           {isLoading ? (
