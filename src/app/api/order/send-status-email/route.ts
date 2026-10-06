@@ -203,6 +203,17 @@ export async function POST(request: Request) {
       `;
     } else if (status === 'cancelled' || status === 'rejected') {
       subject = `Ordine Annullato - ${restaurantName} #${orderNumber}`;
+      // Il rimborso si promette solo se c'è stato davvero: ordine pagato
+      // online e rimborsato da /api/order/cancel (A10). Per contanti e POS
+      // non è stato addebitato nulla.
+      const wasRefunded =
+        order.payment_status === 'refunded' || order.payment_status === 'partially_refunded';
+      const refundIt = wasRefunded
+        ? `Il pagamento online di € ${Number(order.refunded_amount ?? order.paid_amount ?? order.total).toFixed(2)} è stato rimborsato sulla carta o sul conto con cui hai pagato: a seconda della banca possono servire da 5 a 10 giorni lavorativi perché compaia.`
+        : 'Non ti è stato addebitato alcun importo.';
+      const refundEn = wasRefunded
+        ? `Your online payment of € ${Number(order.refunded_amount ?? order.paid_amount ?? order.total).toFixed(2)} has been refunded to the card or account you paid with: depending on your bank it may take 5 to 10 business days to appear.`
+        : 'You have not been charged.';
       emailHtml = `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
           <!-- Heading -->
@@ -226,8 +237,8 @@ export async function POST(request: Request) {
 
           <!-- INFO CARD -->
           <div style="background-color: #fff5f5; border: 1px solid #fed7d7; padding: 18px; border-radius: 10px; margin: 25px 0; color: #9b2c2c; font-size: 13.5px; line-height: 1.6;">
-            <p style="margin: 0 0 8px 0;"><strong>Nota del ristorante:</strong> Il locale ha annullato la richiesta. Se hai effettuato un pagamento online, l'importo ti verrà stornato/rimborsato. Per qualsiasi chiarimento puoi contattare direttamente il locale.</p>
-            <p style="margin: 0; font-style: italic; color: #b45309; border-top: 1px dashed #feb2b2; padding-top: 8px; margin-top: 8px;"><strong>Restaurant note:</strong> The restaurant has cancelled the request. If you paid online, the amount will be reversed/refunded. For any questions, please contact the restaurant directly.</p>
+            <p style="margin: 0 0 8px 0;"><strong>Nota del ristorante:</strong> Il locale ha annullato la richiesta. ${refundIt} Per qualsiasi chiarimento puoi contattare direttamente il locale.</p>
+            <p style="margin: 0; font-style: italic; color: #b45309; border-top: 1px dashed #feb2b2; padding-top: 8px; margin-top: 8px;"><strong>Restaurant note:</strong> The restaurant has cancelled the request. ${refundEn} For any questions, please contact the restaurant directly.</p>
           </div>
 
           <!-- DETAILS CARD -->

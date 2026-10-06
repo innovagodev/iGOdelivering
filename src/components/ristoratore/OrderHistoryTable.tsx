@@ -81,7 +81,16 @@ export default function OrderHistoryTable({
         items: itemsStr || 'Nessun articolo',
         total: Number(o.total || 0),
         type: o.type === 'domicilio' ? 'Consegna' : o.type === 'asporto' ? 'Asporto' : 'Tavolo',
-        payment: 'Contanti', // Default fallback
+        payment:
+          o.payment_status === 'paid'
+            ? 'Online · pagato'
+            : o.payment_status === 'refunded' || o.payment_status === 'partially_refunded'
+              ? 'Online · rimborsato'
+              : o.payment_method === 'pos'
+                ? 'POS'
+                : o.payment_method === 'cash'
+                  ? 'Contanti'
+                  : '—',
         status: mappedStatus,
         date: formattedDate,
         time: formattedTime,

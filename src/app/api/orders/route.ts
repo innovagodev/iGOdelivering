@@ -67,6 +67,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'server_error' }, { status: 500 });
   }
 
+  // Scadenza degli ordini online non pagati da oltre 30 minuti (migration
+  // 030). Rete di sicurezza che non dipende da pg_cron: costa una query.
+  const { error: expireError } = await admin.rpc('expire_unpaid_orders');
+  if (expireError) console.error('[orders] expire_unpaid_orders:', expireError.message);
+
   const result = await createOrder(admin, body, clientIp(request));
   if (isFail(result)) return NextResponse.json(result.body, { status: result.status });
   return NextResponse.json(result, { status: 201 });

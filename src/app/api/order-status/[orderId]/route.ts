@@ -64,6 +64,7 @@ export async function GET(
       `
       id, order_number, status, type, customer_address, table_number, scheduled_at,
       created_at, subtotal, delivery_fee, discount, total,
+      payment_method, payment_status, payment_expires_at,
       order_items ( name, price, qty, note, added_ingredients, removed_ingredients ),
       restaurants ( name, slug )
     `
@@ -75,6 +76,21 @@ export async function GET(
     console.error('[order-status] orders query error:', orderErr.message);
   }
 
+  // Ordine online non pagato oltre la scadenza: lo si fa scadere ora
+  // (migration 030), così il cliente vede lo stato vero.
+  if (
+    order &&
+    order.status === 'awaiting_payment' &&
+    order.payment_expires_at &&
+    new Date(order.payment_expires_at).getTime() < Date.now()
+  ) {
+    const { data: expired } = await admin.rpc('expire_unpaid_order', { p_order_id: order.id });
+    if (expired) {
+      order.status = 'expired';
+      order.payment_status = 'failed';
+    }
+  }
+
   if (order) {
     // A seconda di come PostgREST risolve l'embed, `restaurants` arriva come
     // oggetto o come array di un elemento.
@@ -84,6 +100,8 @@ export async function GET(
     return NextResponse.json({
       status: order.status,
       type: 'order',
+      paymentMethod: order.payment_method,
+      paymentStatus: order.payment_status,
       orderNumber: order.order_number,
       orderType: order.type,
       address: order.customer_address,

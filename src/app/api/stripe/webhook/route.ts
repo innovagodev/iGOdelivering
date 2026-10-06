@@ -126,8 +126,158 @@ async function handleEvent(
       return;
     }
 
+    case 'payment_intent.succeeded':
+      return onPaymentSucceeded(
+        stripe,
+        admin,
+        event.account ?? null,
+        event.data.object as Stripe.PaymentIntent
+      );
+
+    case 'payment_intent.payment_failed': {
+      // Il cliente può riprovare sullo stesso pagamento finché l'ordine non
+      // scade: si registra l'esito, l'ordine resta fuori dalla cucina.
+      const pi = event.data.object as Stripe.PaymentIntent;
+      const { error } = await admin
+        .from('orders')
+        .update({ payment_status: 'failed' })
+        .eq('stripe_payment_intent_id', pi.id)
+        .eq('status', 'awaiting_payment');
+      if (error) throw new Error(error.message);
+      return;
+    }
+
+    case 'payment_intent.canceled': {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      const { data: order } = await admin
+        .from('orders')
+        .select('id')
+        .eq('stripe_payment_intent_id', pi.id)
+        .maybeSingle();
+      if (!order) return;
+      const { error } = await admin.rpc('expire_unpaid_order', { p_order_id: order.id });
+      if (error) throw new Error(error.message);
+      return;
+    }
+
+    case 'charge.refunded': {
+      const charge = event.data.object as Stripe.Charge;
+      const piId =
+        typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
+      if (!piId) return;
+      const { data: order } = await admin
+        .from('orders')
+        .select('id, paid_amount')
+        .eq('stripe_payment_intent_id', piId)
+        .maybeSingle();
+      if (!order || order.paid_amount === null) return;
+      const refunded = Math.min(charge.amount_refunded / 100, Number(order.paid_amount));
+      const { error } = await admin
+        .from('orders')
+        .update({
+          refunded_amount: refunded,
+          payment_status:
+            charge.amount_refunded >= charge.amount ? 'refunded' : 'partially_refunded',
+        })
+        .eq('id', order.id);
+      if (error) throw new Error(error.message);
+      return;
+    }
+
+    case 'charge.dispute.created': {
+      // Contestazione aperta dal cliente presso la banca: la gestisce il
+      // ristorante dal suo dashboard Stripe. Qui resta traccia nei log.
+      const dispute = event.data.object as Stripe.Dispute;
+      console.warn(
+        '[stripe/webhook] contestazione aperta:',
+        event.account,
+        dispute.payment_intent,
+        dispute.amount,
+        dispute.reason
+      );
+      return;
+    }
+
     default:
-      // Eventi di pagamento: gestiti dalla fase 5.
       return;
   }
+}
+
+/**
+ * Pagamento riuscito: l'ordine entra in cucina.
+ *
+ * Controlli prima di farlo: il pagamento deve appartenere all'account del
+ * ristorante dell'ordine e l'importo incassato deve coincidere con il totale
+ * calcolato dal server. Se l'ordine non è più in attesa (scaduto o annullato
+ * prima che il pagamento arrivasse) o i controlli falliscono, il cliente
+ * viene rimborsato: non deve restare addebitato per un ordine che non
+ * riceverà.
+ */
+async function onPaymentSucceeded(
+  stripe: Stripe,
+  admin: NonNullable<ReturnType<typeof adminClient>>,
+  accountId: string | null,
+  pi: Stripe.PaymentIntent
+) {
+  const { data: order, error } = await admin
+    .from('orders')
+    .select('id, status, total, payment_status, stripe_account_id')
+    .eq('stripe_payment_intent_id', pi.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  // Pagamento non legato a un ordine (es. creato dal dashboard Stripe).
+  if (!order) return;
+  // Già registrato: evento ripetuto o arrivato dopo il rimborso.
+  if (
+    order.payment_status === 'paid' ||
+    order.payment_status === 'refunded' ||
+    order.payment_status === 'partially_refunded'
+  ) {
+    return;
+  }
+
+  const paid = pi.amount_received / 100;
+  const amountOk =
+    pi.amount_received === Math.round(Number(order.total) * 100) && pi.currency === 'eur';
+  const accountOk = !!accountId && accountId === order.stripe_account_id;
+
+  if (order.status === 'awaiting_payment' && amountOk && accountOk) {
+    const { error: updError } = await admin
+      .from('orders')
+      .update({
+        status: 'new',
+        payment_status: 'paid',
+        paid_amount: paid,
+        paid_at: new Date().toISOString(),
+      })
+      .eq('id', order.id)
+      .eq('status', 'awaiting_payment');
+    if (updError) throw new Error(updError.message);
+    return;
+  }
+
+  console.error('[stripe/webhook] pagamento non accettabile, rimborso:', {
+    order: order.id,
+    status: order.status,
+    amountOk,
+    accountOk,
+  });
+  if (accountId) {
+    await stripe.refunds.create(
+      { payment_intent: pi.id, reason: 'requested_by_customer' },
+      { stripeAccount: accountId, idempotencyKey: `igo-refund-late-${pi.id}` }
+    );
+  }
+  const { error: updError } = await admin
+    .from('orders')
+    .update({
+      payment_status: 'refunded',
+      paid_amount: paid,
+      refunded_amount: paid,
+      paid_at: new Date().toISOString(),
+    })
+    .eq('id', order.id);
+  if (updError) throw new Error(updError.message);
 }

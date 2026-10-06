@@ -21,6 +21,9 @@ export function useOrders(restaurantId: string) {
         .select('*, order_items(*)')
         .eq('restaurant_id', restaurantId)
         .gte('created_at', isoString)
+        // Ordini online non (ancora) pagati: fuori dalla cucina e dai conteggi.
+        // In attesa di pagamento o scaduti senza pagamento (migration 028/030).
+        .not('payment_status', 'in', '(pending,failed)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -61,9 +64,21 @@ export function useOrders(restaurantId: string) {
   }, [restaurantId]);
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-
-      if (error) throw error;
+      if (status === 'cancelled') {
+        // L'annullamento passa dal server, che rimborsa il cliente se l'ordine
+        // è stato pagato online (A10). Il database rifiuta comunque
+        // l'annullamento diretto di un ordine pagato (migration 030).
+        const res = await fetch('/api/order/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Annullamento non riuscito');
+      } else {
+        const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+        if (error) throw error;
+      }
 
       // Update local state immediately for fast response
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));

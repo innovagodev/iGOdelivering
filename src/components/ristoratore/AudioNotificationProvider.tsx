@@ -229,7 +229,11 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
           .order('created_at', { ascending: false });
 
         if (data) {
-          data.forEach((o: any) => seenOrderIdsRef.current.add(o.id));
+          // Un ordine in attesa di pagamento online non si segna come visto:
+          // deve far suonare l'allarme quando il pagamento lo porta a 'new'.
+          data.forEach((o: any) => {
+            if (o.status !== 'awaiting_payment') seenOrderIdsRef.current.add(o.id);
+          });
           localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
           window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
           setOrders(data);
@@ -311,8 +315,10 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
               ) {
                 seenOrderIdsRef.current.add(o.id);
                 hasNew = true;
-              } else if (!seenOrderIdsRef.current.has(o.id)) {
-                // If it's a past order in another status, just mark as seen
+              } else if (!seenOrderIdsRef.current.has(o.id) && o.status !== 'awaiting_payment') {
+                // If it's a past order in another status, just mark as seen.
+                // Gli ordini in attesa di pagamento restano "non visti" finché
+                // il webhook non li porta in cucina.
                 seenOrderIdsRef.current.add(o.id);
               }
             });

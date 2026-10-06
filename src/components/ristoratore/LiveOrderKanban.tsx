@@ -50,6 +50,8 @@ interface LiveOrder {
   deliveryTime?: string;
   deliveryDate?: string;
   scheduledAt?: string | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
 }
 
 
@@ -120,6 +122,12 @@ export default function LiveOrderKanban() {
     if (o.scheduled_at) {
       return o.status || 'pending';
     }
+    // Nemmeno quelli già pagati online: il cliente è stato addebitato, quindi
+    // restano in attesa finché il ristorante non li accetta o li rifiuta (con
+    // rimborso). Il database impedisce comunque di farli scadere (mig. 030).
+    if (o.payment_status === 'paid' || o.payment_status === 'partially_refunded') {
+      return o.status || 'new';
+    }
     if (o.status === 'new' || o.status === 'pending') {
       const mins = Math.max(
         0,
@@ -133,12 +141,10 @@ export default function LiveOrderKanban() {
   };
 
   const mapFlatOrder = (o: any): LiveOrder => {
-    const mins = Math.max(
-      0,
-      Math.floor(
-        (Date.now() - new Date(o.created_at || o.timestamp || o.createdAt).getTime()) / 60000
-      )
-    );
+    // Per un ordine pagato online il tempo parte dal pagamento: è da lì che
+    // l'ordine è arrivato in cucina.
+    const startedAt = o.paid_at || o.created_at || o.timestamp || o.createdAt;
+    const mins = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000));
 
     // Map array of items
     const items = Array.isArray(o.order_items)
@@ -183,6 +189,8 @@ export default function LiveOrderKanban() {
       status: getOrderStatus(enriched),
       deliveryTime: enriched.deliveryTime || '',
       deliveryDate: enriched.deliveryDate || '',
+      paymentMethod: enriched.payment_method ?? null,
+      paymentStatus: enriched.payment_status ?? null,
       scheduledAt: enriched.scheduled_at || null,
     };
   };
@@ -239,9 +247,17 @@ export default function LiveOrderKanban() {
     try {
       await updateOrderStatus(orderId, 'cancelled');
       const orderCode = found.order_number || found.id.replace('ord-', '').toUpperCase();
-      showToast(`Ordine #${orderCode} rifiutato`, 'danger');
-    } catch (e) {
-      showToast(`Errore durante il rifiuto dell'ordine`, 'danger');
+      const wasPaid = found.payment_status === 'paid';
+      showToast(
+        wasPaid
+          ? `Ordine #${orderCode} rifiutato, rimborso avviato al cliente`
+          : `Ordine #${orderCode} rifiutato`,
+        'danger'
+      );
+    } catch (e: any) {
+      // Per un ordine pagato online il messaggio spiega che il rimborso non è
+      // riuscito e l'ordine non è stato annullato.
+      showToast(e?.message || `Errore durante il rifiuto dell'ordine`, 'danger');
     }
   };
 
@@ -964,9 +980,24 @@ export default function LiveOrderKanban() {
                           <span className="tabular-nums">{formatMinutesAgo(order.minutesAgo)}</span>
                         </div>
                       </div>
-                      <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-100">
-                        € {order.total.toFixed(2)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {order.paymentStatus === 'paid' ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                            Pagato online
+                          </span>
+                        ) : order.paymentStatus === 'refunded' || order.paymentStatus === 'partially_refunded' ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            Rimborsato
+                          </span>
+                        ) : order.paymentMethod === 'cash' || order.paymentMethod === 'pos' ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                            Da incassare · {order.paymentMethod === 'pos' ? 'POS' : 'Contanti'}
+                          </span>
+                        ) : null}
+                        <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-100">
+                          € {order.total.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
 
                     {renderActions(col.key, order)}
