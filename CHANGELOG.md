@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.32.0](https://github.com/innovagodev/iGOdelivering/compare/v1.31.0...v1.32.0) (2026-10-06)
+
+
+### Features
+
+* **pagamenti:** collegamento Stripe reale nel pannello e stato nel wizard (fase 3) ([eda44ea](https://github.com/innovagodev/iGOdelivering/commit/eda44eab7d91492e7cedb85ad650ab060c90cf60))
+
 ## [1.31.0](https://github.com/innovagodev/iGOdelivering/compare/v1.30.5...v1.31.0) (2026-10-06)
 
 
