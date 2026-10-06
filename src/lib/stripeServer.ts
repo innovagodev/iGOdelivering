@@ -112,9 +112,24 @@ export async function syncRestaurantStripe(
     current_deadline: account.requirements?.current_deadline ?? null,
   };
 
+  // Scelte del titolare per servizio: il pagamento online si offre ai clienti
+  // (stripe_enabled) appena l'account può incassare, secondo quelle scelte.
+  // Prima dipendeva dal salvataggio del pannello: un titolare che tornava da
+  // Stripe con l'account attivo e non premeva "Salva" non offriva mai il
+  // pagamento online, pur vedendo gli interruttori accesi.
+  const { data: prefs } = await admin
+    .from('restaurants')
+    .select('stripe_delivery, stripe_pickup')
+    .eq('id', restaurantId)
+    .maybeSingle();
+  const offersOnline =
+    !!account.charges_enabled &&
+    (prefs?.stripe_delivery !== false || prefs?.stripe_pickup !== false);
+
   const { data, error } = await admin
     .from('restaurants')
     .update({
+      stripe_enabled: offersOnline,
       stripe_connected: !!account.charges_enabled,
       stripe_payouts_enabled: !!account.payouts_enabled,
       stripe_details_submitted: !!account.details_submitted,
