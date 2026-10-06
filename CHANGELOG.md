@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.31.0](https://github.com/innovagodev/iGOdelivering/compare/v1.30.5...v1.31.0) (2026-10-06)
+
+
+### Features
+
+* **db:** base dei pagamenti online, migration 028 (Stripe Connect, fase 1) ([cc87e47](https://github.com/innovagodev/iGOdelivering/commit/cc87e47fb17f4b1ddc194b28990151e31513730d))
+* **stripe:** collegamento dei ristoranti a Stripe Connect e webhook (fase 2) ([269d2ff](https://github.com/innovagodev/iGOdelivering/commit/269d2ff238fd343dda60f3fefa27efb91e0a8124))
+
+
+### Bug Fixes
+
+* **db:** il trigger di guardia su restaurants restituisce 42501 (migration 029) ([2eb6f0b](https://github.com/innovagodev/iGOdelivering/commit/2eb6f0b496001230c387fa75131890d438281a76))
+
 ### [1.30.5](https://github.com/innovagodev/iGOdelivering/compare/v1.30.4...v1.30.5) (2026-10-02)
 
 
