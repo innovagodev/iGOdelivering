@@ -1,6 +1,6 @@
 # Handoff — stato del progetto dopo le sessioni di audit
 
-**Aggiornato:** 30 settembre 2026 · **Riferimento:** `main` — codice in `ff609ac` (22 set) e in `6d044c3`…`819190d` (25 set), poi solo documentazione
+**Aggiornato:** 7 ottobre 2026 · **Riferimento:** `main`, release `v1.37.0` (tag `v1.36.2` è l'ultima già pubblicata prima di questo aggiornamento). Il codice dell'audit è in `ff609ac` (22 set) e `6d044c3`…`819190d` (25 set); i pagamenti e la regola di accettazione sono nelle release 1.31.0–1.37.0 (2–7 ott)
 **Da leggere insieme a:** `AUDIT_REPORT.md`
 
 > **L'audit non è più di sola lettura.** Il prompt iniziale chiedeva una diagnosi
@@ -10,11 +10,15 @@
 > `git log`). Chi riprende il lavoro deve partire da qui, non dal commit
 > iniziale `c144d72`.
 
-Il lavoro si è svolto in **due tornate**. La prima (22–23 settembre) ha
+Il lavoro si è svolto in **tre fasi**. La prima (22–23 settembre) ha
 ripristinato il servizio: vetrina invisibile e checkout che perdeva gli ordini.
-La seconda (25 settembre) ha chiuso una classe di difetti che la prima aveva solo
-sfiorato — le operazioni che RLS scarta in silenzio — più due buchi di
-autenticazione sulle route.
+La seconda (25 settembre, poi il 30 settembre e i primi di ottobre) ha chiuso una
+classe di difetti che la prima aveva solo sfiorato — le operazioni che RLS scarta
+in silenzio — più i buchi di autenticazione sulle route e il calcolo dei prezzi
+lato server. La terza (2–7 ottobre) ha costruito i **pagamenti online** (Stripe
+Connect) e, provandoli, ha portato alla luce che il timer di 3 minuti non
+scattava per nessun ordine: oggi c'è **una sola regola di accettazione** per
+ordini e prenotazioni (vedi le decisioni 16–22).
 
 ---
 
@@ -107,15 +111,28 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 | Storage per tenant | ✅ path annidati, oggetti migrati |
 | PAT GitHub e chiave Resend | ✅ revocati e ruotati |
 | Pagina di tracking ordine | ✅ funzionante, legge da route server-side |
-| Scadenza ordine non confermato | ✅ persistita a database |
+| Scadenza ordine non confermato | ✅ decisa e registrata dal server per ordini e prenotazioni (regola unica, mig. 034) |
 | Limite utilizzi codici promo | ✅ applicato, anche con checkout concorrenti |
 | Promo "primo ordine" | ✅ non più riutilizzabile |
 | Attivazione ristoratore | ✅ token monouso a scadenza |
 | `send-status-email` | ✅ richiede sessione ristoratore o admin |
-| Pagamenti | ❌ **inesistenti** — vedi sotto |
+| Pagamenti online | ✅ Stripe Connect (direct charges), carta autorizzata e poi incassata all'accettazione; **provati solo in modalità test** |
+| Scarto automatico delle autorizzazioni | ✅ job `pg_cron` + `pg_net` ogni minuto (`scripts/cron-expire-authorizations.sql`, eseguito a mano) |
+| Prenotazioni | ✅ capienza controllata dal database; scadono se non confermate (mig. 034) |
+| Notifiche all'utente | ✅ toast e finestre di conferma proprie (`src/lib/notify.ts`), niente `alert()` nativi |
 
-**Migration applicate:** 015, 016, 017, 018, 020–029. La **019 non va eseguita**:
-versiona colonne che in produzione esistono già.
+**Migration applicate:** 015, 016, 017, 018, 020–034. La **019 non va eseguita**:
+versiona colonne che in produzione esistono già. La **035 è scritta e da
+applicare** prima del deploy che la presuppone (chiude N23).
+
+| Migration | Contenuto |
+|---|---|
+| 028–029 | base dei pagamenti: colonne su `restaurants` e `orders`, `stripe_events`, trigger di guardia |
+| 030–031 | ciclo di vita dell'ordine online: scadenza a 30 minuti degli ordini non pagati, job `pg_cron` |
+| 032 | autorizzazione e cattura separate: `authorized_at`, `accept_deadline`, stati `authorized` e `voided` |
+| 033 | `restaurants.description_en` (descrizione in inglese, facoltativa) |
+| 034 | regola unica di accettazione: `acceptance_mode`, `accept_deadline` su ordini **e prenotazioni**, stato `expired` per le prenotazioni |
+| 035 | un ordine online non incassato non entra in preparazione dal browser |
 
 La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e
 prenotazioni. Da qui in poi la vetrina scrive solo tramite `/api/orders` e
@@ -248,6 +265,28 @@ Con la registrazione aperta chiunque otteneva una sessione autenticata (N17).
 Gli account dei ristoratori nascono solo da `auth.admin.createUser` nelle route
 server. Il token di attivazione sta in `restaurant_activation_tokens`, leggibile
 solo dal server; il consumo passa da `claim_restaurant()`.
+
+**16. I pagamenti sono autorizzati prima e incassati all'accettazione (`capture_method: manual`).**
+Il cliente autorizza l'importo, il ristorante ha una finestra per accettare; accettato → `/api/order/accept` cattura, rifiutato o scaduto → l'autorizzazione viene annullata e il cliente non è mai addebitato. Un solo timer per ogni metodo, nessun rimborso nei casi di rifiuto e scadenza, nessuna commissione Stripe persa. Il prezzo: il Payment Element mostra solo i metodi che supportano la cattura manuale. *Non tornare alla cattura automatica per "semplificare": riporta rimborsi, commissioni perse e un timer diverso per la carta.*
+
+**17. Ogni ristorante incassa sul proprio account Stripe (direct charges), la piattaforma non tocca i fondi.**
+I `PaymentIntent` si creano **sull'account del ristorante** (`{ stripeAccount }`), non su quello di InnovaGo. Le colonne `stripe_*` di `restaurants` e le colonne di pagamento di `orders` le scrive solo il server (trigger 028 → 035). *Un nuovo flusso che tocca denaro passa dal server: mai una policy che lascia scrivere il browser.*
+
+**18. La regola di accettazione è una sola ed è decisa dal server (`src/lib/acceptance.ts`).**
+Locale aperto quando il cliente ordina → `live`: 3 minuti, timer visibile, **qualunque orario abbia scelto** per il ritiro o la consegna. Locale chiuso → `deferred` (preordine): niente timer, scadenza **un'ora dopo la prossima apertura**. Vale per asporto, domicilio, tavolo e prenotazioni, con contanti, POS e carta; gli ordini al tavolo sono sempre `live`. *Non distinguere "programmato" dalla presenza di `scheduled_at`: nel checkout "il prima possibile" è disattivato (`showAsapOption = false`), quindi tutti gli ordini hanno un orario. È l'errore che per giorni ha tolto il timer a ogni ordine (N19).* La scadenza (`accept_deadline`) per la carta nasce all'autorizzazione (webhook), per contanti/POS alla creazione.
+
+**19. La scadenza la registra il server, mai il browser.**
+Il tracker del cliente, il pannello e il cron leggono lo stesso `accept_deadline`. Quando il timer arriva a zero il browser **chiede lo stato** a `/api/order-status` e mostra quello vero: se il ristoratore ha accettato all'ultimo secondo, il cliente vede "confermato", non "scaduto". Chi rileva la scadenza (`/api/order-status`, `/api/order/expire-due` chiamata dai pannelli, `/api/cron/expire-authorizations`) la registra con `expireOrder` / `expireBooking` in `src/lib/orderPayments.ts`, che per la carta annulla prima l'autorizzazione su Stripe. La RPC `expire_order` resta nel database ma l'applicazione non la usa più.
+
+**20. Il job di scarto è un `pg_cron` che chiama una route, eseguito a mano e con un segreto.**
+`scripts/cron-expire-authorizations.sql` non è una migration perché contiene `CRON_SECRET`: nel repository c'è il segnaposto `REPLACE_WITH_CRON_SECRET`. *Non committare mai lo script con il segreto vero.* Senza il job, un'autorizzazione resta bloccata sulla carta finché qualcuno non apre un pannello o un tracking (fino a circa 7 giorni). La route risponde 503 se `CRON_SECRET` manca e 401 se non coincide.
+
+**21. Le righe di un ordine si leggono da `order_items`, con colonne snake_case.**
+`added_ingredients` è un elenco di `{ name, price }`, non di stringhe. Il prezzo di una riga (`price`) è il **prezzo unitario comprensivo dei supplementi**: non sommare di nuovo i supplementi (era N21). In `LiveOrderKanban.tsx` la funzione `orderLines` normalizza le righe per schede, dettaglio e stampe. Ogni supplemento a pagamento va mostrato con il prezzo.
+
+**22. Notifiche e conferme passano da `src/lib/notify.ts`.**
+`notify.success/error/info` e `confirmAction` (finestra di conferma con pulsante rosso per le azioni distruttive), montati una volta nel layout (`NotifyHost`, libreria `sonner`). *Niente `alert()` né `confirm()` nativi: mostrano "app.… dice" e sembrano un prodotto non curato.* La "X" per rimuovere un chip è `RemoveBadge`; i pulsanti con icona non vogliono un "+" scritto a mano nel testo.
+
 ---
 
 ## Cosa è cambiato nel codice
@@ -297,6 +336,29 @@ solo dal server; il consumo passa da `claim_restaurant()`.
 | `src/app/menu/[slug]/page.tsx` | checkout e "Solo Tavolo" chiamano le route; rimosse le zone di consegna di esempio |
 | `supabase/migrations/020_server_side_checkout.sql` | toglie ad `anon` gli INSERT diretti — **applicata** dopo il deploy |
 
+### Quarta fase (2–7 ottobre) — pagamenti e regola di accettazione
+
+| File | Modifica |
+|---|---|
+| `supabase/migrations/028…035` | vedi la tabella delle migration sopra |
+| `src/lib/stripeServer.ts` | **nuovo** — client Stripe, sincronizzazione dello stato dell'account, contesto di autenticazione delle route |
+| `src/app/api/stripe/connect`, `status` | **nuove** — creazione dell'account e apertura della procedura Stripe; stato letto da Stripe |
+| `src/app/api/stripe/webhook/route.ts` | **nuova** — firma verificata, idempotenza (`stripe_events`), autorizzazione, incasso, annullamento, rimborso, `account.updated` |
+| `src/app/api/orders/route.ts` | `capture_method: manual`; calcola `acceptance_mode` e `accept_deadline`; fa scadere le richieste in ritardo |
+| `src/app/api/order/accept`, `cancel`, `expire-due` | **nuove / riscritte** — cattura all'accettazione; annullamento dell'autorizzazione o rimborso; scadenza chiamata dai pannelli |
+| `src/app/api/cron/expire-authorizations/route.ts` | **nuova** — scarto di ordini e prenotazioni scaduti, protetta da `CRON_SECRET` |
+| `src/lib/acceptance.ts` | **nuovo** — `decideAcceptance`, costanti 3 minuti / 1 ora / 6 giorni |
+| `src/lib/orderPayments.ts` | **nuovo** — `cancelAuthorization`, `expireOrder`, `expireBooking`, `expireDueRequests` |
+| `src/lib/serviceHours.ts` | `nextOpeningAt`, `zonedToUtc`, servizio `reservation` |
+| `src/components/menu/StripePayment.tsx` | **nuovo** — Payment Element |
+| `src/components/menu/BookingStatusNotice.tsx` | **nuovo** — timer o scadenza e esito di una prenotazione di solo tavolo |
+| `src/app/menu/[slug]/page.tsx` | tracker con timer dalla scadenza del server, "Riordina", ricevuta corretta, barra del tavolo fissa in cima |
+| `src/components/ristoratore/LiveOrderKanban.tsx` | `orderLines`, "Accetta entro mm:ss", azioni sugli ordini scaduti, scarto periodico |
+| `src/app/ristoratore/prenotazioni/page.tsx` | prenotazioni "Scadute" e scadenza per confermare |
+| `src/lib/notify.ts`, `src/components/ui/NotifyHost.tsx`, `RemoveBadge.tsx` | **nuovi** — notifiche, conferme, pulsante di rimozione |
+| `scripts/cron-expire-authorizations.sql` | job `pg_cron` (da eseguire a mano, segnaposto per il segreto) |
+| `scripts/db-tables-overview.sql`, `scripts/db-clean-test-data.sql` | elenco delle tabelle con righe; pulizia dei dati di collaudo |
+
 > **Attenzione operativa.** Ogni emissione di un link di attivazione **ruota il
 > token**: premere "Copia link attivazione" invalida il link già spedito per
 > email. È corretto per un monouso, ma cambia l'abitudine di lavoro.
@@ -305,17 +367,27 @@ solo dal server; il consumo passa da `claim_restaurant()`.
 
 ## Cosa resta aperto, in ordine di gravità
 
-**1. I pagamenti non esistono** (C6, C7). Nessun gateway, nessun webhook,
-nessuna colonna `payment_status`. Il checkout raccoglie PAN e CVV in chiaro in un
-form custom — violazione PCI-DSS — li valida e li **scarta**: l'ordine è creato
-senza addebito. Gli importi, almeno, sono già ricalcolati lato server (C8):
-un gateway addebiterebbe la cifra giusta.
+**1. Mettere i pagamenti in produzione (live).** Funzionano in modalità test:
+accettazione, rifiuto e scadenza sono stati collaudati, e il job di scarto
+risponde. Prima del primo incasso reale servono: l'endpoint webhook Connect in
+live con tutti gli eventi e il suo segreto, le chiavi live su Vercel, un ristorante
+vero collegato, un ordine reale da pochi euro con rimborso, e la prova a pannello
+chiuso (ordine non accettato → su Stripe "Annullato", nel database `expired` /
+`voided`). Checklist completa: Blocco 7 di `AUDIT_REPORT.md`.
 
-> **C8 andava chiuso prima di tutto il resto del blocco pagamenti.** Integrare un gateway
-> senza aver spostato il calcolo lato server significa addebitare la cifra decisa
-> dal cliente. Questo passo è fatto: C8 è chiuso dal 30 settembre
-> (`/api/orders`, migration 020). (`order_number` è già generato dal database: N8 è chiuso dal
-> 25 settembre con la RPC `generate_order_number`.)
+> **Ordine di rilascio da ricordare.** Ogni migration che aggiunge colonne va
+> applicata **prima** del deploy del codice che le scrive: la 034 e la 035 non
+> fanno eccezione. Con il codice nuovo e il database vecchio gli ordini danno 500.
+
+**1b. Rimasti sui pagamenti:** PayPal (non integrato), rimborsi parziali dal
+pannello, contestazioni (`charge.dispute.created` è solo registrata nei log), e i
+metodi di pagamento che non supportano la cattura manuale. Se un ristoratore
+chiede Satispay o PayPal, vanno valutati a parte.
+
+**1c. Prenotazioni.** Gli slot già passati della giornata corrente sono ancora
+prenotabili (M3, nella vetrina e in `/api/bookings`) e gli orari non usano un
+fuso per ristorante (A13). La conferma al cliente per email non c'è per le
+prenotazioni.
 
 **2. Capienza prenotazioni** (C9): chiuso il 2 ottobre con la migration 022.
 Resta da fare, quando servirà: i tavoli come entità (piantina, abbinamento
@@ -337,11 +409,14 @@ subito dopo l'incremento, quell'utilizzo di promo resta consumato a vuoto.
 Preferibile a regalare sconti illimitati, ma andrà chiuso.
 
 **6. Nessuna suite di test.** Nessuno dei guasti trovati dal 22 settembre
-sarebbe stato intercettato automaticamente. Le verifiche fatte finora — sonde
+sarebbe stato intercettato automaticamente, e nemmeno N19 (il timer che non
+scattava). La regola di accettazione (`acceptance.ts`) è la prima candidata:
+funzioni pure, con casi già verificati a mano (aperto, chiuso fra pranzo e cena,
+dopo la cena, giorno di chiusura, cambio all'ora solare). Le verifiche fatte finora — sonde
 con chiave anon e service role, giri del checkout in Chrome con la richiesta
 intercettata, ristoranti di prova creati e cancellati — sono la base naturale
 per scriverne una. (A1, il ruolo nel cookie, è chiuso dal 2 ottobre.)
 
-Il quadro completo — 30 rilievi risolti (3 dei quali chiusi fuori migration), 22
+Il quadro completo — 37 rilievi risolti (3 dei quali chiusi fuori migration), 20
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.
