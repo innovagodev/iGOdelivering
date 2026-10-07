@@ -65,6 +65,7 @@ export interface RestaurantSettingsFull {
 export interface RestaurantSettings {
   name: string;
   tagline?: string;
+  taglineEn?: string;
   address?: string;
   phone?: string;
   email?: string;

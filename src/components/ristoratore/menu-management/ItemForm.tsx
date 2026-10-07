@@ -262,7 +262,6 @@ export default function ItemForm({
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newChoiceName, setNewChoiceName] = useState<Record<string, string>>({});
-  const [newChoiceNameEn, setNewChoiceNameEn] = useState<Record<string, string>>({});
   const [newChoicePrice, setNewChoicePrice] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState(false);
   const [isSupplementsModalOpen, setIsSupplementsModalOpen] = useState(false);
@@ -683,12 +682,10 @@ export default function ItemForm({
   const handleAddChoice = (gid: string) => {
     const name = (newChoiceName[gid] || '').trim();
     if (!name) return;
-    const nameEn = (newChoiceNameEn[gid] || '').trim();
     const priceVal = newChoicePrice[gid] || '0';
     const newChoice: OptionChoice = {
       id: `ch-${Date.now()}`,
       name,
-      name_en: nameEn || undefined,
       price: priceVal,
     };
     setModalOptionGroups((prev) =>
@@ -702,7 +699,6 @@ export default function ItemForm({
       )
     );
     setNewChoiceName((prev) => ({ ...prev, [gid]: '' }));
-    setNewChoiceNameEn((prev) => ({ ...prev, [gid]: '' }));
     setNewChoicePrice((prev) => ({ ...prev, [gid]: '' }));
   };
 
@@ -1032,7 +1028,7 @@ export default function ItemForm({
             onClick={() => setEnSectionOpen(!enSectionOpen)}
             className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/10 transition-colors text-left font-bold"
           >
-            <span className="text-sm font-bold text-foreground">🌐 English Translation (optional)</span>
+            <span className="text-sm font-bold text-foreground">🌐 Traduzione inglese (facoltativa)</span>
             <ChevronDown
               size={18}
               className={`transition-transform duration-200 ${enSectionOpen ? 'rotate-180 text-primary' : 'text-muted-foreground'}`}
@@ -1651,7 +1647,11 @@ export default function ItemForm({
                       parseFloat(newSuppPrice) >= 0 ? parseFloat(newSuppPrice).toFixed(2) : '0.00';
                     setSupplementiSingoli((prev) => [
                       ...prev,
-                      { id: `choice-${Date.now()}`, name: newSuppName.trim(), price },
+                      {
+                        id: `choice-${Date.now()}`,
+                        name: newSuppName.trim(),
+                        price,
+                      },
                     ]);
                     setNewSuppName('');
                     setNewSuppPrice('');
@@ -1681,7 +1681,11 @@ export default function ItemForm({
                     parseFloat(newSuppPrice) >= 0 ? parseFloat(newSuppPrice).toFixed(2) : '0.00';
                   setSupplementiSingoli((prev) => [
                     ...prev,
-                    { id: `choice-${Date.now()}`, name: newSuppName.trim(), price },
+                    {
+                        id: `choice-${Date.now()}`,
+                        name: newSuppName.trim(),
+                        price,
+                      },
                   ]);
                   setNewSuppName('');
                   setNewSuppPrice('');
@@ -2066,44 +2070,6 @@ export default function ItemForm({
                         </div>
                       </div>
 
-                      {/* English translations for Group Name and Default Option */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                            🌐 Nome Gruppo (Versione Inglese)
-                          </label>
-                          <input
-                            type="text"
-                            value={activeGroup.name_en || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setModalOptionGroups((prev) =>
-                                prev.map((g) => (g.id === gid ? { ...g, name_en: val || undefined } : g))
-                              );
-                            }}
-                            placeholder="es. Choose dough, Extra toppings..."
-                            className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                            🌐 Opzione Default (Versione Inglese)
-                          </label>
-                          <input
-                            type="text"
-                            value={activeGroup.defaultOptionEn || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setModalOptionGroups((prev) =>
-                                prev.map((g) => (g.id === gid ? { ...g, defaultOptionEn: val || undefined } : g))
-                              );
-                            }}
-                            placeholder="es. Classic, None..."
-                            className="w-full px-3.5 py-2 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                          />
-                        </div>
-                      </div>
-
                       {/* Regole di Selezione & Vincoli */}
                       <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
                         <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
@@ -2302,19 +2268,6 @@ export default function ItemForm({
                           </button>
                         </div>
 
-                        {/* Choice English Translation */}
-                        <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 Traduzione EN (opzionale):</span>
-                          <input
-                            type="text"
-                            value={newChoiceNameEn[gid] || ''}
-                            onChange={(e) =>
-                              setNewChoiceNameEn((p) => ({ ...p, [gid]: e.target.value }))
-                            }
-                            placeholder="es. Ketchup, Extra Cheese..."
-                            className="flex-1 px-3 py-1.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                          />
-                        </div>
                       </div>
 
                       {/* Choices List */}
@@ -2421,31 +2374,6 @@ export default function ItemForm({
                                   </button>
                                 </div>
 
-                                {/* English translation in-place edit */}
-                                <div className="flex items-center gap-2 pl-1.5 w-full">
-                                  <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 EN:</span>
-                                  <input
-                                    type="text"
-                                    value={choice.name_en || ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setModalOptionGroups((p) =>
-                                        p.map((g) =>
-                                          g.id === gid
-                                            ? {
-                                                ...g,
-                                                choices: g.choices.map((c) =>
-                                                  c.id === choice.id ? { ...c, name_en: val || undefined } : c
-                                                ),
-                                              }
-                                            : g
-                                        )
-                                      );
-                                    }}
-                                    placeholder="English translation (optional)"
-                                    className="flex-1 px-3 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                                  />
-                                </div>
                               </div>
                             ))}
                           </div>

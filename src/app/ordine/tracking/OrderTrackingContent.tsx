@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Link from 'next/link';
+import { useLang } from '@/context/LanguageContext';
+import type { TranslationKey } from '@/lib/i18n';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,8 +27,8 @@ type TrackingStatus = 'confirmed' | 'preparing' | 'ready' | 'delivering' | 'deli
 
 interface TrackingStep {
   id: TrackingStatus;
-  label: string;
-  description: string;
+  label: TranslationKey;
+  description: TranslationKey;
   icon: React.ReactNode;
 }
 
@@ -35,32 +37,32 @@ interface TrackingStep {
 const STEPS: TrackingStep[] = [
   {
     id: 'confirmed',
-    label: 'Confermato',
-    description: 'Il ristorante ha ricevuto il tuo ordine',
+    label: 'ord_step_confirmed',
+    description: 'ord_step_confirmed_d',
     icon: <Check size={18} />,
   },
   {
     id: 'preparing',
-    label: 'In preparazione',
-    description: 'I tuoi piatti sono in cucina',
+    label: 'ord_step_preparing',
+    description: 'ord_step_preparing_d',
     icon: <ChefHat size={18} />,
   },
   {
     id: 'ready',
-    label: 'Pronto',
-    description: 'Il tuo ordine è pronto',
+    label: 'ord_step_ready',
+    description: 'ord_step_ready_d',
     icon: <Clock size={18} />,
   },
   {
     id: 'delivering',
-    label: 'In consegna',
-    description: 'Il corriere è in viaggio verso di te',
+    label: 'ord_step_delivering',
+    description: 'ord_step_delivering_d',
     icon: <Bike size={18} />,
   },
   {
     id: 'delivered',
-    label: 'Consegnato',
-    description: 'Buon appetito!',
+    label: 'ord_step_delivered',
+    description: 'ord_step_delivered_d',
     icon: <Home size={18} />,
   },
 ];
@@ -97,6 +99,9 @@ const dbStatusToTracking = (dbStatus: string): TrackingStatus => {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OrderTrackingContent() {
+  const { t } = useLang();
+  const tRef = React.useRef(t);
+  tRef.current = t;
   const searchParams = useSearchParams();
   // UUID dell'ordine. Non `order_number`: quello è corto e sequenziale per
   // ristorante, quindi enumerabile da chiunque. Resta mostrato a schermo come
@@ -247,8 +252,8 @@ export default function OrderTrackingContent() {
         ) {
           const step = STEPS.find((s) => s.id === trackingStatus);
           if (step) {
-            new Notification(`Stato Ordine: ${step.label}`, {
-              body: step.description,
+            new Notification(tRef.current('ord_notif_title', { label: tRef.current(step.label) }), {
+              body: tRef.current(step.description),
               icon: '/favicon.ico',
             });
           }
@@ -267,10 +272,10 @@ export default function OrderTrackingContent() {
 
   const typeLabel =
     orderType === 'domicilio'
-      ? 'Consegna a domicilio'
+      ? t('checkout_home_delivery')
       : orderType === 'asporto'
-        ? 'Asporto'
-        : 'Al tavolo';
+        ? t('checkout_takeaway')
+        : t('ord_type_table');
 
   const TypeIcon =
     orderType === 'domicilio'
@@ -294,12 +299,12 @@ export default function OrderTrackingContent() {
             <AlertCircle size={24} className="text-muted-foreground" />
           </div>
           <h1 className="text-lg font-bold text-foreground mb-2">
-            {isNotFound ? 'Ordine non trovato' : 'Impossibile caricare l’ordine'}
+            {isNotFound ? t('ord_not_found') : t('ord_load_failed')}
           </h1>
           <p className="text-sm text-muted-foreground mb-6">
             {isNotFound
-              ? 'Il link di tracking non è valido o l’ordine non esiste più. Controlla di aver aperto il link completo ricevuto via email.'
-              : 'C’è stato un problema nel recupero dei dati. Controlla la connessione e riprova.'}
+              ? t('ord_not_found_d')
+              : t('ord_load_failed_d')}
           </p>
           <div className="flex gap-3">
             {!isNotFound && (
@@ -307,14 +312,14 @@ export default function OrderTrackingContent() {
                 onClick={() => window.location.reload()}
                 className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold text-sm py-3 rounded-xl transition-colors"
               >
-                Riprova
+                {t('ord_retry')}
               </button>
             )}
             <Link
               href="/"
               className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-3 border border-border transition-colors"
             >
-              Torna alla home
+              {t('ord_home')}
             </Link>
           </div>
         </div>
@@ -333,10 +338,9 @@ export default function OrderTrackingContent() {
         {/* ── Pagamento online ── */}
         {!isLoading && rawStatus === 'awaiting_payment' && redirectStatus === 'failed' && (
           <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900/40 px-5 py-4 text-sm text-red-700 dark:text-red-400">
-            <p className="font-bold">Pagamento non riuscito</p>
+            <p className="font-bold">{t('ord_pay_failed')}</p>
             <p className="text-xs mt-1">
-              L&apos;ordine non è stato inviato al ristorante e nessun importo è stato addebitato.
-              Torna al menu per riprovare.
+              {t('ord_pay_failed_d')}
             </p>
           </div>
         )}
@@ -344,21 +348,18 @@ export default function OrderTrackingContent() {
           <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900/40 px-5 py-4 text-sm text-blue-700 dark:text-blue-400 flex items-center gap-3">
             <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
             <div>
-              <p className="font-bold">Stiamo confermando il pagamento…</p>
+              <p className="font-bold">{t('ord_pay_confirming')}</p>
               <p className="text-xs mt-0.5">
-                L&apos;ordine arriverà al ristorante appena Stripe conferma l&apos;incasso, di
-                solito in pochi secondi.
+                {t('ord_pay_confirming_d')}
               </p>
             </div>
           </div>
         )}
         {!isLoading && rawStatus === 'expired' && (
           <div className="rounded-2xl border border-border bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
-            <p className="font-bold text-foreground">Ordine scaduto</p>
+            <p className="font-bold text-foreground">{t('ord_expired')}</p>
             <p className="text-xs mt-1">
-              L&apos;ordine non è stato confermato in tempo e non verrà preparato. Se avevi pagato
-              online, l&apos;importo bloccato sulla carta viene rilasciato e non ti è stato
-              addebitato nulla.
+              {t('ord_expired_d')}
             </p>
           </div>
         )}
@@ -374,7 +375,7 @@ export default function OrderTrackingContent() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                  Ordine
+                  {t('ord_order')}
                 </p>
                 <h1 className="text-base font-bold text-foreground">{orderNumber || '—'}</h1>
                 {restaurantName && (
@@ -388,7 +389,7 @@ export default function OrderTrackingContent() {
               {!isDelivered && estimatedMinutes !== null && estimatedMinutes > 0 && (
                 <div className="flex-shrink-0 text-right">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                    Stima residua
+                    {t('ord_remaining')}
                   </p>
                   <p className="text-2xl font-bold text-primary tabular-nums">
                     {estimatedMinutes} min
@@ -414,7 +415,7 @@ export default function OrderTrackingContent() {
 
         {/* ── Tracking Steps ── */}
         <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground mb-5">Stato ordine</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-5">{t('ord_status')}</h2>
           <div className="space-y-0">
             {STEPS.map((step, idx) => {
               const isDone = idx < currentIdx;
@@ -450,17 +451,17 @@ export default function OrderTrackingContent() {
                       className={`text-sm font-semibold leading-tight ${isPending ? 'text-muted-foreground' : 'text-foreground'
                         }`}
                     >
-                      {step.label}
+                      {t(step.label)}
                     </p>
                     <p
                       className={`text-xs mt-0.5 ${isPending ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
                     >
-                      {step.description}
+                      {t(step.description)}
                     </p>
                     {isActive && !isDelivered && (
                       <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary bg-secondary px-2 py-0.5 rounded-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        In corso
+                        {t('ord_in_progress')}
                       </span>
                     )}
                   </div>
@@ -479,7 +480,7 @@ export default function OrderTrackingContent() {
             >
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Package size={16} className="text-primary" />
-                Riepilogo ordine
+                {t('ord_summary')}
               </div>
               <ChevronRight
                 size={16}
@@ -514,23 +515,23 @@ export default function OrderTrackingContent() {
                 {/* Totals */}
                 <div className="border-t border-border pt-3 space-y-1.5 text-sm">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotale</span>
+                    <span>{t('cart_subtotal')}</span>
                     <span className="tabular-nums">€{subtotal.toFixed(2)}</span>
                   </div>
                   {deliveryFee > 0 && (
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Consegna</span>
+                      <span>{t('ord_delivery')}</span>
                       <span className="tabular-nums">€{deliveryFee.toFixed(2)}</span>
                     </div>
                   )}
                   {discount > 0 && (
                     <div className="flex justify-between text-[var(--success)]">
-                      <span>Sconto</span>
+                      <span>{t('cart_discount')}</span>
                       <span className="tabular-nums">−€{discount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-foreground text-base pt-1 border-t border-border">
-                    <span>Totale</span>
+                    <span>{t('order_total_label')}</span>
                     <span className="tabular-nums">€{total.toFixed(2)}</span>
                   </div>
                 </div>
@@ -542,7 +543,7 @@ export default function OrderTrackingContent() {
         {/* ── Support ── */}
         <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-4">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">
-            Assistenza
+            {t('ord_support')}
           </p>
           <div className="flex gap-3">
             <a
@@ -550,7 +551,7 @@ export default function OrderTrackingContent() {
               className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors"
             >
               <Phone size={15} className="text-primary" />
-              Chiama
+              {t('ord_call')}
             </a>
             <button className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors">
               <MessageCircle size={15} className="text-primary" />
@@ -565,7 +566,7 @@ export default function OrderTrackingContent() {
             href="/"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
           >
-            Torna alla home
+            {t('ord_home')}
           </Link>
         </div>
       </div>

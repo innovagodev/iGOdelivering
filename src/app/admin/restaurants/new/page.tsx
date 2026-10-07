@@ -35,6 +35,10 @@ const ScheduledOrdersStep = dynamic(
 const PaymentStep = dynamic(() => import('@/components/admin/restaurant-wizard/PaymentStep'), {
   ssr: false,
 });
+const TranslationsStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/TranslationsStep'),
+  { ssr: false }
+);
 const MenuStep = dynamic(() => import('@/components/admin/restaurant-wizard/MenuStep'), {
   ssr: false,
 });
@@ -65,7 +69,15 @@ import {
   TIME_WINDOWS,
 } from '@/lib/constants';
 
-type WizardStep = 'info' | 'delivery' | 'hours' | 'scheduled' | 'payment' | 'menu' | 'review';
+type WizardStep =
+  | 'info'
+  | 'delivery'
+  | 'hours'
+  | 'scheduled'
+  | 'payment'
+  | 'menu'
+  | 'translations'
+  | 'review';
 
 const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'info', label: 'Informazioni', description: 'Dati anagrafici e contatti' },
@@ -74,6 +86,7 @@ const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'scheduled', label: 'Programmati', description: 'Ordini prenotati in anticipo' },
   { id: 'payment', label: 'Pagamento', description: 'Metodi di pagamento accettati' },
   { id: 'menu', label: 'Menu', description: 'Categorie, piatti e opzioni' },
+  { id: 'translations', label: 'Traduzioni', description: 'Menu in inglese (facoltativo)' },
   { id: 'review', label: 'Pubblica', description: 'Revisione e pubblicazione' },
 ];
 
@@ -163,11 +176,18 @@ export default function NewRestaurantPage() {
     reservation: false,
   });
 
-  const [temporaryClosure, setTemporaryClosure] = useState({
+  const [temporaryClosure, setTemporaryClosure] = useState<{
+    enabled: boolean;
+    from: string;
+    to: string;
+    message: string;
+    messageEn?: string;
+  }>({
     enabled: false,
     from: '',
     to: '',
     message: '',
+    messageEn: '',
   });
   const [tableBooking, setTableBooking] = useState<TableBookingConfig>({
     enabled: false,
@@ -272,6 +292,7 @@ export default function NewRestaurantPage() {
     'scheduled',
     'payment',
     'menu',
+    'translations',
     'review',
   ];
   const currentIndex = stepOrder.indexOf(currentStep);
@@ -623,6 +644,7 @@ export default function NewRestaurantPage() {
       vat_number: info.vatNumber || null,
       category: info.category || null,
       description: info.description || null,
+      description_en: info.descriptionEn?.trim() || null,
       logo_url: logoUrlToSave,
       background_url: backgroundUrlToSave,
       status: status,
@@ -1265,6 +1287,19 @@ export default function NewRestaurantPage() {
                 }
               />
             )}
+            {currentStep === 'translations' && (
+              <TranslationsStep
+                info={info}
+                setInfo={setInfo}
+                menuCategories={menuCategories}
+                setMenuCategories={setMenuCategories}
+                menuItems={menuItems}
+                setMenuItems={setMenuItems}
+                optionGroups={optionGroups}
+                setOptionGroups={setOptionGroups}
+              />
+            )}
+
             {currentStep === 'review' && (
               <ReviewStep
                 info={info}

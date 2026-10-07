@@ -46,6 +46,7 @@ export default function PromozioniPage() {
   const [description, setDescription] = useState('');
   const [maxUses, setMaxUses] = useState('');
   const [customBannerText, setCustomBannerText] = useState('');
+  const [customBannerTextEn, setCustomBannerTextEn] = useState('');
   const [applicableDeliveryModes, setApplicableDeliveryModes] = useState<
     ('domicilio' | 'asporto' | 'tavolo')[]
   >(['domicilio', 'asporto', 'tavolo']);
@@ -91,6 +92,7 @@ export default function PromozioniPage() {
             maxUses: p.max_uses || undefined,
             usedCount: p.used_count || 0,
             customBannerText: p.custom_banner_text || undefined,
+            customBannerTextEn: p.custom_banner_text_en || undefined,
             applicableDeliveryModes: p.applicable_delivery_modes || [
               'domicilio',
               'asporto',
@@ -155,6 +157,7 @@ export default function PromozioniPage() {
     setDescription(promo.description || '');
     setMaxUses(promo.maxUses !== undefined ? promo.maxUses.toString() : '');
     setCustomBannerText(promo.customBannerText || '');
+    setCustomBannerTextEn(promo.customBannerTextEn || '');
     setApplicableDeliveryModes(promo.applicableDeliveryModes || ['domicilio', 'asporto', 'tavolo']);
     setShowModal(true);
   };
@@ -195,6 +198,7 @@ export default function PromozioniPage() {
       description: description.trim() ? description.trim() : null,
       max_uses: maxUses ? parseInt(maxUses, 10) : null,
       custom_banner_text: customBannerText.trim() ? customBannerText.trim() : null,
+      custom_banner_text_en: customBannerTextEn.trim() ? customBannerTextEn.trim() : null,
       applicable_delivery_modes:
         applicableDeliveryModes.length > 0 ? applicableDeliveryModes : null,
     };
@@ -224,6 +228,7 @@ export default function PromozioniPage() {
             maxUses: data.max_uses || undefined,
             usedCount: data.used_count || 0,
             customBannerText: data.custom_banner_text || undefined,
+            customBannerTextEn: data.custom_banner_text_en || undefined,
             applicableDeliveryModes: data.applicable_delivery_modes || [
               'domicilio',
               'asporto',
@@ -251,6 +256,7 @@ export default function PromozioniPage() {
             maxUses: data.max_uses || undefined,
             usedCount: data.used_count || 0,
             customBannerText: data.custom_banner_text || undefined,
+            customBannerTextEn: data.custom_banner_text_en || undefined,
             applicableDeliveryModes: data.applicable_delivery_modes || [
               'domicilio',
               'asporto',
@@ -801,6 +807,16 @@ export default function PromozioniPage() {
               value={customBannerText}
               onChange={(e) => setCustomBannerText(e.target.value)}
               placeholder="Es. 🎉 Usa il codice WELCOME10 per ricevere il 10% di sconto sul primo ordine!"
+              className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+            />
+            <label className="block text-[11px] font-semibold text-muted-foreground mt-2 mb-1">
+              🌐 Versione inglese (facoltativa — se vuota, ai clienti in inglese compare il banner
+              automatico)
+            </label>
+            <textarea
+              value={customBannerTextEn}
+              onChange={(e) => setCustomBannerTextEn(e.target.value)}
+              placeholder="E.g. 🎉 Use code WELCOME10 to get 10% off your first order!"
               className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
             />
           </div>

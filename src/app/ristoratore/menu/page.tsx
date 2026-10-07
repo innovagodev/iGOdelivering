@@ -8,6 +8,9 @@ import { supabase } from '@/lib/supabase';
 import { uploadImage } from '@/lib/storage-upload';
 
 import MenuEditorTab from '@/components/ristoratore/menu-management/MenuEditorTab';
+import TranslationsTab from '@/components/ristoratore/menu-management/TranslationsTab';
+import { getItemMissing } from '@/components/ristoratore/menu-management/TranslationStatus';
+import TranslationStatus from '@/components/ristoratore/menu-management/TranslationStatus';
 import { MenuItem, MenuItemDraft } from '@/types';
 import { isMockRestaurant } from '@/lib/restaurant-utils';
 
@@ -37,6 +40,8 @@ export default function RistoratoreMenuPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
+  const [categoriesEn, setCategoriesEn] = useState<Record<string, string>>({});
+  const [view, setView] = useState<'menu' | 'translations'>('menu');
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tutti');
   const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
@@ -79,6 +84,11 @@ export default function RistoratoreMenuPage() {
       const categoryNames =
         dbCats && dbCats.length > 0 ? dbCats.map((c) => c.name) : DEFAULT_CATEGORIES;
       setCategories(categoryNames);
+      setCategoriesEn(
+        Object.fromEntries(
+          (dbCats || []).filter((c) => c.name_en).map((c) => [c.name, c.name_en as string])
+        )
+      );
 
       // 2. Fetch items
       const { data: dbItems, error: itemError } = await supabase
@@ -520,6 +530,58 @@ export default function RistoratoreMenuPage() {
                   </div>
                 </div>
 
+                {/* Selettore vista: menu / traduzioni */}
+                <div className="flex gap-1 p-1 bg-muted/50 rounded-xl w-full sm:w-fit">
+                  {(
+                    [
+                      ['menu', 'Menu'],
+                      [
+                        'translations',
+                        `🌐 Traduzioni${
+                          items.some((i) => getItemMissing(i).length > 0) ? ' •' : ''
+                        }`,
+                      ],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setView(id)}
+                      className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                        view === id
+                          ? 'bg-card text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {view === 'translations' && (
+                  <TranslationsTab
+                    restaurantId={restaurantId}
+                    items={items}
+                    setItems={setItems}
+                    categories={categories}
+                    categoriesEn={categoriesEn}
+                    setCategoriesEn={setCategoriesEn}
+                    onEditItem={(id) => {
+                      setView('menu');
+                      setEditingItemId(id);
+                    }}
+                  />
+                )}
+
+                {view === 'menu' && (
+                  <>
+                <TranslationStatus
+                  items={items}
+                  categories={categories}
+                  categoriesEn={categoriesEn}
+                  onOpenTranslations={() => setView('translations')}
+                />
+
                 <MenuEditorTab
                   search={search}
                   setSearch={setSearch}
@@ -570,6 +632,8 @@ export default function RistoratoreMenuPage() {
                   emptyDraft={emptyDraft}
                   allergensList={ALLERGENS_LIST}
                 />
+                  </>
+                )}
               </>
             )}
           </div>

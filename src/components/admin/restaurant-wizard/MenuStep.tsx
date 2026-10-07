@@ -358,7 +358,6 @@ export default function MenuStep({
   const [customTag, setCustomTag] = React.useState('');
   const [newIngredientInput, setNewIngredientInput] = React.useState('');
   const [showErrors, setShowErrors] = React.useState(false);
-  const [enSectionOpen, setEnSectionOpen] = React.useState(false);
 
   const handleSortNewChoices = (direction: 'asc' | 'desc') => {
     if (onSortNewGroupChoices) {
@@ -593,11 +592,6 @@ export default function MenuStep({
                 </button>
               )}
               <span>{cat.name}</span>
-              {cat.name_en && (
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  ({cat.name_en})
-                </span>
-              )}
               {idx < menuCategories.length - 1 && (
                 <button
                   type="button"
@@ -629,18 +623,6 @@ export default function MenuStep({
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 placeholder="Nome categoria (es. Pizze, Primi...)"
-                className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Nome Categoria (EN) (opzionale)
-              </label>
-              <input
-                type="text"
-                value={newCategoryNameEn}
-                onChange={(e) => setNewCategoryNameEn(e.target.value)}
-                placeholder="Category name (e.g. Pizzas, First Courses...)"
                 className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
               />
             </div>
@@ -749,28 +731,6 @@ export default function MenuStep({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Nome Gruppo (EN)</label>
-                <input
-                  type="text"
-                  value={newGroupNameEn}
-                  onChange={(e) => setNewGroupNameEn(e.target.value)}
-                  placeholder="es. Choose dough, Extra toppings..."
-                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Opzione Default (EN)</label>
-                <input
-                  type="text"
-                  value={newGroupDefaultOptionEn}
-                  onChange={(e) => setNewGroupDefaultOptionEn(e.target.value)}
-                  placeholder="es. Classic, None..."
-                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-                />
-              </div>
-            </div>
             {/* Regole di Selezione & Vincoli per il Nuovo Gruppo */}
             <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
@@ -968,16 +928,6 @@ export default function MenuStep({
                       <Trash2 size={13} />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 pl-1.5 w-full">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 EN:</span>
-                    <input
-                      type="text"
-                      value={choice.name_en || ''}
-                      onChange={(e) => updateChoice(choice.id, 'name_en', e.target.value)}
-                      placeholder="English translation (optional)"
-                      className="flex-1 px-3 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                    />
-                  </div>
                 </div>
               ))}
               <button
@@ -1051,28 +1001,6 @@ export default function MenuStep({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Nome Gruppo (EN)</label>
-                <input
-                  type="text"
-                  value={editGroupNameEn}
-                  onChange={(e) => setEditGroupNameEn(e.target.value)}
-                  placeholder="es. Choose dough, Extra toppings..."
-                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1">🌐 Opzione Default (EN)</label>
-                <input
-                  type="text"
-                  value={editGroupDefaultOptionEn}
-                  onChange={(e) => setEditGroupDefaultOptionEn(e.target.value)}
-                  placeholder="es. Classic, None..."
-                  className="w-full px-3 py-2 text-base bg-input border border-border rounded-xl focus:outline-none"
-                />
-              </div>
-            </div>
             {/* Regole di Selezione & Vincoli per il Gruppo in Modifica */}
             <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-sm text-left">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 pb-2 flex items-center gap-1.5">
@@ -1270,16 +1198,6 @@ export default function MenuStep({
                     >
                       <Trash2 size={13} />
                     </button>
-                  </div>
-                  <div className="flex items-center gap-2 pl-1.5 w-full">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">🌐 EN:</span>
-                    <input
-                      type="text"
-                      value={choice.name_en || ''}
-                      onChange={(e) => updateEditChoice(choice.id, 'name_en', e.target.value)}
-                      placeholder="English translation (optional)"
-                      className="flex-1 px-3 py-1 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                    />
                   </div>
                 </div>
               ))}
@@ -1637,84 +1555,6 @@ export default function MenuStep({
                     rows={2}
                     className="w-full px-3 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                   />
-                </div>
-                {/* Collapsible Accordion: English Translation */}
-                <div className="border border-border/60 rounded-2xl overflow-hidden bg-card">
-                  <button
-                    type="button"
-                    onClick={() => setEnSectionOpen(!enSectionOpen)}
-                    className="w-full px-5 py-4 flex items-center justify-between hover:bg-muted/10 transition-colors text-left font-bold"
-                  >
-                    <span className="text-xs font-bold text-foreground">🌐 English Translation (optional)</span>
-                    <ChevronDown
-                      size={18}
-                      className={`transition-transform duration-200 ${enSectionOpen ? 'rotate-180 text-primary' : 'text-muted-foreground'}`}
-                    />
-                  </button>
-                  {enSectionOpen && (
-                    <div className="px-5 pb-5 pt-1 border-t border-border/40 space-y-4 bg-muted/5 animate-in slide-in-from-top-1 duration-150 text-left">
-                      {/* Name EN */}
-                      <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Dish Name (EN)
-                        </label>
-                        <input
-                          type="text"
-                          value={newItem.name_en || ''}
-                          onChange={(e) => setNewItem((p) => ({ ...p, name_en: e.target.value }))}
-                          placeholder="e.g. Margherita Pizza"
-                          className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                        />
-                      </div>
-
-                      {/* Description EN */}
-                      <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Description (EN)
-                        </label>
-                        <textarea
-                          value={newItem.description_en || ''}
-                          onChange={(e) => setNewItem((p) => ({ ...p, description_en: e.target.value }))}
-                          rows={2}
-                          placeholder="e.g. Classic pizza with tomato sauce and fresh mozzarella"
-                          className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
-                        />
-                      </div>
-
-                      {/* Ingredients EN Translations */}
-                      {newItem.ingredients && newItem.ingredients.length > 0 && (
-                        <div>
-                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                            Ingredients Translation (EN)
-                          </label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3 bg-muted/20 border border-border rounded-xl">
-                            {(newItem.ingredients || []).map((ing, idx) => {
-                              const currentVal = newItem.ingredients_en?.[idx] || '';
-                              return (
-                                <div key={`ing-en-${ing}`} className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-foreground truncate w-24 sm:w-32 block">{ing}:</span>
-                                  <input
-                                    type="text"
-                                    value={currentVal}
-                                    onChange={(e) => {
-                                      const updatedEn = [...(newItem.ingredients_en || [])];
-                                      while (updatedEn.length < (newItem.ingredients || []).length) {
-                                        updatedEn.push('');
-                                      }
-                                      updatedEn[idx] = e.target.value;
-                                      setNewItem((p) => ({ ...p, ingredients_en: updatedEn }));
-                                    }}
-                                    placeholder={`Translation of ${ing}`}
-                                    className="flex-1 px-2.5 py-1.5 text-xs bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">

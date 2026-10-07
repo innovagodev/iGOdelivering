@@ -72,6 +72,7 @@ import {
   minNoticeMinutes as sharedMinNoticeMinutes,
 } from '@/lib/serviceHours';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
+import { mergeTranslated } from '@/lib/menu-translations';
 
 
 // ─── Types ────────────────────────────────────────────────────
@@ -91,7 +92,9 @@ interface MenuItemType {
   spicy?: boolean;
   available?: boolean;
   allergens: string[];
+  allergens_en?: string[];
   dishTags?: string[];
+  dishTagsEn?: string[];
   ingredients?: string[];
   ingredients_en?: string[];
   optionGroups?: any[];
@@ -114,6 +117,12 @@ interface CartItem extends MenuItemType {
  * stesso nome in gruppi diversi: il server lo accetta unicamente se coincide
  * con quello configurato per quel piatto, e addebita il proprio.
  */
+const localizedRemoved = (item: any, rem: string, lang: string) => {
+  if (lang !== 'en') return rem;
+  const idx = Array.isArray(item?.ingredients) ? item.ingredients.indexOf(rem) : -1;
+  return idx >= 0 && item.ingredients_en?.[idx]?.trim() ? item.ingredients_en[idx] : rem;
+};
+
 const cartToLines = (cart: CartItem[]) =>
   cart.map((item) => ({
     menuItemId: item.id,
@@ -365,7 +374,7 @@ function CartSidebar({
                         ))}
                         {item.removedIngredients?.map((rem) => (
                           <div key={rem} className="text-red-500 font-semibold flex justify-between">
-                            <span>{lang === 'en' ? `- Without ${rem}` : `- Senza ${rem}`}</span>
+                            <span>{lang === 'en' ? `- Without ${localizedRemoved(item, rem, lang)}` : `- Senza ${rem}`}</span>
                             <span className="text-[9px] text-red-400 font-normal">{t('cart_removed')}</span>
                           </div>
                         ))}
@@ -643,7 +652,10 @@ function MenuItemCard({
 
   const displayName = lang === 'en' && item.name_en ? item.name_en : item.name;
   const displayDescription = lang === 'en' && item.description_en ? item.description_en : item.description;
-  const displayIngredients = lang === 'en' && item.ingredients_en && item.ingredients_en.length > 0 ? item.ingredients_en : item.ingredients;
+  const displayIngredients =
+    lang === 'en' && item.ingredients && item.ingredients.length > 0
+      ? mergeTranslated(item.ingredients, item.ingredients_en)
+      : item.ingredients;
 
   // Trova se c'è un elemento di base (senza personalizzazioni) nel carrello
   const defaultCartItem = cart.find(
@@ -694,10 +706,12 @@ function MenuItemCard({
             </h4>
             <div className="flex items-center gap-0.5">
               {item.dishTags &&
-                item.dishTags.map((tag) => {
+                item.dishTags.map((tag, tagIdx) => {
                   const icon = getTagIcon(tag);
                   if (!icon) return null;
-                  const label = getCleanTagLabel(tag);
+                  const label = getCleanTagLabel(
+                    lang === 'en' && item.dishTagsEn?.[tagIdx] ? item.dishTagsEn[tagIdx] : tag
+                  );
                   return (
                     <span
                       key={`${item.id}-${tag}`}
@@ -780,7 +794,7 @@ function MenuItemCard({
                 onAdd(item);
               }}
               className="w-8 h-8 bg-primary hover:bg-primary-hover text-white rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all mt-2 cursor-pointer"
-              title="Aggiungi al carrello"
+              title={t('detail_add_to_cart')}
             >
               <Plus size={14} strokeWidth={3} />
             </button>
@@ -1043,7 +1057,7 @@ function CheckoutModal({
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
             item.addedIngredients
               ?.map((i: any) => '+' + (lang === 'en' && i.name_en ? i.name_en : i.name))
-              .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + i : '-' + i))
+              .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + localizedRemoved(item, i, lang) : '-' + i))
               .join(', ') +
             '</div>'
             : '';
@@ -1247,7 +1261,7 @@ function CheckoutModal({
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
                           ?.map((i: any) => `+${lang === 'en' && i.name_en ? i.name_en : i.name}`)
-                          .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? `-Without ${i}` : `-${i}`))
+                          .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? `-Without ${localizedRemoved(item, i, lang)}` : `-${i}`))
                           .join(', ')}
                       </p>
                     )}
@@ -2200,7 +2214,7 @@ function CheckoutModal({
 
     const rId = restaurantSettings.id;
     if (!rId) {
-      alert('Errore: Ristorante non identificato');
+      alert(lang === 'en' ? 'Error: restaurant not identified' : 'Errore: Ristorante non identificato');
       setLoading(false);
       return;
     }
@@ -2227,7 +2241,7 @@ function CheckoutModal({
         });
         const result = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(result.message || 'Impossibile completare la prenotazione');
+          throw new Error(result.message || t('booking_failed'));
         }
 
         const bookingPayload = result.booking;
@@ -2248,7 +2262,7 @@ function CheckoutModal({
         setStep('success');
       } catch (err: any) {
         console.error('Error saving booking:', err);
-        alert(err.message || 'Impossibile completare la prenotazione');
+        alert(err.message || t('booking_failed'));
         setLoading(false);
       }
       return;
@@ -2309,7 +2323,7 @@ function CheckoutModal({
           setLoading(false);
           return;
         }
-        throw new Error(result.message || "Impossibile completare l'ordine");
+        throw new Error(result.message || t('order_failed'));
       }
 
       const orderPayload = result.order;
@@ -2343,7 +2357,7 @@ function CheckoutModal({
       setStep('success');
     } catch (err: any) {
       console.error('Error saving order:', err);
-      alert(err.message || "Impossibile completare l'ordine");
+      alert(err.message || t('order_failed'));
       setLoading(false);
     }
   };
@@ -2382,7 +2396,7 @@ function CheckoutModal({
       open={open}
       onClose={onClose}
       size="lg"
-      title={step === 'success' ? 'Stato Ordine' : 'Checkout'}
+      title={step === 'success' ? t('checkout_order_status') : t('checkout_title')}
     >
       {step === 'details' && (
         <div className="space-y-4 relative">
@@ -2399,50 +2413,50 @@ function CheckoutModal({
               <div className="bg-green-500/5 dark:bg-green-950/10 border border-green-500/20 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <CalendarCheck size={14} /> IL TUO TAVOLO
+                    <CalendarCheck size={14} /> {t('checkout_your_table')}
                   </h4>
                   <span className="bg-green-500/10 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    Da Confermare
+                    {t('checkout_pending_confirmation')}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                      Data e Ora
+                      {t('checkout_date_time')}
                     </span>
                     <strong className="text-foreground text-sm">
-                      {new Date(bookingContext.date).toLocaleDateString('it-IT', {
+                      {new Date(bookingContext.date).toLocaleDateString(lang === 'en' ? 'en-US' : 'it-IT', {
                         weekday: 'short',
                         day: '2-digit',
                         month: 'short',
                       })}{' '}
-                      alle {bookingContext.time}
+                      {t('checkout_at')} {bookingContext.time}
                     </strong>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                      Persone
+                      {t('checkout_guests_label')}
                     </span>
                     <strong className="text-foreground text-sm">
-                      {bookingContext.guests} {bookingContext.guests === 1 ? 'persona' : 'persone'}
+                      {bookingContext.guests} {bookingContext.guests === 1 ? t('checkout_guest_single') : t('checkout_guests')}
                     </strong>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                      Nome Cliente
+                      {t('checkout_customer_name')}
                     </span>
                     <strong className="text-foreground">{bookingContext.name}</strong>
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                      Telefono
+                      {t('checkout_phone')}
                     </span>
                     <strong className="text-foreground">{bookingContext.phone}</strong>
                   </div>
                 </div>
                 {bookingContext.note && (
                   <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground">
-                    <span className="font-bold text-foreground">Note:</span> &quot;
+                    <span className="font-bold text-foreground">{t('checkout_notes')}</span> &quot;
                     {bookingContext.note}&quot;
                   </div>
                 )}
@@ -2451,7 +2465,7 @@ function CheckoutModal({
               {/* Order Summary */}
               <div className="border border-border/80 bg-muted/20 rounded-2xl p-4 space-y-3">
                 <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  I Piatti Pre-ordinati
+                  {t('checkout_preordered_dishes')}
                 </h4>
                 <div className="max-h-48 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                   {cart.map((item, idx) => (
@@ -2461,7 +2475,7 @@ function CheckoutModal({
                     >
                       <div>
                         <p className="font-bold text-foreground">
-                          {item.qty}x {item.name}
+                          {item.qty}x {lang === 'en' && item.name_en ? item.name_en : item.name}
                         </p>
                         {((item.addedIngredients && item.addedIngredients.length > 0) ||
                           (item.removedIngredients && item.removedIngredients.length > 0) ||
@@ -2469,12 +2483,12 @@ function CheckoutModal({
                             <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
                               {item.addedIngredients?.map((ext) => (
                                 <div key={ext.name} className="text-primary font-medium">
-                                  + {ext.name}
+                                  + {lang === 'en' && ext.name_en ? ext.name_en : ext.name}
                                 </div>
                               ))}
                               {item.removedIngredients?.map((rem) => (
                                 <div key={rem} className="text-red-500">
-                                  - Senza {rem}
+                                  - {t('detail_without')} {localizedRemoved(item, rem, lang)}
                                 </div>
                               ))}
                             </div>
@@ -2487,7 +2501,7 @@ function CheckoutModal({
                   ))}
                 </div>
                 <div className="border-t border-border/40 pt-3 flex justify-between text-sm font-black text-foreground">
-                  <span>Totale Pre-ordine</span>
+                  <span>{t('checkout_preorder_total')}</span>
                   <span className="text-primary tabular-nums">€ {total.toFixed(2)}</span>
                 </div>
               </div>
@@ -2498,7 +2512,7 @@ function CheckoutModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Tavolo Numero
+                    {t('checkout_table_number')}
                   </label>
                   <div className="relative">
                     <MapPin
@@ -2512,7 +2526,7 @@ function CheckoutModal({
                         isTableEditable ? (e) => setTableNumber?.(e.target.value) : undefined
                       }
                       readOnly={!isTableEditable}
-                      placeholder="Es. 5"
+                      placeholder={lang === 'en' ? 'E.g. 5' : 'Es. 5'}
                       className={`w-full pl-9 pr-3 py-2.5 text-sm border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 font-bold text-foreground ${!isTableEditable ? 'bg-muted cursor-not-allowed' : 'bg-input'
                         }`}
                     />
@@ -2520,7 +2534,7 @@ function CheckoutModal({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                    Numero di Persone *
+                    {t('checkout_num_guests')} *
                   </label>
                   <div className="flex items-center gap-2.5 h-10 border border-border/80 rounded-lg px-2 bg-card">
                     <button
@@ -2546,7 +2560,7 @@ function CheckoutModal({
 
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Nome e Cognome *
+                  {t('checkout_full_name')} *
                 </label>
                 <div className="relative">
                   <User
@@ -2566,12 +2580,12 @@ function CheckoutModal({
               {/* Notes */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                  Note per il ristorante (opzionale)
+                  {t('checkout_notes_placeholder')}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Allergie, preferenze..."
+                  placeholder={lang === 'en' ? 'Allergies, preferences...' : 'Allergie, preferenze...'}
                   rows={2}
                   className="w-full px-3 py-2 text-sm bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
                 />
@@ -2580,13 +2594,13 @@ function CheckoutModal({
               {/* Order Summary (Riepilogo Ordine) */}
               <div className="border border-border/80 bg-muted/20 rounded-xl p-3.5 space-y-2">
                 <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Riepilogo Ordine
+                  {t('checkout_summary')}
                 </h4>
                 <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
                   {cart.map((item, idx) => (
                     <div key={`summary-item-${idx}`} className="flex justify-between text-xs">
                       <span className="text-muted-foreground font-medium">
-                        {item.qty}x {item.name}
+                        {item.qty}x {lang === 'en' && item.name_en ? item.name_en : item.name}
                       </span>
                       <span className="font-bold text-foreground tabular-nums">
                         € {(item.price * item.qty).toFixed(2)}
@@ -3221,6 +3235,7 @@ interface NotificationProps {
 }
 
 function NotificationToast({ notification, onClose }: NotificationProps) {
+  const { t } = useLang();
   useEffect(() => {
     let audioCtx: AudioContext | null = null;
     try {
@@ -3265,19 +3280,19 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
       icon: '✓',
       iconBg: 'bg-emerald-500',
       bar: 'bg-emerald-500',
-      label: 'Ordine Confermato',
+      label: t('notif_confirmed'),
     },
     warning: {
       icon: '⊙',
       iconBg: 'bg-amber-500',
       bar: 'bg-amber-500',
-      label: 'Aggiornamento Ordine',
+      label: t('notif_update'),
     },
     danger: {
       icon: '✕',
       iconBg: 'bg-red-500',
       bar: 'bg-red-500',
-      label: 'Ordine Rifiutato',
+      label: t('notif_rejected'),
     },
   };
 
@@ -3335,7 +3350,7 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
             onClose();
           }}
           className="flex-shrink-0 w-5 h-5 rounded-full bg-muted hover:bg-border text-muted-foreground flex items-center justify-center transition-colors"
-          aria-label="Chiudi"
+          aria-label={t('close')}
         >
           <X size={10} />
         </button>
@@ -3453,7 +3468,9 @@ function StorefrontContent() {
           image: item.image_url || '',
           imageAlt: item.image_alt || item.name,
           allergens: item.allergens || [],
+          allergens_en: item.allergens_en || [],
           dishTags: item.dish_tags || [],
+          dishTagsEn: item.dish_tags_en || [],
           ingredients: item.ingredients || [],
           ingredients_en: item.ingredients_en,
           optionGroups: item.option_groups || [],
@@ -3532,6 +3549,11 @@ function StorefrontContent() {
     setIsMounted(true);
   }, []);
 
+  const langRef = useRef(lang);
+  useEffect(() => {
+    langRef.current = lang;
+  }, [lang]);
+
   const lastCreatedOrderRef = useRef(lastCreatedOrder);
   useEffect(() => {
     lastCreatedOrderRef.current = lastCreatedOrder;
@@ -3584,8 +3606,9 @@ function StorefrontContent() {
             const oldStatus = currentOrder.status;
             const newStatus = updatedRecord.status;
             const restName = restaurantSettingsRef.current?.name || 'iGOdelivering';
+            const en = langRef.current === 'en';
             const customerName =
-              currentOrder.customer_name || currentOrder.name || 'Cliente';
+              currentOrder.customer_name || currentOrder.name || (en ? 'Customer' : 'Cliente');
 
             let variant: 'success' | 'warning' | 'danger' = 'success';
             let title = '';
@@ -3594,12 +3617,16 @@ function StorefrontContent() {
             if (tableName === 'bookings') {
               if (newStatus === 'cancelled') {
                 variant = 'danger';
-                title = `Prenotazione Rifiutata ❌`;
-                message = `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${currentOrder.date} non è stata accettata dal ristorante.`;
+                title = en ? `Booking Declined ❌` : `Prenotazione Rifiutata ❌`;
+                message = en
+                  ? `Sorry ${customerName}, your table booking for ${currentOrder.date} was not accepted by the restaurant.`
+                  : `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${currentOrder.date} non è stata accettata dal ristorante.`;
               } else if (newStatus === 'confirmed') {
                 variant = 'success';
-                title = `Tavolo Confermato! 📅`;
-                message = `Ottime notizie ${customerName}! La tua prenotazione per il tavolo è stata confermata da ${restName}.`;
+                title = en ? `Table Confirmed! 📅` : `Tavolo Confermato! 📅`;
+                message = en
+                  ? `Great news ${customerName}! Your table booking has been confirmed by ${restName}.`
+                  : `Ottime notizie ${customerName}! La tua prenotazione per il tavolo è stata confermata da ${restName}.`;
               }
             } else {
               const tableNum = currentOrder.table_number;
@@ -3607,20 +3634,34 @@ function StorefrontContent() {
 
               if (newStatus === 'rejected' || newStatus === 'cancelled') {
                 variant = 'danger';
-                title = isTable ? `Ordine Tavolo ${tableNum} rifiutato` : `Ordine rifiutato`;
-                message = isTable
-                  ? `Il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante.`
-                  : `Spiacenti ${customerName}, il tuo ordine è stato rifiutato dal ristorante.`;
+                title = en
+                  ? isTable ? `Table ${tableNum} order declined` : `Order declined`
+                  : isTable ? `Ordine Tavolo ${tableNum} rifiutato` : `Ordine rifiutato`;
+                message = en
+                  ? isTable
+                    ? `Your order for table ${tableNum} was declined by the restaurant.`
+                    : `Sorry ${customerName}, your order was declined by the restaurant.`
+                  : isTable
+                    ? `Il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante.`
+                    : `Spiacenti ${customerName}, il tuo ordine è stato rifiutato dal ristorante.`;
               } else if (newStatus === 'accepted' || newStatus === 'preparing') {
                 variant = 'success';
-                title = isTable ? `Tavolo ${tableNum} — In preparazione` : `Ordine confermato`;
-                message = `Il tuo ordine è in preparazione!`;
+                title = en
+                  ? isTable ? `Table ${tableNum} — Being prepared` : `Order confirmed`
+                  : isTable ? `Tavolo ${tableNum} — In preparazione` : `Ordine confermato`;
+                message = en ? `Your order is being prepared!` : `Il tuo ordine è in preparazione!`;
               } else if (newStatus === 'ready') {
                 variant = 'warning';
-                title = isTable ? `Tavolo ${tableNum} — Pronto` : `Ordine pronto`;
-                message = isTable
-                  ? `I tuoi piatti sono pronti e stanno arrivando al tavolo!`
-                  : `Il tuo ordine è pronto per il ritiro/consegna.`;
+                title = en
+                  ? isTable ? `Table ${tableNum} — Ready` : `Order ready`
+                  : isTable ? `Tavolo ${tableNum} — Pronto` : `Ordine pronto`;
+                message = en
+                  ? isTable
+                    ? `Your dishes are ready and on their way to the table!`
+                    : `Your order is ready for pickup/delivery.`
+                  : isTable
+                    ? `I tuoi piatti sono pronti e stanno arrivando al tavolo!`
+                    : `Il tuo ordine è pronto per il ritiro/consegna.`;
               }
             }
 
@@ -3750,7 +3791,7 @@ function StorefrontContent() {
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
             item.addedIngredients
               ?.map((i: any) => '+' + (lang === 'en' && i.name_en ? i.name_en : i.name))
-              .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + i : '-' + i))
+              .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + localizedRemoved(item, i, lang) : '-' + i))
               .join(', ') +
             '</div>'
             : '';
@@ -3872,16 +3913,16 @@ function StorefrontContent() {
         <div className="flex justify-between items-start border-b border-border/40 pb-3">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-              ID ORDINE
+              {t('receipt_order_id')}
             </p>
             <p className="text-sm font-black font-mono text-foreground">{order.order_number || order.id}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-              DATA & ORA
+              {t('receipt_date_time')}
             </p>
             <p className="text-xs font-semibold text-foreground">
-              {new Date(order.timestamp).toLocaleString('it-IT', {
+              {new Date(order.timestamp).toLocaleString(lang === 'en' ? 'en-US' : 'it-IT', {
                 day: '2-digit',
                 month: '2-digit',
                 hour: '2-digit',
@@ -3893,7 +3934,7 @@ function StorefrontContent() {
 
         <div className="space-y-1 text-xs">
           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
-            Riferimenti
+            {t('receipt_details')}
           </p>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Servizio:</span>
@@ -3901,20 +3942,20 @@ function StorefrontContent() {
           </div>
           {order.deliveryTime && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Programmato per:</span>
+              <span className="text-muted-foreground">{t('receipt_scheduled_for')}</span>
               <span className="font-bold text-amber-500">
                 {order.deliveryDate
-                  ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} `
+                  ? `${new Date(order.deliveryDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'it-IT', { day: '2-digit', month: '2-digit' })} `
                   : ''}
                 {order.deliveryTime === 'asap'
-                  ? 'Il prima possibile'
-                  : `alle ${order.deliveryTime}`}
+                  ? t('checkout_asap')
+                  : t('receipt_at', { time: order.deliveryTime })}
               </span>
             </div>
           )}
           {order.type === 'tavolo' ? (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tavolo:</span>
+              <span className="text-muted-foreground">{t('receipt_table')}</span>
               <span className="font-extrabold text-primary">{order.tableNumber}</span>
             </div>
           ) : (
@@ -3923,7 +3964,7 @@ function StorefrontContent() {
                   /api/order-status non restituisce dati personali. */}
               {(order.customer?.name || order.customerName) && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cliente:</span>
+                  <span className="text-muted-foreground">{t('receipt_customer')}</span>
                   <span className="font-semibold text-foreground">
                     {order.customer?.name || order.customerName}
                   </span>
@@ -3931,13 +3972,13 @@ function StorefrontContent() {
               )}
               {order.customer?.phone && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Telefono:</span>
+                  <span className="text-muted-foreground">{t('receipt_phone')}</span>
                   <span className="font-semibold text-foreground">{order.customer.phone}</span>
                 </div>
               )}
               {order.type === 'domicilio' && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Indirizzo:</span>
+                  <span className="text-muted-foreground">{t('receipt_address')}</span>
                   <span
                     className="font-semibold text-foreground text-right max-w-[200px] truncate"
                     title={order.customer?.address}
@@ -3949,22 +3990,22 @@ function StorefrontContent() {
             </>
           )}
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Pagamento:</span>
+            <span className="text-muted-foreground">{t('receipt_payment')}</span>
             <span className="font-semibold text-foreground uppercase">
               {order.payMethod === 'online'
                 ? (lang === 'en' ? 'Online (card)' : 'Online (carta)')
                 : order.payMethod === 'card'
-                  ? 'Carta di Credito (Online)'
+                  ? t('receipt_pay_card')
                   : order.payMethod === 'pos'
-                    ? 'POS (Alla Consegna/Ritiro)'
-                    : 'Contanti'}
+                    ? t('receipt_pay_pos')
+                    : t('receipt_pay_cash')}
             </span>
           </div>
         </div>
 
         <div className="border-t border-border/40 pt-3">
           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
-            Prodotti Ordinati
+            {t('receipt_items')}
           </p>
           <ul className="space-y-2 text-xs">
             {Array.isArray(order.items) &&
@@ -3972,13 +4013,13 @@ function StorefrontContent() {
                 <li key={`receipt-item-${idx}`} className="flex justify-between items-start">
                   <div className="flex-1 min-w-0 pr-2">
                     <p className="font-bold text-foreground truncate">
-                      {item.qty}× {item.name}
+                      {item.qty}× {lang === 'en' && item.name_en ? item.name_en : item.name}
                     </p>
                     {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
-                          ?.map((i: any) => `+${i.name}`)
-                          .concat(item.removedIngredients?.map((i: string) => `-${i}`))
+                          ?.map((i: any) => `+${lang === 'en' && i.name_en ? i.name_en : i.name}`)
+                          .concat(item.removedIngredients?.map((i: string) => (lang === 'en' ? `-Without ${localizedRemoved(item, i, lang)}` : `-${i}`)))
                           .join(', ')}
                       </p>
                     )}
@@ -3999,23 +4040,23 @@ function StorefrontContent() {
 
         <div className="border-t border-border/40 pt-3 text-xs space-y-1.5">
           <div className="flex justify-between text-muted-foreground">
-            <span>Subtotale:</span>
+            <span>{t('receipt_subtotal')}</span>
             <span className="tabular-nums">€ {order.subtotal.toFixed(2)}</span>
           </div>
           {order.deliveryFee > 0 && (
             <div className="flex justify-between text-muted-foreground">
-              <span>Consegna:</span>
+              <span>{t('receipt_delivery')}</span>
               <span className="tabular-nums">€ {order.deliveryFee.toFixed(2)}</span>
             </div>
           )}
           {order.discount > 0 && (
             <div className="flex justify-between text-[var(--success)] font-semibold">
-              <span>Sconto {order.promoApplied ? `(${order.promoApplied})` : ''}:</span>
+              <span>{t('receipt_discount', { promo: order.promoApplied ? `(${order.promoApplied})` : '' })}</span>
               <span className="tabular-nums">- € {order.discount.toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-black text-foreground border-t border-border/40 pt-2">
-            <span>Totale Ordine:</span>
+            <span>{t('receipt_total')}</span>
             <span className="text-primary tabular-nums">€ {order.total.toFixed(2)}</span>
           </div>
         </div>
@@ -4026,7 +4067,7 @@ function StorefrontContent() {
             className="w-full flex items-center justify-center gap-1.5 py-2 mt-2 bg-secondary hover:bg-muted text-foreground border border-border rounded-lg text-xs font-bold transition-all active:scale-95 shadow-xs"
           >
             <Printer size={12} />
-            Stampa Ricevuta
+            {t('receipt_print')}
           </button>
         )}
       </div>
@@ -4434,7 +4475,10 @@ function StorefrontContent() {
           currentDate <= config.temporaryClosure.to
         ) {
           if (lang === 'en') {
-            return `We are closed for holidays from ${config.temporaryClosure.from} to ${config.temporaryClosure.to}.`;
+            return (
+              config.temporaryClosure.messageEn ||
+              `We are closed for holidays from ${config.temporaryClosure.from} to ${config.temporaryClosure.to}.`
+            );
           }
           return (
             config.temporaryClosure.message ||
@@ -4905,6 +4949,12 @@ function StorefrontContent() {
         currentDate >= config.temporaryClosure.from &&
         currentDate <= config.temporaryClosure.to
       ) {
+        if (lang === 'en') {
+          return (
+            config.temporaryClosure.messageEn ||
+            `We are closed for holidays from ${config.temporaryClosure.from} to ${config.temporaryClosure.to}.`
+          );
+        }
         return (
           config.temporaryClosure.message ||
           `Siamo chiusi per ferie dal ${config.temporaryClosure.from} al ${config.temporaryClosure.to}.`
@@ -4912,7 +4962,7 @@ function StorefrontContent() {
       }
     }
     return null;
-  }, [serviceHoursConfig, getCurrentDateStr]);
+  }, [serviceHoursConfig, getCurrentDateStr, lang]);
 
   const isPreOrderAllowed = React.useMemo(() => {
     if (isTemporaryClosure) return false;
@@ -5027,8 +5077,10 @@ function StorefrontContent() {
   const activePromo = promos.find((p) => p.active);
   let bannerText = '';
   if (activePromo) {
-    if (activePromo.customBannerText) {
-      bannerText = activePromo.customBannerText;
+    const customBanner =
+      lang === 'en' ? activePromo.customBannerTextEn : activePromo.customBannerText;
+    if (customBanner) {
+      bannerText = customBanner;
     } else {
       const minStr =
         activePromo.minOrderSubtotal && activePromo.minOrderSubtotal > 0
@@ -5122,7 +5174,7 @@ function StorefrontContent() {
       setAppliedPromoDetail(res.promo);
     } else {
       setPromoApplied(false);
-      setPromoError(res.error || 'Codice non valido');
+      setPromoError(res.error || (lang === 'en' ? 'Invalid code' : 'Codice non valido'));
       setAppliedPromoDetail(null);
     }
   };
@@ -5140,7 +5192,7 @@ function StorefrontContent() {
         );
         if (!res.isValid) {
           setPromoApplied(false);
-          setPromoError(res.error || "L'ordine non soddisfa più i requisiti della promo");
+          setPromoError(res.error || (lang === 'en' ? 'Your order no longer meets the promo requirements' : "L'ordine non soddisfa più i requisiti della promo"));
           setAppliedPromoDetail(null);
         }
       };
@@ -5527,7 +5579,9 @@ function StorefrontContent() {
                 {restaurantSettings.name}
               </h1>
               <p className="text-white/90 text-xs sm:text-base font-medium mb-4 max-w-3xl leading-relaxed drop-shadow-xs">
-                {restaurantSettings.tagline}
+                {lang === 'en' && restaurantSettings.taglineEn
+                  ? restaurantSettings.taglineEn
+                  : restaurantSettings.tagline}
               </p>
 
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-3 sm:gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
@@ -5564,8 +5618,8 @@ function StorefrontContent() {
           <div className="max-w-screen-2xl mx-auto px-6 lg:px-10 py-2.5 flex items-center gap-3">
             <Tag size={14} className="text-primary flex-shrink-0" />
             <p className="text-sm text-primary font-semibold">
-              {activePromo.customBannerText ? (
-                activePromo.customBannerText
+              {(lang === 'en' ? activePromo.customBannerTextEn : activePromo.customBannerText) ? (
+                lang === 'en' ? activePromo.customBannerTextEn : activePromo.customBannerText
               ) : (
                 <>
                   {lang === 'en' ? (
@@ -6104,11 +6158,11 @@ function StorefrontContent() {
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground text-sm leading-tight">
-                    Prenota un Tavolo
+                    {t('booking_title')}
                   </h3>
                   {!bookingConfirmed && (
                     <p className="text-[10px] text-muted-foreground leading-tight">
-                      Dati prenotazione
+                      {t('booking_details')}
                     </p>
                   )}
                 </div>
@@ -6136,24 +6190,23 @@ function StorefrontContent() {
                   </div>
                   <div>
                     <h4 className="text-lg font-bold text-foreground mb-1">
-                      Prenotazione Inviata!
+                      {t('booking_sent')}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      In attesa di conferma dal ristorante. Ti invieremo una notifica di conferma
-                      qui sul menu.
+                      {t('booking_sent_desc')}
                     </p>
                   </div>
                   <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2.5 text-sm">
                     <div className="flex items-center gap-2 text-foreground font-medium">
                       <Users size={14} className="text-muted-foreground flex-shrink-0" />
                       <span>
-                        {bookingGuests} {bookingGuests === 1 ? 'persona' : 'persone'}
+                        {bookingGuests} {bookingGuests === 1 ? t('checkout_guest_single') : t('checkout_guests')}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-foreground font-medium">
                       <CalendarCheck size={14} className="text-muted-foreground flex-shrink-0" />
                       <span>
-                        {bookingDate} alle {bookingTime}
+                        {bookingDate} {t('checkout_at')} {bookingTime}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-foreground font-medium">
@@ -6172,7 +6225,7 @@ function StorefrontContent() {
                     }}
                     className="w-full bg-[var(--success)] text-white py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
                   >
-                    Chiudi
+                    {t('close')}
                   </button>
                 </div>
               ) : (
@@ -6181,7 +6234,7 @@ function StorefrontContent() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-foreground mb-1.5">
-                        Giorno *
+                        {t('booking_day')} *
                       </label>
                       <input
                         type="date"
@@ -6193,7 +6246,7 @@ function StorefrontContent() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-foreground mb-1.5">
-                        Orario *
+                        {t('booking_time')} *
                       </label>
                       {bookingTimeSlots.length > 0 ? (
                         <select
@@ -6201,7 +6254,7 @@ function StorefrontContent() {
                           onChange={(e) => setBookingTime(e.target.value)}
                           className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
                         >
-                          <option value="">Orario...</option>
+                          <option value="">{t('booking_time')}...</option>
                           {bookingTimeSlots.map((slot) => (
                             <option key={`bk-slot-${slot}`} value={slot}>
                               {slot}
@@ -6222,7 +6275,7 @@ function StorefrontContent() {
                   {/* Guests stepper */}
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Persone *
+                      {t('checkout_guests_label')} *
                     </label>
                     <div className="flex items-center gap-3">
                       <button
@@ -6241,7 +6294,7 @@ function StorefrontContent() {
                         +
                       </button>
                       <span className="text-xs text-muted-foreground">
-                        {bookingGuests === 1 ? 'persona' : 'persone'}
+                        {bookingGuests === 1 ? t('checkout_guest_single') : t('checkout_guests')}
                       </span>
                     </div>
                   </div>
@@ -6250,19 +6303,19 @@ function StorefrontContent() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-foreground mb-1.5">
-                        Nome *
+                        {t('booking_name')} *
                       </label>
                       <input
                         type="text"
                         value={bookingName}
                         onChange={(e) => setBookingName(e.target.value)}
-                        placeholder="Il tuo nome"
+                        placeholder={t('booking_name_placeholder')}
                         className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-foreground mb-1.5">
-                        Telefono *
+                        {t('checkout_phone')} *
                       </label>
                       <input
                         type="tel"
@@ -6277,12 +6330,12 @@ function StorefrontContent() {
                   {/* Notes */}
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Note (opzionale)
+                      {t('booking_notes')}
                     </label>
                     <textarea
                       value={bookingNote}
                       onChange={(e) => setBookingNote(e.target.value)}
-                      placeholder="Allergie, occasione speciale, seggiolone…"
+                      placeholder={t('booking_notes_placeholder')}
                       rows={2}
                       className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors resize-none"
                     />
@@ -6311,7 +6364,7 @@ function StorefrontContent() {
                       );
                       const rId = restaurantSettings?.id;
                       if (!rId) {
-                        alert('Errore: Ristorante non identificato');
+                        alert(lang === 'en' ? 'Error: restaurant not identified' : 'Errore: Ristorante non identificato');
                         return;
                       }
 
@@ -6333,7 +6386,7 @@ function StorefrontContent() {
                       });
                       const result = await res.json().catch(() => ({}));
                       if (!res.ok) {
-                        throw new Error(result.message || 'Impossibile completare la prenotazione');
+                        throw new Error(result.message || t('booking_failed'));
                       }
 
                       const bookingPayload = result.booking;
@@ -6353,12 +6406,12 @@ function StorefrontContent() {
                       setBookingConfirmed(true);
                     } catch (err: any) {
                       console.error('Error saving booking:', err);
-                      alert('Errore durante il salvataggio della prenotazione: ' + (err.message || err));
+                      alert(t('booking_save_error') + ' ' + (err.message || err));
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 border border-border hover:bg-muted text-foreground py-3 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Calendar size={14} /> Solo Tavolo
+                  <Calendar size={14} /> {t('booking_table_only')}
                 </button>
                 <button
                   disabled={
@@ -6392,7 +6445,7 @@ function StorefrontContent() {
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-[var(--success)] hover:bg-green-700 text-white py-3 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-green-500/10"
                 >
-                  <UtensilsCrossed size={14} /> Sì, ordina piatti
+                  <UtensilsCrossed size={14} /> {t('booking_order_food')}
                 </button>
               </div>
             )}
@@ -6439,7 +6492,7 @@ function StorefrontContent() {
                 setSelectedHistoryOrder(null);
               }}
               className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Chiudi"
+              aria-label={t('close')}
             >
               <X size={18} />
             </button>
@@ -6465,18 +6518,18 @@ function StorefrontContent() {
             ) : (
               <div className="space-y-4 py-1">
                 <div className="px-4 py-2 bg-muted/40 border border-border/40 rounded-xl text-xs text-muted-foreground font-medium">
-                  Ordini effettuati da questo dispositivo
+                  {t('orders_history_title')}
                 </div>
 
                 {historyLoading && historyOrders.length === 0 ? (
                   <div className="text-center py-8 text-sm text-muted-foreground">
-                    Caricamento…
+                    {t('loading')}
                   </div>
                 ) : historyOrders.length === 0 ? (
                   <div className="text-center py-8 space-y-2 text-muted-foreground">
-                    <p className="text-sm font-semibold">Nessun ordine effettuato da questo dispositivo.</p>
+                    <p className="text-sm font-semibold">{t('orders_history_empty')}</p>
                     <p className="text-xs text-muted-foreground/70">
-                      Gli ordini che invierai da qui compariranno in questa lista.
+                      {t('orders_history_empty_desc')}
                     </p>
                   </div>
                 ) : (
@@ -6487,15 +6540,15 @@ function StorefrontContent() {
                       const getStatusBadge = (st: string) => {
                         switch (st) {
                           case 'new':
-                            return <Badge variant="info">Ricevuto</Badge>;
+                            return <Badge variant="info">{t('status_received')}</Badge>;
                           case 'accepted':
-                            return <Badge variant="warning">In Cucina</Badge>;
+                            return <Badge variant="warning">{t('status_kitchen')}</Badge>;
                           case 'preparing':
-                            return <Badge variant="warning">In Preparazione</Badge>;
+                            return <Badge variant="warning">{t('status_preparing')}</Badge>;
                           case 'delivering':
-                            return <Badge variant="primary">In Consegna</Badge>;
+                            return <Badge variant="primary">{t('status_delivering')}</Badge>;
                           case 'completed':
-                            return <Badge variant="success">Consegnato</Badge>;
+                            return <Badge variant="success">{t('status_delivered')}</Badge>;
                           default:
                             return <Badge>{st}</Badge>;
                         }
@@ -6512,13 +6565,13 @@ function StorefrontContent() {
                       const getOrderTypeName = (type: string) => {
                         switch (type) {
                           case 'domicilio':
-                            return 'Consegna a domicilio';
+                            return t('checkout_home_delivery');
                           case 'asporto':
-                            return 'Asporto';
+                            return t('checkout_takeaway');
                           case 'tavolo':
-                            return 'Ordine al Tavolo';
+                            return t('order_type_table');
                           case 'prenotazione_tavolo':
-                            return 'Prenotazione';
+                            return t('order_type_booking');
                           default:
                             return type;
                         }
@@ -6534,7 +6587,7 @@ function StorefrontContent() {
                           <div className="flex justify-between items-center text-xs mb-3">
                             <div className="text-left space-y-0.5">
                               <span className="block text-[10px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
-                                Tipologia
+                                {t('order_type_label')}
                               </span>
                               <span className="text-xs sm:text-[13px] font-black text-foreground">
                                 {getOrderTypeName(order.type)}
@@ -6542,7 +6595,7 @@ function StorefrontContent() {
                             </div>
                             <div className="text-right space-y-0.5 flex flex-col items-end">
                               <span className="block text-[10px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
-                                Data Ordine
+                                {t('order_date_label')}
                               </span>
                               <span className="text-xs sm:text-[13px] font-extrabold text-foreground/80">
                                 {formatItalianDateTime(order.timestamp)}
@@ -6563,7 +6616,7 @@ function StorefrontContent() {
 
                             {order.type === 'domicilio' && order.customerAddress && (
                               <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
-                                <span className="text-muted-foreground/80 font-medium">Indirizzo</span>
+                                <span className="text-muted-foreground/80 font-medium">{t('receipt_address').replace(':', '')}</span>
                                 <span className="font-extrabold text-foreground text-right break-words max-w-[70%]">
                                   {order.customerAddress}
                                 </span>
@@ -6572,7 +6625,7 @@ function StorefrontContent() {
 
                             {order.type !== 'tavolo' && order.customerPhone && (
                               <div className="flex justify-between items-start gap-4 text-[11px] sm:text-xs">
-                                <span className="text-muted-foreground/80 font-medium">Telefono</span>
+                                <span className="text-muted-foreground/80 font-medium">{t('checkout_phone')}</span>
                                 <span className="font-extrabold text-foreground text-right">
                                   {order.customerPhone}
                                 </span>
@@ -6580,7 +6633,7 @@ function StorefrontContent() {
                             )}
 
                             <div className="flex justify-between items-center gap-4 text-xs pt-1">
-                              <span className="text-muted-foreground/80 font-medium">Totale</span>
+                              <span className="text-muted-foreground/80 font-medium">{t('order_total_label')}</span>
                               <span className="text-sm sm:text-base font-black text-foreground tabular-nums">
                                 € {order.total.toFixed(2)}
                               </span>

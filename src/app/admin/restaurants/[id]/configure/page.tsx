@@ -54,6 +54,10 @@ const ScheduledOrdersStep = dynamic(
 const PaymentStep = dynamic(() => import('@/components/admin/restaurant-wizard/PaymentStep'), {
   ssr: false,
 });
+const TranslationsStep = dynamic(
+  () => import('@/components/admin/restaurant-wizard/TranslationsStep'),
+  { ssr: false }
+);
 const MenuStep = dynamic(() => import('@/components/admin/restaurant-wizard/MenuStep'), {
   ssr: false,
 });
@@ -97,6 +101,7 @@ type WizardStep =
   | 'scheduled'
   | 'payment'
   | 'menu'
+  | 'translations'
   | 'tavoli'
   | 'promozioni'
   | 'review';
@@ -108,6 +113,7 @@ const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'scheduled', label: 'Programmati', description: 'Ordini prenotati in anticipo' },
   { id: 'payment', label: 'Pagamento', description: 'Metodi di pagamento accettati' },
   { id: 'menu', label: 'Menu', description: 'Categorie, piatti e opzioni' },
+  { id: 'translations', label: 'Traduzioni', description: 'Menu in inglese (facoltativo)' },
   { id: 'tavoli', label: 'Tavoli & QR', description: 'Configurazione tavoli e QR code' },
   { id: 'promozioni', label: 'Promozioni', description: 'Codici sconto e offerte' },
   { id: 'review', label: 'Salva', description: 'Revisione e salvataggio' },
@@ -149,6 +155,7 @@ export default function RestaurantConfigurePage() {
   const [promoDesc, setPromoDesc] = useState('');
   const [promoMaxUses, setPromoMaxUses] = useState('');
   const [promoCustomBanner, setPromoCustomBanner] = useState('');
+  const [promoCustomBannerEn, setPromoCustomBannerEn] = useState('');
   const [promoModes, setPromoModes] = useState<('domicilio' | 'asporto' | 'tavolo')[]>([
     'domicilio',
     'asporto',
@@ -187,6 +194,7 @@ export default function RestaurantConfigurePage() {
     setPromoDesc(promo.description || '');
     setPromoMaxUses(promo.maxUses !== undefined ? promo.maxUses.toString() : '');
     setPromoCustomBanner(promo.customBannerText || '');
+    setPromoCustomBannerEn(promo.customBannerTextEn || '');
     setPromoModes(promo.applicableDeliveryModes || ['domicilio', 'asporto', 'tavolo']);
     setShowPromoModal(true);
   };
@@ -216,6 +224,7 @@ export default function RestaurantConfigurePage() {
       maxUses: promoMaxUses ? parseInt(promoMaxUses, 10) : undefined,
       usedCount: editingPromo ? editingPromo.usedCount || 0 : 0,
       customBannerText: promoCustomBanner.trim() ? promoCustomBanner.trim() : undefined,
+      customBannerTextEn: promoCustomBannerEn.trim() ? promoCustomBannerEn.trim() : undefined,
       applicableDeliveryModes: promoModes.length > 0 ? promoModes : undefined,
     };
 
@@ -290,11 +299,18 @@ export default function RestaurantConfigurePage() {
     reservation: false,
   });
 
-  const [temporaryClosure, setTemporaryClosure] = useState({
+  const [temporaryClosure, setTemporaryClosure] = useState<{
+    enabled: boolean;
+    from: string;
+    to: string;
+    message: string;
+    messageEn?: string;
+  }>({
     enabled: false,
     from: '',
     to: '',
     message: '',
+    messageEn: '',
   });
 
   const [tableBooking, setTableBooking] = useState<TableBookingConfig>({
@@ -460,6 +476,7 @@ export default function RestaurantConfigurePage() {
     'scheduled',
     'payment',
     'menu',
+    'translations',
     'tavoli',
     'promozioni',
     'review',
@@ -510,6 +527,7 @@ export default function RestaurantConfigurePage() {
           name: restaurant.name || '',
           category: restaurant.category || 'Pizzeria',
           description: restaurant.description || '',
+          descriptionEn: restaurant.description_en || '',
           phone: restaurant.phone || '',
           email: restaurant.email || '',
           website: restaurant.website || '',
@@ -610,7 +628,7 @@ export default function RestaurantConfigurePage() {
         let deliveryHoursData = { useCustom: false, hours: defaultDayHours() };
         let bookingHoursData = { useCustom: false, hours: defaultDayHours() };
         let serviceSuspendedData = { pickup: false, delivery: false, reservation: false };
-        let temporaryClosureData = { enabled: false, from: '', to: '', message: '' };
+        let temporaryClosureData = { enabled: false, from: '', to: '', message: '', messageEn: '' };
 
         if (restaurant.hours_config) {
           setDbHoursConfig(restaurant.hours_config);
@@ -633,6 +651,7 @@ export default function RestaurantConfigurePage() {
               from: rawTemporaryClosure.from || '',
               to: rawTemporaryClosure.to || '',
               message: rawTemporaryClosure.message || '',
+              messageEn: rawTemporaryClosure.messageEn || '',
             };
           }
 
@@ -762,12 +781,16 @@ export default function RestaurantConfigurePage() {
               groupMap.set(group.id, {
                 id: group.id,
                 name: group.name,
+                name_en: group.name_en || undefined,
                 minSelections: group.minSelections ?? 0,
                 maxSelections: group.maxSelections !== undefined ? group.maxSelections : null,
+                defaultOption: group.defaultOption || undefined,
+                defaultOptionEn: group.defaultOptionEn || undefined,
                 choices: group.choices
                   ? group.choices.map((c: any) => ({
                       id: c.id,
                       name: c.name,
+                      name_en: c.name_en || undefined,
                       price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
                     }))
                   : [],
@@ -812,6 +835,7 @@ export default function RestaurantConfigurePage() {
             ? singleSuppGroup.choices.map((c: any) => ({
                 id: c.id,
                 name: c.name,
+                name_en: c.name_en ?? undefined,
                 price: typeof c.price === 'string' ? parseFloat(c.price) || 0 : c.price,
               }))
             : [];
@@ -843,7 +867,9 @@ export default function RestaurantConfigurePage() {
             available: !!item.available,
             imageUrl: item.image_url || '',
             allergens: item.allergens || [],
+            allergens_en: item.allergens_en || [],
             dishTags: item.dish_tags || [],
+            dishTagsEn: item.dish_tags_en || [],
             ingredients: item.ingredients || [],
             ingredients_en: item.ingredients_en || [],
             imageFile: null,
@@ -881,6 +907,7 @@ export default function RestaurantConfigurePage() {
               p.max_uses !== null && p.max_uses !== undefined ? parseInt(p.max_uses) : undefined,
             usedCount: p.used_count || 0,
             customBannerText: p.custom_banner_text || undefined,
+            customBannerTextEn: p.custom_banner_text_en || undefined,
             applicableDeliveryModes: p.applicable_delivery_modes || [
               'domicilio',
               'asporto',
@@ -961,19 +988,23 @@ export default function RestaurantConfigurePage() {
         }
 
         const mappedOptionGroups: OptionGroup[] = item.optionGroups
-          .map((groupId) => {
+          .map((groupId): OptionGroup | null => {
             const matchedGroup = optionGroups.find((g) => g.id === groupId);
             if (!matchedGroup) return null;
             return {
               id: matchedGroup.id,
               name: matchedGroup.name,
+              name_en: matchedGroup.name_en ?? undefined,
               minSelections:
                 matchedGroup.minSelections !== undefined ? matchedGroup.minSelections : 0,
               maxSelections:
                 matchedGroup.maxSelections !== undefined ? matchedGroup.maxSelections : null,
+              defaultOption: matchedGroup.defaultOption,
+              defaultOptionEn: matchedGroup.defaultOptionEn,
               choices: matchedGroup.choices.map((c) => ({
                 id: c.id,
                 name: c.name,
+                name_en: c.name_en ?? undefined,
                 price: c.price.toString(),
               })),
             };
@@ -989,6 +1020,7 @@ export default function RestaurantConfigurePage() {
             choices: item.singleSupplements.map((c) => ({
               id: c.id,
               name: c.name,
+              name_en: c.name_en ?? undefined,
               price: c.price.toString(),
             })),
           });
@@ -1011,7 +1043,9 @@ export default function RestaurantConfigurePage() {
           image: item.imageUrl,
           imageAlt: item.name,
           allergens: item.allergens || [],
+          allergens_en: item.allergens_en || [],
           dishTags: item.dishTags || [],
+          dishTagsEn: item.dishTagsEn || [],
           ingredients: item.ingredients || [],
           ingredients_en: item.ingredients_en,
           orders: 0,
@@ -1104,6 +1138,7 @@ export default function RestaurantConfigurePage() {
         vat_number: info.vatNumber || null,
         category: info.category || null,
         description: info.description || null,
+        description_en: info.descriptionEn?.trim() || null,
         logo_url: logoUrlToSave,
         background_url: backgroundUrlToSave,
         status: restaurantStatus,
@@ -1310,6 +1345,7 @@ export default function RestaurantConfigurePage() {
                     choices: matchedGroup.choices.map((c) => ({
                       id: c.id,
                       name: c.name,
+                      name_en: c.name_en ?? undefined,
                       price: c.price.toString(),
                     })),
                   };
@@ -1328,6 +1364,7 @@ export default function RestaurantConfigurePage() {
                   choices: (item.singleSupplements as any[]).map((c) => ({
                     id: c.id,
                     name: c.name,
+                    name_en: c.name_en ?? undefined,
                     price: c.price.toString(),
                   })),
                 });
@@ -1414,6 +1451,8 @@ export default function RestaurantConfigurePage() {
             description: p.description || null,
             max_uses: p.maxUses || null,
             used_count: p.usedCount || 0,
+            custom_banner_text: p.customBannerText || null,
+            custom_banner_text_en: p.customBannerTextEn || null,
             applicable_delivery_modes: p.applicableDeliveryModes || [
               'domicilio',
               'asporto',
@@ -2043,6 +2082,19 @@ export default function RestaurantConfigurePage() {
                 }
               />
             )}
+            {currentStep === 'translations' && (
+              <TranslationsStep
+                info={info}
+                setInfo={setInfo}
+                menuCategories={menuCategories}
+                setMenuCategories={setMenuCategories}
+                menuItems={menuItems}
+                setMenuItems={setMenuItems}
+                optionGroups={optionGroups}
+                setOptionGroups={setOptionGroups}
+              />
+            )}
+
             {currentStep === 'tavoli' && (
               <div className="space-y-6">
                 <div className="bg-card rounded-xl border border-border shadow-card p-5 space-y-4">
@@ -2850,6 +2902,16 @@ export default function RestaurantConfigurePage() {
                     value={promoCustomBanner}
                     onChange={(e) => setPromoCustomBanner(e.target.value)}
                     placeholder="Es. 🎉 Usa il codice WELCOME10 per ricevere il 10% di sconto sul primo ordine!"
+                    className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
+                  />
+                  <label className="block text-[11px] font-semibold text-muted-foreground mt-2 mb-1">
+                    🌐 Versione inglese (facoltativa — se vuota, ai clienti in inglese compare il
+                    banner automatico)
+                  </label>
+                  <textarea
+                    value={promoCustomBannerEn}
+                    onChange={(e) => setPromoCustomBannerEn(e.target.value)}
+                    placeholder="E.g. 🎉 Use code WELCOME10 to get 10% off your first order!"
                     className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring h-16 resize-none"
                   />
                 </div>

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import AppImage from '@/components/ui/AppImage';
 import { useLang } from '@/context/LanguageContext';
+import { mergeTranslated } from '@/lib/menu-translations';
 
 export interface OptionChoice {
   id: string;
@@ -401,7 +402,7 @@ export default function ProductDetailSheet({
             {item.ingredients && item.ingredients.length > 0 && (
               <p className="text-xs text-muted-foreground/90 font-medium leading-relaxed">
                 <span className="font-bold text-foreground/80">{t('detail_ingredients')}:</span>{' '}
-                {(lang === 'en' && item.ingredients_en && item.ingredients_en.length > 0 ? item.ingredients_en : item.ingredients).join(', ')}
+                {(lang === 'en' ? mergeTranslated(item.ingredients, item.ingredients_en) : item.ingredients).join(', ')}
               </p>
             )}
             {item.dishTags && item.dishTags.length > 0 && (

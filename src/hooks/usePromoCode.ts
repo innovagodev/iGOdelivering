@@ -47,6 +47,7 @@ export function usePromoCode(slugOrId: string) {
           maxUses: p.max_uses || undefined,
           usedCount: p.used_count || 0,
           customBannerText: p.custom_banner_text || undefined,
+          customBannerTextEn: p.custom_banner_text_en || undefined,
           applicableDeliveryModes: p.applicable_delivery_modes || [],
         }));
 
@@ -232,6 +233,7 @@ export function usePromoCode(slugOrId: string) {
         maxUses: promo.max_uses || undefined,
         usedCount: promo.used_count || 0,
         customBannerText: promo.custom_banner_text || undefined,
+        customBannerTextEn: promo.custom_banner_text_en || undefined,
         applicableDeliveryModes: promo.applicable_delivery_modes || [],
       };
 

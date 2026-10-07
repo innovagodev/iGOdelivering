@@ -18,5 +18,6 @@ export interface PromoCode {
   maxUses?: number;
   usedCount?: number;
   customBannerText?: string;
+  customBannerTextEn?: string;
   applicableDeliveryModes?: ('domicilio' | 'asporto' | 'tavolo')[];
 }

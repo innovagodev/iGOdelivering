@@ -28,7 +28,13 @@ export interface HoursConfig {
   useGeneral?: Partial<Record<string, boolean>>;
   serviceHours?: Record<string, Record<string, DayConfig> | undefined>;
   serviceSuspended?: Partial<Record<string, boolean>>;
-  temporaryClosure?: { enabled?: boolean; from?: string; to?: string; message?: string };
+  temporaryClosure?: {
+    enabled?: boolean;
+    from?: string;
+    to?: string;
+    message?: string;
+    messageEn?: string;
+  };
 }
 
 interface ScheduledServiceConfig {

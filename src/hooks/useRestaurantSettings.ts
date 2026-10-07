@@ -106,7 +106,7 @@ export function useRestaurantSettings(slugOrId: string) {
       //
       // Elenco esplicito invece di '*': ogni colonna qui deve esistere nella
       // vista, che è anche il confine di ciò che è pubblico.
-      const COLUMNS = `id, name, slug, status, tagline, description,
+      const COLUMNS = `id, name, slug, status, tagline, description, description_en,
          address, city, province, cap, phone, category,
          logo_url, background_url,
          delivery_enabled, pickup_enabled, table_enabled,
@@ -213,6 +213,7 @@ export function useRestaurantSettings(slugOrId: string) {
           id: restaurant.id,
           name: restaurant.name,
           tagline: restaurant.tagline || restaurant.description || '',
+          taglineEn: restaurant.description_en || '',
           address: restaurant.address || '',
           phone: restaurant.phone || '',
           // Non selezionata: non leggibile dagli utenti anonimi (migration 017).

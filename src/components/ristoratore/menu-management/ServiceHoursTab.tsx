@@ -57,6 +57,7 @@ interface ServiceHoursTabProps {
     from: string;
     to: string;
     message: string;
+    messageEn?: string;
   };
   setTemporaryClosure?: React.Dispatch<
     React.SetStateAction<{
@@ -64,6 +65,7 @@ interface ServiceHoursTabProps {
       from: string;
       to: string;
       message: string;
+      messageEn?: string;
     }>
   >;
   scheduledOrders?: any;
@@ -147,6 +149,23 @@ export default function ServiceHoursTab({
                   placeholder="Es. Chiusi per ferie estive. Riapriremo regolarmente il 25 Agosto!"
                   className="px-3 py-2 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm text-foreground resize-none"
                 />
+              </div>
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-foreground">
+                  🌐 Messaggio in inglese (facoltativo)
+                </label>
+                <textarea
+                  rows={2}
+                  value={temporaryClosure.messageEn || ''}
+                  onChange={(e) =>
+                    setTemporaryClosure((prev) => ({ ...prev, messageEn: e.target.value }))
+                  }
+                  placeholder="E.g. Closed for summer holidays. We will reopen on 25 August!"
+                  className="px-3 py-2 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm text-foreground resize-none"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Se vuoto, ai clienti in inglese compare un messaggio generico con le date.
+                </p>
               </div>
             </div>
           ) : (

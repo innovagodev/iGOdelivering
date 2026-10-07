@@ -84,11 +84,18 @@ export default function RistoratoreOrariPage() {
     reservation: false,
   });
 
-  const [temporaryClosure, setTemporaryClosure] = useState({
+  const [temporaryClosure, setTemporaryClosure] = useState<{
+    enabled: boolean;
+    from: string;
+    to: string;
+    message: string;
+    messageEn?: string;
+  }>({
     enabled: false,
     from: '',
     to: '',
     message: '',
+    messageEn: '',
   });
 
   const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({

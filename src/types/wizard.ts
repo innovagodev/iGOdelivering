@@ -4,6 +4,7 @@ export interface RestaurantInfo {
   name: string;
   category: string;
   description: string;
+  descriptionEn?: string;
   phone: string;
   email: string;
   website: string;
@@ -42,7 +43,7 @@ export interface MenuItemWizardDraft extends Omit<
   imageFile: File | null;
   optionGroups: string[];
   visibility: DishVisibility;
-  singleSupplements?: { id: string; name: string; price: number }[];
+  singleSupplements?: { id: string; name: string; name_en?: string; price: number }[];
 }
 
 export interface DeliveryZone {

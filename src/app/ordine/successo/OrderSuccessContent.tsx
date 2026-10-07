@@ -13,6 +13,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
+import { useLang } from '@/context/LanguageContext';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ const REDIRECT_SECONDS = 8;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OrderSuccessContent() {
+  const { t, lang } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
@@ -99,7 +101,7 @@ export default function OrderSuccessContent() {
 
     const mappedItems: OrderItem[] = Array.isArray(rawOrder.items)
       ? rawOrder.items.map((item: any) => ({
-          name: item.name || '—',
+          name: (lang === 'en' && item.name_en) || item.name || '—',
           qty: item.qty || 1,
           price: item.price || 0,
           options: item.note || undefined,
@@ -127,12 +129,12 @@ export default function OrderSuccessContent() {
       deliveryFee: parseFloat(rawOrder.delivery_fee) || 0,
       discount: parseFloat(rawOrder.discount) || 0,
       total: parseFloat(rawOrder.total) || 0,
-      paymentMethod: rawOrder.payMethod || rawOrder.payment_method || 'Pagamento alla consegna',
-      restaurantName: rawOrder.restaurantName || rawOrder.restaurant_name || 'Il ristorante',
+      paymentMethod: rawOrder.payMethod || rawOrder.payment_method || '',
+      restaurantName: rawOrder.restaurantName || rawOrder.restaurant_name || '',
       placedAt,
       tableNumber: rawOrder.table_number || undefined,
     });
-  }, [searchParams]);
+  }, [searchParams, lang]);
 
   // Il tracking è indicizzato per UUID, non per `order_number` (corto e
   // sequenziale, quindi enumerabile). Senza UUID non c'è link da offrire.
@@ -167,6 +169,16 @@ export default function OrderSuccessContent() {
     return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   })();
 
+  const paymentLabel = (() => {
+    const m = (order?.paymentMethod || '').toLowerCase();
+    if (!m) return t('ord_pay_on_delivery');
+    if (m === 'online') return t('ord_pay_online');
+    if (m === 'card') return t('receipt_pay_card');
+    if (m === 'pos') return t('receipt_pay_pos');
+    if (m === 'cash') return t('receipt_pay_cash');
+    return order?.paymentMethod || '';
+  })();
+
   const progress = ((REDIRECT_SECONDS - countdown) / REDIRECT_SECONDS) * 100;
 
   if (!order) {
@@ -175,15 +187,15 @@ export default function OrderSuccessContent() {
         <AppLogo className="h-8 mb-8" />
         <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-sm p-8 text-center">
           <Check size={48} className="mx-auto text-[var(--success)] mb-4" />
-          <h1 className="text-xl font-bold text-foreground mb-2">Ordine confermato!</h1>
+          <h1 className="text-xl font-bold text-foreground mb-2">{t('ord_confirmed')}</h1>
           <p className="text-sm text-muted-foreground mb-6">
-            Il tuo ordine è stato inviato con successo al ristorante.
+            {t('ord_sent_ok')}
           </p>
           <button
             onClick={() => router.push('/')}
             className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold text-sm py-3.5 rounded-xl transition-all"
           >
-            Torna alla home
+            {t('ord_home')}
           </button>
         </div>
       </div>
@@ -209,10 +221,10 @@ export default function OrderSuccessContent() {
               className="text-xl font-bold text-foreground"
               style={{ fontFamily: 'var(--font-sans)' }}
             >
-              Ordine confermato!
+              {t('ord_confirmed')}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {order.restaurantName} ha ricevuto il tuo ordine
+              {t('ord_received', { name: order.restaurantName || t('ord_restaurant') })}
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 bg-white border border-[#bbf7d0] text-[var(--success)] text-xs font-semibold px-3 py-1 rounded-full">
@@ -236,21 +248,21 @@ export default function OrderSuccessContent() {
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
                 {order.type === 'domicilio'
-                  ? 'Consegna stimata'
+                  ? t('ord_est_delivery')
                   : order.type === 'asporto'
-                    ? 'Ritiro stimato'
-                    : `Tavolo ${order.tableNumber || '—'}`}
+                    ? t('ord_est_pickup')
+                    : t('cart_table', { n: order.tableNumber || '—' })}
               </p>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-foreground tabular-nums">
                   {order.estimatedMinutes} min
                 </span>
-                <span className="text-sm text-muted-foreground">· entro le {estimatedArrival}</span>
+                <span className="text-sm text-muted-foreground">{t('ord_by', { time: estimatedArrival })}</span>
               </div>
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded-lg px-2.5 py-1.5 border border-border">
               <Clock size={12} />
-              <span>Ore {order.placedAt}</span>
+              <span>{t('ord_at', { time: order.placedAt })}</span>
             </div>
           </div>
 
@@ -271,7 +283,7 @@ export default function OrderSuccessContent() {
             >
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Package size={16} className="text-primary" />
-                Riepilogo ordine
+                {t('ord_summary')}
               </div>
               <ChevronRight
                 size={16}
@@ -306,28 +318,28 @@ export default function OrderSuccessContent() {
                 {/* Totals */}
                 <div className="border-t border-border pt-3 space-y-1.5 text-sm">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotale</span>
+                    <span>{t('cart_subtotal')}</span>
                     <span className="tabular-nums">€{order.subtotal.toFixed(2)}</span>
                   </div>
                   {order.deliveryFee > 0 && (
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Consegna</span>
+                      <span>{t('ord_delivery')}</span>
                       <span className="tabular-nums">€{order.deliveryFee.toFixed(2)}</span>
                     </div>
                   )}
                   {order.discount > 0 && (
                     <div className="flex justify-between text-[var(--success)]">
-                      <span>Sconto</span>
+                      <span>{t('cart_discount')}</span>
                       <span className="tabular-nums">−€{order.discount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-foreground text-base pt-1 border-t border-border">
-                    <span>Totale</span>
+                    <span>{t('order_total_label')}</span>
                     <span className="tabular-nums">€{order.total.toFixed(2)}</span>
                   </div>
-                  {order.paymentMethod && (
+                  {paymentLabel && (
                     <p className="text-xs text-muted-foreground pt-1">
-                      Pagato con {order.paymentMethod}
+                      {t('ord_paid_with', { method: paymentLabel })}
                     </p>
                   )}
                 </div>
@@ -351,12 +363,12 @@ export default function OrderSuccessContent() {
             className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 active:scale-[0.98] text-white font-semibold text-sm py-3.5 rounded-xl transition-all duration-150 shadow-sm"
           >
             <MapPin size={16} />
-            Segui il tuo ordine
+            {t('ord_follow')}
             <ChevronRight size={16} />
           </button>
 
           <p className="text-center text-xs text-muted-foreground mt-3">
-            Reindirizzamento automatico al tracking tra{' '}
+            {t('ord_redirect')}{' '}
             <span className="font-semibold text-foreground tabular-nums">{countdown}s</span>
           </p>
         </div>
@@ -364,8 +376,7 @@ export default function OrderSuccessContent() {
 
       {/* Footer note */}
       <p className="mt-6 text-xs text-muted-foreground text-center max-w-sm">
-        Riceverai aggiornamenti sullo stato del tuo ordine. Conserva il numero ordine per
-        tracciarlo.
+        {t('ord_footer')}
       </p>
     </div>
   );
