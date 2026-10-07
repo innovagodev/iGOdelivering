@@ -13,6 +13,7 @@ import {
   Filter,
   RefreshCw,
 } from 'lucide-react';
+import { notify, confirmAction } from '@/lib/notify';
 
 interface AuditLog {
   id: string;
@@ -41,18 +42,18 @@ export default function AdminSicurezzaPage() {
     }
   }, []);
 
-  const handleClearLogs = () => {
-    if (
-      confirm(
-        'Sei sicuro di voler ripulire tutto il registro attività? Questa azione non può essere annullata.'
-      )
-    ) {
-      setLogs([]);
-    }
+  const handleClearLogs = async () => {
+    const ok = await confirmAction({
+      title: 'Ripulire il registro attività?',
+      message: 'Questa azione non può essere annullata.',
+      confirmLabel: 'Ripulisci',
+      destructive: true,
+    });
+    if (ok) setLogs([]);
   };
 
   const handleExport = () => {
-    alert('Logs esportati correttamente in formato CSV! Il download inizierà a breve.');
+    notify.info('Esportazione del registro non ancora disponibile.');
   };
 
   const handleReload = () => {

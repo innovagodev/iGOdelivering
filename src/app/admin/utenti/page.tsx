@@ -19,6 +19,7 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react';
+import { notify } from '@/lib/notify';
 
 interface RestorateurUser {
   id: string;
@@ -316,7 +317,7 @@ export default function AdminUtentiPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Errore durante il reset della password');
+        notify.error(data.error || 'Errore durante il reset della password');
         return;
       }
 
@@ -325,7 +326,7 @@ export default function AdminUtentiPage() {
       setCopied(false);
     } catch (err) {
       console.error(err);
-      alert('Errore di rete durante il reset della password');
+      notify.error('Errore di rete durante il reset della password');
     }
   };
 
@@ -354,7 +355,7 @@ export default function AdminUtentiPage() {
       );
     } catch (err) {
       console.error('Error toggling status:', err);
-      alert("Errore durante l'aggiornamento dello stato del ristorante");
+      notify.error("Errore durante l'aggiornamento dello stato del ristorante");
     }
   };
 

@@ -5,6 +5,7 @@ import '../styles/globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import LenisProvider from '@/components/layout/LenisProvider';
 import MaintenanceWrapper from '@/components/layout/MaintenanceWrapper';
+import NotifyHost from '@/components/ui/NotifyHost';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <LenisProvider>{children}</LenisProvider>
           </MaintenanceWrapper>
         </AuthProvider>
+        <NotifyHost />
       </body>
     </html>
   );

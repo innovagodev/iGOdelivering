@@ -16,6 +16,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { notify } from '@/lib/notify';
 
 /**
  * Pagina Pagamenti del ristoratore.
@@ -220,7 +221,7 @@ export default function PagamentiPage() {
       setTimeout(() => setShowFeedback(false), 3000);
     } catch (e: any) {
       console.warn('Error saving settings to Supabase:', e.message || e);
-      alert('Errore durante il salvataggio delle impostazioni di pagamento.');
+      notify.error('Errore durante il salvataggio delle impostazioni di pagamento.');
     }
   };
 

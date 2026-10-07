@@ -22,6 +22,7 @@ import {
   UserCheck,
   Store,
 } from 'lucide-react';
+import { notify, confirmAction } from '@/lib/notify';
 
 
 export default function PromozioniPage() {
@@ -125,7 +126,7 @@ export default function PromozioniPage() {
     } catch (e) {
       console.error('Error toggling promo:', e);
       setPromos((prev) => prev.map((p) => (p.id === id ? { ...p, active: !newStatus } : p)));
-      alert('Impossibile aggiornare lo stato del codice sconto.');
+      notify.error('Impossibile aggiornare lo stato del codice sconto.');
     }
   };
 
@@ -163,7 +164,13 @@ export default function PromozioniPage() {
   };
 
   const handleDeletePromo = async (id: string) => {
-    if (confirm('Sei sicuro di voler eliminare questo codice promozionale?')) {
+    const ok = await confirmAction({
+      title: 'Eliminare il codice sconto?',
+      message: 'Il codice non sarà più utilizzabile dai clienti.',
+      confirmLabel: 'Elimina',
+      destructive: true,
+    });
+    if (ok) {
       const previousPromos = [...promos];
       setPromos((prev) => prev.filter((p) => p.id !== id));
 
@@ -174,7 +181,7 @@ export default function PromozioniPage() {
       } catch (e) {
         console.error('Error deleting promo:', e);
         setPromos(previousPromos);
-        alert('Impossibile eliminare il codice sconto.');
+        notify.error('Impossibile eliminare il codice sconto.');
       }
     }
   };
@@ -269,7 +276,7 @@ export default function PromozioniPage() {
       setShowModal(false);
     } catch (e) {
       console.error('Error saving promo:', e);
-      alert('Impossibile salvare il codice sconto.');
+      notify.error('Impossibile salvare il codice sconto.');
     }
   };
 

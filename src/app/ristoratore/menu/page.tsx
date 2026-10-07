@@ -13,6 +13,7 @@ import { getItemMissing } from '@/components/ristoratore/menu-management/Transla
 import TranslationStatus from '@/components/ristoratore/menu-management/TranslationStatus';
 import { MenuItem, MenuItemDraft } from '@/types';
 import { isMockRestaurant } from '@/lib/restaurant-utils';
+import { notify } from '@/lib/notify';
 
 // Constants
 const ALLERGENS_LIST = [
@@ -316,7 +317,7 @@ export default function RistoratoreMenuPage() {
       await fetchMenuData();
     } catch (e) {
       console.error('Error adding menu item:', e);
-      alert("Errore nell'aggiungere il piatto.");
+      notify.error("Errore nell'aggiungere il piatto.");
     }
   };
 
@@ -378,7 +379,7 @@ export default function RistoratoreMenuPage() {
       await fetchMenuData();
     } catch (e) {
       console.error('Error editing menu item:', e);
-      alert('Errore nel salvare il piatto.');
+      notify.error('Errore nel salvare il piatto.');
     }
   };
 

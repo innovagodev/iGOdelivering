@@ -73,6 +73,7 @@ import {
 } from '@/lib/serviceHours';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
+import { notify, confirmAction } from '@/lib/notify';
 
 
 // ─── Types ────────────────────────────────────────────────────
@@ -2227,7 +2228,7 @@ function CheckoutModal({
 
     const rId = restaurantSettings.id;
     if (!rId) {
-      alert(lang === 'en' ? 'Error: restaurant not identified' : 'Errore: Ristorante non identificato');
+      notify.error(lang === 'en' ? 'Error: restaurant not identified' : 'Errore: Ristorante non identificato');
       setLoading(false);
       return;
     }
@@ -2275,7 +2276,7 @@ function CheckoutModal({
         setStep('success');
       } catch (err: any) {
         console.error('Error saving booking:', err);
-        alert(err.message || t('booking_failed'));
+        notify.error(err.message || t('booking_failed'));
         setLoading(false);
       }
       return;
@@ -2370,7 +2371,7 @@ function CheckoutModal({
       setStep('success');
     } catch (err: any) {
       console.error('Error saving order:', err);
-      alert(err.message || t('order_failed'));
+      notify.error(err.message || t('order_failed'));
       setLoading(false);
     }
   };
@@ -5563,10 +5564,17 @@ function StorefrontContent() {
                 {t('modal_complete')} →
               </button>
               <button
-                onClick={() => {
-                  if (
-                    confirm(lang === 'en' ? 'Do you want to cancel the reservation? This will also clear the cart.' : 'Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.')
-                  ) {
+                onClick={async () => {
+                  const ok = await confirmAction({
+                    message:
+                      lang === 'en'
+                        ? 'Do you want to cancel the reservation? This will also clear the cart.'
+                        : 'Vuoi annullare la prenotazione? Questo svuoterà anche il carrello.',
+                    confirmLabel: lang === 'en' ? 'Cancel reservation' : 'Annulla prenotazione',
+                    cancelLabel: lang === 'en' ? 'Keep it' : 'Mantieni',
+                    destructive: true,
+                  });
+                  if (ok) {
                     setBookingContext(null);
                     setCart([]);
                   }
@@ -6390,7 +6398,7 @@ function StorefrontContent() {
                       );
                       const rId = restaurantSettings?.id;
                       if (!rId) {
-                        alert(lang === 'en' ? 'Error: restaurant not identified' : 'Errore: Ristorante non identificato');
+                        notify.error(lang === 'en' ? 'Error: restaurant not identified' : 'Errore: Ristorante non identificato');
                         return;
                       }
 
@@ -6432,7 +6440,7 @@ function StorefrontContent() {
                       setBookingConfirmed(true);
                     } catch (err: any) {
                       console.error('Error saving booking:', err);
-                      alert(t('booking_save_error') + ' ' + (err.message || err));
+                      notify.error(t('booking_save_error') + ' ' + (err.message || err));
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2 border border-border hover:bg-muted text-foreground py-3 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -6447,14 +6455,17 @@ function StorefrontContent() {
                     !bookingName.trim() ||
                     !bookingPhone.trim()
                   }
-                  onClick={() => {
+                  onClick={async () => {
                     // Ordina anche il cibo
                     if (cart.length > 0) {
-                      const ok = window.confirm(
-                        lang === 'en'
-                          ? 'You already have items in the cart. Do you want to clear the cart and start an order associated with this booking?'
-                          : 'Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?'
-                      );
+                      const ok = await confirmAction({
+                        message:
+                          lang === 'en'
+                            ? 'You already have items in the cart. Do you want to clear the cart and start an order associated with this booking?'
+                            : 'Hai già dei piatti nel carrello. Vuoi svuotare il carrello e iniziare un ordine associato a questa prenotazione?',
+                        confirmLabel: lang === 'en' ? 'Clear cart' : 'Svuota carrello',
+                        cancelLabel: lang === 'en' ? 'Back' : 'Indietro',
+                      });
                       if (!ok) return;
                     }
                     setCart([]);

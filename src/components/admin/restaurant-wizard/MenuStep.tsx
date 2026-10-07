@@ -128,6 +128,7 @@ import {
   WizardOptionGroup,
   WizardOptionChoice,
 } from '@/types';
+import { notify } from '@/lib/notify';
 
 interface MenuStepProps {
   menuCategories: { name: string; name_en?: string }[];
@@ -294,7 +295,7 @@ export default function MenuStep({
 
   const handleOpenAddForm = (categoryName?: string) => {
     if (menuCategories.length === 0) {
-      alert('Aggiungi prima almeno una categoria menu.');
+      notify.error('Aggiungi prima almeno una categoria menu.');
       return;
     }
     const selectedCategory = categoryName || menuCategories[0]?.name || 'Pizza';

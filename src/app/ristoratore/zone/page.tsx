@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { DeliveryZoneConfig } from '@/types';
 import { MapPin, Plus, Edit2, Trash2, Euro, Info, AlertCircle, Store } from 'lucide-react';
+import { notify, confirmAction } from '@/lib/notify';
 
 const defaultZones: DeliveryZoneConfig[] = [
   {
@@ -130,7 +131,7 @@ export default function DeliveryZonesPage() {
     } catch (e) {
       console.error('Error toggling zone:', e);
       setZones((prev) => prev.map((z) => (z.id === id ? { ...z, enabled: !newStatus } : z)));
-      alert('Impossibile aggiornare lo stato della zona.');
+      notify.error('Impossibile aggiornare lo stato della zona.');
     }
   };
 
@@ -159,7 +160,13 @@ export default function DeliveryZonesPage() {
   };
 
   const handleDeleteZone = async (id: string) => {
-    if (confirm('Sei sicuro di voler eliminare questa zona di consegna?')) {
+    const ok = await confirmAction({
+      title: 'Eliminare la zona di consegna?',
+      message: 'I clienti di questa zona non potranno più ordinare a domicilio.',
+      confirmLabel: 'Elimina',
+      destructive: true,
+    });
+    if (ok) {
       const previousZones = [...zones];
       setZones((prev) => prev.filter((z) => z.id !== id));
 
@@ -170,7 +177,7 @@ export default function DeliveryZonesPage() {
       } catch (e) {
         console.error('Error deleting zone:', e);
         setZones(previousZones);
-        alert('Impossibile eliminare la zona di consegna.');
+        notify.error('Impossibile eliminare la zona di consegna.');
       }
     }
   };
@@ -240,7 +247,7 @@ export default function DeliveryZonesPage() {
       setShowModal(false);
     } catch (e) {
       console.error('Error saving zone:', e);
-      alert('Impossibile salvare la zona di consegna.');
+      notify.error('Impossibile salvare la zona di consegna.');
     }
   };
 

@@ -19,6 +19,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
+import { notify } from '@/lib/notify';
 
 interface TableItem {
   number: number;
@@ -449,7 +450,7 @@ export default function RistoratoreTavoliPage() {
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (e) {
       console.error('Error saving table count:', e);
-      alert('Impossibile salvare il numero di tavoli.');
+      notify.error('Impossibile salvare il numero di tavoli.');
     }
   };
 

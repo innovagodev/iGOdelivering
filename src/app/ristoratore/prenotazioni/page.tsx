@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Store,
 } from 'lucide-react';
+import { notify, confirmAction } from '@/lib/notify';
 
 export default function PrenotazioniPage() {
   const { user, isLoading } = useAuth();
@@ -290,7 +291,7 @@ export default function PrenotazioniPage() {
 
         if (numberError || !generatedNumber) {
           console.error('Error generating order number:', numberError);
-          alert('Impossibile creare l’ordine, riprova.');
+          notify.error('Impossibile creare l’ordine, riprova.');
           return;
         }
 
@@ -352,12 +353,18 @@ export default function PrenotazioniPage() {
       await fetchBookings();
     } catch (e) {
       console.error('Error updating booking status:', e);
-      alert('Errore nel cambiare lo stato della prenotazione.');
+      notify.error('Errore nel cambiare lo stato della prenotazione.');
     }
   };
 
   const handleDeleteBooking = async (id: string) => {
-    if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
+    const ok = await confirmAction({
+      title: 'Eliminare la prenotazione?',
+      message: 'La prenotazione verrà rimossa definitivamente.',
+      confirmLabel: 'Elimina',
+      destructive: true,
+    });
+    if (ok) {
       try {
         const { error } = await supabase.from('bookings').delete().eq('id', id);
 
@@ -365,7 +372,7 @@ export default function PrenotazioniPage() {
         await fetchBookings();
       } catch (e) {
         console.error('Error deleting booking:', e);
-        alert("Errore nell'eliminazione della prenotazione.");
+        notify.error("Errore nell'eliminazione della prenotazione.");
       }
     }
   };
@@ -402,7 +409,7 @@ export default function PrenotazioniPage() {
       await fetchBookings();
     } catch (e) {
       console.error('Error saving booking:', e);
-      alert('Errore durante il salvataggio della prenotazione.');
+      notify.error('Errore durante il salvataggio della prenotazione.');
     }
   };
 
