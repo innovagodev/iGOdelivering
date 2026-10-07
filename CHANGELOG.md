@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.36.1](https://github.com/innovagodev/iGOdelivering/compare/v1.36.0...v1.36.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **menu:** doppio "+" nei pulsanti, X di rimozione visibile e icone allergeni ([6df196b](https://github.com/innovagodev/iGOdelivering/commit/6df196b59b0e0bda2aae003f876e35f4820c1702))
+* **vetrina:** niente doppio "Scegli", doppia freccia e frasi lasciate a meta' ([4bafd8e](https://github.com/innovagodev/iGOdelivering/commit/4bafd8e9a00c518dfc93ecf482fad667f94616a8))
+
 ## [1.36.0](https://github.com/innovagodev/iGOdelivering/compare/v1.35.1...v1.36.0) (2026-10-07)
 
 
