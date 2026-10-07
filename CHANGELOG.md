@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.36.2](https://github.com/innovagodev/iGOdelivering/compare/v1.36.1...v1.36.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* **ordini:** ricevuta corretta, supplementi con prezzo e dettaglio cucina funzionante ([4d3de86](https://github.com/innovagodev/iGOdelivering/commit/4d3de8633df7d5f667c750e18d9672d733667b63))
+
 ### [1.36.1](https://github.com/innovagodev/iGOdelivering/compare/v1.36.0...v1.36.1) (2026-10-07)
 
 
