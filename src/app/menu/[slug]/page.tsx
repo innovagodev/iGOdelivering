@@ -5604,7 +5604,7 @@ function StorefrontContent() {
                 </span>
                 <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
                   <Bike size={14} />
-                  Consegna € {(restaurantSettings.deliveryFee ?? 0).toFixed(2)}
+                  {t('ord_delivery')} € {(restaurantSettings.deliveryFee ?? 0).toFixed(2)}
                 </span>
               </div>
             </div>
