@@ -4,12 +4,9 @@ iGOdelivering è una piattaforma **B2B2C** completa per la gestione di ordini, c
 
 ---
 
-## 📚 Documentazione Ufficiale
-Per comprendere l'architettura e lo stato del progetto, consulta i documenti dedicati:
-
-*   **[🎯 Roadmap di Progetto](docs/ROADMAP.md)**: Stato di avanzamento, obiettivi completati e prossimi step.
-*   **[🏗️ Specifiche Tecniche](docs/TECHNICAL_SPECIFICATIONS.md)**: Architettura, sicurezza, stack tecnologico e struttura dei moduli.
-*   **[💼 Modello di Business](docs/BUSINESS_MODEL.md)**: Strategia B2B2C, gestione URL e flussi cliente.
+## 📚 Documentazione
+La documentazione interna del progetto (architettura, roadmap, audit di sicurezza) non è
+pubblicata in questa repository. Lo schema del database è versionato in `supabase/migrations/`.
 
 ---
 
@@ -35,7 +32,7 @@ Per comprendere l'architettura e lo stato del progetto, consulta i documenti ded
    ```bash
    npm run dev
    ```
-   L'app sarà disponibile su [http://localhost:3000](http://localhost:3000).
+   L'app sarà disponibile su [http://localhost:4028](http://localhost:4028).
 
 ---
 

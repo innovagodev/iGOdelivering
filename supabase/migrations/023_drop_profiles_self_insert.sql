@@ -32,4 +32,4 @@ DROP POLICY IF EXISTS "profiles: self insert" ON public.profiles;
 --   -- attese: "profiles: admin all" (ALL), "profiles: self read" (SELECT)
 --
 --   SELECT id, role FROM public.profiles WHERE role = 'admin';
---   -- atteso: il solo account admin@igodelivering.it
+--   -- atteso: il solo account amministratore

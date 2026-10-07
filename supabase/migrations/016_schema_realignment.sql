@@ -3,7 +3,7 @@
 -- ============================================================================
 --
 -- Chiude due rilievi di AUDIT_REPORT.md confermati sul database reale tramite
--- scripts/inspect-schema.sql:
+-- lo script di ricognizione dello schema (non versionato):
 --
 --   A7  orders.status non ammette 'expired', ma l'applicazione lo scrive
 --       (src/app/menu/[slug]/page.tsx, triggerExpired). L'UPDATE viola il

@@ -1,13 +1,12 @@
 # Node modules
 node_modules/
 
-# Environment variables
+# Environment variables (.env.example, con soli segnaposto, SI versiona)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.example
 
 # Next.js build output
 .next/
@@ -55,4 +54,12 @@ supabase/.temp/
 supabase/.branches/
 
 # Output operativo degli script one-shot
-scripts/logs/
+scripts/logs/
+
+# Materiale interno, non pubblico: audit di sicurezza, handoff, fotografie dello
+# schema di produzione e script operativi (cron, pulizia dati, ricognizione).
+# Le debolezze documentate qui non devono stare in una repository pubblica.
+/AUDIT_REPORT.md
+/HANDOFF.md
+/query.csv
+scripts/ops/

@@ -15,7 +15,7 @@ import { expireDueRequests } from '@/lib/orderPayments';
  * bloccato sulla carta fino alla scadenza presso la banca (circa 7 giorni) e
  * la richiesta resterebbe in attesa.
  *
- * Chiamata ogni minuto da pg_cron + pg_net (scripts/cron-expire-authorizations.sql).
+ * Chiamata ogni minuto da pg_cron + pg_net (script operativo non versionato: contiene il segreto).
  * Protetta da CRON_SECRET: header `Authorization: Bearer <CRON_SECRET>`.
  * Idempotente: gli ordini già chiusi non vengono toccati.
  */

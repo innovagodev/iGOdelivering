@@ -6,4 +6,4 @@
 -- Dopodiché, è possibile collegare il suo profilo qui:
 --
 -- INSERT INTO public.profiles (id, role, name, email)
--- VALUES ('<UUID-dell-utente-admin>', 'admin', 'Super Admin', 'admin@igodelivering.it');
+-- VALUES ('<UUID-dell-utente-admin>', 'admin', 'Super Admin', '<email-admin>');

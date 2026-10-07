@@ -31,7 +31,7 @@
 --   (impostazione predefinita Supabase), quindi non esiste alcuna restrizione
 --   per colonna che faccia da rete di sicurezza: l'unica difesa è l'assenza di
 --   una policy permissiva. Vedere la sezione PRIVILEGI_anon di
---   scripts/inspect-schema.sql.
+--   lo script di ricognizione dello schema (non versionato).
 --
 -- MOTIVO ORIGINALE E ALTERNATIVA CORRETTA
 --   Serviva a mostrare al cliente lo stato del proprio ordine nella pagina di
