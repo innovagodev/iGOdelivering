@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.35.0](https://github.com/innovagodev/iGOdelivering/compare/v1.34.0...v1.35.0) (2026-10-07)
+
+
+### Features
+
+* **ui:** toast e conferme al posto di alert e confirm del browser ([6279db2](https://github.com/innovagodev/iGOdelivering/commit/6279db25bfbbb98e53a41938c500073ef63cccf3))
+
+
+### Bug Fixes
+
+* **admin:** Pubblica Ristorante nella configurazione ora imposta lo stato published ([9277028](https://github.com/innovagodev/iGOdelivering/commit/92770283729f7a2963162b3cfa38acbf6fe9f5e6))
+* **i18n:** "Consegna" nella hero della vetrina tradotto in inglese ([e5d10ac](https://github.com/innovagodev/iGOdelivering/commit/e5d10ac84e4bb1f0d78f02a61061cfbec937e37f))
+* **vetrina:** navbar senza spazio sopra allo scroll con locale chiuso ([6f171a0](https://github.com/innovagodev/iGOdelivering/commit/6f171a012399886e492e3307f5d1868d68f51533))
+
 ## [1.34.0](https://github.com/innovagodev/iGOdelivering/compare/v1.33.0...v1.34.0) (2026-10-07)
 
 
