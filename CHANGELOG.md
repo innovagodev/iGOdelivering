@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.33.0](https://github.com/innovagodev/iGOdelivering/compare/v1.32.0...v1.33.0) (2026-10-07)
+
+
+### Features
+
+* **checkout:** pagamento online con Stripe Payment Element (fase 4) ([50a2b4b](https://github.com/innovagodev/iGOdelivering/commit/50a2b4b40713142e3e9bf24a922d64775a8ea97f))
+* **pagamenti:** autorizzazione e cattura separate per gli ordini online ([2512c6d](https://github.com/innovagodev/iGOdelivering/commit/2512c6d34f2d0cd49098570019995d2489a80529))
+* **pagamenti:** conferma via webhook, scadenza, pannello e rimborsi (fasi 5-7) ([9665092](https://github.com/innovagodev/iGOdelivering/commit/9665092b9024235aca577ccdb7f8c00002545ac2))
+
+
+### Bug Fixes
+
+* **stripe:** pagamento online offerto appena l'account Stripe e' attivo ([326da1f](https://github.com/innovagodev/iGOdelivering/commit/326da1f5a4ba7331286ea7c244638635f955c8df))
+
 ## [1.32.0](https://github.com/innovagodev/iGOdelivering/compare/v1.31.0...v1.32.0) (2026-10-06)
 
 
