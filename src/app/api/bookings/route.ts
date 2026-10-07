@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fromCents } from '@/lib/pricing';
+import { decideAcceptance } from '@/lib/acceptance';
+import { HoursConfig } from '@/lib/serviceHours';
 import {
   adminClient,
   clientIp,
@@ -81,7 +83,7 @@ export async function POST(request: Request) {
 
   const { data: restaurant, error: rErr } = await admin
     .from('restaurants')
-    .select('id, status')
+    .select('id, status, hours_config')
     .eq('id', restaurantId)
     .maybeSingle();
   if (rErr) {
@@ -145,6 +147,22 @@ export async function POST(request: Request) {
     );
   }
 
+  // Modalità di accettazione (migration 034), come per gli ordini: locale
+  // aperto adesso → 3 minuti per confermare; chiuso → un'ora dopo la prossima
+  // apertura. Si scrive subito dopo la creazione: la funzione create_booking
+  // non conosce questi campi.
+  const acceptance = decideAcceptance(restaurant.hours_config as HoursConfig | null, 'reservation');
+  const { error: acceptError } = await admin
+    .from('bookings')
+    .update({
+      acceptance_mode: acceptance.mode,
+      accept_deadline: acceptance.deadline.toISOString(),
+    })
+    .eq('id', result.id);
+  if (acceptError) {
+    console.error('[bookings] scadenza non registrata:', result.id, acceptError.message);
+  }
+
   const booking = {
     id: result.id as string,
     restaurant_id: restaurantId,
@@ -155,6 +173,8 @@ export async function POST(request: Request) {
     date,
     time: `${time}:00`,
     status: 'pending',
+    acceptance_mode: acceptError ? null : acceptance.mode,
+    accept_deadline: acceptError ? null : acceptance.deadline.toISOString(),
     notes,
     pre_order_items: preOrderItems,
     pre_order_total: preOrderTotal,

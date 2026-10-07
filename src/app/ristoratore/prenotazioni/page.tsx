@@ -173,6 +173,33 @@ export default function PrenotazioniPage() {
     );
   };
 
+  // Prenotazioni non confermate entro la scadenza: le fa scadere il server
+  // (cron, apertura di una pagina di tracking, questa chiamata). Qui si controlla
+  // ogni 15 secondi e si ricarica l'elenco quando serve.
+  useEffect(() => {
+    const check = setInterval(async () => {
+      const due = bookings.some(
+        (b) =>
+          b.status === 'pending' &&
+          b.acceptDeadline &&
+          Date.now() >= new Date(b.acceptDeadline).getTime()
+      );
+      if (!due) return;
+      try {
+        await fetch('/api/order/expire-due', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        fetchBookings();
+      } catch (e) {
+        console.error('[prenotazioni] expire-due:', e);
+      }
+    }, 15000);
+    return () => clearInterval(check);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookings]);
+
   const fetchBookings = async () => {
     if (!restaurantId || restaurantId === 'r-001') {
       setLoading(false);
@@ -204,7 +231,11 @@ export default function PrenotazioniPage() {
         guests: b.guests,
         date: b.date,
         time: b.time ? b.time.slice(0, 5) : '',
-        status: b.status,
+        // 'expired' (nessuna risposta in tempo) si tratta come cancellata ma
+        // si distingue nell'etichetta: si può comunque ripristinare.
+        status: b.status === 'expired' ? 'cancelled' : b.status,
+        expired: b.status === 'expired',
+        acceptDeadline: b.accept_deadline || undefined,
         notes: b.notes || undefined,
         createdAt: b.created_at,
         preOrderItems: b.pre_order_items || undefined,
@@ -791,9 +822,20 @@ export default function PrenotazioniPage() {
                               {booking.status === 'confirmed'
                                 ? 'Confermata'
                                 : booking.status === 'cancelled'
-                                  ? 'Cancellata'
+                                  ? booking.expired
+                                    ? 'Scaduta'
+                                    : 'Cancellata'
                                   : 'In attesa'}
                             </Badge>
+                            {booking.status === 'pending' && booking.acceptDeadline && (
+                              <span className="text-[10px] font-semibold text-amber-600">
+                                Rispondi entro{' '}
+                                {new Date(booking.acceptDeadline).toLocaleTimeString('it-IT', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
                           </div>
                         </div>
 

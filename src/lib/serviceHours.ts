@@ -13,7 +13,7 @@
  * locale che chiude a mezzanotte.
  */
 
-export type ServiceKind = 'delivery' | 'pickup';
+export type ServiceKind = 'delivery' | 'pickup' | 'reservation';
 
 interface DayConfig {
   enabled?: boolean;
@@ -169,6 +169,47 @@ const daysBetween = (from: string, to: string) => {
   const [y1, m1, d1] = from.split('-').map(Number);
   const [y2, m2, d2] = to.split('-').map(Number);
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+};
+
+/** Istante UTC in cui, nel fuso indicato, l'orologio segna `minutes` del giorno `date`. */
+export const zonedToUtc = (date: string, minutes: number, timeZone = 'Europe/Rome'): Date => {
+  const [y, m, d] = date.split('-').map(Number);
+  // L'istante che, letto come UTC, ha lo stesso orologio: poi si toglie lo
+  // scarto che il fuso gli attribuisce.
+  const guess = Date.UTC(y, m - 1, d, 0, minutes);
+  const seen = nowInZone(timeZone, new Date(guess));
+  const seenMinutes = daysBetween(date, seen.date) * 1440 + seen.minutes;
+  return new Date(guess - (seenMinutes - minutes) * 60000);
+};
+
+const addDays = (date: string, days: number): string => {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+};
+
+/**
+ * Prossima apertura del servizio dopo l'istante indicato: inizio della prima
+ * fascia che comincia più avanti, entro 14 giorni. `null` se non ce n'è una
+ * (nessun orario configurato, oppure servizio sospeso o chiuso a lungo).
+ */
+export const nextOpeningAt = (
+  config: HoursConfig | null | undefined,
+  service: ServiceKind,
+  now: { date: string; minutes: number },
+  timeZone = 'Europe/Rome'
+): Date | null => {
+  if (isSuspended(config, service)) return null;
+  for (let i = 0; i <= 14; i++) {
+    const date = addDays(now.date, i);
+    if (isTemporarilyClosed(config, date)) continue;
+    const ranges = serviceRanges(config, service, date);
+    if (ranges === null) return null;
+    const starts = ranges.map((r) => r.start).sort((a, b) => a - b);
+    for (const start of starts) {
+      if (i > 0 || start > now.minutes) return zonedToUtc(date, start, timeZone);
+    }
+  }
+  return null;
 };
 
 export type ScheduleCheck =

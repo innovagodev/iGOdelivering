@@ -2,40 +2,15 @@ import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Autorizzazione e cattura dei pagamenti online (migration 032).
+ * Autorizzazione, cattura e scadenza degli ordini online (migration 032, 034).
  *
  * Il PaymentIntent è creato con capture_method = manual: il cliente autorizza
- * l'importo, il ristorante ha ACCEPT_WINDOW_SECONDS per accettare l'ordine.
- * Accettato → l'importo viene catturato. Rifiutato o scaduto → l'autorizzazione
- * viene annullata e il cliente non è mai addebitato.
+ * l'importo, il ristorante lo accetta entro `accept_deadline` (la regola sta in
+ * src/lib/acceptance.ts). Accettato → l'importo viene catturato. Rifiutato o
+ * scaduto → l'autorizzazione viene annullata e il cliente non è mai addebitato.
  *
  * Solo codice server: usa la service role key e la chiave segreta di Stripe.
  */
-
-/** Finestra di accettazione mostrata al cliente nel conto alla rovescia. */
-export const ACCEPT_WINDOW_SECONDS = 180;
-
-/**
- * Quanto a lungo si lascia bloccato un importo autorizzato. Le banche tengono
- * l'autorizzazione di una carta al massimo 7 giorni: oltre, sparisce da sola e
- * l'incasso non sarebbe più possibile. Un giorno di margine.
- */
-export const MAX_AUTHORIZATION_HOLD_MS = 6 * 24 * 60 * 60 * 1000;
-
-/**
- * Scadenza dell'accettazione di un ordine appena autorizzato.
- *   · ordine immediato:  3 minuti da ora (il conto alla rovescia del cliente);
- *   · ordine programmato: l'orario scelto dal cliente — il ristorante può
- *     accettarlo fino ad allora — ma mai meno di 3 minuti da ora e mai oltre
- *     il tetto di MAX_AUTHORIZATION_HOLD_MS.
- */
-export function computeAcceptDeadline(now: number, scheduledAt: string | null): Date {
-  const minimum = now + ACCEPT_WINDOW_SECONDS * 1000;
-  if (!scheduledAt) return new Date(minimum);
-  const scheduled = new Date(scheduledAt).getTime();
-  if (!Number.isFinite(scheduled)) return new Date(minimum);
-  return new Date(Math.max(minimum, Math.min(scheduled, now + MAX_AUTHORIZATION_HOLD_MS)));
-}
 
 export type AuthorizationOutcome = 'voided' | 'captured' | 'error';
 
@@ -81,15 +56,18 @@ export async function cancelAuthorization(
 }
 
 /**
- * Fa scadere un ordine con pagamento autorizzato e finestra scaduta: annulla
- * l'autorizzazione su Stripe, poi porta l'ordine a 'expired' / 'voided'. Torna
- * true solo se la scadenza è stata registrata ora.
+ * Fa scadere un ordine non accettato entro la scadenza. Torna true solo se la
+ * scadenza è stata registrata ora.
+ *   · pagamento autorizzato: annulla l'autorizzazione su Stripe, poi porta
+ *     l'ordine a 'expired' / 'voided';
+ *   · contanti o POS: lo porta a 'expired'.
+ * Un ordine già accettato o incassato non si tocca.
  *
  * Stripe per primo: se il ristorante ha catturato nel frattempo, l'annullamento
  * fallisce e l'ordine resta com'è.
  */
-export async function expireAuthorizedOrder(
-  stripe: Stripe,
+export async function expireOrder(
+  stripe: Stripe | null,
   admin: SupabaseClient,
   orderId: string
 ): Promise<boolean> {
@@ -99,20 +77,35 @@ export async function expireAuthorizedOrder(
     .eq('id', orderId)
     .maybeSingle();
   if (error || !order) return false;
-  if (order.payment_status !== 'authorized') return false;
   if (order.status !== 'new' && order.status !== 'pending') return false;
   if (!order.accept_deadline || new Date(order.accept_deadline).getTime() > Date.now()) {
     return false;
   }
 
-  const outcome = await cancelAuthorization(stripe, order, 'abandoned');
-  if (outcome !== 'voided') return false;
+  if (order.payment_status === 'authorized') {
+    if (!stripe) return false;
+    const outcome = await cancelAuthorization(stripe, order, 'abandoned');
+    if (outcome !== 'voided') return false;
+    const { data: updated, error: updError } = await admin
+      .from('orders')
+      .update({ status: 'expired', payment_status: 'voided' })
+      .eq('id', order.id)
+      .eq('payment_status', 'authorized')
+      .in('status', ['new', 'pending'])
+      .select('id');
+    if (updError) {
+      console.error('[orderPayments] scadenza non registrata:', order.id, updError.message);
+      return false;
+    }
+    return (updated?.length ?? 0) > 0;
+  }
 
+  if (order.payment_status !== 'unpaid') return false;
   const { data: updated, error: updError } = await admin
     .from('orders')
-    .update({ status: 'expired', payment_status: 'voided' })
+    .update({ status: 'expired' })
     .eq('id', order.id)
-    .eq('payment_status', 'authorized')
+    .eq('payment_status', 'unpaid')
     .in('status', ['new', 'pending'])
     .select('id');
   if (updError) {
@@ -123,36 +116,72 @@ export async function expireAuthorizedOrder(
 }
 
 /**
- * Rete di sicurezza: fa scadere gli ordini autorizzati con finestra scaduta,
- * di un ristorante o di tutti. Lo stato vero lo vedono comunque subito cliente
- * e ristoratore (la scadenza è un dato del server), ma l'autorizzazione resta
- * bloccata sulla carta finché qualcuno non la annulla.
+ * Fa scadere una prenotazione non confermata entro la scadenza. Una
+ * prenotazione non ha pagamenti: basta cambiare lo stato.
  */
-export async function expireDueAuthorizedOrders(
-  stripe: Stripe,
+export async function expireBooking(admin: SupabaseClient, bookingId: string): Promise<boolean> {
+  const { data, error } = await admin
+    .from('bookings')
+    .update({ status: 'expired' })
+    .eq('id', bookingId)
+    .eq('status', 'pending')
+    .lt('accept_deadline', new Date().toISOString())
+    .select('id');
+  if (error) {
+    console.error('[orderPayments] scadenza prenotazione non registrata:', bookingId, error.message);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
+}
+
+/**
+ * Rete di sicurezza: fa scadere ordini e prenotazioni con scadenza passata, di
+ * un ristorante o di tutti. Lo stato vero lo vedono comunque subito cliente e
+ * ristoratore (la scadenza è un dato del server), ma un'autorizzazione di
+ * carta resta bloccata finché qualcuno non la annulla.
+ */
+export async function expireDueRequests(
+  stripe: Stripe | null,
   admin: SupabaseClient,
   restaurantId?: string,
-  limit = 25
-): Promise<number> {
-  let query = admin
+  limit = 50
+): Promise<{ orders: number; bookings: number }> {
+  const nowIso = new Date().toISOString();
+
+  let orderQuery = admin
     .from('orders')
     .select('id')
-    .eq('payment_status', 'authorized')
     .in('status', ['new', 'pending'])
-    .lt('accept_deadline', new Date().toISOString())
+    .in('payment_status', ['unpaid', 'authorized'])
+    .lt('accept_deadline', nowIso)
     .order('accept_deadline', { ascending: true })
     .limit(limit);
-  if (restaurantId) query = query.eq('restaurant_id', restaurantId);
+  if (restaurantId) orderQuery = orderQuery.eq('restaurant_id', restaurantId);
 
-  const { data, error } = await query;
-  if (error) {
-    console.error('[orderPayments] lettura ordini scaduti fallita:', error.message);
-    return 0;
+  let bookingQuery = admin
+    .from('bookings')
+    .select('id')
+    .eq('status', 'pending')
+    .lt('accept_deadline', nowIso)
+    .order('accept_deadline', { ascending: true })
+    .limit(limit);
+  if (restaurantId) bookingQuery = bookingQuery.eq('restaurant_id', restaurantId);
+
+  const [orders, bookings] = await Promise.all([orderQuery, bookingQuery]);
+  if (orders.error) {
+    console.error('[orderPayments] lettura ordini scaduti fallita:', orders.error.message);
+  }
+  if (bookings.error) {
+    console.error('[orderPayments] lettura prenotazioni scadute fallita:', bookings.error.message);
   }
 
-  let expired = 0;
-  for (const row of data ?? []) {
-    if (await expireAuthorizedOrder(stripe, admin, row.id)) expired++;
+  let expiredOrders = 0;
+  for (const row of orders.data ?? []) {
+    if (await expireOrder(stripe, admin, row.id)) expiredOrders++;
   }
-  return expired;
+  let expiredBookings = 0;
+  for (const row of bookings.data ?? []) {
+    if (await expireBooking(admin, row.id)) expiredBookings++;
+  }
+  return { orders: expiredOrders, bookings: expiredBookings };
 }

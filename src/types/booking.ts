@@ -8,6 +8,10 @@ export interface TableBooking {
   date: string;
   time: string;
   status: 'pending' | 'confirmed' | 'cancelled';
+  /** Non confermata entro la scadenza: nel pannello conta come cancellata ma si legge "Scaduta". */
+  expired?: boolean;
+  /** Scadenza per confermare (migration 034). */
+  acceptDeadline?: string;
   notes?: string;
   createdAt?: string;
   preOrderItems?: any[];

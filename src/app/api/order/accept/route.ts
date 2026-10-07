@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext, getStripe } from '@/lib/stripeServer';
 import { UUID_RE } from '@/lib/orderServer';
-import { expireAuthorizedOrder } from '@/lib/orderPayments';
+import { expireOrder } from '@/lib/orderPayments';
 
 /**
  * POST /api/order/accept   { orderId }
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
   // Finestra scaduta: l'ordine non si accetta più e l'autorizzazione si annulla.
   if (!order.accept_deadline || new Date(order.accept_deadline).getTime() <= Date.now()) {
-    await expireAuthorizedOrder(stripe, ctx.admin, order.id);
+    await expireOrder(stripe, ctx.admin, order.id);
     return NextResponse.json(
       { error: 'Tempo scaduto: l’ordine è scaduto e il cliente non è stato addebitato.', expired: true },
       { status: 409 }

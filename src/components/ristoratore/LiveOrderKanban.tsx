@@ -55,6 +55,8 @@ interface LiveOrder {
   scheduledAt?: string | null;
   paymentMethod?: string | null;
   paymentStatus?: string | null;
+  acceptDeadline?: string | null;
+  acceptanceMode?: string | null;
 }
 
 
@@ -139,6 +141,22 @@ export default function LiveOrderKanban() {
   const [ticker, setTicker] = useState(0);
   const [activeMobileTab, setActiveMobileTab] = useState<OrderStatus>('pending');
 
+  // Orologio al secondo per il conto alla rovescia sulle schede in attesa: gira
+  // solo finché c'è un ordine da accettare con una scadenza.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const hasLiveCountdown = orders.some(
+    (o) =>
+      (o.status === 'new' || o.status === 'pending') &&
+      o.accept_deadline &&
+      o.acceptance_mode === 'live' &&
+      new Date(o.accept_deadline).getTime() > Date.now()
+  );
+  useEffect(() => {
+    if (!hasLiveCountdown) return;
+    const clock = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(clock);
+  }, [hasLiveCountdown]);
+
   // Set up live ticking interval to refresh dynamic prep timers
   useEffect(() => {
     const timer = setInterval(() => {
@@ -147,15 +165,16 @@ export default function LiveOrderKanban() {
     return () => clearInterval(timer);
   }, []);
 
-  // Ordini con pagamento autorizzato e finestra di 3 minuti scaduta: la
-  // scadenza è già visibile qui, ma l'importo resta bloccato sulla carta del
-  // cliente finché il server non annulla l'autorizzazione.
+  // Ordini non accettati entro la scadenza (3 minuti a locale aperto, un'ora
+  // dopo l'apertura per i preordini): la scadenza è già visibile qui, ma
+  // l'ordine resta aperto — e un'autorizzazione di carta resta bloccata sulla
+  // carta del cliente — finché il server non lo fa scadere.
   const sweepingRef = useRef(false);
   useEffect(() => {
     const hasDue = orders.some(
       (o) =>
-        o.payment_status === 'authorized' &&
         (o.status === 'new' || o.status === 'pending') &&
+        (o.payment_status === 'unpaid' || o.payment_status === 'authorized') &&
         o.accept_deadline &&
         Date.now() >= new Date(o.accept_deadline).getTime()
     );
@@ -178,34 +197,29 @@ export default function LiveOrderKanban() {
 
   const getOrderStatus = (o: any): string => {
     if (o.status === 'expired') return 'expired';
-    // Pagamento online autorizzato: la scadenza non è "3 minuti dalla
-    // creazione" ma accept_deadline, decisa dal server (mig. 032): 3 minuti per
-    // un ordine immediato, l'orario scelto dal cliente per uno programmato.
-    // Scaduta, l'autorizzazione viene annullata e il cliente non è addebitato.
-    if (o.payment_status === 'authorized') {
-      if (o.accept_deadline && Date.now() >= new Date(o.accept_deadline).getTime()) {
-        return 'expired';
-      }
-      return o.status || 'new';
-    }
-    // Gli ordini programmati non scadono mai automaticamente dopo 3 minuti
-    if (o.scheduled_at) {
-      return o.status || 'pending';
-    }
-    // Nemmeno quelli già incassati online: il cliente è stato addebitato,
-    // quindi restano in attesa finché il ristorante non li accetta o li rifiuta
-    // (con rimborso). Il database impedisce comunque di farli scadere (mig. 030).
-    if (o.payment_status === 'paid' || o.payment_status === 'partially_refunded') {
-      return o.status || 'new';
-    }
+    // Regola unica (migration 034): la scadenza per accettare è accept_deadline,
+    // decisa dal server — 3 minuti a locale aperto, un'ora dopo la prossima
+    // apertura per i preordini — per contanti, POS e carta. Scaduto un ordine
+    // non incassato, il pannello lo mostra tra i persi; un ordine già incassato
+    // online non scade mai da qui (migration 030).
     if (o.status === 'new' || o.status === 'pending') {
-      const mins = Math.max(
-        0,
-        Math.floor(
-          (Date.now() - new Date(o.created_at || o.timestamp || o.createdAt).getTime()) / 60000
-        )
-      );
-      if (mins >= 3) return 'expired';
+      if (o.payment_status === 'paid' || o.payment_status === 'partially_refunded') {
+        return o.status || 'new';
+      }
+      if (o.accept_deadline) {
+        return Date.now() >= new Date(o.accept_deadline).getTime() ? 'expired' : o.status;
+      }
+      // Ordini nati prima della regola: 3 minuti dalla creazione, tranne quelli
+      // con un orario scelto, che non scadevano.
+      if (!o.scheduled_at) {
+        const mins = Math.max(
+          0,
+          Math.floor(
+            (Date.now() - new Date(o.created_at || o.timestamp || o.createdAt).getTime()) / 60000
+          )
+        );
+        if (mins >= 3) return 'expired';
+      }
     }
     return o.status || 'pending';
   };
@@ -257,6 +271,8 @@ export default function LiveOrderKanban() {
       deliveryDate: enriched.deliveryDate || '',
       paymentMethod: enriched.payment_method ?? null,
       paymentStatus: enriched.payment_status ?? null,
+      acceptDeadline: enriched.accept_deadline ?? null,
+      acceptanceMode: enriched.acceptance_mode ?? null,
       scheduledAt: enriched.scheduled_at || null,
     };
   };
@@ -1022,6 +1038,43 @@ export default function LiveOrderKanban() {
                         ))}
                       </ul>
                     </div>
+
+                    {/* Scadenza per accettare */}
+                    {(order.status === 'new' || order.status === 'pending') &&
+                      order.acceptDeadline &&
+                      (() => {
+                        const deadline = new Date(order.acceptDeadline).getTime();
+                        if (order.acceptanceMode === 'deferred') {
+                          return (
+                            <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                              Preordine: da confermare entro{' '}
+                              {new Date(deadline).toLocaleString('it-IT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </div>
+                          );
+                        }
+                        const left = Math.max(0, Math.ceil((deadline - nowMs) / 1000));
+                        const urgent = left <= 60;
+                        return (
+                          <div
+                            className={`mt-1 flex items-center justify-between rounded-md px-2 py-1 text-[10px] font-bold ${
+                              urgent
+                                ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 animate-pulse'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                            }`}
+                          >
+                            <span>Accetta entro</span>
+                            <span className="font-mono tabular-nums text-xs">
+                              {String(Math.floor(left / 60)).padStart(2, '0')}:
+                              {String(left % 60).padStart(2, '0')}
+                            </span>
+                          </div>
+                        );
+                      })()}
 
                     {/* Service/Additional info */}
                     {order.isBookingPreOrder && (

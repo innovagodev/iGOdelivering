@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { adminClient } from '@/lib/orderServer';
 import { getStripe, syncRestaurantStripe } from '@/lib/stripeServer';
-import { cancelAuthorization, computeAcceptDeadline } from '@/lib/orderPayments';
+import { cancelAuthorization } from '@/lib/orderPayments';
+import { liveDeadline } from '@/lib/acceptance';
 
 /**
  * POST /api/stripe/webhook
@@ -252,7 +253,7 @@ async function onPaymentAuthorized(
 
   const { data: order, error } = await admin
     .from('orders')
-    .select('id, status, total, payment_status, stripe_account_id, scheduled_at')
+    .select('id, status, total, payment_status, stripe_account_id, acceptance_mode, accept_deadline')
     .eq('stripe_payment_intent_id', pi.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -281,7 +282,13 @@ async function onPaymentAuthorized(
         status: 'new',
         payment_status: 'authorized',
         authorized_at: new Date(now).toISOString(),
-        accept_deadline: computeAcceptDeadline(now, order.scheduled_at).toISOString(),
+        // Locale aperto: i 3 minuti partono ora, da quando l'ordine arriva al
+        // ristorante. Preordine (locale chiuso): resta la scadenza fissata alla
+        // creazione, un'ora dopo la prossima apertura.
+        accept_deadline:
+          order.acceptance_mode === 'deferred' && order.accept_deadline
+            ? order.accept_deadline
+            : liveDeadline(now).toISOString(),
       })
       .eq('id', order.id)
       .eq('status', 'awaiting_payment');

@@ -74,6 +74,8 @@ import {
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
 import { notify, confirmAction } from '@/lib/notify';
+import { LIVE_ACCEPT_SECONDS } from '@/lib/acceptance';
+import BookingStatusNotice from '@/components/menu/BookingStatusNotice';
 
 
 // ─── Types ────────────────────────────────────────────────────
@@ -996,6 +998,7 @@ function CheckoutModal({
   lastCreatedOrder,
   setLastCreatedOrder,
   clearCart,
+  restoreCart,
   bookingContext,
   setBookingContext,
   isCurrentlyClosed,
@@ -1043,6 +1046,8 @@ function CheckoutModal({
   lastCreatedOrder: any;
   setLastCreatedOrder: (order: any) => void;
   clearCart: () => void;
+  /** Rimette nel carrello i piatti di un ordine non accettato ("Riordina"). */
+  restoreCart: (items: any[]) => void;
   bookingContext: any;
   setBookingContext: (v: any) => void;
   isCurrentlyClosed?: boolean;
@@ -1336,6 +1341,7 @@ function CheckoutModal({
     deliveryType,
     tableNumber,
     lastCreatedOrder,
+    onReorder,
   }: {
     orderId: string;
     orderStatus: string;
@@ -1348,16 +1354,44 @@ function CheckoutModal({
     deliveryType: string;
     tableNumber?: string | null;
     lastCreatedOrder: any;
+    onReorder?: () => void;
   }) => {
-    const isScheduled = !!lastCreatedOrder?.scheduled_at;
+    // Regola unica di accettazione (migration 034), decisa dal server quando
+    // l'ordine viene creato:
+    //   live      locale aperto: 3 minuti per accettare, conto alla rovescia
+    //             visibile, qualunque orario abbia scelto il cliente;
+    //   deferred  locale chiuso (preordine): niente conto alla rovescia, la
+    //             scadenza è un'ora dopo la prossima apertura.
+    // Gli ordini nati prima della regola non hanno la modalità: li distingue
+    // la presenza di un orario scelto, come prima.
+    const acceptanceMode: 'live' | 'deferred' =
+      lastCreatedOrder?.acceptance_mode === 'deferred' ||
+      lastCreatedOrder?.acceptance_mode === 'live'
+        ? lastCreatedOrder.acceptance_mode
+        : lastCreatedOrder?.scheduled_at
+          ? 'deferred'
+          : 'live';
+    const isScheduled = acceptanceMode === 'deferred';
 
-    const [secondsLeft, setSecondsLeft] = useState(() => {
-      const createdAt = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
-      if (!createdAt) return 180;
-      const elapsedMs = Date.now() - new Date(createdAt).getTime();
-      const elapsedSeconds = Math.floor(elapsedMs / 1000);
-      return Math.max(0, 180 - elapsedSeconds);
-    });
+    // Scadenza dell'accettazione in ms. Il server la comunica (accept_deadline);
+    // finché non c'è (per esempio un pagamento appena autorizzato) si stima dal
+    // momento dell'ordine.
+    const deadlineMsOf = (o: any): number => {
+      if (o?.accept_deadline) {
+        const ms = new Date(o.accept_deadline).getTime();
+        if (Number.isFinite(ms)) return ms;
+      }
+      const created = o?.timestamp || o?.created_at;
+      return created ? new Date(created).getTime() + LIVE_ACCEPT_SECONDS * 1000 : 0;
+    };
+    const remainingFrom = (deadlineMs: number): number =>
+      deadlineMs > 0
+        ? Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000))
+        : LIVE_ACCEPT_SECONDS;
+
+    const [secondsLeft, setSecondsLeft] = useState(() =>
+      remainingFrom(deadlineMsOf(lastCreatedOrder))
+    );
 
     const [phase, setPhase] = useState<'pending' | 'waiting_warn' | 'accepted' | 'rejected' | 'expired'>(() => {
       if (orderStatus === 'accepted' || orderStatus === 'preparing' || orderStatus === 'ready' || orderStatus === 'delivering') {
@@ -1372,13 +1406,7 @@ function CheckoutModal({
       if (isScheduled) {
         return 'pending';
       }
-      const initialSeconds = (() => {
-        const createdAt = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
-        if (!createdAt) return 180;
-        const elapsedMs = Date.now() - new Date(createdAt).getTime();
-        const elapsedSeconds = Math.floor(elapsedMs / 1000);
-        return Math.max(0, 180 - elapsedSeconds);
-      })();
+      const initialSeconds = remainingFrom(deadlineMsOf(lastCreatedOrder));
       if (initialSeconds === 0) return 'expired';
       if (initialSeconds <= 90) return 'waiting_warn';
       return 'pending';
@@ -1397,14 +1425,13 @@ function CheckoutModal({
 
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Store the creation timestamp in a ref so the interval callback can always
-    // read it without stale closure issues (never changes for a given order).
-    const orderCreatedAtRef = useRef<number>(0);
+    // La scadenza in un ref, così il timer la legge sempre aggiornata: il
+    // server la comunica con il polling, dopo che il pagamento è autorizzato.
+    const deadlineRef = useRef<number>(deadlineMsOf(lastCreatedOrder));
     useEffect(() => {
-      const raw = lastCreatedOrder?.timestamp || lastCreatedOrder?.created_at;
-      if (raw) orderCreatedAtRef.current = new Date(raw).getTime();
+      deadlineRef.current = deadlineMsOf(lastCreatedOrder);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [lastCreatedOrder?.timestamp, lastCreatedOrder?.created_at]);
+    }, [lastCreatedOrder?.accept_deadline, lastCreatedOrder?.timestamp, lastCreatedOrder?.created_at]);
 
     // Helper: stop the countdown timer unconditionally
     const stopTimer = () => {
@@ -1414,13 +1441,12 @@ function CheckoutModal({
       }
     };
 
-    // Helper: compute remaining seconds from the real creation timestamp.
-    // This is self-correcting: even if the browser throttled the interval
-    // (background tab), the next tick will immediately show the correct value.
+    // Helper: secondi rimasti dalla scadenza vera. Si corregge da solo: anche se
+    // il browser rallenta il timer (scheda in background), il tick successivo
+    // mostra subito il valore giusto.
     const computeRemaining = (): number => {
-      const createdAtMs = orderCreatedAtRef.current;
-      if (createdAtMs <= 0) return Math.max(0, secondsLeft);
-      return Math.max(0, 180 - Math.floor((Date.now() - createdAtMs) / 1000));
+      if (deadlineRef.current <= 0) return Math.max(0, secondsLeft);
+      return Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
     };
 
     // Helper: resolve a new status to the correct phase value
@@ -1437,45 +1463,18 @@ function CheckoutModal({
       return null;
     };
 
-    // Helper: trigger the expired state and persist it to the DB
-    //
-    // Passa dalla RPC `expire_order` (SECURITY DEFINER) e non da un UPDATE
-    // diretto: con la chiave anon quell'UPDATE veniva scartato da RLS senza
-    // errore (PostgREST risponde 204 anche per zero righe toccate), quindi la
-    // scadenza non raggiungeva mai il database. Il cliente vedeva "scaduto"
-    // mentre per il ristoratore l'ordine restava 'new' e accettabile.
+    // Fine del conto alla rovescia. La scadenza la registra il server (migration
+    // 034): qui si chiede lo stato vero. Se nel frattempo il ristoratore ha
+    // accettato o rifiutato, si mostra quello; se è scaduto, il server lo
+    // segna ora (e annulla un'eventuale autorizzazione di carta). Dichiarare la
+    // scadenza dal browser sarebbe una bugia: l'ordine potrebbe essere già in
+    // preparazione.
     const triggerExpired = () => {
       stopTimer();
       setSecondsLeft(0);
 
-      // Le prenotazioni non hanno uno stato 'expired' sul database: la scadenza
-      // resta solo lato interfaccia, come prima.
-      if (isBooking) {
-        setPhase('expired');
-        return;
-      }
-
       (async () => {
         try {
-          const { data: didExpire, error } = await supabase.rpc('expire_order', {
-            p_order_id: orderId,
-          });
-          if (error) throw error;
-
-          if (didExpire) {
-            setPhase('expired');
-            setLastCreatedOrder((prev: any) => {
-              const next = { ...prev, status: 'expired' };
-              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
-              return next;
-            });
-            return;
-          }
-
-          // FALSE = la riga non era più in 'new'/'pending': il ristoratore l'ha
-          // presa in carico proprio mentre il countdown finiva. Dichiarare la
-          // scadenza sarebbe una bugia, quindi si legge lo stato reale
-          // dall'endpoint server-side e si mostra quello.
           const res = await fetch(`/api/order-status/${encodeURIComponent(orderId)}`, {
             cache: 'no-store',
           });
@@ -1486,7 +1485,11 @@ function CheckoutModal({
           if (!realStatus) return;
 
           setLastCreatedOrder((prev: any) => {
-            const next = { ...prev, status: realStatus };
+            const next = {
+              ...prev,
+              status: realStatus,
+              ...(json?.acceptDeadline ? { accept_deadline: json.acceptDeadline } : {}),
+            };
             sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
             return next;
           });
@@ -1655,26 +1658,25 @@ function CheckoutModal({
           const newStatus: string | undefined = json?.status;
           if (!newStatus) return;
 
-          // La scadenza dell'accettazione la decide il server (accept_deadline,
-          // impostata quando il pagamento è autorizzato): il conto alla rovescia
-          // parte da lì, così coincide con quello del pannello del ristorante e
-          // non dipende dall'orologio del cliente né dall'istante del click.
-          const deadlineMs = json?.acceptDeadline ? new Date(json.acceptDeadline).getTime() : NaN;
-          const deadlineBase = Number.isFinite(deadlineMs)
-            ? new Date(deadlineMs - 180 * 1000).toISOString()
-            : null;
+          // La scadenza dell'accettazione la decide il server (accept_deadline):
+          // il conto alla rovescia parte da lì, così coincide con quello del
+          // pannello del ristorante e non dipende dall'orologio del cliente né
+          // dall'istante del click.
+          const serverDeadline: string | undefined = json?.acceptDeadline || undefined;
+          const serverMode: string | undefined = json?.acceptanceMode || undefined;
 
           // Persist the new status even if it's the same (keeps sessionStorage fresh)
           if (
             newStatus !== lastCreatedOrder?.status ||
-            (deadlineBase && deadlineBase !== lastCreatedOrder?.timestamp)
+            (serverDeadline && serverDeadline !== lastCreatedOrder?.accept_deadline) ||
+            (serverMode && serverMode !== lastCreatedOrder?.acceptance_mode)
           ) {
             setLastCreatedOrder((prev: any) => {
               const next = {
                 ...prev,
                 status: newStatus,
-                ...(deadlineBase ? { timestamp: deadlineBase } : {}),
-                ...(json?.acceptDeadline ? { accept_deadline: json.acceptDeadline } : {}),
+                ...(serverDeadline ? { accept_deadline: serverDeadline } : {}),
+                ...(serverMode ? { acceptance_mode: serverMode } : {}),
               };
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
               return next;
@@ -1705,7 +1707,20 @@ function CheckoutModal({
       return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const percentage = (secondsLeft / 180) * 100;
+    const percentage = Math.min(100, (secondsLeft / LIVE_ACCEPT_SECONDS) * 100);
+
+    // Dopo un ordine non accettato il carrello è già stato svuotato: chi ha
+    // aspettato non deve ricominciare da capo. "Riordina" lo rimette com'era.
+    const reorderButton =
+      onReorder && !isBooking && Array.isArray(lastCreatedOrder?.items) && lastCreatedOrder.items.length > 0 ? (
+        <button
+          type="button"
+          onClick={onReorder}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-extrabold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-hover active:scale-95"
+        >
+          {lang === 'en' ? 'Order again' : 'Riordina'}
+        </button>
+      ) : null;
 
     return (
       <div className="space-y-6 py-4">
@@ -1720,30 +1735,31 @@ function CheckoutModal({
               <div className="space-y-1">
                 <h3 className="text-lg font-black text-foreground">
                   {isScheduled
-                    ? (lang === 'en' ? 'Scheduled Order Received!' : 'Ordine programmato ricevuto!')
+                    ? (lang === 'en' ? 'Pre-order received!' : 'Preordine ricevuto!')
                     : t('tracker_waiting')}
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
                   {isScheduled
                     ? (lang === 'en'
-                        ? 'The restaurant will confirm your order for the time you chose. You can keep this page open or return later to check confirmation.'
-                        : 'Il ristorante confermerà il tuo ordine per l’orario scelto. Puoi tenere aperta questa pagina o tornare più tardi per verificare la conferma.')
+                        ? 'The restaurant is closed right now: it will see your order when it opens and confirm it. You can keep this page open or return later to check confirmation.'
+                        : 'Il locale è chiuso in questo momento: il ristorante vedrà il tuo ordine all’apertura e lo confermerà. Puoi tenere aperta questa pagina o tornare più tardi per verificare la conferma.')
                     : (lastCreatedOrder?.type === 'prenotazione_tavolo'
                         ? t('tracker_booking_waiting')
                         : deliveryType === 'tavolo'
                           ? t('tracker_order_table', { n: tableNumber || '' })
                           : t('tracker_reviewing'))}
                 </p>
-                {isScheduled && lastCreatedOrder?.accept_deadline && (
+                {isScheduled && lastCreatedOrder?.accept_deadline && phase === 'pending' && (
                   <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
                     {(() => {
                       const when = new Date(lastCreatedOrder.accept_deadline).toLocaleString(
                         lang === 'en' ? 'en-GB' : 'it-IT',
                         { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
                       );
+                      const online = payMethod === 'online';
                       return lang === 'en'
-                        ? `The amount is only held on your card. If the restaurant does not confirm by ${when}, the order lapses and you are not charged.`
-                        : `L’importo è solo bloccato sulla carta. Se il ristorante non conferma entro il ${when}, l’ordine decade e non ti viene addebitato nulla.`;
+                        ? `If the restaurant does not confirm by ${when}, the order lapses${online ? ' and you are not charged: the amount is only held on your card' : ''}.`
+                        : `Se il ristorante non conferma entro il ${when}, l’ordine decade${online ? ' e non ti viene addebitato nulla: l’importo è solo bloccato sulla carta' : ''}.`;
                     })()}
                   </p>
                 )}
@@ -1805,6 +1821,7 @@ function CheckoutModal({
                     </>
                   )}
                 </div>
+                {reorderButton}
               </div>
             </div>
           )}
@@ -1832,9 +1849,11 @@ function CheckoutModal({
                   )}
                 </div>
 
+                {reorderButton}
+
                 {/* Call restaurant CTA */}
                 {restaurantPhone && (
-                  <div className="mt-4 pt-2">
+                  <div className="mt-2 pt-2">
                     <a
                       href={`tel:${restaurantPhone}`}
                       className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all active:scale-95 text-xs shadow-md shadow-emerald-600/15"
@@ -3240,6 +3259,10 @@ function CheckoutModal({
 
       {step === 'success' && (
         <OrderStatusTracker
+          onReorder={() => {
+            restoreCart(lastCreatedOrder?.items || []);
+            onClose();
+          }}
           orderId={lastCreatedOrder?.id || ''}
           orderStatus={lastCreatedOrder?.status || 'new'}
           payMethod={lastCreatedOrder?.payMethod || payMethod}
@@ -5311,6 +5334,15 @@ function StorefrontContent() {
   return (
     <div
       className={`flex flex-col min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : 'pb-16 md:pb-0'}`}
+      // Durante una prenotazione con ordine la barra del tavolo è fissa in alto
+      // (44 px): il resto della pagina scende di altrettanto, e le parti fisse
+      // (navbar, categorie) ne tengono conto con --booking-bar-h.
+      style={
+        {
+          '--booking-bar-h': bookingContext ? '2.75rem' : '0px',
+          paddingTop: bookingContext ? '2.75rem' : undefined,
+        } as React.CSSProperties
+      }
     >
       {/* Closed Banner */}
       {isCurrentlyClosed && (
@@ -5331,7 +5363,7 @@ function StorefrontContent() {
 
       {/* Topbar */}
       <header
-        className={`relative sm:fixed left-0 right-0 z-40 bg-card border-b border-border shadow-xs sm:shadow-none transition-[background-color,border-color,box-shadow] duration-300 sm:top-[var(--banner-offset,0px)] ${!isScrolled ? 'sm:bg-transparent sm:border-transparent' : ''}`}
+        className={`relative sm:fixed left-0 right-0 z-40 bg-card border-b border-border shadow-xs sm:shadow-none transition-[background-color,border-color,box-shadow] duration-300 sm:top-[calc(var(--banner-offset,0px)+var(--booking-bar-h,0px))] ${!isScrolled ? 'sm:bg-transparent sm:border-transparent' : ''}`}
         ref={headerRef}
       >
         {/* Layer 1: Solid glassmorphic background managed by GSAP (desktop) */}
@@ -5548,12 +5580,14 @@ function StorefrontContent() {
         </div>
       </header>
 
-      {/* Booking Context Bar (sticky under navbar) */}
+      {/* Barra del tavolo che si sta prenotando: fissa in cima, sempre visibile.
+          Prima stava sotto la navbar con una classe z-35 inesistente, e si
+          vedeva solo scorrendo la pagina. */}
       {bookingContext && (
         <div
-          className={`fixed left-0 right-0 z-35 transition-[background-color,border-color,box-shadow] duration-300 ${isCurrentlyClosed ? 'top-[6rem] sm:top-[calc(4.5rem+var(--banner-offset,0px))]' : 'top-[4rem] sm:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}
+          className="fixed left-0 right-0 top-0 z-[45] flex h-11 items-center border-b border-green-200 bg-green-50 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:border-green-900/30 dark:bg-green-950/80"
         >
-          <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
+          <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold">
               <Calendar size={14} className="flex-shrink-0 animate-pulse text-green-600" />
               <span className="truncate text-foreground font-semibold">
@@ -5708,7 +5742,7 @@ function StorefrontContent() {
 
       {/* Sticky category nav */}
       <div
-        className={`sticky z-30 bg-card border-b border-border shadow-card transition-[background-color,border-color,box-shadow] duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[4rem] sm:top-[calc(7rem+var(--banner-offset,0px))]' : 'top-0 sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-0 sm:top-[calc(4.5rem+var(--banner-offset,0px))]' : 'top-0 sm:top-[4.5rem]'}`}
+        className={`sticky z-30 bg-card border-b border-border shadow-card transition-[background-color,border-color,box-shadow] duration-300 top-[var(--booking-bar-h,0px)] ${isCurrentlyClosed ? 'sm:top-[calc(4.5rem+var(--banner-offset,0px)+var(--booking-bar-h,0px))]' : 'sm:top-[calc(4.5rem+var(--booking-bar-h,0px))]'}`}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-2 py-2.5">
@@ -5880,7 +5914,7 @@ function StorefrontContent() {
                         <section
                           key={`section-${cat}`}
                           id={`cat-section-${encodeURIComponent(cat)}`}
-                          className="scroll-mt-36 space-y-4 pt-2"
+                          className="scroll-mt-[calc(9rem+var(--booking-bar-h,0px))] space-y-4 pt-2"
                         >
                           <div className="flex items-center gap-3 pb-2.5 border-b border-border/70">
                             <h3 className="text-lg sm:text-xl font-extrabold text-foreground uppercase tracking-wider">
@@ -6088,6 +6122,10 @@ function StorefrontContent() {
         lastCreatedOrder={lastCreatedOrder}
         setLastCreatedOrder={setLastCreatedOrder}
         clearCart={() => setCart([])}
+        restoreCart={(items) => {
+          setCart(items);
+          setCartOpen(true);
+        }}
         bookingContext={bookingContext}
         setBookingContext={setBookingContext}
         isCurrentlyClosed={isCurrentlyClosed}
@@ -6238,9 +6276,21 @@ function StorefrontContent() {
                     <h4 className="text-lg font-bold text-foreground mb-1">
                       {t('booking_sent')}
                     </h4>
-                    <p className="text-xs text-muted-foreground">
-                      {t('booking_sent_desc')}
-                    </p>
+                    {lastCreatedOrder?.id && lastCreatedOrder?.type === 'prenotazione_tavolo' ? (
+                      <div className="mt-3">
+                        <BookingStatusNotice
+                          bookingId={lastCreatedOrder.id}
+                          lang={lang === 'en' ? 'en' : 'it'}
+                          initialDeadline={lastCreatedOrder.accept_deadline}
+                          initialMode={lastCreatedOrder.acceptance_mode}
+                          restaurantPhone={restaurantSettings?.phone || ''}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        {t('booking_sent_desc')}
+                      </p>
+                    )}
                   </div>
                   <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2.5 text-sm">
                     <div className="flex items-center gap-2 text-foreground font-medium">

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getStripe } from '@/lib/stripeServer';
-import { expireAuthorizedOrder } from '@/lib/orderPayments';
+import { expireBooking, expireOrder } from '@/lib/orderPayments';
 
 /**
  * GET /api/order-status/[orderId]
@@ -66,7 +66,7 @@ export async function GET(
       `
       id, order_number, status, type, customer_address, table_number, scheduled_at,
       created_at, subtotal, delivery_fee, discount, total,
-      payment_method, payment_status, payment_expires_at, accept_deadline,
+      payment_method, payment_status, payment_expires_at, accept_deadline, acceptance_mode,
       order_items ( name, price, qty, note, added_ingredients, removed_ingredients ),
       restaurants ( name, slug )
     `
@@ -93,19 +93,19 @@ export async function GET(
     }
   }
 
-  // Pagamento autorizzato e non accettato entro la finestra: si annulla ora
-  // l'autorizzazione, così il cliente non resta bloccato e vede lo stato vero.
+  // Ordine non accettato entro la scadenza: lo si fa scadere ora (e si annulla
+  // l'autorizzazione di carta), così il cliente non resta in attesa né bloccato
+  // e vede lo stato vero.
   if (
     order &&
-    order.payment_status === 'authorized' &&
     (order.status === 'new' || order.status === 'pending') &&
     order.accept_deadline &&
     new Date(order.accept_deadline).getTime() <= Date.now()
   ) {
-    const stripe = getStripe();
-    if (stripe && (await expireAuthorizedOrder(stripe, admin, order.id))) {
+    const wasAuthorized = order.payment_status === 'authorized';
+    if (await expireOrder(getStripe(), admin, order.id)) {
       order.status = 'expired';
-      order.payment_status = 'voided';
+      if (wasAuthorized) order.payment_status = 'voided';
     }
   }
 
@@ -121,6 +121,7 @@ export async function GET(
       paymentMethod: order.payment_method,
       paymentStatus: order.payment_status,
       acceptDeadline: order.accept_deadline,
+      acceptanceMode: order.acceptance_mode,
       orderNumber: order.order_number,
       orderType: order.type,
       address: order.customer_address,
@@ -146,7 +147,7 @@ export async function GET(
   // Fall back to bookings table
   const { data: booking, error: bookingErr } = await admin
     .from('bookings')
-    .select('status')
+    .select('status, accept_deadline, acceptance_mode')
     .eq('id', orderId)
     .maybeSingle();
 
@@ -155,7 +156,22 @@ export async function GET(
   }
 
   if (booking) {
-    return NextResponse.json({ status: booking.status, type: 'booking' });
+    // Stessa regola degli ordini: una prenotazione non confermata entro la
+    // scadenza decade.
+    if (
+      booking.status === 'pending' &&
+      booking.accept_deadline &&
+      new Date(booking.accept_deadline).getTime() <= Date.now() &&
+      (await expireBooking(admin, orderId))
+    ) {
+      booking.status = 'expired';
+    }
+    return NextResponse.json({
+      status: booking.status,
+      type: 'booking',
+      acceptDeadline: booking.accept_deadline,
+      acceptanceMode: booking.acceptance_mode,
+    });
   }
 
   return NextResponse.json({ error: 'Not found' }, { status: 404 });

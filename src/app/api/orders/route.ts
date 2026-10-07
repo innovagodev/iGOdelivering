@@ -3,7 +3,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { computeDiscountCents, fromCents, OrderType, toCents } from '@/lib/pricing';
 import { checkSchedule, HoursConfig, nowInZone, ScheduledOrdersConfig } from '@/lib/serviceHours';
 import { getStripe } from '@/lib/stripeServer';
-import { expireDueAuthorizedOrders } from '@/lib/orderPayments';
+import { expireDueRequests } from '@/lib/orderPayments';
+import { decideAcceptance } from '@/lib/acceptance';
 import {
   adminClient,
   EMAIL_RE,
@@ -73,10 +74,9 @@ export async function POST(request: Request) {
   const { error: expireError } = await admin.rpc('expire_unpaid_orders');
   if (expireError) console.error('[orders] expire_unpaid_orders:', expireError.message);
 
-  // Stessa rete di sicurezza per gli ordini con pagamento autorizzato e
-  // finestra di accettazione scaduta: ne annulla l'autorizzazione su Stripe.
-  const stripeForSweep = getStripe();
-  if (stripeForSweep) await expireDueAuthorizedOrders(stripeForSweep, admin);
+  // Stessa rete di sicurezza per ordini e prenotazioni non accettati entro la
+  // scadenza: li fa scadere e annulla le autorizzazioni di carta su Stripe.
+  await expireDueRequests(getStripe(), admin);
 
   const result = await createOrder(admin, body, clientIp(request));
   if (isFail(result)) return NextResponse.json(result.body, { status: result.status });
@@ -336,6 +336,15 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     if (error) console.error('[orders] promo release failed:', promo.id, error.message);
   };
 
+  // Modalità di accettazione (migration 034): locale aperto adesso → 3 minuti
+  // per accettare, qualunque orario abbia scelto il cliente; locale chiuso →
+  // preordine, scadenza un'ora dopo la prossima apertura. Gli ordini al tavolo
+  // arrivano da dentro il locale: sempre 3 minuti.
+  const acceptance = decideAcceptance(
+    restaurant.hours_config as HoursConfig | null,
+    type === 'tavolo' ? null : type === 'domicilio' ? 'delivery' : 'pickup'
+  );
+
   const orderId = crypto.randomUUID();
   const orderRow = {
     id: orderId,
@@ -349,6 +358,12 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     payment_status: isOnline ? 'pending' : 'unpaid',
     stripe_account_id: isOnline ? (restaurant.stripe_account_id as string) : null,
     payment_expires_at: isOnline ? new Date(Date.now() + 30 * 60_000).toISOString() : null,
+    acceptance_mode: acceptance.mode,
+    // Contanti e POS: la scadenza parte subito. Carta a locale aperto: parte
+    // dall'autorizzazione (webhook), perché fino ad allora il ristorante non
+    // vede l'ordine. Carta a locale chiuso: la scadenza è già quella finale.
+    accept_deadline:
+      isOnline && acceptance.mode === 'live' ? null : acceptance.deadline.toISOString(),
     customer_name: type === 'tavolo' ? `${name} (Tavolo ${tableNumber})` : name,
     customer_email: type === 'tavolo' ? 'tavolo@internal.it' : email,
     customer_phone: type === 'tavolo' ? null : phone,
