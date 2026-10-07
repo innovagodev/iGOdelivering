@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getStripe } from '@/lib/stripeServer';
+import { expireAuthorizedOrder } from '@/lib/orderPayments';
 
 /**
  * GET /api/order-status/[orderId]
@@ -64,7 +66,7 @@ export async function GET(
       `
       id, order_number, status, type, customer_address, table_number, scheduled_at,
       created_at, subtotal, delivery_fee, discount, total,
-      payment_method, payment_status, payment_expires_at,
+      payment_method, payment_status, payment_expires_at, accept_deadline,
       order_items ( name, price, qty, note, added_ingredients, removed_ingredients ),
       restaurants ( name, slug )
     `
@@ -91,6 +93,22 @@ export async function GET(
     }
   }
 
+  // Pagamento autorizzato e non accettato entro la finestra: si annulla ora
+  // l'autorizzazione, così il cliente non resta bloccato e vede lo stato vero.
+  if (
+    order &&
+    order.payment_status === 'authorized' &&
+    (order.status === 'new' || order.status === 'pending') &&
+    order.accept_deadline &&
+    new Date(order.accept_deadline).getTime() <= Date.now()
+  ) {
+    const stripe = getStripe();
+    if (stripe && (await expireAuthorizedOrder(stripe, admin, order.id))) {
+      order.status = 'expired';
+      order.payment_status = 'voided';
+    }
+  }
+
   if (order) {
     // A seconda di come PostgREST risolve l'embed, `restaurants` arriva come
     // oggetto o come array di un elemento.
@@ -102,6 +120,7 @@ export async function GET(
       type: 'order',
       paymentMethod: order.payment_method,
       paymentStatus: order.payment_status,
+      acceptDeadline: order.accept_deadline,
       orderNumber: order.order_number,
       orderType: order.type,
       address: order.customer_address,

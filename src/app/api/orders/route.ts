@@ -3,6 +3,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { computeDiscountCents, fromCents, OrderType, toCents } from '@/lib/pricing';
 import { checkSchedule, HoursConfig, nowInZone, ScheduledOrdersConfig } from '@/lib/serviceHours';
 import { getStripe } from '@/lib/stripeServer';
+import { expireDueAuthorizedOrders } from '@/lib/orderPayments';
 import {
   adminClient,
   EMAIL_RE,
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
   // 030). Rete di sicurezza che non dipende da pg_cron: costa una query.
   const { error: expireError } = await admin.rpc('expire_unpaid_orders');
   if (expireError) console.error('[orders] expire_unpaid_orders:', expireError.message);
+
+  // Stessa rete di sicurezza per gli ordini con pagamento autorizzato e
+  // finestra di accettazione scaduta: ne annulla l'autorizzazione su Stripe.
+  const stripeForSweep = getStripe();
+  if (stripeForSweep) await expireDueAuthorizedOrders(stripeForSweep, admin);
 
   const result = await createOrder(admin, body, clientIp(request));
   if (isFail(result)) return NextResponse.json(result.body, { status: result.status });
@@ -337,7 +343,7 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
     order_number: orderNumber as string,
     type,
     // Un ordine online nasce fuori dalla cucina: ci entra (status 'new')
-    // solo quando il webhook di Stripe conferma il pagamento.
+    // solo quando il webhook di Stripe conferma l'autorizzazione del pagamento.
     status: isOnline ? 'awaiting_payment' : 'new',
     payment_method: paymentMethod,
     payment_status: isOnline ? 'pending' : 'unpaid',
@@ -406,6 +412,10 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
           amount: totalCents,
           currency: 'eur',
           automatic_payment_methods: { enabled: true },
+          // Il cliente autorizza l'importo; l'incasso avviene solo quando il
+          // ristorante accetta l'ordine (/api/order/accept). Rifiuto o
+          // scadenza annullano l'autorizzazione: nessun addebito.
+          capture_method: 'manual',
           description: `Ordine ${orderNumber}`,
           receipt_email: email || undefined,
           metadata: {

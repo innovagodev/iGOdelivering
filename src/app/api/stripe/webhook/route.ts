@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { adminClient } from '@/lib/orderServer';
 import { getStripe, syncRestaurantStripe } from '@/lib/stripeServer';
+import { ACCEPT_WINDOW_SECONDS, cancelAuthorization } from '@/lib/orderPayments';
 
 /**
  * POST /api/stripe/webhook
@@ -126,6 +127,14 @@ async function handleEvent(
       return;
     }
 
+    case 'payment_intent.amount_capturable_updated':
+      return onPaymentAuthorized(
+        stripe,
+        admin,
+        event.account ?? null,
+        event.data.object as Stripe.PaymentIntent
+      );
+
     case 'payment_intent.succeeded':
       return onPaymentSucceeded(
         stripe,
@@ -151,10 +160,29 @@ async function handleEvent(
       const pi = event.data.object as Stripe.PaymentIntent;
       const { data: order } = await admin
         .from('orders')
-        .select('id')
+        .select('id, payment_status')
         .eq('stripe_payment_intent_id', pi.id)
         .maybeSingle();
       if (!order) return;
+      if (order.payment_status === 'authorized') {
+        // Autorizzazione annullata fuori dal flusso dell'app (per esempio dal
+        // dashboard Stripe del ristorante): l'ordine non può più essere
+        // incassato. Quando l'annullamento lo fa l'app, l'ordine è già chiuso
+        // e questa riga non corrisponde a nulla.
+        const { error } = await admin
+          .from('orders')
+          // 'abandoned' è il motivo che l'app usa quando la finestra scade:
+          // l'evento può arrivare prima che la route registri la scadenza.
+          .update({
+            status: pi.cancellation_reason === 'abandoned' ? 'expired' : 'cancelled',
+            payment_status: 'voided',
+          })
+          .eq('id', order.id)
+          .eq('payment_status', 'authorized')
+          .in('status', ['new', 'pending']);
+        if (error) throw new Error(error.message);
+        return;
+      }
       const { error } = await admin.rpc('expire_unpaid_order', { p_order_id: order.id });
       if (error) throw new Error(error.message);
       return;
@@ -206,7 +234,93 @@ async function handleEvent(
 }
 
 /**
- * Pagamento riuscito: l'ordine entra in cucina.
+ * Importo autorizzato (bloccato sulla carta, non ancora addebitato): l'ordine
+ * entra in cucina e parte la finestra di accettazione di 3 minuti. L'incasso
+ * avviene quando il ristorante accetta (/api/order/accept).
+ *
+ * Stessi controlli di onPaymentSucceeded. Se l'ordine non è più in attesa
+ * (scaduto o annullato prima che l'autorizzazione arrivasse) o i controlli
+ * falliscono, l'autorizzazione viene annullata: il cliente non viene addebitato.
+ */
+async function onPaymentAuthorized(
+  stripe: Stripe,
+  admin: NonNullable<ReturnType<typeof adminClient>>,
+  accountId: string | null,
+  pi: Stripe.PaymentIntent
+) {
+  if (pi.status !== 'requires_capture') return;
+
+  const { data: order, error } = await admin
+    .from('orders')
+    .select('id, status, total, payment_status, stripe_account_id')
+    .eq('stripe_payment_intent_id', pi.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  // Pagamento non legato a un ordine (es. creato dal dashboard Stripe).
+  if (!order) return;
+  // Già registrato: evento ripetuto o arrivato dopo l'accettazione.
+  if (
+    order.payment_status === 'authorized' ||
+    order.payment_status === 'paid' ||
+    order.payment_status === 'voided' ||
+    order.payment_status === 'refunded' ||
+    order.payment_status === 'partially_refunded'
+  ) {
+    return;
+  }
+
+  const amountOk =
+    pi.amount_capturable === Math.round(Number(order.total) * 100) && pi.currency === 'eur';
+  const accountOk = !!accountId && accountId === order.stripe_account_id;
+
+  if (order.status === 'awaiting_payment' && amountOk && accountOk) {
+    const now = Date.now();
+    const { error: updError } = await admin
+      .from('orders')
+      .update({
+        status: 'new',
+        payment_status: 'authorized',
+        authorized_at: new Date(now).toISOString(),
+        accept_deadline: new Date(now + ACCEPT_WINDOW_SECONDS * 1000).toISOString(),
+      })
+      .eq('id', order.id)
+      .eq('status', 'awaiting_payment');
+    if (updError) throw new Error(updError.message);
+    return;
+  }
+
+  console.error('[stripe/webhook] autorizzazione non accettabile, annullata:', {
+    order: order.id,
+    status: order.status,
+    amountOk,
+    accountOk,
+  });
+  if (accountId) {
+    const outcome = await cancelAuthorization(
+      stripe,
+      {
+        id: order.id,
+        stripe_payment_intent_id: pi.id,
+        stripe_account_id: accountId,
+      },
+      'abandoned'
+    );
+    if (outcome === 'error') throw new Error('annullamento autorizzazione fallito');
+  }
+  const { error: updError } = await admin
+    .from('orders')
+    .update({ payment_status: 'voided' })
+    .eq('id', order.id);
+  if (updError) throw new Error(updError.message);
+}
+
+/**
+ * Pagamento riuscito (incassato): l'ordine entra in cucina.
+ *
+ * Con la cattura manuale l'evento arriva quando il ristorante accetta e
+ * /api/order/accept cattura l'importo: l'ordine è già in cucina e qui si
+ * registra solo l'incasso (idempotente rispetto alla route). Il percorso
+ * completo qui sotto resta per i pagamenti creati con cattura automatica.
  *
  * Controlli prima di farlo: il pagamento deve appartenere all'account del
  * ristorante dell'ordine e l'importo incassato deve coincidere con il totale
@@ -242,6 +356,22 @@ async function onPaymentSucceeded(
   const amountOk =
     pi.amount_received === Math.round(Number(order.total) * 100) && pi.currency === 'eur';
   const accountOk = !!accountId && accountId === order.stripe_account_id;
+
+  // Catturato dopo l'accettazione: l'ordine è già in cucina, si registra solo
+  // l'incasso.
+  if (order.payment_status === 'authorized' && amountOk && accountOk) {
+    const { error: updError } = await admin
+      .from('orders')
+      .update({
+        payment_status: 'paid',
+        paid_amount: paid,
+        paid_at: new Date().toISOString(),
+      })
+      .eq('id', order.id)
+      .eq('payment_status', 'authorized');
+    if (updError) throw new Error(updError.message);
+    return;
+  }
 
   if (order.status === 'awaiting_payment' && amountOk && accountOk) {
     const { error: updError } = await admin

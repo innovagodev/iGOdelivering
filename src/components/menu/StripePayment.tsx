@@ -13,9 +13,12 @@ import { Lock } from 'lucide-react';
  * /api/orders ha creato sull'account Stripe del ristorante. Carte, Apple Pay,
  * Google Pay e gli altri metodi attivi sul suo account compaiono da soli.
  *
+ * Il pagamento è solo autorizzato (cattura manuale): l'importo si blocca sulla
+ * carta e viene addebitato quando il ristorante accetta l'ordine.
+ *
  * L'esito mostrato qui NON fa entrare l'ordine in cucina: lo fa il webhook
- * quando Stripe conferma il pagamento al server (fase 5). Qui si informa solo
- * il cliente.
+ * quando Stripe conferma l'autorizzazione al server (fase 5). Qui si informa
+ * solo il cliente.
  */
 
 const stripeCache = new Map<string, Promise<StripeJs | null>>();
@@ -32,7 +35,7 @@ export interface StripePaymentProps {
   amountCents: number;
   orderId: string;
   lang: 'it' | 'en';
-  onPaid: (status: 'succeeded' | 'processing') => void;
+  onPaid: (status: 'requires_capture' | 'succeeded' | 'processing') => void;
   onCancel: () => void;
 }
 
@@ -91,7 +94,14 @@ function PaymentForm({ amountCents, orderId, lang, onPaid, onCancel }: StripePay
       setSubmitting(false);
       return;
     }
-    if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
+    // 'requires_capture' = importo autorizzato (bloccato sulla carta): è l'esito
+    // normale, l'addebito avviene quando il ristorante accetta.
+    if (
+      paymentIntent &&
+      (paymentIntent.status === 'requires_capture' ||
+        paymentIntent.status === 'succeeded' ||
+        paymentIntent.status === 'processing')
+    ) {
       onPaid(paymentIntent.status);
       return;
     }
@@ -137,6 +147,11 @@ function PaymentForm({ amountCents, orderId, lang, onPaid, onCancel }: StripePay
       >
         {lang === 'en' ? 'Cancel and choose another method' : 'Annulla e scegli un altro metodo'}
       </button>
+      <p className="text-[10px] text-muted-foreground text-center">
+        {lang === 'en'
+          ? 'The amount is only held on your card: you are charged when the restaurant accepts your order, and not at all if it declines or does not reply within 3 minutes.'
+          : 'L’importo viene solo bloccato sulla carta: viene addebitato quando il ristorante accetta l’ordine, e non viene addebitato affatto se lo rifiuta o non risponde entro 3 minuti.'}
+      </p>
       <p className="text-[10px] text-muted-foreground text-center">
         {lang === 'en'
           ? 'Payment processed securely by Stripe. Card details never reach our servers.'

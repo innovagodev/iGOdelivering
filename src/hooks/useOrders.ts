@@ -75,13 +75,45 @@ export function useOrders(restaurantId: string) {
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || 'Annullamento non riuscito');
+      } else if (
+        status === 'preparing' &&
+        orders.find((o) => o.id === orderId)?.payment_status === 'authorized'
+      ) {
+        // Pagamento solo autorizzato: l'accettazione cattura l'importo, lo fa il
+        // server. Il database rifiuta il cambio di stato diretto (migration 032).
+        const res = await fetch('/api/order/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          // Finestra scaduta: il pannello mostra subito l'ordine come perso.
+          if (json.expired) fetchOrders();
+          throw new Error(json.error || 'Accettazione non riuscita');
+        }
       } else {
         const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
         if (error) throw error;
       }
 
       // Update local state immediately for fast response
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                status,
+                ...(status === 'preparing' && o.payment_status === 'authorized'
+                  ? { payment_status: 'paid' }
+                  : {}),
+                ...(status === 'cancelled' && o.payment_status === 'authorized'
+                  ? { payment_status: 'voided' }
+                  : {}),
+              }
+            : o
+        )
+      );
 
       // Trigger order status email notification in the background
       if (status === 'preparing' || status === 'cancelled') {

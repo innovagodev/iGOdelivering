@@ -1623,10 +1623,26 @@ function CheckoutModal({
           const newStatus: string | undefined = json?.status;
           if (!newStatus) return;
 
+          // La scadenza dell'accettazione la decide il server (accept_deadline,
+          // impostata quando il pagamento è autorizzato): il conto alla rovescia
+          // parte da lì, così coincide con quello del pannello del ristorante e
+          // non dipende dall'orologio del cliente né dall'istante del click.
+          const deadlineMs = json?.acceptDeadline ? new Date(json.acceptDeadline).getTime() : NaN;
+          const deadlineBase = Number.isFinite(deadlineMs)
+            ? new Date(deadlineMs - 180 * 1000).toISOString()
+            : null;
+
           // Persist the new status even if it's the same (keeps sessionStorage fresh)
-          if (newStatus !== lastCreatedOrder?.status) {
+          if (
+            newStatus !== lastCreatedOrder?.status ||
+            (deadlineBase && deadlineBase !== lastCreatedOrder?.timestamp)
+          ) {
             setLastCreatedOrder((prev: any) => {
-              const next = { ...prev, status: newStatus };
+              const next = {
+                ...prev,
+                status: newStatus,
+                ...(deadlineBase ? { timestamp: deadlineBase } : {}),
+              };
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
               return next;
             });
@@ -1735,7 +1751,7 @@ function CheckoutModal({
                 <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3 text-xs text-rose-700 dark:text-rose-400 mt-3 text-left leading-relaxed">
                   {(payMethod === 'online' || payMethod === 'card') ? (
                     <>
-                      <strong>{lang === 'en' ? '💳 Refund:' : '💳 Rimborso:'}</strong> {lang === 'en' ? 'The pre-authorized or online paid amount will be reversed and automatically refunded within 3-5 business days.' : 'L\'importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente entro 3-5 giorni lavorativi.'}
+                      <strong>{lang === 'en' ? '💳 No charge:' : '💳 Nessun addebito:'}</strong> {lang === 'en' ? 'The amount held on your card is released and you are not charged. Depending on your bank, the hold may take a few days to disappear from your statement. If it had already been charged, it is refunded automatically within 3-5 business days.' : 'L\'importo bloccato sulla carta viene rilasciato e non ti viene addebitato nulla. A seconda della banca, il blocco può impiegare qualche giorno a sparire dall\'estratto conto. Se era già stato addebitato, viene rimborsato automaticamente entro 3-5 giorni lavorativi.'}
                     </>
                   ) : (
                     <>
@@ -1761,7 +1777,7 @@ function CheckoutModal({
                 <div className="bg-red-500/5 border border-red-500/15 rounded-xl p-3 text-xs text-red-700 dark:text-red-400 mt-3 text-left leading-relaxed">
                   {(payMethod === 'online' || payMethod === 'card') ? (
                     <>
-                      <strong>{lang === 'en' ? '💳 Refund:' : '💳 Rimborso:'}</strong> {lang === 'en' ? 'The pre-authorized or online paid amount will be reversed and automatically refunded to your account within 3-5 business days.' : 'L\'importo pre-autorizzato o pagato online verrà stornato e rimborsato automaticamente sul tuo conto entro 3-5 giorni lavorativi.'}
+                      <strong>{lang === 'en' ? '💳 No charge:' : '💳 Nessun addebito:'}</strong> {lang === 'en' ? 'The restaurant did not reply in time: the amount held on your card is released and you are not charged. Depending on your bank, the hold may take a few days to disappear from your statement.' : 'Il ristorante non ha risposto in tempo: l\'importo bloccato sulla carta viene rilasciato e non ti viene addebitato nulla. A seconda della banca, il blocco può impiegare qualche giorno a sparire dall\'estratto conto.'}
                     </>
                   ) : (
                     <>
@@ -2332,9 +2348,11 @@ function CheckoutModal({
     }
   };
 
-  // Pagamento confermato da Stripe nel browser. L'ordine entra in cucina
-  // quando il webhook lo conferma al server, di norma entro pochi secondi; il
-  // conto alla rovescia dell'accettazione parte da ora, non dalla creazione.
+  // Pagamento autorizzato da Stripe nel browser (importo bloccato, non ancora
+  // addebitato). L'ordine entra in cucina quando il webhook lo conferma al
+  // server, di norma entro pochi secondi; il conto alla rovescia
+  // dell'accettazione parte da ora in attesa che il server comunichi la
+  // scadenza vera (accept_deadline), che il tracker adotta al primo polling.
   const handleOnlinePaid = () => {
     if (!pendingPayment) return;
     const paidAt = new Date().toISOString();

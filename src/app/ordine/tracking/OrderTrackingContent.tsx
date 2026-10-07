@@ -356,7 +356,9 @@ export default function OrderTrackingContent() {
           <div className="rounded-2xl border border-border bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
             <p className="font-bold text-foreground">Ordine scaduto</p>
             <p className="text-xs mt-1">
-              L&apos;ordine non è stato confermato in tempo e non verrà preparato.
+              L&apos;ordine non è stato confermato in tempo e non verrà preparato. Se avevi pagato
+              online, l&apos;importo bloccato sulla carta viene rilasciato e non ti è stato
+              addebitato nulla.
             </p>
           </div>
         )}

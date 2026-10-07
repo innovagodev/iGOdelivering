@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext, getStripe } from '@/lib/stripeServer';
 import { UUID_RE } from '@/lib/orderServer';
+import { cancelAuthorization } from '@/lib/orderPayments';
 
 /**
  * POST /api/order/cancel   { orderId }
  *
- * Annulla un ordine dal pannello. Se l'ordine è stato pagato online, prima
- * rimborsa il cliente sul conto Stripe del ristorante (rilievo A10, piano
- * pagamenti fase 7): un ordine pagato non può essere annullato dal browser
- * senza rimborso, lo impedisce anche il database (migration 030).
+ * Annulla un ordine dal pannello. Se l'ordine ha il pagamento solo
+ * autorizzato, annulla l'autorizzazione (nessun addebito). Se è stato già
+ * incassato online, prima rimborsa il cliente sul conto Stripe del ristorante
+ * (rilievo A10, piano pagamenti fase 7): un ordine pagato non può essere
+ * annullato dal browser senza rimborso, lo impedisce anche il database
+ * (migration 030).
  *
  * Titolare: solo ordini del proprio ristorante. Admin: qualunque ordine.
  *
@@ -64,6 +67,30 @@ export async function POST(request: Request) {
 
   const isPaid = order.payment_status === 'paid' || order.payment_status === 'partially_refunded';
   let refunded = false;
+  let voided = false;
+
+  // Pagamento solo autorizzato: si annulla l'autorizzazione, il cliente non è
+  // mai stato addebitato e non c'è nulla da rimborsare.
+  if (order.payment_status === 'authorized') {
+    const stripe = getStripe();
+    if (!stripe) {
+      return NextResponse.json({ error: 'Configurazione server mancante' }, { status: 500 });
+    }
+    const outcome = await cancelAuthorization(stripe, order as any, 'requested_by_customer');
+    if (outcome === 'captured') {
+      return NextResponse.json(
+        { error: 'Il pagamento è stato appena incassato: riprova per annullare con rimborso.' },
+        { status: 409 }
+      );
+    }
+    if (outcome === 'error') {
+      return NextResponse.json(
+        { error: 'Non è stato possibile annullare l’autorizzazione: l’ordine non è stato rifiutato. Riprova.' },
+        { status: 502 }
+      );
+    }
+    voided = true;
+  }
 
   if (isPaid) {
     const stripe = getStripe();
@@ -95,7 +122,9 @@ export async function POST(request: Request) {
   }
 
   const update: Record<string, unknown> = { status: 'cancelled' };
-  if (refunded) {
+  if (voided) {
+    update.payment_status = 'voided';
+  } else if (refunded) {
     update.payment_status = 'refunded';
     update.refunded_amount = order.paid_amount;
   } else if (order.status === 'awaiting_payment') {
@@ -121,5 +150,5 @@ export async function POST(request: Request) {
     if (promo) await ctx.admin.rpc('release_promo_usage', { p_promo_id: promo.id });
   }
 
-  return NextResponse.json({ ok: true, refunded });
+  return NextResponse.json({ ok: true, refunded, voided });
 }

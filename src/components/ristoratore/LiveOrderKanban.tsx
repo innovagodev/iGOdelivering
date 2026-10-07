@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Clock,
   ChefHat,
@@ -95,7 +95,7 @@ export default function LiveOrderKanban() {
   const { user } = useAuth();
   const restaurantId = user?.restaurantId || '';
 
-  const { orders, updateOrderStatus, loading } = useOrders(restaurantId);
+  const { orders, updateOrderStatus, loading, refetch } = useOrders(restaurantId);
   const { isMuted, setIsMuted } = useAudioNotification();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,15 +116,54 @@ export default function LiveOrderKanban() {
     return () => clearInterval(timer);
   }, []);
 
+  // Ordini con pagamento autorizzato e finestra di 3 minuti scaduta: la
+  // scadenza è già visibile qui, ma l'importo resta bloccato sulla carta del
+  // cliente finché il server non annulla l'autorizzazione.
+  const sweepingRef = useRef(false);
+  useEffect(() => {
+    const hasDue = orders.some(
+      (o) =>
+        o.payment_status === 'authorized' &&
+        (o.status === 'new' || o.status === 'pending') &&
+        o.accept_deadline &&
+        Date.now() >= new Date(o.accept_deadline).getTime()
+    );
+    if (!hasDue || sweepingRef.current) return;
+    sweepingRef.current = true;
+    fetch('/api/order/expire-due', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+      .then(() => refetch())
+      .catch((e) => console.error('[kanban] expire-due:', e))
+      .finally(() => {
+        sweepingRef.current = false;
+      });
+    // Solo a ogni battito: con `orders` fra le dipendenze un annullamento
+    // fallito ripartirebbe a ogni refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker]);
+
   const getOrderStatus = (o: any): string => {
     if (o.status === 'expired') return 'expired';
     // Gli ordini programmati non scadono mai automaticamente dopo 3 minuti
     if (o.scheduled_at) {
       return o.status || 'pending';
     }
-    // Nemmeno quelli già pagati online: il cliente è stato addebitato, quindi
-    // restano in attesa finché il ristorante non li accetta o li rifiuta (con
-    // rimborso). Il database impedisce comunque di farli scadere (mig. 030).
+    // Pagamento online autorizzato: la scadenza non è "3 minuti dalla
+    // creazione" ma accept_deadline, decisa dal server (mig. 032) e uguale a
+    // quella del conto alla rovescia del cliente. Scaduta, l'autorizzazione
+    // viene annullata e il cliente non è addebitato.
+    if (o.payment_status === 'authorized') {
+      if (o.accept_deadline && Date.now() >= new Date(o.accept_deadline).getTime()) {
+        return 'expired';
+      }
+      return o.status || 'new';
+    }
+    // Nemmeno quelli già incassati online: il cliente è stato addebitato,
+    // quindi restano in attesa finché il ristorante non li accetta o li rifiuta
+    // (con rimborso). Il database impedisce comunque di farli scadere (mig. 030).
     if (o.payment_status === 'paid' || o.payment_status === 'partially_refunded') {
       return o.status || 'new';
     }
@@ -143,7 +182,7 @@ export default function LiveOrderKanban() {
   const mapFlatOrder = (o: any): LiveOrder => {
     // Per un ordine pagato online il tempo parte dal pagamento: è da lì che
     // l'ordine è arrivato in cucina.
-    const startedAt = o.paid_at || o.created_at || o.timestamp || o.createdAt;
+    const startedAt = o.authorized_at || o.paid_at || o.created_at || o.timestamp || o.createdAt;
     const mins = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000));
 
     // Map array of items
@@ -248,10 +287,13 @@ export default function LiveOrderKanban() {
       await updateOrderStatus(orderId, 'cancelled');
       const orderCode = found.order_number || found.id.replace('ord-', '').toUpperCase();
       const wasPaid = found.payment_status === 'paid';
+      const wasAuthorized = found.payment_status === 'authorized';
       showToast(
         wasPaid
           ? `Ordine #${orderCode} rifiutato, rimborso avviato al cliente`
-          : `Ordine #${orderCode} rifiutato`,
+          : wasAuthorized
+            ? `Ordine #${orderCode} rifiutato, al cliente non verrà addebitato nulla`
+            : `Ordine #${orderCode} rifiutato`,
         'danger'
       );
     } catch (e: any) {
@@ -572,22 +614,26 @@ export default function LiveOrderKanban() {
             <X size={12} />
             Rifiuta
           </button>
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              try {
-                await updateOrderStatus(order.id, 'preparing');
-                const orderCode = order.orderNumber || order.id.replace('ord-', '').toUpperCase();
-                showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
-              } catch (err) {
-                showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
-              }
-            }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-colors cursor-pointer"
-          >
-            <Check size={12} />
-            Recupera
-          </button>
+          {/* Un ordine online scaduto ha l'autorizzazione annullata: il cliente
+              non è addebitato e non si può più incassare. */}
+          {order.paymentMethod !== 'online' && (
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await updateOrderStatus(order.id, 'preparing');
+                  const orderCode = order.orderNumber || order.id.replace('ord-', '').toUpperCase();
+                  showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
+                } catch (err) {
+                  showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
+                }
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-colors cursor-pointer"
+            >
+              <Check size={12} />
+              Recupera
+            </button>
+          )}
         </div>
       );
     }
