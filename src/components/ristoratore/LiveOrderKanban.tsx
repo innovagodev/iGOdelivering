@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import { confirmAction } from '@/lib/notify';
 import {
   Clock,
   ChefHat,
@@ -308,6 +309,25 @@ export default function LiveOrderKanban() {
       );
     } catch (e) {
       showToast(`Errore durante l'accettazione dell'ordine`, 'danger');
+    }
+  };
+
+  // Riattiva un ordine scaduto (solo contanti e POS): il cliente ha già letto
+  // "nessuna risposta dal locale", quindi si chiede conferma prima di preparare.
+  const reactivateExpired = async (orderId: string, orderNumber?: string) => {
+    const ok = await confirmAction({
+      title: 'Riattivare l’ordine scaduto?',
+      message:
+        'Il cliente ha già visto "Nessuna risposta dal locale". Chiamalo prima di prepararlo, per essere sicuro che lo stia ancora aspettando.',
+      confirmLabel: 'Riattiva comunque',
+    });
+    if (!ok) return;
+    try {
+      await updateOrderStatus(orderId, 'preparing');
+      const orderCode = orderNumber || orderId.replace('ord-', '').toUpperCase();
+      showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
+    } catch (err) {
+      showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
     }
   };
 
@@ -645,38 +665,42 @@ export default function LiveOrderKanban() {
 
   const renderActions = (colKey: OrderStatus, order: LiveOrder) => {
     if (order.status === 'expired') {
+      // Un ordine scaduto è già stato comunicato al cliente ("nessuna risposta"):
+      // rifiutarlo non avrebbe senso e gli manderebbe un secondo messaggio di
+      // annullamento. Resta la possibilità di chiamarlo e, solo per contanti e
+      // POS, di riattivare l'ordine. Un ordine online scaduto ha l'autorizzazione
+      // annullata: il cliente non è addebitato e non si può più incassare.
       return (
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              rejectOrder('pending', order.id);
-            }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
-          >
-            <X size={12} />
-            Rifiuta
-          </button>
-          {/* Un ordine online scaduto ha l'autorizzazione annullata: il cliente
-              non è addebitato e non si può più incassare. */}
-          {order.paymentMethod !== 'online' && (
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                try {
-                  await updateOrderStatus(order.id, 'preparing');
-                  const orderCode = order.orderNumber || order.id.replace('ord-', '').toUpperCase();
-                  showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
-                } catch (err) {
-                  showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
-                }
-              }}
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-colors cursor-pointer"
-            >
-              <Check size={12} />
-              Recupera
-            </button>
+        <div className="mt-3 space-y-2">
+          {order.paymentMethod === 'online' && (
+            <p className="text-[10px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+              Scaduto: il cliente non è stato addebitato.
+            </p>
           )}
+          <div className="flex gap-2">
+            {order.phone && (
+              <a
+                href={`tel:${order.phone}`}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                <Phone size={12} />
+                Chiama
+              </a>
+            )}
+            {order.paymentMethod !== 'online' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  reactivateExpired(order.id, order.orderNumber);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-colors cursor-pointer"
+              >
+                <Check size={12} />
+                Riattiva
+              </button>
+            )}
+          </div>
         </div>
       );
     }
@@ -1596,30 +1620,29 @@ export default function LiveOrderKanban() {
                   </>
                 ) : selectedOrderStatus === 'expired' ? (
                   <>
-                    <button
-                      onClick={() => {
-                        rejectOrder('pending', selectedOrder.id);
-                        setSelectedOrderId(null);
-                      }}
-                      className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-700 dark:border-slate-850 dark:hover:bg-red-950/20 dark:hover:text-red-400 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
-                    >
-                      <X size={14} /> Rifiuta
-                    </button>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await updateOrderStatus(selectedOrder.id, 'preparing');
-                          const orderCode = selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase();
-                          showToast(`Ordine #${orderCode} riattivato in preparazione`, 'success');
+                    {selectedOrder.customer_phone && (
+                      <a
+                        href={`tel:${selectedOrder.customer_phone}`}
+                        className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-850 dark:hover:bg-slate-900 dark:text-slate-300 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
+                      >
+                        <Phone size={14} /> Chiama il cliente
+                      </a>
+                    )}
+                    {selectedOrder.payment_method !== 'online' ? (
+                      <button
+                        onClick={async () => {
+                          await reactivateExpired(selectedOrder.id, selectedOrder.order_number);
                           setSelectedOrderId(null);
-                        } catch (err) {
-                          showToast(`Errore durante la riattivazione dell'ordine`, 'danger');
-                        }
-                      }}
-                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-550 text-white dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
-                    >
-                      <ChefHat size={14} /> Riattiva in Preparazione
-                    </button>
+                        }}
+                        className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-550 text-white dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <ChefHat size={14} /> Riattiva in Preparazione
+                      </button>
+                    ) : (
+                      <p className="flex-1 self-center text-[11px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+                        Scaduto: il cliente non è stato addebitato.
+                      </p>
+                    )}
                   </>
                 ) : selectedOrderStatus === 'accepted' ||
                   selectedOrderStatus === 'preparing' ||
