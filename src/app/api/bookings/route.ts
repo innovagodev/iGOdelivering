@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { fromCents } from '@/lib/pricing';
 import { decideAcceptance } from '@/lib/acceptance';
-import { HoursConfig, nowInZone, toMinutes } from '@/lib/serviceHours';
+import {
+  HoursConfig,
+  isSuspended,
+  isTemporarilyClosed,
+  nowInZone,
+  serviceRanges,
+  toMinutes,
+} from '@/lib/serviceHours';
 import {
   adminClient,
   clientIp,
@@ -112,6 +119,29 @@ export async function POST(request: Request) {
     return reply(fail(404, 'restaurant_not_found', 'Ristorante non disponibile.'));
   }
 
+  // Il locale deve essere aperto per le prenotazioni in quel giorno e a
+  // quell'ora. Le fasce sono quelle che la vetrina propone (src/lib/serviceHours.ts):
+  // senza orari configurati non c'è vincolo, come per gli ordini. La vetrina è
+  // più stretta (toglie un'ora prima della chiusura quando usa gli orari
+  // generali): qui basta che l'orario cada dentro una fascia.
+  const hoursConfig = restaurant.hours_config as HoursConfig | null;
+  if (isTemporarilyClosed(hoursConfig, date) || isSuspended(hoursConfig, 'reservation')) {
+    return reply(
+      fail(409, 'booking_closed', 'Il locale non accetta prenotazioni per questo giorno.')
+    );
+  }
+  const ranges = serviceRanges(hoursConfig, 'reservation', date);
+  const slotMinutes = toMinutes(time);
+  if (ranges !== null && !ranges.some((r) => slotMinutes >= r.start && slotMinutes <= r.end)) {
+    return reply(
+      fail(
+        409,
+        'booking_out_of_hours',
+        'L’orario scelto è fuori dagli orari di prenotazione del locale. Scegline un altro.'
+      )
+    );
+  }
+
   let preOrderItems: Record<string, unknown>[] = [];
   let preOrderTotal = 0;
   if (lines.length > 0) {
@@ -150,6 +180,15 @@ export async function POST(request: Request) {
   if (error || !result) {
     console.error('[bookings] create_booking error:', error?.message);
     return reply(fail(500, 'server_error', 'Impossibile completare la prenotazione, riprova.'));
+  }
+  if (result.ok !== true && result.reason === 'past') {
+    return reply(
+      fail(
+        409,
+        'booking_in_past',
+        'Non è possibile prenotare per un orario già passato. Scegli un altro orario.'
+      )
+    );
   }
   if (result.ok !== true) {
     const available = Number(result.available) || 0;

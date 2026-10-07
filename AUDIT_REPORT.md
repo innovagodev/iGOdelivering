@@ -13,7 +13,7 @@
 > `ff609ac` (22 settembre), la seconda in nove commit da `6d044c3` a `819190d`
 > (25 settembre), poi dalla fase pagamenti (2–7 ottobre, release 1.31.0–1.37.0).
 > Sul database di produzione sono applicate le migration 015–018 e 020–034; la
-> **035 è scritta e da applicare** (vedi N23). La 019 versiona colonne che in
+> **035 e la 036 sono scritte e da applicare** (vedi N23 e M3). La 019 versiona colonne che in
 > produzione esistono già e non va eseguita.
 
 ---
@@ -89,7 +89,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | C3′ | Multi-tenant | `restaurants` pubblica espone email proprietario e (futuri) dati bancari | Medio | ✅ Risolto (mig. 017) | prod |
 | M1 | Multi-tenant | `platform_settings` leggibile da chiunque (oggi vuota) | Medio | ⚠️ Aperto | prod |
 | M2 | Multi-tenant | Nessuna UPDATE self su `profiles`; nessuna UPDATE/DELETE su `order_items` | Medio | ⚠️ Aperto | prod |
-| M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente (e giorni passati) | **Alto** | ✅ Risolto (8 ott: vetrina + `/api/bookings`) | codice |
+| M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente (e giorni passati) | **Alto** | ✅ Risolto (8 ott: vetrina + `/api/bookings` + mig. 036, **da applicare**) | codice |
 | M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni senza rate limit | Medio | ✅ Risolto (mig. 021) | prod |
 | M5 | Qualità | `ignoreBuildErrors` + `ignoreDuringBuilds` attivi | Medio | ⚠️ Aperto | codice |
 | M6 | Qualità | 108 blocchi `catch` su 133 si limitano a `console.error` | Medio | ⚠️ Aperto | codice |
@@ -113,6 +113,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | **N21** | Ordini | Ricevuta con supplementi sommati due volte; supplementi senza prezzo in ricevuta, riepilogo, tracking ed email (`[object Object]`) | Medio | ✅ Risolto | codice |
 | **N22** | Admin | "Pubblica Ristorante" nella configurazione salvava il locale lasciandolo in bozza | Medio | ✅ Risolto | codice |
 | **N23** | Pagamenti | Un ordine online scaduto o annullato (carta non addebitata) poteva essere portato in preparazione dal browser | Medio | ✅ Risolto (mig. 035, **da applicare**) | codice |
+| **N24** | Vetrina | Dopo "Prenota e ordina" il pulsante "Prenota tavolo" spariva fino a un ricaricamento | Medio | ✅ Risolto | codice |
 
 ---
 
@@ -777,7 +778,14 @@ L'8 ottobre alle 00:16 è stato possibile prenotare un tavolo per il **7 ottobre
 
 Ora: la data minima e "oggi" sono quelli di Roma, lo stesso orologio del server; per oggi restano solo gli orari **successivi a quello attuale** (la lista si aggiorna ogni 30 secondi); per un giorno passato nessuno; il campo libero è sostituito dal messaggio "Nessun orario disponibile per questo giorno"; e il server rifiuta con 409 (`booking_in_past`) ogni prenotazione per un giorno passato o per un orario già trascorso da più di 5 minuti (tolleranza per il tempo fra l'apertura della lista e l'invio). La stessa data in UTC falsava anche l'etichetta "Oggi" delle date d'ordine tra mezzanotte e le due: corretto. Gli ordini erano già protetti dal server (`checkSchedule`, `too_soon`).
 
-*Non coperto:* `create_booking` (la funzione SQL) non ripete il controllo, quindi un chiamante diverso dalla route lo aggirerebbe; il server non verifica nemmeno che l'orario cada negli orari di prenotazione del locale. Entrambi restano da valutare.
+**Chiusi anche i due casi rimasti fuori dal primo intervento (8 ottobre):**
+
+- *Orari di prenotazione.* `/api/bookings` verifica ora che il giorno non sia di chiusura, sospeso o in chiusura temporanea e che l'orario cada in una fascia di prenotazione del locale (`serviceRanges` con il servizio `reservation`, le stesse regole della vetrina); senza orari configurati non c'è vincolo, come per gli ordini. La vetrina è allineata: per un giorno di chiusura, una chiusura temporanea o un servizio sospeso non propone nessun orario (prima ripiegava sugli orari generali o su pranzo e cena standard, e si poteva prenotare un giorno chiuso). Il server è un po' più largo della vetrina, che toglie un'ora prima della chiusura quando usa gli orari generali.
+- *Funzione SQL.* La migration **036** ripete il controllo sul passato dentro `create_booking()` (risposta `{"ok": false, "reason": "past"}`), in minuti interi per non rifiutare tutto nei primi minuti dopo mezzanotte. La funzione è eseguibile solo dalla service role, quindi il rischio era basso: è una difesa in profondità.
+
+### ✅ N24 — Dopo "Prenota e ordina" spariva il pulsante "Prenota tavolo" *(Medio, risolto)*
+
+"Prenota e ordina" porta la pagina in modalità `tavolo` (`setDeliveryType('tavolo')`). Annullando dal banner del tavolo il contesto di prenotazione si azzerava ma la modalità restava `tavolo`: nella modalità tavolo si nascondono "Prenota tavolo", "I miei ordini" e le promozioni, che tornavano solo ricaricando la pagina. Stessa cosa a prenotazione completata. Ora la modalità di partenza viene ricordata e ripristinata quando la prenotazione finisce **e** il checkout è chiuso (finché la schermata di conferma è aperta la pagina non cambia); un cliente già al tavolo con il QR non ha una modalità a cui tornare e non cambia nulla.
 
 ### ✅ N23 — Un ordine online non pagato poteva entrare in preparazione *(Medio, risolto — migration 035, da applicare)*
 

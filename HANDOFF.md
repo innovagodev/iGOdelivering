@@ -123,7 +123,8 @@ Quattro punti dello stesso tipo restano aperti: sono censiti in **N13**.
 
 **Migration applicate:** 015, 016, 017, 018, 020–034. La **019 non va eseguita**:
 versiona colonne che in produzione esistono già. La **035 è scritta e da
-applicare** prima del deploy che la presuppone (chiude N23).
+applicare** prima del deploy che la presuppone (chiude N23); la **036** idem
+(prenotazioni non retroattive anche nel database).
 
 | Migration | Contenuto |
 |---|---|
@@ -133,6 +134,7 @@ applicare** prima del deploy che la presuppone (chiude N23).
 | 033 | `restaurants.description_en` (descrizione in inglese, facoltativa) |
 | 034 | regola unica di accettazione: `acceptance_mode`, `accept_deadline` su ordini **e prenotazioni**, stato `expired` per le prenotazioni |
 | 035 | un ordine online non incassato non entra in preparazione dal browser |
+| 036 | `create_booking` rifiuta le prenotazioni nel passato (ora di Roma) |
 
 La 020 (30 settembre) toglie ad `anon` gli INSERT diretti su ordini e
 prenotazioni. Da qui in poi la vetrina scrive solo tramite `/api/orders` e
@@ -385,11 +387,10 @@ metodi di pagamento che non supportano la cattura manuale. Se un ristoratore
 chiede Satispay o PayPal, vanno valutati a parte.
 
 **1c. Prenotazioni.** Le prenotazioni retroattive sono bloccate dall'8 ottobre
-(M3), nella vetrina e in `/api/bookings`, con l'ora di Roma. Restano: gli orari
-non usano un fuso per ristorante (A13), il server non verifica che l'orario
-cada negli orari di prenotazione del locale, la funzione SQL `create_booking`
-non ripete il controllo sul passato, e la conferma al cliente per email non
-c'è.
+(M3) in vetrina, in `/api/bookings` e in `create_booking` (migration 036), con
+l'ora di Roma; il server verifica anche che il giorno e l'orario rientrino negli
+orari di prenotazione del locale. Restano: gli orari non usano un fuso per
+ristorante (A13) e la conferma al cliente per email non c'è.
 
 **2. Capienza prenotazioni** (C9): chiuso il 2 ottobre con la migration 022.
 Resta da fare, quando servirà: i tavoli come entità (piantina, abbinamento
@@ -419,6 +420,6 @@ con chiave anon e service role, giri del checkout in Chrome con la richiesta
 intercettata, ristoranti di prova creati e cancellati — sono la base naturale
 per scriverne una. (A1, il ruolo nel cookie, è chiuso dal 2 ottobre.)
 
-Il quadro completo — 38 rilievi risolti (3 dei quali chiusi fuori migration), 19
+Il quadro completo — 39 rilievi risolti (3 dei quali chiusi fuori migration), 19
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.

@@ -71,6 +71,7 @@ import {
   isTemporarilyClosed,
   minNoticeMinutes as sharedMinNoticeMinutes,
   nowInZone,
+  serviceRanges,
   toMinutes as hhmmToMinutes,
 } from '@/lib/serviceHours';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
@@ -4164,6 +4165,22 @@ function StorefrontContent() {
       targetDayName = DAYS_MAP[new Date().getDay()];
     }
 
+    // Giorno di chiusura, chiusura temporanea o servizio sospeso: nessun orario.
+    // Prima si ripiegava sugli orari generali o su pranzo e cena standard, e si
+    // poteva prenotare un giorno in cui il locale è chiuso. Stesse regole del
+    // server (src/lib/serviceHours.ts).
+    if (serviceHoursConfig) {
+      const dateStr = bookingDate || nowInZone('Europe/Rome').date;
+      if (
+        isTemporarilyClosed(serviceHoursConfig, dateStr) ||
+        isSuspended(serviceHoursConfig, 'reservation')
+      ) {
+        return [];
+      }
+      const ranges = serviceRanges(serviceHoursConfig, 'reservation', dateStr);
+      if (ranges !== null && ranges.length === 0) return [];
+    }
+
     // 2. Cerca le fasce orarie specifiche di prenotazione (reservation) o general
     let activeRanges: { start: string; end: string }[] = [];
     let hasDedicatedReservationHours = false;
@@ -4368,6 +4385,13 @@ function StorefrontContent() {
   // Lifted customer and delivery type states
   const searchParams = useSearchParams();
   const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto' | 'tavolo'>('domicilio');
+  // "Prenota e ordina" porta la pagina in modalità 'tavolo'. Chiusa la
+  // prenotazione (annullata o completata) bisogna tornare alla modalità di
+  // prima: in 'tavolo' spariscono "Prenota tavolo", "I miei ordini" e le
+  // promozioni, e restavano nascosti fino a un ricaricamento.
+  const [deliveryTypeBeforeBooking, setDeliveryTypeBeforeBooking] = useState<
+    'domicilio' | 'asporto' | 'tavolo' | null
+  >(null);
   const [tableNumber, setTableNumber] = useState<string | null>(null);
   const isTableEditable =
     !searchParams?.get('tavolo') ||
@@ -4427,6 +4451,15 @@ function StorefrontContent() {
       console.error('Error loading saved guest info:', err);
     }
   }, [slug]);
+
+  useEffect(() => {
+    // Si ripristina a prenotazione chiusa e con il checkout chiuso: finché la
+    // schermata di conferma è aperta la pagina resta com'è.
+    if (!bookingContext && !checkoutOpen && deliveryTypeBeforeBooking) {
+      setDeliveryType(deliveryTypeBeforeBooking);
+      setDeliveryTypeBeforeBooking(null);
+    }
+  }, [bookingContext, checkoutOpen, deliveryTypeBeforeBooking]);
 
   const getCurrentTimeStr = () => {
     const now = new Date();
@@ -6570,6 +6603,8 @@ function StorefrontContent() {
                       time: bookingTime,
                       note: bookingNote.trim(),
                     });
+                    // Un cliente già al tavolo (QR) non ha una modalità a cui tornare.
+                    setDeliveryTypeBeforeBooking(deliveryType === 'tavolo' ? null : deliveryType);
                     setDeliveryType('tavolo');
                     setShowBookingModal(false);
                   }}
