@@ -142,6 +142,19 @@ const cartToLines = (cart: CartItem[]) =>
  * l'ordine, ed è la stessa prova di possesso usata dal tracking.
  */
 const ORDER_HISTORY_LIMIT = 20;
+
+/**
+ * Spazio occupato in alto dal banner "locale chiuso" ancora visibile.
+ * La navbar (fixed su desktop) e la barra categorie si posizionano sotto il
+ * banner finché è in vista e salgono a 0 man mano che scorre via, invece di
+ * lasciare un vuoto fisso sopra di loro.
+ */
+const syncBannerOffset = (banner: HTMLElement | null) => {
+  if (typeof document === 'undefined') return;
+  const height = banner?.offsetHeight ?? 0;
+  const offset = Math.max(0, height - window.scrollY);
+  document.documentElement.style.setProperty('--banner-offset', `${offset}px`);
+};
 const orderHistoryKey = (slug: string) => `iGO_order_history_${slug}`;
 
 const readOrderHistory = (slug: string): string[] => {
@@ -4303,6 +4316,7 @@ function StorefrontContent() {
 
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
   const headerRef = useRef<HTMLElement>(null);
+  const closedBannerRef = useRef<HTMLDivElement>(null);
   const headerBgSolidRef = useRef<HTMLDivElement>(null);
   const headerBgGradRef = useRef<HTMLDivElement>(null);
   const headerContentRef = useRef<HTMLDivElement>(null);
@@ -4623,6 +4637,7 @@ function StorefrontContent() {
   // GSAP Navbar Smooth Transition
   useEffect(() => {
     const handleScroll = () => {
+      syncBannerOffset(closedBannerRef.current);
       const scrolled = window.scrollY > 40;
       setIsScrolled(scrolled);
 
@@ -4670,9 +4685,13 @@ function StorefrontContent() {
     };
 
     window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll);
     // Initial call
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
   }, []);
 
   // Load saved booking info on mount
@@ -4918,6 +4937,12 @@ function StorefrontContent() {
         ? 'pickup'
         : 'reservation';
   const isCurrentlyClosed = isMounted ? !checkServiceOpen(activeServiceType) : false;
+
+  // Il banner compare/scompare o cambia altezza (lingua, testo a capo): ricalcola l'offset.
+  useEffect(() => {
+    syncBannerOffset(closedBannerRef.current);
+    return () => document.documentElement.style.setProperty('--banner-offset', '0px');
+  }, [isCurrentlyClosed, lang]);
 
   const isTemporaryClosure = React.useMemo(() => {
     const config = serviceHoursConfig;
@@ -5277,6 +5302,7 @@ function StorefrontContent() {
       {/* Closed Banner */}
       {isCurrentlyClosed && (
         <div
+          ref={closedBannerRef}
           className={`relative z-50 text-white text-[10px] sm:text-xs font-bold py-2.5 px-3 text-center flex items-center justify-center gap-1.5 shadow-xs ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}
         >
           <Clock size={12} className="animate-pulse flex-shrink-0" />
@@ -5292,7 +5318,7 @@ function StorefrontContent() {
 
       {/* Topbar */}
       <header
-        className={`relative sm:fixed left-0 right-0 z-40 bg-card border-b border-border shadow-xs sm:shadow-none transition-all duration-300 ${isCurrentlyClosed ? 'sm:top-8' : 'sm:top-0'} ${!isScrolled ? 'sm:bg-transparent sm:border-transparent' : ''}`}
+        className={`relative sm:fixed left-0 right-0 z-40 bg-card border-b border-border shadow-xs sm:shadow-none transition-[background-color,border-color,box-shadow] duration-300 sm:top-[var(--banner-offset,0px)] ${!isScrolled ? 'sm:bg-transparent sm:border-transparent' : ''}`}
         ref={headerRef}
       >
         {/* Layer 1: Solid glassmorphic background managed by GSAP (desktop) */}
@@ -5512,7 +5538,7 @@ function StorefrontContent() {
       {/* Booking Context Bar (sticky under navbar) */}
       {bookingContext && (
         <div
-          className={`fixed left-0 right-0 z-35 transition-all duration-300 ${isCurrentlyClosed ? 'top-[6rem] sm:top-[6.5rem]' : 'top-[4rem] sm:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}
+          className={`fixed left-0 right-0 z-35 transition-[background-color,border-color,box-shadow] duration-300 ${isCurrentlyClosed ? 'top-[6rem] sm:top-[calc(4.5rem+var(--banner-offset,0px))]' : 'top-[4rem] sm:top-[4.5rem]'} bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900/30 py-2.5 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]`}
         >
           <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold">
@@ -5662,7 +5688,7 @@ function StorefrontContent() {
 
       {/* Sticky category nav */}
       <div
-        className={`sticky z-30 bg-card border-b border-border shadow-card transition-all duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[4rem] sm:top-[9rem]' : 'top-0 sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-0 sm:top-[6.5rem]' : 'top-0 sm:top-[4.5rem]'}`}
+        className={`sticky z-30 bg-card border-b border-border shadow-card transition-[background-color,border-color,box-shadow] duration-300 ${bookingContext ? (isCurrentlyClosed ? 'top-[4rem] sm:top-[calc(7rem+var(--banner-offset,0px))]' : 'top-0 sm:top-[7.25rem]') : isCurrentlyClosed ? 'top-0 sm:top-[calc(4.5rem+var(--banner-offset,0px))]' : 'top-0 sm:top-[4.5rem]'}`}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-2 py-2.5">
