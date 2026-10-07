@@ -114,7 +114,18 @@ export async function POST(request: Request) {
 
     // Parse items for display
     const items = (order.order_items || []).map((item: any) => {
-      const added = item.added_ingredients?.length > 0 ? ` (+${item.added_ingredients.join(', ')})` : '';
+      // added_ingredients è un elenco di { name, price }: unirlo così com'è
+      // stampava "[object Object]". Ogni supplemento compare con il suo prezzo.
+      const added =
+        item.added_ingredients?.length > 0
+          ? ` (+${item.added_ingredients
+              .map((a: any) => {
+                if (typeof a === 'string') return a;
+                const price = Number(a?.price) || 0;
+                return price > 0 ? `${a.name} +€${price.toFixed(2)}` : a.name;
+              })
+              .join(', ')})`
+          : '';
       const removed = item.removed_ingredients?.length > 0 ? ` (-${item.removed_ingredients.join(', ')})` : '';
       const notes = item.note ? ` (Nota: ${item.note})` : '';
       return `- ${item.qty}x ${item.name}${added}${removed}${notes} - € ${(parseFloat(item.price) * item.qty).toFixed(2)}`;

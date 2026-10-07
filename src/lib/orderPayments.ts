@@ -15,6 +15,28 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /** Finestra di accettazione mostrata al cliente nel conto alla rovescia. */
 export const ACCEPT_WINDOW_SECONDS = 180;
 
+/**
+ * Quanto a lungo si lascia bloccato un importo autorizzato. Le banche tengono
+ * l'autorizzazione di una carta al massimo 7 giorni: oltre, sparisce da sola e
+ * l'incasso non sarebbe più possibile. Un giorno di margine.
+ */
+export const MAX_AUTHORIZATION_HOLD_MS = 6 * 24 * 60 * 60 * 1000;
+
+/**
+ * Scadenza dell'accettazione di un ordine appena autorizzato.
+ *   · ordine immediato:  3 minuti da ora (il conto alla rovescia del cliente);
+ *   · ordine programmato: l'orario scelto dal cliente — il ristorante può
+ *     accettarlo fino ad allora — ma mai meno di 3 minuti da ora e mai oltre
+ *     il tetto di MAX_AUTHORIZATION_HOLD_MS.
+ */
+export function computeAcceptDeadline(now: number, scheduledAt: string | null): Date {
+  const minimum = now + ACCEPT_WINDOW_SECONDS * 1000;
+  if (!scheduledAt) return new Date(minimum);
+  const scheduled = new Date(scheduledAt).getTime();
+  if (!Number.isFinite(scheduled)) return new Date(minimum);
+  return new Date(Math.max(minimum, Math.min(scheduled, now + MAX_AUTHORIZATION_HOLD_MS)));
+}
+
 export type AuthorizationOutcome = 'voided' | 'captured' | 'error';
 
 interface PaymentRef {

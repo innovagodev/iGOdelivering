@@ -124,6 +124,17 @@ const localizedRemoved = (item: any, rem: string, lang: string) => {
   return idx >= 0 && item.ingredients_en?.[idx]?.trim() ? item.ingredients_en[idx] : rem;
 };
 
+/**
+ * Etichetta di un'aggiunta con il suo sovrapprezzo: "Ai Cereali (+€2.00)".
+ * Ogni supplemento a pagamento deve comparire con il prezzo in ricevuta,
+ * riepilogo e stampe, altrimenti il cliente non capisce da cosa nasce il totale.
+ */
+const addedLabel = (a: any, lang: string) => {
+  const name = lang === 'en' && a?.name_en ? a.name_en : a?.name;
+  const price = Number(a?.price) || 0;
+  return price > 0 ? `${name} (+€${price.toFixed(2)})` : name;
+};
+
 const cartToLines = (cart: CartItem[]) =>
   cart.map((item) => ({
     menuItemId: item.id,
@@ -1070,15 +1081,13 @@ function CheckoutModal({
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
             item.addedIngredients
-              ?.map((i: any) => '+' + (lang === 'en' && i.name_en ? i.name_en : i.name))
+              ?.map((i: any) => '+' + addedLabel(i, lang))
               .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + localizedRemoved(item, i, lang) : '-' + i))
               .join(', ') +
             '</div>'
             : '';
-        const itemPrice =
-          (item.price +
-            (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) *
-          item.qty;
+        // item.price è già il prezzo unitario comprensivo delle aggiunte.
+        const itemPrice = item.price * item.qty;
         return (
           '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
           '<div>' +
@@ -1274,7 +1283,7 @@ function CheckoutModal({
                     {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
-                          ?.map((i: any) => `+${lang === 'en' && i.name_en ? i.name_en : i.name}`)
+                          ?.map((i: any) => `+${addedLabel(i, lang)}`)
                           .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? `-Without ${localizedRemoved(item, i, lang)}` : `-${i}`))
                           .join(', ')}
                       </p>
@@ -1282,12 +1291,7 @@ function CheckoutModal({
                   </div>
                   <span className="font-bold text-foreground tabular-nums">
                     €{' '}
-                    {(
-                      (item.price +
-                        (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) ||
-                          0)) *
-                      item.qty
-                    ).toFixed(2)}
+                    {(item.price * item.qty).toFixed(2)}
                   </span>
                 </li>
               ))}
@@ -1670,6 +1674,7 @@ function CheckoutModal({
                 ...prev,
                 status: newStatus,
                 ...(deadlineBase ? { timestamp: deadlineBase } : {}),
+                ...(json?.acceptDeadline ? { accept_deadline: json.acceptDeadline } : {}),
               };
               sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
               return next;
@@ -1721,14 +1726,27 @@ function CheckoutModal({
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
                   {isScheduled
                     ? (lang === 'en'
-                        ? 'The restaurant will process your request as soon as it opens. You can keep this page open or return later to check confirmation.'
-                        : 'Il ristorante elaborerà la tua richiesta non appena aprirà. Puoi tenere aperta questa pagina o tornare più tardi per verificare la conferma.')
+                        ? 'The restaurant will confirm your order for the time you chose. You can keep this page open or return later to check confirmation.'
+                        : 'Il ristorante confermerà il tuo ordine per l’orario scelto. Puoi tenere aperta questa pagina o tornare più tardi per verificare la conferma.')
                     : (lastCreatedOrder?.type === 'prenotazione_tavolo'
                         ? t('tracker_booking_waiting')
                         : deliveryType === 'tavolo'
                           ? t('tracker_order_table', { n: tableNumber || '' })
                           : t('tracker_reviewing'))}
                 </p>
+                {isScheduled && lastCreatedOrder?.accept_deadline && (
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                    {(() => {
+                      const when = new Date(lastCreatedOrder.accept_deadline).toLocaleString(
+                        lang === 'en' ? 'en-GB' : 'it-IT',
+                        { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }
+                      );
+                      return lang === 'en'
+                        ? `The amount is only held on your card. If the restaurant does not confirm by ${when}, the order lapses and you are not charged.`
+                        : `L’importo è solo bloccato sulla carta. Se il ristorante non conferma entro il ${when}, l’ordine decade e non ti viene addebitato nulla.`;
+                    })()}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -2497,7 +2515,7 @@ function CheckoutModal({
                             <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
                               {item.addedIngredients?.map((ext) => (
                                 <div key={ext.name} className="text-primary font-medium">
-                                  + {lang === 'en' && ext.name_en ? ext.name_en : ext.name}
+                                  + {addedLabel(ext, lang)}
                                 </div>
                               ))}
                               {item.removedIngredients?.map((rem) => (
@@ -3207,6 +3225,7 @@ function CheckoutModal({
             stripeAccount={pendingPayment.stripeAccount}
             amountCents={pendingPayment.amount}
             orderId={pendingPayment.trackedOrder.id}
+            scheduled={!!pendingPayment.trackedOrder.scheduled_at}
             lang={lang === 'en' ? 'en' : 'it'}
             onPaid={handleOnlinePaid}
             onCancel={() => {
@@ -3804,15 +3823,13 @@ function StorefrontContent() {
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? '<div style="font-size: 10px; color: #666; margin-top: 2px;">' +
             item.addedIngredients
-              ?.map((i: any) => '+' + (lang === 'en' && i.name_en ? i.name_en : i.name))
+              ?.map((i: any) => '+' + addedLabel(i, lang))
               .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? '-Without ' + localizedRemoved(item, i, lang) : '-' + i))
               .join(', ') +
             '</div>'
             : '';
-        const itemPrice =
-          (item.price +
-            (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) || 0)) *
-          item.qty;
+        // item.price è già il prezzo unitario comprensivo delle aggiunte.
+        const itemPrice = item.price * item.qty;
         return (
           '<div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">' +
           '<div>' +
@@ -4032,7 +4049,7 @@ function StorefrontContent() {
                     {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
-                          ?.map((i: any) => `+${lang === 'en' && i.name_en ? i.name_en : i.name}`)
+                          ?.map((i: any) => `+${addedLabel(i, lang)}`)
                           .concat(item.removedIngredients?.map((i: string) => (lang === 'en' ? `-Without ${localizedRemoved(item, i, lang)}` : `-${i}`)))
                           .join(', ')}
                       </p>
@@ -4040,12 +4057,7 @@ function StorefrontContent() {
                   </div>
                   <span className="font-bold text-foreground tabular-nums">
                     €{' '}
-                    {(
-                      (item.price +
-                        (item.addedIngredients?.reduce((s: number, i: any) => s + i.price, 0) ||
-                          0)) *
-                      item.qty
-                    ).toFixed(2)}
+                    {(item.price * item.qty).toFixed(2)}
                   </span>
                 </li>
               ))}

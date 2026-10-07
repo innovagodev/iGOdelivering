@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { adminClient } from '@/lib/orderServer';
 import { getStripe, syncRestaurantStripe } from '@/lib/stripeServer';
-import { ACCEPT_WINDOW_SECONDS, cancelAuthorization } from '@/lib/orderPayments';
+import { cancelAuthorization, computeAcceptDeadline } from '@/lib/orderPayments';
 
 /**
  * POST /api/stripe/webhook
@@ -252,7 +252,7 @@ async function onPaymentAuthorized(
 
   const { data: order, error } = await admin
     .from('orders')
-    .select('id, status, total, payment_status, stripe_account_id')
+    .select('id, status, total, payment_status, stripe_account_id, scheduled_at')
     .eq('stripe_payment_intent_id', pi.id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -281,7 +281,7 @@ async function onPaymentAuthorized(
         status: 'new',
         payment_status: 'authorized',
         authorized_at: new Date(now).toISOString(),
-        accept_deadline: new Date(now + ACCEPT_WINDOW_SECONDS * 1000).toISOString(),
+        accept_deadline: computeAcceptDeadline(now, order.scheduled_at).toISOString(),
       })
       .eq('id', order.id)
       .eq('status', 'awaiting_payment');

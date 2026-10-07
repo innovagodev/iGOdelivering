@@ -35,6 +35,8 @@ export interface StripePaymentProps {
   amountCents: number;
   orderId: string;
   lang: 'it' | 'en';
+  /** Ordine programmato: il ristorante ha tempo fino all'orario scelto, non 3 minuti. */
+  scheduled?: boolean;
   onPaid: (status: 'requires_capture' | 'succeeded' | 'processing') => void;
   onCancel: () => void;
 }
@@ -65,7 +67,7 @@ export default function StripePayment(props: StripePaymentProps) {
   );
 }
 
-function PaymentForm({ amountCents, orderId, lang, onPaid, onCancel }: StripePaymentProps) {
+function PaymentForm({ amountCents, orderId, lang, scheduled, onPaid, onCancel }: StripePaymentProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -149,8 +151,8 @@ function PaymentForm({ amountCents, orderId, lang, onPaid, onCancel }: StripePay
       </button>
       <p className="text-[10px] text-muted-foreground text-center">
         {lang === 'en'
-          ? 'The amount is only held on your card: you are charged when the restaurant accepts your order, and not at all if it declines or does not reply within 3 minutes.'
-          : 'L’importo viene solo bloccato sulla carta: viene addebitato quando il ristorante accetta l’ordine, e non viene addebitato affatto se lo rifiuta o non risponde entro 3 minuti.'}
+          ? `The amount is only held on your card: you are charged when the restaurant accepts your order, and not at all if it declines or does not reply ${scheduled ? 'in time' : 'within 3 minutes'}.`
+          : `L’importo viene solo bloccato sulla carta: viene addebitato quando il ristorante accetta l’ordine, e non viene addebitato affatto se lo rifiuta o non risponde ${scheduled ? 'in tempo' : 'entro 3 minuti'}.`}
       </p>
       <p className="text-[10px] text-muted-foreground text-center">
         {lang === 'en'

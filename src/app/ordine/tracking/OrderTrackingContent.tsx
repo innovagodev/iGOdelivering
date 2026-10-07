@@ -500,6 +500,17 @@ export default function OrderTrackingContent() {
                         </span>
                         <div className="min-w-0">
                           <p className="font-medium text-foreground truncate">{item.name}</p>
+                          {(item.addedIngredients || []).map((a: any, k: number) => (
+                            <p key={`add-${k}`} className="text-xs text-primary font-medium">
+                              + {a.name}
+                              {Number(a.price) > 0 && ` (+€${Number(a.price).toFixed(2)})`}
+                            </p>
+                          ))}
+                          {(item.removedIngredients || []).map((r: string, k: number) => (
+                            <p key={`rem-${k}`} className="text-xs text-red-500">
+                              − Senza {r}
+                            </p>
+                          ))}
                           {item.note && (
                             <p className="text-xs text-muted-foreground">{item.note}</p>
                           )}

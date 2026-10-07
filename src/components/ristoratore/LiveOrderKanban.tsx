@@ -31,6 +31,9 @@ type OrderStatus = 'pending' | 'accepted' | 'completed';
 interface OrderItem {
   name: string;
   qty: number;
+  addedIngredients?: { name: string; price?: number }[];
+  removedIngredients?: string[];
+  note?: string;
 }
 
 interface LiveOrder {
@@ -91,6 +94,34 @@ interface Toast {
   type: 'success' | 'danger';
 }
 
+/**
+ * Righe di un ordine nella forma usata da dettaglio, schede e stampe.
+ *
+ * Gli ordini del database portano `order_items` con colonne snake_case
+ * (added_ingredients, removed_ingredients, note): il dettaglio leggeva invece
+ * `items` con nomi camelCase, che per questi ordini non esistono, e la cucina
+ * non vedeva né i piatti né le personalizzazioni.
+ */
+const orderLines = (o: any): any[] => {
+  if (Array.isArray(o?.order_items)) {
+    return o.order_items.map((i: any) => ({
+      name: i.name,
+      qty: i.qty || 1,
+      price: Number(i.price) || 0,
+      addedIngredients: Array.isArray(i.added_ingredients) ? i.added_ingredients : [],
+      removedIngredients: Array.isArray(i.removed_ingredients) ? i.removed_ingredients : [],
+      note: i.note || '',
+    }));
+  }
+  return Array.isArray(o?.items) ? o.items : [];
+};
+
+/** "Ai Cereali (+€2.00)": ogni supplemento a pagamento mostra il suo prezzo. */
+const extraLabel = (a: any) => {
+  const price = Number(a?.price) || 0;
+  return price > 0 ? `${a.name} (+€${price.toFixed(2)})` : a.name;
+};
+
 export default function LiveOrderKanban() {
   const { user } = useAuth();
   const restaurantId = user?.restaurantId || '';
@@ -147,19 +178,19 @@ export default function LiveOrderKanban() {
 
   const getOrderStatus = (o: any): string => {
     if (o.status === 'expired') return 'expired';
-    // Gli ordini programmati non scadono mai automaticamente dopo 3 minuti
-    if (o.scheduled_at) {
-      return o.status || 'pending';
-    }
     // Pagamento online autorizzato: la scadenza non è "3 minuti dalla
-    // creazione" ma accept_deadline, decisa dal server (mig. 032) e uguale a
-    // quella del conto alla rovescia del cliente. Scaduta, l'autorizzazione
-    // viene annullata e il cliente non è addebitato.
+    // creazione" ma accept_deadline, decisa dal server (mig. 032): 3 minuti per
+    // un ordine immediato, l'orario scelto dal cliente per uno programmato.
+    // Scaduta, l'autorizzazione viene annullata e il cliente non è addebitato.
     if (o.payment_status === 'authorized') {
       if (o.accept_deadline && Date.now() >= new Date(o.accept_deadline).getTime()) {
         return 'expired';
       }
       return o.status || 'new';
+    }
+    // Gli ordini programmati non scadono mai automaticamente dopo 3 minuti
+    if (o.scheduled_at) {
+      return o.status || 'pending';
     }
     // Nemmeno quelli già incassati online: il cliente è stato addebitato,
     // quindi restano in attesa finché il ristorante non li accetta o li rifiuta
@@ -186,17 +217,13 @@ export default function LiveOrderKanban() {
     const mins = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000));
 
     // Map array of items
-    const items = Array.isArray(o.order_items)
-      ? o.order_items.map((i: any) => ({
-          name: i.name,
-          qty: i.qty || 1,
-        }))
-      : Array.isArray(o.items)
-        ? o.items.map((i: any) => ({
-            name: i.name,
-            qty: i.qty || 1,
-          }))
-        : [];
+    const items = orderLines(o).map((i: any) => ({
+      name: i.name,
+      qty: i.qty || 1,
+      addedIngredients: i.addedIngredients || [],
+      removedIngredients: i.removedIngredients || [],
+      note: i.note || '',
+    }));
 
     const enriched = { ...o };
     if (enriched.scheduled_at && !enriched.deliveryTime) {
@@ -354,13 +381,13 @@ export default function LiveOrderKanban() {
 
     const restName = user?.restaurantName || 'iGOdelivering';
 
-    const itemsHtml = (rawOrder.items || [])
+    const itemsHtml = orderLines(rawOrder)
       .map((item: any) => {
         const customNotes =
           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
             ? `<div style="font-size: 11px; color: #555; margin-left: 10px; margin-top: 2px;">` +
               item.addedIngredients
-                ?.map((i: any) => '+' + i.name)
+                ?.map((i: any) => '+' + extraLabel(i))
                 .concat(item.removedIngredients?.map((i: string) => '-' + i))
                 .join(', ') +
               `</div>`
@@ -481,13 +508,13 @@ export default function LiveOrderKanban() {
       .map((flatOrder, index) => {
         const rawOrder = orders.find((o) => o.id === flatOrder.id) || flatOrder;
 
-        const itemsHtml = (rawOrder.items || [])
+        const itemsHtml = orderLines(rawOrder)
           .map((item: any) => {
             const customNotes =
               item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
                 ? `<div style="font-size: 11px; color: #555; margin-left: 10px; margin-top: 2px;">` +
                   item.addedIngredients
-                    ?.map((i: any) => '+' + i.name)
+                    ?.map((i: any) => '+' + extraLabel(i))
                     .concat(item.removedIngredients?.map((i: string) => '-' + i))
                     .join(', ') +
                   `</div>`
@@ -975,9 +1002,19 @@ export default function LiveOrderKanban() {
                         {order.items.map((item, idx) => (
                           <li
                             key={`${order.id}-item-${idx}`}
-                            className="text-xs text-slate-700 dark:text-slate-400 flex justify-between items-center"
+                            className="text-xs text-slate-700 dark:text-slate-400 flex justify-between items-start"
                           >
-                            <span className="truncate font-semibold">{item.name}</span>
+                            <div className="min-w-0">
+                              <span className="block truncate font-semibold">{item.name}</span>
+                              {(item.addedIngredients?.length || item.removedIngredients?.length) ? (
+                                <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-snug">
+                                  {[
+                                    ...(item.addedIngredients || []).map((a) => '+' + extraLabel(a)),
+                                    ...(item.removedIngredients || []).map((r) => '-' + r),
+                                  ].join(', ')}
+                                </span>
+                              ) : null}
+                            </div>
                             <span className="font-extrabold text-slate-900 dark:text-slate-200 ml-2 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] flex-shrink-0">
                               ×{item.qty}
                             </span>
@@ -1288,11 +1325,11 @@ export default function LiveOrderKanban() {
                   </h3>
                   <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                     <div className="divide-y divide-slate-100 dark:divide-slate-900">
-                      {(selectedOrder.items || []).map((item: any, idx: number) => {
+                      {orderLines(selectedOrder).map((item: any, idx: number) => {
                         const customNotes =
                           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
                             ? item.addedIngredients
-                                ?.map((i: any) => '+' + i.name)
+                                ?.map((i: any) => '+' + extraLabel(i))
                                 .concat(item.removedIngredients?.map((i: string) => '-' + i))
                                 .join(', ')
                             : '';
@@ -1404,11 +1441,11 @@ export default function LiveOrderKanban() {
                     <div className="border-t border-dashed border-black/35 my-1.5" />
 
                     <div className="space-y-2 my-2">
-                      {(selectedOrder.items || []).map((item: any, idx: number) => {
+                      {orderLines(selectedOrder).map((item: any, idx: number) => {
                         const itemCustomStr =
                           item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0
                             ? item.addedIngredients
-                                ?.map((i: any) => '+' + i.name)
+                                ?.map((i: any) => '+' + extraLabel(i))
                                 .concat(item.removedIngredients?.map((i: string) => '-' + i))
                                 .join(', ')
                             : '';
