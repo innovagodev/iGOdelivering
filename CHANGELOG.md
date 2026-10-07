@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.34.0](https://github.com/innovagodev/iGOdelivering/compare/v1.33.0...v1.34.0) (2026-10-07)
+
+
+### Features
+
+* **i18n:** menu vetrina completo in inglese, traduzioni facoltative ([6f62317](https://github.com/innovagodev/iGOdelivering/commit/6f62317722714485745ce71af80ca283e878311b))
+
 ## [1.33.0](https://github.com/innovagodev/iGOdelivering/compare/v1.32.0...v1.33.0) (2026-10-07)
 
 
