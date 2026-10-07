@@ -384,10 +384,12 @@ pannello, contestazioni (`charge.dispute.created` è solo registrata nei log), e
 metodi di pagamento che non supportano la cattura manuale. Se un ristoratore
 chiede Satispay o PayPal, vanno valutati a parte.
 
-**1c. Prenotazioni.** Gli slot già passati della giornata corrente sono ancora
-prenotabili (M3, nella vetrina e in `/api/bookings`) e gli orari non usano un
-fuso per ristorante (A13). La conferma al cliente per email non c'è per le
-prenotazioni.
+**1c. Prenotazioni.** Le prenotazioni retroattive sono bloccate dall'8 ottobre
+(M3), nella vetrina e in `/api/bookings`, con l'ora di Roma. Restano: gli orari
+non usano un fuso per ristorante (A13), il server non verifica che l'orario
+cada negli orari di prenotazione del locale, la funzione SQL `create_booking`
+non ripete il controllo sul passato, e la conferma al cliente per email non
+c'è.
 
 **2. Capienza prenotazioni** (C9): chiuso il 2 ottobre con la migration 022.
 Resta da fare, quando servirà: i tavoli come entità (piantina, abbinamento
@@ -417,6 +419,6 @@ con chiave anon e service role, giri del checkout in Chrome con la richiesta
 intercettata, ristoranti di prova creati e cancellati — sono la base naturale
 per scriverne una. (A1, il ruolo nel cookie, è chiuso dal 2 ottobre.)
 
-Il quadro completo — 37 rilievi risolti (3 dei quali chiusi fuori migration), 20
+Il quadro completo — 38 rilievi risolti (3 dei quali chiusi fuori migration), 19
 aperti, 2 smentiti — è in
 `AUDIT_REPORT.md`.

@@ -89,7 +89,7 @@ I rilievi qui sotto sono ora etichettati per **origine della verifica**:
 | C3′ | Multi-tenant | `restaurants` pubblica espone email proprietario e (futuri) dati bancari | Medio | ✅ Risolto (mig. 017) | prod |
 | M1 | Multi-tenant | `platform_settings` leggibile da chiunque (oggi vuota) | Medio | ⚠️ Aperto | prod |
 | M2 | Multi-tenant | Nessuna UPDATE self su `profiles`; nessuna UPDATE/DELETE su `order_items` | Medio | ⚠️ Aperto | prod |
-| M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente | Medio | ⚠️ Aperto (riverificato 7 ott: né vetrina né `/api/bookings` lo impediscono) | codice |
+| M3 | Prenotazioni | Slot già passati prenotabili per la giornata corrente (e giorni passati) | **Alto** | ✅ Risolto (8 ott: vetrina + `/api/bookings`) | codice |
 | M4 | Prenotazioni | Creazione pubblica di ordini e prenotazioni senza rate limit | Medio | ✅ Risolto (mig. 021) | prod |
 | M5 | Qualità | `ignoreBuildErrors` + `ignoreDuringBuilds` attivi | Medio | ⚠️ Aperto | codice |
 | M6 | Qualità | 108 blocchi `catch` su 133 si limitano a `console.error` | Medio | ⚠️ Aperto | codice |
@@ -766,6 +766,19 @@ Il prezzo di una riga nel carrello comprende già i supplementi; la ricevuta (a 
 
 Nella pagina di configurazione il pulsante chiamava lo stesso salvataggio di "Salva Bozza", che scriveva lo stato letto dalla schermata (ancora `draft`): il ristorante restava in bozza e la vetrina rispondeva "Ristorante non disponibile" (`/api/orders` accetta solo `published`). Lo stato scelto viene ora passato al salvataggio. Il wizard "nuovo ristorante" era corretto. Resta M9 (`published_at`) per quel wizard.
 
+### ✅ M3 — Prenotazioni retroattive *(Alto, risolto l'8 ottobre 2026)*
+
+L'8 ottobre alle 00:16 è stato possibile prenotare un tavolo per il **7 ottobre alle 18:00**. Cause, tutte verificate nel codice:
+
+1. la data minima del selettore era `new Date().toISOString()`, cioè la data in **UTC**: fra mezzanotte e le due del mattino, ora di Roma, "oggi" risultava ancora ieri;
+2. gli orari proposti per la giornata corrente non escludevano quelli già passati (il rilievo M3 originale, rimasto aperto);
+3. per un giorno senza orari, o con tutti gli orari passati, la vetrina mostrava un campo libero in cui scrivere qualunque ora;
+4. `/api/bookings` non controllava nulla: accettava qualsiasi data e ora valide nel formato.
+
+Ora: la data minima e "oggi" sono quelli di Roma, lo stesso orologio del server; per oggi restano solo gli orari **successivi a quello attuale** (la lista si aggiorna ogni 30 secondi); per un giorno passato nessuno; il campo libero è sostituito dal messaggio "Nessun orario disponibile per questo giorno"; e il server rifiuta con 409 (`booking_in_past`) ogni prenotazione per un giorno passato o per un orario già trascorso da più di 5 minuti (tolleranza per il tempo fra l'apertura della lista e l'invio). La stessa data in UTC falsava anche l'etichetta "Oggi" delle date d'ordine tra mezzanotte e le due: corretto. Gli ordini erano già protetti dal server (`checkSchedule`, `too_soon`).
+
+*Non coperto:* `create_booking` (la funzione SQL) non ripete il controllo, quindi un chiamante diverso dalla route lo aggirerebbe; il server non verifica nemmeno che l'orario cada negli orari di prenotazione del locale. Entrambi restano da valutare.
+
 ### ✅ N23 — Un ordine online non pagato poteva entrare in preparazione *(Medio, risolto — migration 035, da applicare)*
 
 Un ordine online scaduto o annullato ha l'autorizzazione annullata: il cliente non è stato addebitato. Il pannello nascondeva "Riattiva" nella scheda ma non nel dettaglio, e il database non lo impediva: un aggiornamento diretto portava a `preparing` un ordine che nessuno aveva pagato. La migration 035 aggiunge al trigger di guardia la regola: un ordine online non incassato non passa a `preparing`, `ready`, `delivering` o `delivered` dal browser. Contanti e POS non cambiano.
@@ -856,7 +869,7 @@ La cartella `docs/` è esclusa dal versionamento per scelta: è materiale privat
 - [ ] Durata del turno e calcolo della disponibilità reale per slot
 - [x] Impedire l'overbooking **a livello di database**, non solo nell'interfaccia (C9, mig. 022)
 - [ ] Fuso orario per ristorante; smettere di dedurre l'ora dal browser del cliente
-- [ ] Escludere gli slot già passati nella giornata corrente *(M3: confermato aperto il 7 ottobre, sia nella vetrina sia in `/api/bookings`)*
+- [x] Escludere gli slot già passati nella giornata corrente e i giorni passati (M3, 8 ottobre, vedi sotto)
 - [ ] No-show, modifiche last-minute, overbooking intenzionale configurabile
 - [ ] Conferma al cliente via email o SMS *(la schermata mostra ora timer, esito e scadenza; l'email di conferma della prenotazione no)*
 

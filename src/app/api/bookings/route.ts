@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fromCents } from '@/lib/pricing';
 import { decideAcceptance } from '@/lib/acceptance';
-import { HoursConfig } from '@/lib/serviceHours';
+import { HoursConfig, nowInZone, toMinutes } from '@/lib/serviceHours';
 import {
   adminClient,
   clientIp,
@@ -76,6 +76,24 @@ export async function POST(request: Request) {
     return reply(invalid);
   }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return reply(invalid);
+
+  // Niente prenotazioni retroattive. Si confronta con l'ora di Roma, la stessa
+  // con cui la vetrina genera gli orari; 5 minuti di tolleranza assorbono il
+  // tempo fra l'apertura della lista e l'invio, ma un orario di ieri o di
+  // stamattina non passa.
+  const nowRome = nowInZone('Europe/Rome');
+  if (
+    date < nowRome.date ||
+    (date === nowRome.date && toMinutes(time) < nowRome.minutes - 5)
+  ) {
+    return reply(
+      fail(
+        409,
+        'booking_in_past',
+        'Non è possibile prenotare per un orario già passato. Scegli un altro orario.'
+      )
+    );
+  }
 
   const hasPreOrder = Array.isArray(body.items) && body.items.length > 0;
   const lines = hasPreOrder ? parseLines(body.items) : [];

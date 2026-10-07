@@ -70,6 +70,8 @@ import {
   isSuspended,
   isTemporarilyClosed,
   minNoticeMinutes as sharedMinNoticeMinutes,
+  nowInZone,
+  toMinutes as hhmmToMinutes,
 } from '@/lib/serviceHours';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
@@ -2063,7 +2065,9 @@ function CheckoutModal({
           label = `${formattedDay} ${dayNum} ${monthName.toLowerCase()}`;
         }
       }
-      const value = d.toISOString().split('T')[0];
+      // Data locale, non toISOString(): in UTC, tra mezzanotte e le due del
+      // mattino, "Oggi" avrebbe il valore di ieri.
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       options.push({ value, label });
     }
     return options;
@@ -4148,7 +4152,7 @@ function StorefrontContent() {
   } | null>(null);
 
   // Genera intervalli orari in cui il locale è effettivamente aperto per prenotazioni
-  const bookingTimeSlots = React.useMemo(() => {
+  const allBookingTimeSlots = React.useMemo(() => {
     // 1. Determina il giorno della settimana per la data selezionata
     const DAYS_MAP = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
     let targetDayName = '';
@@ -4228,8 +4232,34 @@ function StorefrontContent() {
     return Array.from(new Set(slots)).sort();
   }, [restaurantSettings.openingHours, serviceHoursConfig, bookingDate]);
 
+  // Orologio che fa scomparire gli orari man mano che passano: la lista non
+  // deve restare ferma a quando si è aperta la finestra.
+  const [bookingClock, setBookingClock] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setBookingClock((c) => c + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Una prenotazione non può essere retroattiva: per oggi restano solo gli
+  // orari successivi a quello attuale (ora di Roma), per un giorno passato
+  // nessuno. Il server rifiuta comunque ciò che qui dovesse sfuggire.
+  const bookingTimeSlots = React.useMemo(() => {
+    if (!bookingDate) return allBookingTimeSlots;
+    const now = nowInZone('Europe/Rome');
+    if (bookingDate < now.date) return [];
+    if (bookingDate === now.date) {
+      return allBookingTimeSlots.filter((slot) => hhmmToMinutes(slot) > now.minutes);
+    }
+    return allBookingTimeSlots;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allBookingTimeSlots, bookingDate, bookingClock]);
+
   // Sincronizza orario di prenotazione con gli slot orari validi
   useEffect(() => {
+    if (bookingTimeSlots.length === 0) {
+      if (bookingTime) setBookingTime('');
+      return;
+    }
     if (bookingTimeSlots.length > 0) {
       if (!bookingTime || !bookingTimeSlots.includes(bookingTime)) {
         if (bookingTimeSlots.includes('20:00')) {
@@ -4407,13 +4437,10 @@ function StorefrontContent() {
     );
   };
 
-  const getCurrentDateStr = React.useCallback(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }, []);
+  // Il giorno di oggi è quello di Roma, lo stesso orologio con cui il server
+  // controlla gli orari: con la data del browser (o, peggio, in UTC) tra
+  // mezzanotte e le due del mattino "oggi" sarebbe ancora ieri.
+  const getCurrentDateStr = React.useCallback(() => nowInZone('Europe/Rome').date, []);
 
   const checkServiceOpen = React.useCallback(
     (serviceType: 'pickup' | 'delivery' | 'reservation') => {
@@ -6335,8 +6362,12 @@ function StorefrontContent() {
                       <input
                         type="date"
                         value={bookingDate}
-                        onChange={(e) => setBookingDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          // `min` non basta: la data si può digitare a mano.
+                          const today = getCurrentDateStr();
+                          setBookingDate(e.target.value && e.target.value < today ? today : e.target.value);
+                        }}
+                        min={getCurrentDateStr()}
                         className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors appearance-none"
                       />
                     </div>
@@ -6358,12 +6389,12 @@ function StorefrontContent() {
                           ))}
                         </select>
                       ) : (
-                        <input
-                          type="time"
-                          value={bookingTime}
-                          onChange={(e) => setBookingTime(e.target.value)}
-                          className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors appearance-none"
-                        />
+                        // Nessun orario: giorno di chiusura o orari già passati.
+                        // Prima qui compariva un campo libero, con cui si poteva
+                        // scrivere qualunque orario, anche passato.
+                        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                          {t('booking_no_slots')}
+                        </p>
                       )}
                     </div>
                   </div>
