@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.37.1](https://github.com/innovagodev/iGOdelivering/compare/v1.37.0...v1.37.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **prenotazioni:** niente prenotazioni retroattive (giorni e orari passati) ([72b2fee](https://github.com/innovagodev/iGOdelivering/commit/72b2feead134a76d79ad568c3a55e5ae47c0eec4))
+* **prenotazioni:** orari di prenotazione verificati dal server e dal database; ripristino della modalita' dopo "Prenota e ordina" ([76e934e](https://github.com/innovagodev/iGOdelivering/commit/76e934e79b623d9e78538abfc3c45a1019fe56db))
+* **ristoratore:** il pulsante "Aggiungi Piatto" in testata apre e mostra il modulo ([06a4144](https://github.com/innovagodev/iGOdelivering/commit/06a4144c3bd5edf4133ff14260d8d648e57179d9))
+
 ## [1.37.0](https://github.com/innovagodev/iGOdelivering/compare/v1.36.2...v1.37.0) (2026-10-07)
 
 
