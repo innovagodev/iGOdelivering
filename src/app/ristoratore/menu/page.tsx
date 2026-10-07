@@ -502,7 +502,18 @@ export default function RistoratoreMenuPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowAddItem(true)}
+                    onClick={() => {
+                      // Il modulo compare in fondo alla lista: oltre ad aprirlo,
+                      // si torna alla vista Menu e si scorre fino a lui.
+                      setView('menu');
+                      setEditingItemId(null);
+                      setShowAddItem(true);
+                      setTimeout(() => {
+                        document
+                          .getElementById('add-item-form')
+                          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 120);
+                    }}
                     className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover w-full sm:w-auto"
                   >
                     <Plus size={14} />

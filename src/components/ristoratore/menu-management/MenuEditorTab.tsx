@@ -478,7 +478,7 @@ export default function MenuEditorTab({
 
       {/* Add Item Form */}
       {showAddItem && (
-        <div ref={itemFormRef} className="bg-card border border-border rounded-2xl p-2 animate-fade-in">
+        <div id="add-item-form" ref={itemFormRef} className="bg-card border border-border rounded-2xl p-2 animate-fade-in">
           <ItemForm
             item={{
               ...emptyDraft(),
