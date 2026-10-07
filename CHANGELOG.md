@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.37.0](https://github.com/innovagodev/iGOdelivering/compare/v1.36.2...v1.37.0) (2026-10-07)
+
+
+### Features
+
+* **ordini:** regola unica di accettazione per ordini e prenotazioni ([32f4f1c](https://github.com/innovagodev/iGOdelivering/commit/32f4f1c224f85abd02186cb5422908abb28233fb))
+
+
+### Bug Fixes
+
+* **pannello:** ordine scaduto senza "Rifiuta", con "Chiama" e "Riattiva" confermato ([fc6b0e7](https://github.com/innovagodev/iGOdelivering/commit/fc6b0e76bb462536d2126afd768b85b01c2957ff))
+
 ### [1.36.2](https://github.com/innovagodev/iGOdelivering/compare/v1.36.1...v1.36.2) (2026-10-07)
 
 
