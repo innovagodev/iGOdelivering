@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import { DISH_TAGS_LIST } from '@/lib/constants';
+import RemoveBadge from '@/components/ui/RemoveBadge';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   leaf: Leaf,
@@ -1282,7 +1283,7 @@ export default function MenuStep({
                     className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Plus size={13} />
-                    + Aggiungi Piatto in {catName}
+                    Aggiungi Piatto in {catName}
                   </button>
                 </div>
 
@@ -1410,7 +1411,7 @@ export default function MenuStep({
             className="bg-primary text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary-hover transition-all shadow-sm cursor-pointer active:scale-95"
           >
             <Plus size={15} />
-            + Aggiungi Piatto
+            Aggiungi Piatto
           </button>
         </div>
 
@@ -1584,15 +1585,7 @@ export default function MenuStep({
                         className="relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border bg-card border-border text-foreground select-none pr-6 flex items-center"
                       >
                         {ing}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveIngredient(ing)}
-                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                          style={{ fontSize: '7px', lineHeight: '1' }}
-                          title={`Elimina ${ing}`}
-                        >
-                          ✕
-                        </button>
+                        <RemoveBadge onClick={() => handleRemoveIngredient(ing)} title={`Elimina ${ing}`} />
                       </div>
                     ))}
                   </div>
@@ -1756,18 +1749,10 @@ export default function MenuStep({
                           }`}
                         >
                           {a}
-                          <button
-                            type="button"
-                            onClick={(e) => {
+                          <RemoveBadge onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteAllergen(a);
-                            }}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-sm transition-transform hover:scale-110 active:scale-95"
-                            style={{ fontSize: '7px', lineHeight: '1' }}
-                            title={`Elimina ${a}`}
-                          >
-                            ✕
-                          </button>
+                            }} title={`Elimina ${a}`} />
                         </div>
                       );
                     })}
@@ -1786,16 +1771,16 @@ export default function MenuStep({
                         {allergenEmoji}
                       </button>
                       {showAllergenEmojiPicker && (
-                        <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-lg shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-40 overflow-y-auto">
+                        <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-lg shadow-xl z-20 grid grid-cols-6 gap-1 w-64 max-h-52 overflow-y-auto">
                           <button
                             type="button"
                             onClick={() => {
                               setAllergenEmoji('➕');
                               setShowAllergenEmojiPicker(false);
                             }}
-                            className="p-1 hover:bg-muted rounded text-[10px] text-muted-foreground"
+                            className="col-span-6 mb-1 rounded-md border border-border py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
                           >
-                            Nessuna
+                            Nessuna icona
                           </button>
                           {EMOJI_LIST.map((emoji) => (
                             <button
@@ -1915,18 +1900,10 @@ export default function MenuStep({
                         >
                           {IconComp}
                           <span>{label}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
+                          <RemoveBadge onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteDishTag(t);
-                            }}
-                            className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                            style={{ fontSize: '8px', lineHeight: '1' }}
-                            title={`Elimina ${label}`}
-                          >
-                            ✕
-                          </button>
+                            }} title={`Elimina ${label}`} />
                         </div>
                       );
                     })}

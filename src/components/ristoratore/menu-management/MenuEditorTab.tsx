@@ -426,7 +426,7 @@ export default function MenuEditorTab({
                     className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Plus size={13} />
-                    + Aggiungi Piatto in {cat}
+                    Aggiungi Piatto in {cat}
                   </button>
                 </div>
 
@@ -472,7 +472,7 @@ export default function MenuEditorTab({
           className="bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-primary-hover transition-all shadow-sm cursor-pointer active:scale-95"
         >
           <Plus size={16} />
-          + Aggiungi Piatto
+          Aggiungi Piatto
         </button>
       </div>
 

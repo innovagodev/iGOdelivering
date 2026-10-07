@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { DISH_TAGS_LIST } from '@/lib/constants';
+import RemoveBadge from '@/components/ui/RemoveBadge';
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   leaf: Leaf,
@@ -974,15 +975,7 @@ export default function ItemForm({
                 className="relative px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-card border-border text-foreground select-none pr-7 flex items-center"
               >
                 {ing}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveIngredient(ing)}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer animate-in zoom-in-50 duration-75"
-                  style={{ fontSize: '8px', lineHeight: '1' }}
-                  title={`Elimina ${ing}`}
-                >
-                  ✕
-                </button>
+                <RemoveBadge onClick={() => handleRemoveIngredient(ing)} title={`Elimina ${ing}`} />
               </div>
             ))}
           </div>
@@ -1149,18 +1142,10 @@ export default function ItemForm({
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 mr-1.5 animate-pulse" />
                   )}
                   {displayLabel}
-                  <button
-                    type="button"
-                    onClick={(e) => {
+                  <RemoveBadge onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteAllergen(a);
-                    }}
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95"
-                    style={{ fontSize: '8px', lineHeight: '1' }}
-                    title={`Elimina ${a}`}
-                  >
-                    ✕
-                  </button>
+                    }} title={`Elimina ${a}`} />
                 </div>
               );
             })}
@@ -1180,16 +1165,16 @@ export default function ItemForm({
                 {allergenEmoji}
               </button>
               {showAllergenEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-xl shadow-xl z-20 grid grid-cols-6 gap-1 w-48 max-h-48 overflow-y-auto">
+                <div className="absolute bottom-full left-0 mb-2 p-2 bg-card border border-border rounded-xl shadow-xl z-20 grid grid-cols-6 gap-1 w-64 max-h-56 overflow-y-auto">
                   <button
                     type="button"
                     onClick={() => {
                       setAllergenEmoji('➕');
                       setShowAllergenEmojiPicker(false);
                     }}
-                    className="p-1 hover:bg-muted rounded text-xs text-muted-foreground"
+                    className="col-span-6 mb-1 rounded-md border border-border py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
-                    Nessuna
+                    Nessuna icona
                   </button>
                   {EMOJI_LIST.map((emoji) => (
                     <button
@@ -1325,18 +1310,10 @@ export default function ItemForm({
                 >
                   {IconComp}
                   <span>{displayLabel}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
+                  <RemoveBadge onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteDishTag(t);
-                    }}
-                    className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                    style={{ fontSize: '8px', lineHeight: '1' }}
-                    title={`Elimina ${label}`}
-                  >
-                    ✕
-                  </button>
+                    }} title={`Elimina ${label}`} />
                 </div>
               );
             })}
@@ -1616,17 +1593,9 @@ export default function ItemForm({
                 <span className="text-primary font-bold ml-1.5">
                   (+€{parseFloat(choice.price || '0').toFixed(2)})
                 </span>
-                <button
-                  type="button"
-                  onClick={() =>
+                <RemoveBadge onClick={() =>
                     setSupplementiSingoli((prev) => prev.filter((c) => c.id !== choice.id))
-                  }
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center border border-white shadow-md transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-                  style={{ fontSize: '8px', lineHeight: '1' }}
-                  title={`Elimina ${choice.name}`}
-                >
-                  ✕
-                </button>
+                  } title={`Elimina ${choice.name}`} />
               </div>
             ))}
           </div>
