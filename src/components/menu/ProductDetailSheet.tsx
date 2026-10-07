@@ -93,7 +93,18 @@ const getCleanTagLabel = (tag: string) => {
     return tag.split(':').slice(1).join(':').trim();
   }
   // Strip emojis
-  return tag.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+  return tag
+    .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{2B50}]|[\u{FE0F}]/gu, '')
+    .trim();
+};
+
+// Il nome di un gruppo opzioni lo scrive il ristoratore e spesso contiene già il
+// verbo ("Scegli l'impasto"): davanti non va aggiunto un secondo "Scegli".
+const CHOOSE_VERB = /^\s*(scegli|seleziona|choose|select|pick)\b/i;
+const choosePlaceholder = (name: string, lang: string) => {
+  const clean = name.trim();
+  if (CHOOSE_VERB.test(clean)) return clean;
+  return lang === 'en' ? `Choose ${clean}` : `Scegli ${clean}`;
 };
 
 const getTagStyle = (tag: string) => {
@@ -548,10 +559,10 @@ export default function ProductDetailSheet({
                                 className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${isSatisfied ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border/40'}`}
                               >
                                 {isSingle
-                                  ? (lang === 'en' ? 'Choose 1' : 'Scegli 1')
+                                  ? (lang === 'en' ? 'Single choice' : 'Scelta singola')
                                   : max
-                                    ? (lang === 'en' ? `Choose from ${min} to ${max} (${selectedCount}/${max})` : `Scegli da ${min} a ${max} (${selectedCount}/${max})`)
-                                    : (lang === 'en' ? `Choose at least ${min} (Selected: ${selectedCount})` : `Scegli almeno ${min} (Selezionati: ${selectedCount})`)}
+                                    ? (lang === 'en' ? `From ${min} to ${max} (${selectedCount}/${max})` : `Da ${min} a ${max} (${selectedCount}/${max})`)
+                                    : (lang === 'en' ? `At least ${min} (Selected: ${selectedCount})` : `Almeno ${min} (Selezionati: ${selectedCount})`)}
                               </span>
                             </h5>
 
@@ -560,7 +571,7 @@ export default function ProductDetailSheet({
                                 <select
                                   value={selectedInGroup[0]?.name || ''}
                                   onChange={(e) => handleSelectGroupOption(group, e.target.value)}
-                                  className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
+                                  className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none bg-none pr-10"
                                 >
                                   {group.defaultOption ? (
                                     <option value={group.defaultOption}>
@@ -568,7 +579,7 @@ export default function ProductDetailSheet({
                                     </option>
                                   ) : (
                                     <option value="" disabled>
-                                      {lang === 'en' ? `Choose ${group.name_en || group.name}` : `Scegli ${group.name}`}
+                                      {choosePlaceholder(lang === 'en' ? group.name_en || group.name : group.name, lang)}
                                     </option>
                                   )}
                                   {group.choices.map((choice) => {
@@ -600,7 +611,7 @@ export default function ProductDetailSheet({
                                       );
                                       if (choice) toggleGroupOption(group, choice);
                                     }}
-                                    className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
+                                    className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none bg-none pr-10"
                                   >
                                     <option value="">{lang === 'en' ? 'Add an option...' : "Aggiungi un'opzione..."}</option>
                                     {group.choices
@@ -728,7 +739,7 @@ export default function ProductDetailSheet({
                                         onChange={(e) =>
                                           handleSelectGroupOption(group, e.target.value)
                                         }
-                                        className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none pr-10"
+                                        className="w-full px-4 py-3.5 text-xs bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer font-semibold text-foreground appearance-none bg-none pr-10"
                                       >
                                         {group.defaultOption ? (
                                           <option value={group.defaultOption}>
@@ -736,7 +747,7 @@ export default function ProductDetailSheet({
                                           </option>
                                         ) : (
                                           <option value="" disabled>
-                                            {lang === 'en' ? `Choose ${group.name_en || group.name}` : `Scegli ${group.name}`}
+                                            {choosePlaceholder(lang === 'en' ? group.name_en || group.name : group.name, lang)}
                                           </option>
                                         )}
                                         {group.choices.map((choice) => {
@@ -774,7 +785,7 @@ export default function ProductDetailSheet({
                                           >
                                             <div className="flex items-center gap-3">
                                               <div
-                                                className={`w-4.5 h-4.5 border flex items-center justify-center transition-all rounded-md flex-shrink-0 ${
+                                                className={`w-[18px] h-[18px] border flex items-center justify-center transition-all rounded-md flex-shrink-0 ${
                                                   isChecked
                                                     ? 'bg-primary border-primary text-white shadow-xs'
                                                     : 'border-border-strong bg-muted/20'
