@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.36.0](https://github.com/innovagodev/iGOdelivering/compare/v1.35.1...v1.36.0) (2026-10-07)
+
+
+### Features
+
+* **pagamenti:** scarto automatico delle autorizzazioni scadute (cron) ([ccdc615](https://github.com/innovagodev/iGOdelivering/commit/ccdc6158db26f3b3967b5e652b27f922466ddd4d))
+
 ### [1.35.1](https://github.com/innovagodev/iGOdelivering/compare/v1.35.0...v1.35.1) (2026-10-07)
 
 ## [1.35.0](https://github.com/innovagodev/iGOdelivering/compare/v1.34.0...v1.35.0) (2026-10-07)
