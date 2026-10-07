@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { notify, confirmAction } from '@/lib/notify';
 import Sidebar from '@/components/layout/Sidebar';
 import Topbar from '@/components/layout/Topbar';
 import { supabase } from '@/lib/supabase';
@@ -199,10 +200,14 @@ export default function RestaurantConfigurePage() {
     setShowPromoModal(true);
   };
 
-  const handleDeletePromo = (id: string) => {
-    if (confirm('Sei sicuro di voler eliminare questo codice promozionale?')) {
-      setPromos(promos.filter((p) => p.id !== id));
-    }
+  const handleDeletePromo = async (id: string) => {
+    const ok = await confirmAction({
+      title: 'Eliminare il codice promozionale?',
+      message: 'Il codice non sarà più utilizzabile dai clienti.',
+      confirmLabel: 'Elimina',
+      destructive: true,
+    });
+    if (ok) setPromos((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handlePromoSubmit = (e: React.FormEvent) => {
@@ -955,7 +960,14 @@ export default function RestaurantConfigurePage() {
     return { isValid: true, message: '' };
   };
 
-  const handleSave = async () => {
+  // `statusOverride` serve al pulsante "Pubblica Ristorante": lo stato scelto
+  // va usato in questo salvataggio, non letto da `restaurantStatus`, che React
+  // aggiorna solo al render successivo. Senza, "Pubblica" salvava il ristorante
+  // lasciandolo in bozza. Chiamato da un click, l'argomento è l'evento e si
+  // ignora.
+  const handleSave = async (statusOverride?: unknown) => {
+    const effectiveStatus =
+      typeof statusOverride === 'string' ? statusOverride : restaurantStatus;
     try {
       const validation = validateInfoStep();
       if (!validation.isValid) {
@@ -1120,7 +1132,7 @@ export default function RestaurantConfigurePage() {
       }
 
       let publishedAtValue = publishedAt;
-      if (restaurantStatus === 'published' && !publishedAt) {
+      if (effectiveStatus === 'published' && !publishedAt) {
         publishedAtValue = new Date().toISOString();
         setPublishedAt(publishedAtValue);
       }
@@ -1141,7 +1153,7 @@ export default function RestaurantConfigurePage() {
         description_en: info.descriptionEn?.trim() || null,
         logo_url: logoUrlToSave,
         background_url: backgroundUrlToSave,
-        status: restaurantStatus,
+        status: effectiveStatus,
         published_at: publishedAtValue,
         delivery_enabled: zones.some((z) => z.enabled),
         pickup_enabled: true,
@@ -1486,7 +1498,7 @@ export default function RestaurantConfigurePage() {
       }
 
       // 2. Trigger activation email if status transitioned from not-published to published
-      if (restaurantStatus === 'published' && initialStatus !== 'published') {
+      if (effectiveStatus === 'published' && initialStatus !== 'published') {
         try {
           const emailResponse = await fetch('/api/admin/send-activation-email', {
             method: 'POST',
@@ -1506,9 +1518,11 @@ export default function RestaurantConfigurePage() {
         } catch (mailErr) {
           console.error('Error triggering activation email:', mailErr);
         }
-      } else if (restaurantStatus !== initialStatus) {
-        setInitialStatus(restaurantStatus);
+      } else if (effectiveStatus !== initialStatus) {
+        setInitialStatus(effectiveStatus);
       }
+      // Stato confermato dal database: la schermata lo mostra com'è davvero.
+      setRestaurantStatus(effectiveStatus);
       setDbHoursConfig(serviceHoursDataToSave);
 
       // Dispatch change notifications
@@ -1524,9 +1538,14 @@ export default function RestaurantConfigurePage() {
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      notify.success(
+        effectiveStatus === 'published' && initialStatus !== 'published'
+          ? 'Ristorante pubblicato'
+          : 'Modifiche salvate'
+      );
     } catch (e: any) {
       console.error('Error saving restaurant configuration:', e);
-      alert(e.message || 'Errore durante il salvataggio della configurazione.');
+      notify.error(e.message || 'Errore durante il salvataggio della configurazione.');
     }
   };
 
@@ -2665,8 +2684,8 @@ export default function RestaurantConfigurePage() {
                 menuItems={menuItems}
                 menuCategories={menuCategories.map((c) => c.name)}
                 promos={promos}
-                handlePublish={handleSave}
-                handleSaveDraft={handleSave}
+                handlePublish={() => handleSave('published')}
+                handleSaveDraft={() => handleSave()}
                 isSavedDraft={saved}
                 previewUrl={`/menu/${restaurantSlug}`}
                 restaurantStatus={(restaurantStatus as 'draft' | 'published') || 'draft'}
@@ -2689,7 +2708,7 @@ export default function RestaurantConfigurePage() {
                     if (currentStep === 'info') {
                       const validation = validateInfoStep();
                       if (!validation.isValid) {
-                        alert(validation.message);
+                        notify.error(validation.message);
                         return;
                       }
                     }
