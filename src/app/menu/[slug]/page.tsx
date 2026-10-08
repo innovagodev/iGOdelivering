@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { gsap } from 'gsap';
-import Lenis from 'lenis';
+import { useLenisRef } from '@/components/layout/LenisProvider';
 import {
   User,
   ShoppingCart,
@@ -707,7 +707,7 @@ function MenuItemCard({
       >
         {/* Left Column: Image */}
         {item.image && (
-          <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 border border-border/40 bg-muted mr-4">
+          <div className="relative w-[clamp(4.5rem,20vw,6rem)] aspect-square rounded-2xl overflow-hidden shrink-0 border border-border/40 bg-muted mr-[clamp(0.625rem,3vw,1rem)]">
             <AppImage
               src={item.image}
               alt={item.imageAlt || displayName}
@@ -716,7 +716,7 @@ function MenuItemCard({
               className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
             />
             {totalQty > 0 && (
-              <div className="absolute top-1.5 left-1.5 bg-primary text-white text-[10px] font-black w-5.5 h-5.5 rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
+              <div className="absolute top-1.5 left-1.5 bg-primary text-white text-[10px] font-black w-[1.375rem] h-[1.375rem] rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
                 {totalQty}
               </div>
             )}
@@ -724,9 +724,9 @@ function MenuItemCard({
         )}
 
         {/* Center Column: Details */}
-        <div className="flex-1 min-w-0 pr-4">
+        <div className="flex-1 min-w-0 pr-[clamp(0.5rem,2.5vw,1rem)]">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <h4 className="font-bold text-foreground text-sm sm:text-base group-hover:text-primary transition-colors leading-snug flex items-center gap-1.5">
+            <h4 className="font-bold text-foreground text-[clamp(0.875rem,0.82rem+0.25vw,1rem)] group-hover:text-primary transition-colors leading-snug flex items-center gap-1.5 break-words">
               {totalQty > 0 && !item.image && (
                 <span className="bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs shrink-0 animate-pop">
                   {totalQty}
@@ -782,7 +782,7 @@ function MenuItemCard({
         </div>
 
         {/* Right Column: Prices and Action Button */}
-        <div className="shrink-0 flex flex-col items-end justify-between min-h-[72px] sm:min-h-[84px] min-w-[80px]">
+        <div className="shrink-0 flex flex-col items-end justify-between min-h-[72px] sm:min-h-[84px] min-w-[4.5rem]">
           <div className="text-right">
             <span className="font-black text-foreground text-sm sm:text-base block">
               € {item.price.toFixed(2)}
@@ -803,18 +803,18 @@ function MenuItemCard({
                 onClick={() =>
                   defaultCartItem && onRemove(defaultCartItem.cartId || defaultCartItem.id)
                 }
-                className="w-6.5 h-6.5 rounded-lg bg-card hover:bg-border flex items-center justify-center transition-colors shadow-xs active:scale-90"
+                className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-card hover:bg-border flex items-center justify-center transition-colors shadow-xs active:scale-90"
               >
-                <Minus size={10} className="text-foreground" />
+                <Minus size={12} className="text-foreground" />
               </button>
               <span className="w-4 text-center font-bold tabular-nums text-foreground text-xs">
                 {defaultQty}
               </span>
               <button
                 onClick={() => onAdd(item)}
-                className="w-6.5 h-6.5 rounded-lg bg-primary text-white hover:bg-primary-hover flex items-center justify-center transition-colors shadow-xs active:scale-90"
+                className="w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-primary text-white hover:bg-primary-hover flex items-center justify-center transition-colors shadow-xs active:scale-90"
               >
-                <Plus size={10} />
+                <Plus size={12} />
               </button>
             </div>
           ) : (
@@ -823,7 +823,7 @@ function MenuItemCard({
                 e.stopPropagation();
                 onAdd(item);
               }}
-              className="w-8 h-8 bg-primary hover:bg-primary-hover text-white rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all mt-2 cursor-pointer"
+              className="w-9 h-9 sm:w-8 sm:h-8 bg-primary hover:bg-primary-hover text-white rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all mt-2 cursor-pointer"
               title={t('detail_add_to_cart')}
             >
               <Plus size={14} strokeWidth={3} />
@@ -3361,7 +3361,7 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
 
   return (
     <div
-      className="fixed top-5 right-5 z-[9999] w-[340px] max-w-[calc(100vw-32px)] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden cursor-pointer animate-slide-in-notification"
+      className="fixed top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-[9999] w-[340px] max-w-[calc(100vw-2.5rem)] bg-card border border-border rounded-2xl shadow-2xl overflow-hidden cursor-pointer animate-slide-in-notification"
       onClick={onClose}
       role="alert"
     >
@@ -4410,7 +4410,9 @@ function StorefrontContent() {
   const headerBgSolidRef = useRef<HTMLDivElement>(null);
   const headerBgGradRef = useRef<HTMLDivElement>(null);
   const headerContentRef = useRef<HTMLDivElement>(null);
-  const lenisRef = useRef<Lenis | null>(null);
+  const lenisRef = useLenisRef();
+  const categoryNavRef = useRef<HTMLDivElement>(null);
+  const categoryScrollerRef = useRef<HTMLDivElement>(null);
 
   // Table Order Detection
   useEffect(() => {
@@ -4682,29 +4684,6 @@ function StorefrontContent() {
 
     setAvailabilityError(null);
   }, [deliveryType, checkServiceOpen, searchParams, preOrderAcknowledged]);
-
-  // Initialize Lenis Smooth Scroll
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.0,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      gestureOrientation: 'vertical',
-      smoothWheel: true,
-    });
-
-    lenisRef.current = lenis;
-
-    function raf(time: number) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-
-    requestAnimationFrame(raf);
-
-    return () => {
-      lenis.destroy();
-    };
-  }, []);
 
   // Lock scroll and stop Lenis when any modal or sheet is open
   useEffect(() => {
@@ -5365,35 +5344,86 @@ function StorefrontContent() {
         ? promoItems
         : sortedMenuItemsList.filter((i) => i.category === activeCategory);
 
+  // Spazio che le parti fisse in cima occupano una volta che la pagina è
+  // scorsa (header fisso solo da sm in su, barra prenotazione, barra
+  // categorie). Il banner "chiuso" non conta: a quel punto è già uscito.
+  // Misurato dal DOM, così segue le altezze reali a ogni larghezza.
+  const getStickyOffset = React.useCallback(() => {
+    const nav = categoryNavRef.current;
+    if (!nav) return 0;
+    const headerH = window.matchMedia('(min-width: 640px)').matches
+      ? (headerRef.current?.offsetHeight ?? 0)
+      : 0;
+    const bookingH = document.getElementById('booking-bar')?.offsetHeight ?? 0;
+    return headerH + bookingH + nav.offsetHeight + 12;
+  }, []);
+
+  // Pubblica le altezze misurate come variabili CSS (--header-h per la barra
+  // categorie, --sticky-offset per lo scroll-margin delle sezioni).
+  useEffect(() => {
+    const root = document.documentElement;
+    const publish = () => {
+      const isSm = window.matchMedia('(min-width: 640px)').matches;
+      root.style.setProperty('--header-h', `${isSm ? (headerRef.current?.offsetHeight ?? 72) : 0}px`);
+      root.style.setProperty('--sticky-offset', `${getStickyOffset()}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    if (headerRef.current) ro.observe(headerRef.current);
+    if (categoryNavRef.current) ro.observe(categoryNavRef.current);
+    const bar = document.getElementById('booking-bar');
+    if (bar) ro.observe(bar);
+    window.addEventListener('resize', publish);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', publish);
+      root.style.removeProperty('--header-h');
+      root.style.removeProperty('--sticky-offset');
+    };
+  }, [getStickyOffset, bookingContext]);
+
+  const scrollToMenuTop = React.useCallback(() => {
+    const el = document.getElementById('menu-section');
+    if (!el) return;
+    const offset = -getStickyOffset();
+    const lenis = lenisRef.current;
+    if (lenis) {
+      lenis.scrollTo(el, { offset, duration: 0.5 });
+    } else {
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY + offset, behavior: 'smooth' });
+    }
+  }, [lenisRef, getStickyOffset]);
+
   const handleCategoryClick = (cat: string) => {
     setActiveCategory(cat);
-    if (cat === 'Tutti') {
-      const el = document.getElementById('menu-section');
-      if (el && lenisRef.current) {
-        lenisRef.current.scrollTo(el, {
-          offset: -140,
-          duration: 0.4,
-          immediate: false,
-        });
-      }
-    } else {
-      const targetId = `cat-section-${encodeURIComponent(cat)}`;
-      const el = document.getElementById(targetId) || document.getElementById('menu-section');
-      if (el && lenisRef.current) {
-        lenisRef.current.scrollTo(el, {
-          offset: -140,
-          duration: 0.4,
-          immediate: false,
-        });
-      }
-    }
+    if (searchQuery) setSearchQuery('');
   };
+
+  // Cambiata categoria, il contenuto sotto viene sostituito: la pagina si
+  // riancora all'inizio del menu e la pillola scelta si centra nella riga.
+  const didMountCategoryRef = useRef(false);
+  useEffect(() => {
+    if (!didMountCategoryRef.current) {
+      didMountCategoryRef.current = true;
+      return;
+    }
+    const id = requestAnimationFrame(scrollToMenuTop);
+    return () => cancelAnimationFrame(id);
+  }, [activeCategory, scrollToMenuTop]);
+
+  useEffect(() => {
+    const scroller = categoryScrollerRef.current;
+    const pill = scroller?.querySelector<HTMLElement>('[data-active-pill="true"]');
+    if (!scroller || !pill) return;
+    const left = pill.offsetLeft - (scroller.clientWidth - pill.offsetWidth) / 2;
+    scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+  }, [activeCategory]);
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
     <div
-      className={`flex flex-col min-h-screen bg-background ${cartCount > 0 ? 'pb-24 lg:pb-0' : 'pb-16 md:pb-0'}`}
+      className="storefront flex flex-col min-h-[100dvh] bg-background pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:pb-0"
       // Durante una prenotazione con ordine la barra del tavolo è fissa in alto
       // (44 px): il resto della pagina scende di altrettanto, e le parti fisse
       // (navbar, categorie) ne tengono conto con --booking-bar-h.
@@ -5645,6 +5675,7 @@ function StorefrontContent() {
           vedeva solo scorrendo la pagina. */}
       {bookingContext && (
         <div
+          id="booking-bar"
           className="fixed left-0 right-0 top-0 z-[45] flex h-11 items-center border-b border-green-200 bg-green-50 px-4 shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:border-green-900/30 dark:bg-green-950/80"
         >
           <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between gap-3 text-xs sm:text-sm">
@@ -5715,10 +5746,10 @@ function StorefrontContent() {
         <div className="relative py-6 sm:pt-20 sm:pb-8 px-4 sm:px-6 lg:px-10 text-white z-10 w-full">
           <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white mb-2.5 leading-tight drop-shadow-sm">
+              <h1 className="text-[clamp(1.5rem,1rem+2.6vw,3.25rem)] font-black tracking-tight text-white mb-2.5 leading-tight drop-shadow-sm">
                 {restaurantSettings.name}
               </h1>
-              <p className="text-white/90 text-xs sm:text-base font-medium mb-4 max-w-3xl leading-relaxed drop-shadow-xs">
+              <p className="text-white/90 text-[clamp(0.8125rem,0.75rem+0.3vw,1rem)] font-medium mb-4 max-w-3xl leading-relaxed drop-shadow-xs">
                 {lang === 'en' && restaurantSettings.taglineEn
                   ? restaurantSettings.taglineEn
                   : restaurantSettings.tagline}
@@ -5755,7 +5786,7 @@ function StorefrontContent() {
       {/* Promo banner */}
       {deliveryType !== 'tavolo' && activePromo && bannerText && (
         <div className="bg-secondary border-b border-orange-200">
-          <div className="max-w-screen-2xl mx-auto px-6 lg:px-10 py-2.5 flex items-center gap-3">
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-2.5 flex items-center gap-3">
             <Tag size={14} className="text-primary flex-shrink-0" />
             <p className="text-sm text-primary font-semibold">
               {(lang === 'en' ? activePromo.customBannerTextEn : activePromo.customBannerText) ? (
@@ -5802,20 +5833,26 @@ function StorefrontContent() {
 
       {/* Sticky category nav */}
       <div
-        className={`sticky z-30 bg-card border-b border-border shadow-card transition-[background-color,border-color,box-shadow] duration-300 top-[var(--booking-bar-h,0px)] ${isCurrentlyClosed ? 'sm:top-[calc(4.5rem+var(--banner-offset,0px)+var(--booking-bar-h,0px))]' : 'sm:top-[calc(4.5rem+var(--booking-bar-h,0px))]'}`}
+        ref={categoryNavRef}
+        className={`sticky z-30 bg-card border-b border-border shadow-card transition-[background-color,border-color,box-shadow] duration-300 top-[var(--booking-bar-h,0px)] ${isCurrentlyClosed ? 'sm:top-[calc(var(--header-h,4.5rem)+var(--banner-offset,0px)+var(--booking-bar-h,0px))]' : 'sm:top-[calc(var(--header-h,4.5rem)+var(--booking-bar-h,0px))]'}`}
       >
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-2 py-2.5">
             {/* Scrollable horizontal category list */}
-            <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide no-scrollbar py-0.5 scroll-smooth">
+            <div
+              ref={categoryScrollerRef}
+              className="flex-1 flex items-center gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide no-scrollbar py-0.5 snap-x snap-proximity scroll-px-4"
+            >
               {categories.map((cat) => {
                 const isActive = activeCategory === cat;
                 return (
                   <button
                     key={`cat-nav-${cat}`}
                     type="button"
+                    data-active-pill={isActive ? 'true' : undefined}
+                    aria-pressed={isActive}
                     onClick={() => handleCategoryClick(cat)}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-150 active:scale-95 border flex-shrink-0 ${isActive
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap snap-center transition-all duration-150 active:scale-95 border flex-shrink-0 ${isActive
                       ? 'bg-primary text-white border-primary shadow-sm shadow-primary/10'
                       : 'bg-card text-muted-foreground border-border hover:bg-muted'
                       }`}
@@ -5847,7 +5884,7 @@ function StorefrontContent() {
           onClick={() => setIsCategoryModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-card rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[85vh] animate-in slide-in-from-bottom-6 duration-250"
+            className="w-full max-w-lg bg-card rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[80dvh] sm:max-h-[85dvh] pb-[env(safe-area-inset-bottom)] sm:pb-0 animate-in slide-in-from-bottom-6 duration-250"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -5868,7 +5905,7 @@ function StorefrontContent() {
             </div>
 
             {/* Modal Body - List of Categories */}
-            <div className="p-3 overflow-y-auto divide-y divide-border/30">
+            <div data-lenis-prevent className="p-3 overflow-y-auto overscroll-contain divide-y divide-border/30">
               {categories.map((cat) => {
                 const isActive = activeCategory === cat;
                 const isPromoCat = cat === 'Promozioni';
@@ -5910,9 +5947,9 @@ function StorefrontContent() {
       )}
 
       {/* Main layout */}
-      <div id="menu-section" className="flex-1 w-full max-w-screen-2xl mx-auto px-6 lg:px-10 py-8">
+      <div id="menu-section" className="flex-1 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
         {/* Menu content */}
-        <main className="space-y-12">
+        <main className="space-y-10 sm:space-y-12">
           {searchQuery ? (
             <div>
               <h2 className="text-lg font-bold text-foreground mb-4">
@@ -5920,7 +5957,7 @@ function StorefrontContent() {
                   ? `${filteredItems.length} results for "${searchQuery}"`
                   : `${filteredItems.length} risultati per "${searchQuery}"`}
               </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-x-[clamp(1.5rem,3vw,2.5rem)] gap-y-0 w-full">
                 {filteredItems.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -5974,7 +6011,7 @@ function StorefrontContent() {
                         <section
                           key={`section-${cat}`}
                           id={`cat-section-${encodeURIComponent(cat)}`}
-                          className="scroll-mt-[calc(9rem+var(--booking-bar-h,0px))] space-y-4 pt-2"
+                          className="scroll-mt-[var(--sticky-offset,9rem)] space-y-4 pt-2"
                         >
                           <div className="flex items-center gap-3 pb-2.5 border-b border-border/70">
                             <h3 className="text-lg sm:text-xl font-extrabold text-foreground uppercase tracking-wider">
@@ -5987,7 +6024,7 @@ function StorefrontContent() {
                                 : (lang === 'en' ? 'products' : 'prodotti')}
                             </span>
                           </div>
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-x-[clamp(1.5rem,3vw,2.5rem)] gap-y-0 w-full">
                             {itemsInCat.map((item) => (
                               <MenuItemCard
                                 key={item.id}
@@ -6016,7 +6053,7 @@ function StorefrontContent() {
                         : (lang === 'en' ? 'products' : 'prodotti')}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-0 w-full">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-x-[clamp(1.5rem,3vw,2.5rem)] gap-y-0 w-full">
                     {displayedItems.map((item) => (
                       <MenuItemCard
                         key={item.id}
@@ -6049,7 +6086,7 @@ function StorefrontContent() {
           />
 
           {/* Cart Card Container */}
-          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col z-10 animate-pop-in overflow-hidden max-h-[85vh] h-auto">
+          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-2xl rounded-3xl border border-border shadow-[0_32px_64px_rgba(0,0,0,0.15)] flex flex-col z-10 animate-pop-in overflow-hidden max-h-[85dvh] h-auto">
             <div className="flex-1 overflow-hidden">
               <CartSidebar
                 cart={cart}
@@ -6293,7 +6330,7 @@ function StorefrontContent() {
               setBookingPreOrderItems([]);
             }}
           />
-          <div className="relative bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[92vh]">
+          <div className="relative bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[92dvh] pb-[env(safe-area-inset-bottom)] sm:pb-0">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-2.5">
@@ -6325,7 +6362,7 @@ function StorefrontContent() {
             </div>
 
             {/* ── Scrollable body ─────────────────────────────────── */}
-            <div className="overflow-y-auto flex-1 min-h-0">
+            <div data-lenis-prevent className="overflow-y-auto overscroll-contain flex-1 min-h-0">
               {/* CONFIRMED */}
               {bookingConfirmed ? (
                 <div className="px-6 py-10 text-center space-y-4">
@@ -6619,7 +6656,7 @@ function StorefrontContent() {
       )}
 
       {/* Footer */}
-      <Footer />
+      <Footer className="!relative !translate-y-0 !z-auto !bg-card !backdrop-blur-none !shadow-none !py-6" />
 
       {/* Floating Test controller for Simulation removed */}
 
@@ -6698,7 +6735,7 @@ function StorefrontContent() {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1 scrollbar-thin">
+                  <div className="space-y-4 max-h-[55dvh] overflow-y-auto overscroll-contain pr-1 scrollbar-thin">
                     {historyOrders.map((order: any) => {
                       const liveStatus = order.status;
 
@@ -6815,9 +6852,43 @@ function StorefrontContent() {
         </div>
       </Modal>
 
-      {/* Mobile Sticky Bottom Bar for Cart */}
+      {/* Barra inferiore fissa (solo telefono): prenota tavolo e carrello sempre
+          raggiungibili, perché sotto sm l'header scorre via con la pagina. */}
+      {!cartOpen && !checkoutOpen && !isDetailSheetOpen && (
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.08)] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+          <div className="flex items-stretch gap-2">
+            {deliveryType !== 'tavolo' && (
+              <button
+                type="button"
+                onClick={() => setShowBookingModal(true)}
+                className="flex items-center justify-center gap-1.5 px-3 h-12 rounded-xl bg-[var(--success)] text-white font-bold text-xs active:scale-95 transition-all shadow-sm flex-shrink-0"
+              >
+                <CalendarCheck size={16} />
+                <span>{lang === 'en' ? 'Book a table' : 'Prenota tavolo'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              className="flex-1 min-w-0 flex items-center justify-between gap-2 px-4 h-12 rounded-xl bg-primary text-white font-bold text-sm active:scale-95 transition-all shadow-sm"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <ShoppingCart size={16} className="flex-shrink-0" />
+                <span className="truncate">{t('menu_cart')}</span>
+                {cartCount > 0 && (
+                  <span className="bg-white text-primary text-[11px] font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0">
+                    {cartCount}
+                  </span>
+                )}
+              </span>
+              {cartCount > 0 && <span className="tabular-nums flex-shrink-0">€ {total.toFixed(2)}</span>}
+            </button>
+          </div>
+        </div>
+      )}
+
       {showCopiedToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-black/85 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 animate-fade-in backdrop-blur-xs">
+        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 bg-black/85 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 animate-fade-in backdrop-blur-xs">
           <span>Link copiato negli appunti!</span>
         </div>
       )}

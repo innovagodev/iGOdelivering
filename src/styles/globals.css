@@ -106,6 +106,17 @@
   }
 }
 
+@layer base {
+  /* Sotto i 16px iOS Safari ingrandisce la pagina quando un campo prende il fuoco. */
+  @media (max-width: 639px) {
+    .storefront input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    .storefront select,
+    .storefront textarea {
+      font-size: 16px;
+    }
+  }
+}
+
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;

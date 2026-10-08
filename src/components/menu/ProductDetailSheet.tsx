@@ -373,7 +373,7 @@ export default function ProductDetailSheet({
       />
 
       {/* Drawer Container */}
-      <div className="relative w-full max-h-[92vh] sm:max-h-none sm:h-full sm:w-[460px] bg-card rounded-t-3xl sm:rounded-t-none sm:rounded-l-3xl border-t sm:border-t-0 sm:border-l border-border shadow-2xl flex flex-col z-10 animate-slide-in overflow-hidden">
+      <div className="relative max-h-[92dvh] sm:max-h-none sm:h-full w-full sm:w-[clamp(26rem,38vw,32rem)] pb-[env(safe-area-inset-bottom)] sm:pb-0 bg-card rounded-t-3xl sm:rounded-t-none sm:rounded-l-3xl border-t sm:border-t-0 sm:border-l border-border shadow-2xl flex flex-col z-10 animate-slide-in overflow-hidden">
         {/* Mobile Swipe indicator */}
         <div className="w-12 h-1 bg-muted rounded-full mx-auto my-3 flex-shrink-0 sm:hidden" />
 
