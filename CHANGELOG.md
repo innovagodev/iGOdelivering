@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.38.1](https://github.com/innovagodev/iGOdelivering/compare/v1.38.0...v1.38.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **dashboard:** KPI con dati reali al posto di percentuali fisse ([c82294c](https://github.com/innovagodev/iGOdelivering/commit/c82294c96a559f19702eff889666a9b39efc894f))
+* **pannelli:** testi minimi a 11px e badge di rimozione non piu' gonfiati sui tablet ([776a9b2](https://github.com/innovagodev/iGOdelivering/commit/776a9b2e27d5db151de622fe12693b7995dbbe76))
+
 ## [1.38.0](https://github.com/innovagodev/iGOdelivering/compare/v1.37.1...v1.38.0) (2026-10-08)
 
 
