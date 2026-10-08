@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.39.0](https://github.com/innovagodev/iGOdelivering/compare/v1.38.2...v1.39.0) (2026-10-08)
+
+
+### Features
+
+* **prenotazioni:** preavviso minimo e anticipo massimo delle prenotazioni; impostazioni ordini programmati corrette ([4a47446](https://github.com/innovagodev/iGOdelivering/commit/4a474464f58363cf3c454478ecfa1c1f046ba85f))
+
 ### [1.38.2](https://github.com/innovagodev/iGOdelivering/compare/v1.38.1...v1.38.2) (2026-10-08)
 
 
