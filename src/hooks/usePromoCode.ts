@@ -170,22 +170,34 @@ export function usePromoCode(slugOrId: string) {
         }
         const cleanEmail = email.trim().toLowerCase();
 
-        // Conteggio degli ordini precedenti per questa email.
+        // Questa email ha già ordinato presso il ristorante?
         //
-        // Deve passare dalla RPC `count_customer_orders` (SECURITY DEFINER) e non
-        // da una SELECT diretta su `orders`: il cliente è anonimo e non ha alcuna
-        // policy di lettura sulla tabella, quindi una query diretta viene filtrata
-        // da RLS e torna `count: 0` con `error: null` — indistinguibile da "nessun
-        // ordine precedente". Il codice risulterebbe riutilizzabile all'infinito.
-        const { data: previousOrders, error: countError } = await supabase.rpc(
-          'count_customer_orders',
-          { p_restaurant_id: restaurant.id, p_customer_email: cleanEmail }
-        );
+        // Lo chiede al server (/api/promo/first-order), che usa la funzione
+        // count_customer_orders del database: una SELECT diretta su orders dal
+        // browser tornerebbe vuota per RLS (il cliente è anonimo) e il codice
+        // risulterebbe riutilizzabile all'infinito. La funzione è di uso interno
+        // e non va richiamata dal browser.
+        let previousOrders: number | null = null;
+        let countError: unknown = null;
+        try {
+          const res = await fetch('/api/promo/first-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ restaurantId: restaurant.id, email: cleanEmail }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            countError = json?.error || res.status;
+          } else if (typeof json?.alreadyOrdered === 'boolean') {
+            previousOrders = json.alreadyOrdered ? 1 : 0;
+          }
+        } catch (err) {
+          countError = err;
+        }
 
-        // Fail closed: senza un conteggio attendibile non si può stabilire che sia
+        // Fail closed: senza una risposta attendibile non si può stabilire che sia
         // davvero il primo ordine, e concedere lo sconto per default renderebbe un
-        // guasto della RPC un modo per aggirare la promo. Vale anche per un `data`
-        // nullo senza errore, che non è un conteggio valido.
+        // guasto del server un modo per aggirare la promo.
         if (countError || typeof previousOrders !== 'number') {
           console.error('Error querying orders count:', countError ?? previousOrders);
           return {
