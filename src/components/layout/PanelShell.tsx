@@ -33,18 +33,12 @@ export default function PanelShell({
     <PanelShellContext.Provider value={value}>
       <div className="panel-shell flex h-dvh bg-background overflow-hidden relative">
         <Sidebar
-          shell
-          collapsed={false}
-          onToggle={() => {}}
-          activeSection=""
-          onSectionChange={() => {}}
           role={role}
           isMobileOpen={isMobileOpen}
           onCloseMobile={() => setIsMobileOpen(false)}
         />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <Topbar
-            shell
             role={role}
             leftSlotRef={setLeftEl}
             rightSlotRef={setRightEl}

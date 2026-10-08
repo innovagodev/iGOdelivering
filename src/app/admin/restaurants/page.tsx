@@ -1,8 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
 import {
   Plus,
@@ -61,8 +60,6 @@ const statusConfig = {
 };
 
 export default function AdminRestaurantsPage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'suspended'>(
     'all'
@@ -122,11 +119,6 @@ export default function AdminRestaurantsPage() {
   };
 
   useEffect(() => {
-    // Restore sidebar state
-    const stored = localStorage.getItem('iGO_sidebar_collapsed');
-    if (stored !== null) {
-      setSidebarCollapsed(JSON.parse(stored));
-    }
     loadRestaurants();
   }, []);
 
@@ -269,23 +261,10 @@ export default function AdminRestaurantsPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-        activeSection="nav-ristoranti"
-        onSectionChange={() => {}}
-        role="admin"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Topbar */}
-        <Topbar
-          role="admin"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
               <span className="text-muted-foreground text-sm truncate">/ Ristoranti</span>

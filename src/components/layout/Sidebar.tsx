@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { usePanelShell } from '@/components/layout/PanelShellContext';
 import { useAuth } from '@/context/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
@@ -136,28 +135,16 @@ const ristoratoreNavItems: NavItem[] = [
 ];
 
 interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
-  activeSection: string;
-  onSectionChange: (section: string) => void;
   role?: 'admin' | 'ristoratore';
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
-  /** Solo PanelShell: questa è la sidebar vera (la voce attiva segue l'URL). */
-  shell?: boolean;
 }
 
 export default function Sidebar({
-  collapsed: _collapsedProp,
-  onToggle,
-  activeSection,
-  onSectionChange,
   role = 'ristoratore',
   isMobileOpen = false,
   onCloseMobile,
-  shell = false,
 }: SidebarProps) {
-  const shellCtx = usePanelShell();
   const pathname = usePathname();
   const { user } = useAuth();
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
@@ -182,7 +169,7 @@ export default function Sidebar({
     desktop.addEventListener('change', sync);
     wide.addEventListener('change', sync);
     try {
-      const stored = localStorage.getItem('iGO_sidebar_collapsed');
+      const stored = localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED);
       if (stored !== null) setUserPref(JSON.parse(stored) === true);
     } catch {
       /* preferenza non leggibile: resta l'adattamento automatico */
@@ -237,12 +224,11 @@ export default function Sidebar({
   const handleToggleClick = () => {
     const next = !collapsed;
     try {
-      localStorage.setItem('iGO_sidebar_collapsed', JSON.stringify(next));
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, JSON.stringify(next));
     } catch {
       /* storage non disponibile */
     }
     setUserPref(next);
-    onToggle();
   };
 
   const getInitials = (name?: string) => {
@@ -316,15 +302,12 @@ export default function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-0.5 px-2 scrollbar-hide">
         {navItems.map((item) => {
-          const isActive = shell
-            ? pathname === item.href || !!pathname?.startsWith(item.href + '/')
-            : activeSection === item.id;
+          const isActive = pathname === item.href || !!pathname?.startsWith(item.href + '/');
           return (
             <Link
               key={item.id}
               href={item.href}
               onClick={() => {
-                onSectionChange(item.id);
                 if (onCloseMobile) onCloseMobile();
               }}
               title={collapsed ? item.label : undefined}
@@ -387,9 +370,6 @@ export default function Sidebar({
       </div>
     </div>
   );
-
-  // Dentro PanelShell la sidebar è quella condivisa: le pagine non ne disegnano una loro.
-  if (shellCtx && !shell) return null;
 
   return (
     <>

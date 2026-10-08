@@ -2,8 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import {
   ArrowLeft,
   ChevronRight,
@@ -106,8 +105,6 @@ const defaultDayHours = (): Record<string, DayHours> => {
 };
 
 export default function NewRestaurantPage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [published, setPublished] = useState(false);
   // Link di attivazione restituito dal server alla pubblicazione: contiene il
@@ -939,15 +936,6 @@ export default function NewRestaurantPage() {
   if (published) {
     return (
       <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          activeSection="nav-ristoranti"
-          onSectionChange={() => {}}
-          role="admin"
-          isMobileOpen={isMobileOpen}
-          onCloseMobile={() => setIsMobileOpen(false)}
-        />
         <PublishedSuccess
           restaurantName={info.name}
           email={info.email}
@@ -959,22 +947,9 @@ export default function NewRestaurantPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        activeSection="nav-ristoranti"
-        onSectionChange={() => {}}
-        role="admin"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Topbar
-          role="admin"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href="/admin/restaurants"

@@ -1,17 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Save, Check, AlertTriangle, Settings2, User, Lock, Mail, Shield } from 'lucide-react';
 
 export default function AdminImpostazioniPage() {
   const { user } = useAuth();
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Loading states
   const [profileLoading, setProfileLoading] = useState(true);
@@ -35,14 +31,6 @@ export default function AdminImpostazioniPage() {
   const [passwordUpdating, setPasswordUpdating] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
-
-  useEffect(() => {
-    // Restore sidebar state
-    const storedSidebar = localStorage.getItem('iGO_sidebar_collapsed');
-    if (storedSidebar !== null) {
-      setSidebarCollapsed(JSON.parse(storedSidebar));
-    }
-  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -181,22 +169,9 @@ export default function AdminImpostazioniPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-        activeSection="nav-impostazioni"
-        onSectionChange={() => {}}
-        role="admin"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Topbar
-          role="admin"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
               <span className="text-muted-foreground text-sm truncate">/ Impostazioni</span>

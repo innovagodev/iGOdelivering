@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
 import {
   Store,
@@ -32,8 +31,6 @@ import {
 
 // Mock data for the charts
 export default function AdminDashboardPage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [stats, setStats] = useState({
     activeRestaurants: 0,
     todayOrders: 0,
@@ -50,14 +47,6 @@ export default function AdminDashboardPage() {
     }[],
   });
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Restore sidebar state
-    const stored = localStorage.getItem('iGO_sidebar_collapsed');
-    if (stored !== null) {
-      setSidebarCollapsed(JSON.parse(stored));
-    }
-  }, []);
 
   useEffect(() => {
     async function loadAdminDashboardData() {
@@ -219,22 +208,9 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-        activeSection="nav-dashboard"
-        onSectionChange={() => {}}
-        role="admin"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Topbar
-          role="admin"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-2">
               <span className="font-bold text-foreground text-base">Admin</span>
               <span className="text-muted-foreground text-sm">/ Dashboard</span>

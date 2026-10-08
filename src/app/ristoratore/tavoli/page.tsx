@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -30,8 +29,6 @@ export default function RistoratoreTavoliPage() {
   const { user, isLoading } = useAuth();
   const restaurantId = user?.restaurantId;
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -327,11 +324,6 @@ export default function RistoratoreTavoliPage() {
   useEffect(() => {
     setIsHydrated(true);
 
-    // Restore sidebar state
-    const storedSidebar = localStorage.getItem('iGO_sidebar_collapsed');
-    if (storedSidebar !== null) {
-      setSidebarCollapsed(JSON.parse(storedSidebar));
-    }
   }, []);
 
   useEffect(() => {
@@ -744,22 +736,9 @@ export default function RistoratoreTavoliPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-        activeSection="nav-tavoli"
-        onSectionChange={() => {}}
-        role="ristoratore"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Topbar
-          role="ristoratore"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-2">
               <span className="font-bold text-foreground text-base truncate">
                 {user?.restaurantName || 'Ristorante'}

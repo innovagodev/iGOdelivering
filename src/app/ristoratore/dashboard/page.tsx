@@ -1,9 +1,8 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import KPIBentoGrid from '@/components/ristoratore/KPIBentoGrid';
 import OrderHistoryTable from '@/components/ristoratore/OrderHistoryTable';
 import PaymentsSetupBanner from '@/components/ristoratore/PaymentsSetupBanner';
@@ -16,19 +15,8 @@ const RevenueChart = dynamic(() => import('@/components/ristoratore/RevenueChart
 export default function RestaurantDashboardPage() {
   const { user, isLoading } = useAuth();
   const restaurantId = user?.restaurantId || '';
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('nav-panoramica');
 
   const { orders, loading } = useOrders(restaurantId);
-
-  useEffect(() => {
-    // Restore sidebar state
-    const stored = localStorage.getItem('iGO_sidebar_collapsed');
-    if (stored !== null) {
-      setSidebarCollapsed(JSON.parse(stored));
-    }
-  }, []);
 
   const stats = React.useMemo(() => {
     let deliveryCount = 0;
@@ -83,24 +71,11 @@ export default function RestaurantDashboardPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden relative">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
-        role="ristoratore"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Topbar */}
-        <Topbar
-          role="ristoratore"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
               <Store size={16} className="text-primary flex-shrink-0" />
               <span className="font-semibold text-foreground text-base truncate">

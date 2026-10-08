@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import React, { useState } from 'react';
+import PageTopbar from '@/components/layout/PageTopbar';
 import {
   Activity,
   Search,
@@ -28,19 +27,9 @@ interface AuditLog {
 const mockLogs: AuditLog[] = [];
 
 export default function AdminSicurezzaPage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all');
   const [logs, setLogs] = useState<AuditLog[]>(mockLogs);
-
-  useEffect(() => {
-    // Restore sidebar state
-    const stored = localStorage.getItem('iGO_sidebar_collapsed');
-    if (stored !== null) {
-      setSidebarCollapsed(JSON.parse(stored));
-    }
-  }, []);
 
   const handleClearLogs = async () => {
     const ok = await confirmAction({
@@ -71,22 +60,9 @@ export default function AdminSicurezzaPage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((c) => !c)}
-        activeSection="nav-sicurezza"
-        onSectionChange={() => {}}
-        role="admin"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Topbar
-          role="admin"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-bold text-foreground text-base flex-shrink-0">Admin</span>
               <span className="text-muted-foreground text-sm truncate">/ Registro Attività</span>

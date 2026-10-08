@@ -5,8 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { notify, confirmAction } from '@/lib/notify';
-import Sidebar from '@/components/layout/Sidebar';
-import Topbar from '@/components/layout/Topbar';
+import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
 import { uploadImage } from '@/lib/storage-upload';
 import {
@@ -120,7 +119,6 @@ const steps: { id: WizardStep; label: string; description: string }[] = [
   { id: 'review', label: 'Salva', description: 'Revisione e salvataggio' },
 ];
 
-
 const defaultDayHours = (): Record<string, DayHours> => {
   const h: Record<string, DayHours> = {};
   DAYS.forEach((d) => {
@@ -140,7 +138,6 @@ export default function RestaurantConfigurePage() {
   const params = useParams();
   const restaurantId = params?.id as string;
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
@@ -241,7 +238,6 @@ export default function RestaurantConfigurePage() {
     setShowPromoModal(false);
   };
 
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [saved, setSaved] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -1738,23 +1734,10 @@ export default function RestaurantConfigurePage() {
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        activeSection="nav-ristoranti"
-        onSectionChange={() => {}}
-        role="admin"
-        isMobileOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
-      />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <Topbar
-          role="admin"
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onMobileMenuOpen={() => setIsMobileOpen(true)}
-          leftContent={
+        <PageTopbar
+          left={
             <div className="flex items-center gap-1.5 min-w-0">
               <Link
                 href="/admin/restaurants"
@@ -1773,7 +1756,7 @@ export default function RestaurantConfigurePage() {
               </span>
             </div>
           }
-          rightExtra={
+          right={
             <div className="flex items-center gap-1.5 sm:gap-2">
               <Link
                 href="/admin/utenti"
