@@ -369,7 +369,7 @@ export default function AdminUtentiPage() {
   });
 
   return (
-    <div className="panel-shell flex h-dvh bg-background overflow-hidden">
+    <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}

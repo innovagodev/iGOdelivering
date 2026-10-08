@@ -1730,14 +1730,14 @@ export default function RestaurantConfigurePage() {
 
   if (!isHydrated) {
     return (
-      <div className="panel-shell flex h-dvh bg-background items-center justify-center">
+      <div className="flex flex-1 min-h-0 min-w-0 bg-background items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
-    <div className="panel-shell flex h-dvh bg-background overflow-hidden">
+    <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}

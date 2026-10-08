@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { usePanelShell } from '@/components/layout/PanelShellContext';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -22,9 +24,22 @@ interface TopbarProps {
   onMobileMenuOpen: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  /** Solo PanelShell: questa è la topbar vera, con gli spazi per titolo e azioni. */
+  shell?: boolean;
+  leftSlotRef?: (el: HTMLDivElement | null) => void;
+  rightSlotRef?: (el: HTMLDivElement | null) => void;
 }
 
-export default function Topbar({ role, leftContent, rightExtra, onMobileMenuOpen }: TopbarProps) {
+export default function Topbar({
+  role,
+  leftContent,
+  rightExtra,
+  onMobileMenuOpen,
+  shell = false,
+  leftSlotRef,
+  rightSlotRef,
+}: TopbarProps) {
+  const shellCtx = usePanelShell();
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [formattedDate, setFormattedDate] = useState('');
@@ -54,6 +69,17 @@ export default function Topbar({ role, leftContent, rightExtra, onMobileMenuOpen
 
   const settingsPath = role === 'admin' ? '/admin/impostazioni' : '/ristoratore/pagamenti';
 
+  // Una pagina dentro PanelShell non disegna la topbar: manda titolo e azioni
+  // negli spazi della topbar condivisa.
+  if (shellCtx && !shell) {
+    return (
+      <>
+        {shellCtx.leftEl && leftContent ? createPortal(leftContent, shellCtx.leftEl) : null}
+        {shellCtx.rightEl && rightExtra ? createPortal(rightExtra, shellCtx.rightEl) : null}
+      </>
+    );
+  }
+
   return (
     <header className="h-16 bg-card border-b border-border flex items-center px-4 gap-3 flex-shrink-0 z-40 relative">
       {/* Hamburger button for mobile */}
@@ -67,7 +93,11 @@ export default function Topbar({ role, leftContent, rightExtra, onMobileMenuOpen
 
       {/* Left Content Area */}
       <div className="flex items-center justify-between flex-1 min-w-0 pr-4">
-        <div className="flex items-center gap-2 min-w-0">{leftContent}</div>
+        {shell ? (
+          <div ref={leftSlotRef} className="flex items-center gap-2 min-w-0" />
+        ) : (
+          <div className="flex items-center gap-2 min-w-0">{leftContent}</div>
+        )}
         {formattedDate && (
           <span className="hidden lg:inline-block text-xs md:text-sm text-muted-foreground/80 flex-shrink-0 font-semibold ml-1.5 select-none">
             {formattedDate}
@@ -77,7 +107,7 @@ export default function Topbar({ role, leftContent, rightExtra, onMobileMenuOpen
 
       {/* Right Content Area */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        {rightExtra}
+        {shell ? <div ref={rightSlotRef} className="flex items-center gap-1.5" /> : rightExtra}
 
         {/* User Profile Avatar Dropdown */}
         <div className="relative pl-2 border-l border-border" ref={dropdownRef}>
