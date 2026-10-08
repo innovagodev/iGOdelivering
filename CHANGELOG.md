@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.38.0](https://github.com/innovagodev/iGOdelivering/compare/v1.37.1...v1.38.0) (2026-10-08)
+
+
+### Bug Fixes
+
+* **admin,vetrina:** collaudo admin e finestre della vetrina ([2d4ab06](https://github.com/innovagodev/iGOdelivering/commit/2d4ab06b89bf95b24ec10123531abfaa5a6077dd))
+* **pannelli,vetrina:** correzioni emerse dal collaudo con screenshot reali ([8eff99a](https://github.com/innovagodev/iGOdelivering/commit/8eff99a8c3b8f93efdcc700be82dcc614e0a4b02))
+* **pannelli:** responsive tablet/laptop per admin e ristorante ([6a9a69c](https://github.com/innovagodev/iGOdelivering/commit/6a9a69c7fed3b40d7f96e0c8b389e87c9ad0a1fe))
+* **sidebar:** niente riapertura animata della sidebar compressa a ogni cambio pagina ([dab10b3](https://github.com/innovagodev/iGOdelivering/commit/dab10b387e72524ab6043e3551861d7f35f9b2c7))
+* **vetrina:** comandi mobile minimali, carrello solo flottante, hero piu' bassa su telefono ([c90905e](https://github.com/innovagodev/iGOdelivering/commit/c90905efe90f4cdeb10e4a86fc9d6522b199ac1b))
+* **vetrina:** header mobile compatto su una riga, sfumatura sulle categorie scorrevoli ([b6bf36b](https://github.com/innovagodev/iGOdelivering/commit/b6bf36b0d483add0f2bc1d7b6192e6cc63ba4afa))
+* **vetrina:** responsive mobile/tablet/laptop, barra inferiore con prenota tavolo e carrello, categorie ancorate ([86aae7f](https://github.com/innovagodev/iGOdelivering/commit/86aae7f35b1efb6ab1092e054e09b1b709b2f51b))
+
 ### [1.37.1](https://github.com/innovagodev/iGOdelivering/compare/v1.37.0...v1.37.1) (2026-10-07)
 
 
