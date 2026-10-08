@@ -619,7 +619,7 @@ export default function ClientiPage() {
                           <h3 className="font-bold text-foreground text-sm truncate">
                             {customer.name}
                           </h3>
-                          <div className="text-[10px] text-muted-foreground space-y-0.5 min-w-0">
+                          <div className="text-[11px] text-muted-foreground space-y-0.5 min-w-0">
                             {customer.phone && (
                               <p className="flex items-center gap-1.5 truncate">
                                 <Phone size={10} className="text-muted-foreground/60 flex-shrink-0" />
@@ -638,7 +638,7 @@ export default function ClientiPage() {
                         {/* Right side stats: count & spend */}
                         <div className="flex items-center gap-5 text-right flex-shrink-0">
                           <div>
-                            <span className="block text-[9px] text-muted-foreground uppercase font-medium tracking-wider">
+                            <span className="block text-[11px] text-muted-foreground uppercase font-medium tracking-wider">
                               Ordini
                             </span>
                             <span className="text-sm font-extrabold text-foreground tabular-nums">
@@ -646,7 +646,7 @@ export default function ClientiPage() {
                             </span>
                           </div>
                           <div className="min-w-[65px]">
-                            <span className="block text-[9px] text-muted-foreground uppercase font-medium tracking-wider">
+                            <span className="block text-[11px] text-muted-foreground uppercase font-medium tracking-wider">
                               Spesa
                             </span>
                             <span className="text-sm font-black text-primary tabular-nums">

@@ -1025,7 +1025,7 @@ export default function NewRestaurantPage() {
                       }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
                           isCurrent
                             ? 'bg-white/25'
                             : isCompleted

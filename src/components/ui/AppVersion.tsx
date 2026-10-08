@@ -16,7 +16,7 @@ export default function AppVersion({ className = '' }: AppVersionProps) {
 
   return (
     <div
-      className={`flex flex-col text-[10px] text-muted-foreground opacity-60 hover:opacity-100 transition-opacity ${className}`}
+      className={`flex flex-col text-[11px] text-muted-foreground opacity-60 hover:opacity-100 transition-opacity ${className}`}
     >
       <span className="font-bold">v{versionData.version}</span>
       <span>Build: {formattedDate}</span>

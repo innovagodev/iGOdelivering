@@ -94,7 +94,7 @@ export default function Topbar({
               <p className="text-sm font-semibold text-foreground leading-none">
                 {user?.name || 'Utente'}
               </p>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
                 {role === 'admin' ? 'Amministratore' : 'Ristoratore'}
               </p>
             </div>

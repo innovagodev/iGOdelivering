@@ -142,7 +142,7 @@ function DayRow({
                   }`}
                 />
                 {dayData.lunchEnabled === false && (
-                  <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
+                  <span className="text-[11px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
                     Disattivato
                   </span>
                 )}
@@ -181,7 +181,7 @@ function DayRow({
                   }`}
                 />
                 {dayData.dinnerEnabled === false && (
-                  <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
+                  <span className="text-[11px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 whitespace-nowrap">
                     Disattivato
                   </span>
                 )}

@@ -435,7 +435,7 @@ export default function PromozioniPage() {
                                 )}
                                 {promo.applicableDeliveryModes &&
                                   promo.applicableDeliveryModes.length > 0 && (
-                                    <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+                                    <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[11px]">
                                       Canali: {promo.applicableDeliveryModes.join(', ')}
                                     </span>
                                   )}
@@ -562,7 +562,7 @@ export default function PromozioniPage() {
                             )}
                             {promo.applicableDeliveryModes &&
                               promo.applicableDeliveryModes.length > 0 && (
-                                <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px]">
+                                <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[11px]">
                                   Canali: {promo.applicableDeliveryModes.join(', ')}
                                 </span>
                               )}

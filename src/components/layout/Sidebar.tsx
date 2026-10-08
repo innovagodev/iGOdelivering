@@ -277,7 +277,7 @@ export default function Sidebar({
                   className={`bg-gradient-to-br ${getGradientColor(
                     user?.restaurantName
                   )} text-white flex items-center justify-center font-extrabold shadow-xs ${tr} ${
-                    collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
+                    collapsed ? 'w-7 h-7 rounded-full text-[11px]' : 'w-10 h-10 rounded-xl text-sm'
                   }`}
                 >
                   {getInitials(user?.restaurantName)}
@@ -328,7 +328,7 @@ export default function Sidebar({
               {item.badge !== undefined && item.badge > 0 && (
                 <>
                   {!collapsed && (
-                    <span className="bg-primary text-white text-[10px] font-extrabold rounded-full min-w-5 h-5 px-1.5 flex-shrink-0 flex items-center justify-center">
+                    <span className="bg-primary text-white text-[11px] font-extrabold rounded-full min-w-5 h-5 px-1.5 flex-shrink-0 flex items-center justify-center">
                       {item.badge}
                     </span>
                   )}
@@ -343,7 +343,7 @@ export default function Sidebar({
       </nav>
 
       {/* Mini Sidebar Footer */}
-      <div className="p-3 border-t border-border mt-auto flex flex-col gap-1 text-[10px] text-muted-foreground select-none">
+      <div className="p-3 border-t border-border mt-auto flex flex-col gap-1 text-[11px] text-muted-foreground select-none">
         {!collapsed ? (
           <>
             <div className="flex items-center justify-between gap-2">
@@ -363,7 +363,7 @@ export default function Sidebar({
             </div>
           </>
         ) : (
-          <div className="text-center font-bold text-[9px] text-foreground opacity-60">
+          <div className="text-center font-bold text-[11px] text-foreground opacity-60">
             v{versionData.version.split('.').slice(0, 2).join('.')}
           </div>
         )}

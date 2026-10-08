@@ -142,7 +142,7 @@ export default function MenuEditorTab({
           <div>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">
+                <p className="text-[11px] font-bold text-primary uppercase tracking-wider mb-0.5">
                   {item.category}
                 </p>
                 <h3 className="text-sm sm:text-base font-bold text-foreground truncate flex items-center gap-1.5 flex-wrap">
@@ -159,7 +159,7 @@ export default function MenuEditorTab({
                   )}
                 </h3>
                 {item.ingredients && item.ingredients.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">
+                  <p className="text-[11px] text-muted-foreground/80 font-medium truncate mt-0.5">
                     {item.ingredients.join(', ')}
                   </p>
                 )}
@@ -167,7 +167,7 @@ export default function MenuEditorTab({
               <div className="text-right">
                 {item.originalPrice && item.originalPrice > item.price ? (
                   <div className="flex flex-col items-end">
-                    <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                    <span className="text-[11px] sm:text-xs text-muted-foreground line-through">
                       € {item.originalPrice.toFixed(2)}
                     </span>
                     <span className="text-sm sm:text-base font-extrabold text-primary whitespace-nowrap">
@@ -193,7 +193,7 @@ export default function MenuEditorTab({
                 onChange={() => toggleAvailability(item.id)}
                 size="sm"
               />
-              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground select-none">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground select-none">
                 {item.available ? 'Disponibile' : 'Sospeso'}
               </span>
             </div>
@@ -410,7 +410,7 @@ export default function MenuEditorTab({
                     <h2 className="text-xs sm:text-sm font-extrabold text-primary uppercase tracking-wider">
                       {cat}
                     </h2>
-                    <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full border border-border/40">
+                    <span className="text-[11px] font-bold bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full border border-border/40">
                       {catItems.length} {catItems.length === 1 ? 'piatto' : 'piatti'}
                     </span>
                     {isCategoryHidden && (

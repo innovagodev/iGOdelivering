@@ -622,14 +622,14 @@ export default function AdminRestaurantsPage() {
                             {r.owner_id ? (
                               <>
                                 <p className="font-medium text-foreground">{r.owner}</p>
-                                <p className="text-muted-foreground text-[10px]">{r.email}</p>
+                                <p className="text-muted-foreground text-[11px]">{r.email}</p>
                               </>
                             ) : (
                               <>
-                                <span className="inline-flex items-center text-[10px] font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-1.5 py-0.5 rounded">
+                                <span className="inline-flex items-center text-[11px] font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/20 px-1.5 py-0.5 rounded">
                                   Attivazione pendente
                                 </span>
-                                <p className="text-muted-foreground text-[10px] mt-0.5">
+                                <p className="text-muted-foreground text-[11px] mt-0.5">
                                   {r.email}
                                 </p>
                               </>

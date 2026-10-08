@@ -966,7 +966,7 @@ export default function RistoratoreTavoliPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-foreground">Configurazione Sala</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground">
                     Imposta il numero di tavoli attivi nel locale
                   </p>
                 </div>
@@ -1048,7 +1048,7 @@ export default function RistoratoreTavoliPage() {
                         <div className="space-y-1">
                           <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
                           <p
-                            className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]"
+                            className="text-[11px] text-muted-foreground font-mono truncate max-w-[200px]"
                             title={getTableUrl(num)}
                           >
                             {getTableUrl(num)}

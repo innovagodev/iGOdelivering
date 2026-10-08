@@ -50,7 +50,7 @@ export default function TranslationRow({
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-3 items-start">
       <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 break-words">
         {label && (
-          <span className="block text-[10px] uppercase tracking-wider font-bold mb-0.5">
+          <span className="block text-[11px] uppercase tracking-wider font-bold mb-0.5">
             {label}
           </span>
         )}
@@ -66,7 +66,7 @@ export default function TranslationRow({
           <span className="absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none">
             {state === 'saving' && <Loader2 size={14} className="animate-spin" />}
             {state === 'saved' && <Check size={14} className="text-emerald-600" />}
-            {state === 'error' && <span className="text-red-500 text-[10px] font-bold">!</span>}
+            {state === 'error' && <span className="text-red-500 text-[11px] font-bold">!</span>}
           </span>
         </div>
         {canSuggest && (

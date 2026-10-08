@@ -171,7 +171,7 @@ export default function ReviewStep({
                         {p.code}
                       </span>
                       <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${p.active ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}
+                        className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${p.active ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}
                       >
                         {p.active ? 'Attivo' : 'Inattivo'}
                       </span>

@@ -302,7 +302,7 @@ function CartSidebar({
         <div className="flex items-center gap-2">
           <ShoppingCart size={18} className="text-primary" />
           <h3 className="font-bold text-foreground text-sm">{t('cart_your_order')}</h3>
-          <span className="bg-primary/10 text-primary text-[10px] font-extrabold px-2 py-0.5 rounded-full ml-1">
+          <span className="bg-primary/10 text-primary text-[11px] font-extrabold px-2 py-0.5 rounded-full ml-1">
             {cart.reduce((s, i) => s + i.qty, 0)}
           </span>
         </div>
@@ -311,7 +311,7 @@ function CartSidebar({
             <button
               type="button"
               onClick={onClear}
-              className="text-[10px] font-black text-muted-foreground hover:text-red-500 uppercase tracking-wide px-2.5 py-1.5 rounded-xl hover:bg-red-50/60 transition-all duration-150 active:scale-95 border border-transparent hover:border-red-100"
+              className="text-[11px] font-black text-muted-foreground hover:text-red-500 uppercase tracking-wide px-2.5 py-1.5 rounded-xl hover:bg-red-50/60 transition-all duration-150 active:scale-95 border border-transparent hover:border-red-100"
             >
               {t('cart_clear')}
             </button>
@@ -390,14 +390,14 @@ function CartSidebar({
                   {((item.addedIngredients && item.addedIngredients.length > 0) ||
                     (item.removedIngredients && item.removedIngredients.length > 0) ||
                     item.note) && (
-                      <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
+                      <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 bg-muted/40 p-2 rounded-lg border border-border/30">
                         {item.addedIngredients?.map((ext) => (
                           <div
                             key={ext.name}
                             className="text-primary font-semibold flex justify-between"
                           >
                             <span>+ {lang === 'en' && ext.name_en ? ext.name_en : ext.name}</span>
-                            <span className="text-[9px] text-muted-foreground font-normal">
+                            <span className="text-[11px] text-muted-foreground font-normal">
                               € {ext.price.toFixed(2)}
                             </span>
                           </div>
@@ -405,7 +405,7 @@ function CartSidebar({
                         {item.removedIngredients?.map((rem) => (
                           <div key={rem} className="text-red-500 font-semibold flex justify-between">
                             <span>{lang === 'en' ? `- Without ${localizedRemoved(item, rem, lang)}` : `- Senza ${rem}`}</span>
-                            <span className="text-[9px] text-red-400 font-normal">{t('cart_removed')}</span>
+                            <span className="text-[11px] text-red-400 font-normal">{t('cart_removed')}</span>
                           </div>
                         ))}
                         {item.note && (
@@ -450,7 +450,7 @@ function CartSidebar({
               <div className="bg-muted/30 border border-border/40 rounded-xl p-2.5 space-y-1">
                 {subtotal < freeDeliveryThreshold ? (
                   <>
-                    <p className="text-[10px] font-bold text-muted-foreground flex justify-between">
+                    <p className="text-[11px] font-bold text-muted-foreground flex justify-between">
                       <span>
                         {t('cart_free_delivery_warning', { amount: `€ ${(freeDeliveryThreshold - subtotal).toFixed(2)}` })}
                       </span>
@@ -465,7 +465,7 @@ function CartSidebar({
                     </div>
                   </>
                 ) : (
-                  <p className="text-[10px] font-extrabold text-[var(--success)] flex items-center gap-1">
+                  <p className="text-[11px] font-extrabold text-[var(--success)] flex items-center gap-1">
                     {t('cart_free_delivery_success')}
                   </p>
                 )}
@@ -493,7 +493,7 @@ function CartSidebar({
             </div>
 
             {!meetsMin && (
-              <p className="text-[10px] text-[var(--warning)] bg-[var(--warning-bg)] rounded-lg px-2.5 py-1.5 leading-snug">
+              <p className="text-[11px] text-[var(--warning)] bg-[var(--warning-bg)] rounded-lg px-2.5 py-1.5 leading-snug">
                 {t('cart_min_order_warning', { min: `€ ${minOrder.toFixed(2)}`, diff: `€ ${(minOrder - subtotal).toFixed(2)}` })}
               </p>
             )}
@@ -716,7 +716,7 @@ function MenuItemCard({
               className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
             />
             {totalQty > 0 && (
-              <div className="absolute top-1.5 left-1.5 bg-primary text-white text-[10px] font-black w-[1.375rem] h-[1.375rem] rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
+              <div className="absolute top-1.5 left-1.5 bg-primary text-white text-[11px] font-black w-[1.375rem] h-[1.375rem] rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
                 {totalQty}
               </div>
             )}
@@ -728,7 +728,7 @@ function MenuItemCard({
           <div className="flex items-center gap-1.5 flex-wrap">
             <h4 className="font-bold text-foreground text-[clamp(0.875rem,0.82rem+0.25vw,1rem)] group-hover:text-primary transition-colors leading-snug flex items-center gap-1.5 break-words">
               {totalQty > 0 && !item.image && (
-                <span className="bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs shrink-0 animate-pop">
+                <span className="bg-primary text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs shrink-0 animate-pop">
                   {totalQty}
                 </span>
               )}
@@ -772,7 +772,7 @@ function MenuItemCard({
               {item.allergens.map((a) => (
                 <span
                   key={`${item.id}-${a}`}
-                  className="text-[9px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-md px-1.5 py-0.5 font-medium border border-transparent"
+                  className="text-[11px] bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 rounded-md px-1.5 py-0.5 font-medium border border-transparent"
                 >
                   {a}
                 </span>
@@ -840,7 +840,7 @@ function MenuItemCard({
       className="bg-card rounded-2xl border border-border shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-200 overflow-hidden group cursor-pointer flex flex-col justify-between relative"
     >
       {totalQty > 0 && (
-        <div className="absolute top-3 right-3 bg-primary text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
+        <div className="absolute top-3 right-3 bg-primary text-white text-[11px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-md z-10 animate-pop">
           {totalQty}
         </div>
       )}
@@ -863,7 +863,7 @@ function MenuItemCard({
             {displayName}
           </h4>
           {displayIngredients && displayIngredients.length > 0 && (
-            <p className="text-[10px] text-muted-foreground/80 font-medium mb-1 line-clamp-1 leading-normal">
+            <p className="text-[11px] text-muted-foreground/80 font-medium mb-1 line-clamp-1 leading-normal">
               {displayIngredients.join(', ')}
             </p>
           )}
@@ -875,7 +875,7 @@ function MenuItemCard({
                 return (
                   <span
                     key={`${item.id}-${tag}`}
-                    className={`inline-flex items-center gap-1 text-[9px] font-bold ${getTagStyle(tag)}`}
+                    className={`inline-flex items-center gap-1 text-[11px] font-bold ${getTagStyle(tag)}`}
                   >
                     {icon && <span className="shrink-0 scale-90">{icon}</span>}
                     <span>{label}</span>
@@ -885,7 +885,7 @@ function MenuItemCard({
             </div>
           )}
           <p
-            className={`text-muted-foreground leading-relaxed ${compact ? 'text-[10px] mb-1.5 line-clamp-1 leading-normal' : 'text-xs mb-3 line-clamp-2'}`}
+            className={`text-muted-foreground leading-relaxed ${compact ? 'text-[11px] mb-1.5 line-clamp-1 leading-normal' : 'text-xs mb-3 line-clamp-2'}`}
           >
             {displayDescription}
           </p>
@@ -894,7 +894,7 @@ function MenuItemCard({
               {item.allergens.map((a) => (
                 <span
                   key={`${item.id}-${a}`}
-                  className="text-[9px] bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full px-2 py-0.5 font-medium"
+                  className="text-[11px] bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full px-2 py-0.5 font-medium"
                 >
                   {a}
                 </span>
@@ -914,7 +914,7 @@ function MenuItemCard({
           </span>
           {item.originalPrice && (
             <span
-              className={`text-muted-foreground line-through decoration-red-500/50 ${compact ? 'text-[9px]' : 'text-xs'}`}
+              className={`text-muted-foreground line-through decoration-red-500/50 ${compact ? 'text-[11px]' : 'text-xs'}`}
             >
               € {item.originalPrice.toFixed(2)}
             </span>
@@ -935,7 +935,7 @@ function MenuItemCard({
               <Minus size={compact ? 10 : 12} className="text-foreground" />
             </button>
             <span
-              className={`w-5 text-center font-bold tabular-nums text-foreground ${compact ? 'text-[10px]' : 'text-xs'}`}
+              className={`w-5 text-center font-bold tabular-nums text-foreground ${compact ? 'text-[11px]' : 'text-xs'}`}
             >
               {defaultQty}
             </span>
@@ -1209,13 +1209,13 @@ function CheckoutModal({
       >
         <div className="flex justify-between items-start border-b border-border/40 pb-3">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+            <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">
               {t('receipt_order_id')}
             </p>
             <p className="text-sm font-black font-mono text-foreground">{order.order_number || order.id}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+            <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">
               {t('receipt_date_time')}
             </p>
             <p className="text-xs font-semibold text-foreground">
@@ -1230,7 +1230,7 @@ function CheckoutModal({
         </div>
 
         <div className="space-y-1 text-xs">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
+          <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
             {t('receipt_details')}
           </p>
           <div className="flex justify-between">
@@ -1277,7 +1277,7 @@ function CheckoutModal({
         </div>
 
         <div className="border-t border-border/40 pt-3">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
+          <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
             {t('receipt_items')}
           </p>
           <ul className="space-y-2 text-xs">
@@ -1289,7 +1289,7 @@ function CheckoutModal({
                       {item.qty}× {lang === 'en' && item.name_en ? item.name_en : item.name}
                     </p>
                     {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
                           ?.map((i: any) => `+${addedLabel(i, lang)}`)
                           .concat(item.removedIngredients?.map((i: string) => lang === 'en' ? `-Without ${localizedRemoved(item, i, lang)}` : `-${i}`))
@@ -2471,13 +2471,13 @@ function CheckoutModal({
                   <h4 className="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-1.5">
                     <CalendarCheck size={14} /> {t('checkout_your_table')}
                   </h4>
-                  <span className="bg-green-500/10 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-green-500/10 text-green-600 text-[11px] font-bold px-2 py-0.5 rounded-full">
                     {t('checkout_pending_confirmation')}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                    <span className="text-muted-foreground block text-[11px] uppercase font-semibold">
                       {t('checkout_date_time')}
                     </span>
                     <strong className="text-foreground text-sm">
@@ -2490,7 +2490,7 @@ function CheckoutModal({
                     </strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                    <span className="text-muted-foreground block text-[11px] uppercase font-semibold">
                       {t('checkout_guests_label')}
                     </span>
                     <strong className="text-foreground text-sm">
@@ -2498,13 +2498,13 @@ function CheckoutModal({
                     </strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                    <span className="text-muted-foreground block text-[11px] uppercase font-semibold">
                       {t('checkout_customer_name')}
                     </span>
                     <strong className="text-foreground">{bookingContext.name}</strong>
                   </div>
                   <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                    <span className="text-muted-foreground block text-[11px] uppercase font-semibold">
                       {t('checkout_phone')}
                     </span>
                     <strong className="text-foreground">{bookingContext.phone}</strong>
@@ -2536,7 +2536,7 @@ function CheckoutModal({
                         {((item.addedIngredients && item.addedIngredients.length > 0) ||
                           (item.removedIngredients && item.removedIngredients.length > 0) ||
                           item.note) && (
-                            <div className="text-[10px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
+                            <div className="text-[11px] text-muted-foreground mt-0.5 pl-2 space-y-0.5">
                               {item.addedIngredients?.map((ext) => (
                                 <div key={ext.name} className="text-primary font-medium">
                                   + {addedLabel(ext, lang)}
@@ -3063,7 +3063,7 @@ function CheckoutModal({
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-foreground">{opt.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</p>
                           </div>
                         </div>
 
@@ -3135,7 +3135,7 @@ function CheckoutModal({
                   💳 {lang === 'en' ? 'Payment with physical POS' : 'Pagamento con POS portatile'}
                 </span>
               </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
                 {bookingContext
                   ? (lang === 'en' ? 'You will pay at the restaurant via credit/debit card.' : 'Pagherai comodamente al ristorante tramite carta di credito/debito.')
                   : (lang === 'en' ? 'Submit order to the kitchen. You will pay via POS at the table or cash desk after your meal.' : 'Invia l\'ordine in cucina. Pagherai tramite POS al tavolo o in cassa a fine pasto.')}
@@ -3173,7 +3173,7 @@ function CheckoutModal({
                 <p className="text-xs text-red-500 font-semibold mt-1">{promoError}</p>
               )}
               {promoApplied && appliedPromoDetail && (
-                <div className="flex items-center gap-1.5 text-[10px] text-[var(--success)] bg-[var(--success-bg)] rounded-md px-2.5 py-1 font-semibold">
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--success)] bg-[var(--success-bg)] rounded-md px-2.5 py-1 font-semibold">
                   <Check size={12} />
                   {appliedPromoDetail.type === 'percentage'
                     ? (lang === 'en' ? `Promo discount of ${appliedPromoDetail.value}% applied!` : `Sconto promozionale del ${appliedPromoDetail.value}% applicato!`)
@@ -3399,7 +3399,7 @@ function NotificationToast({ notification, onClose }: NotificationProps) {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">
+          <p className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-wider mb-0.5">
             {c.label}
           </p>
           <p className="text-sm font-bold text-foreground leading-snug">{notification.title}</p>
@@ -3975,13 +3975,13 @@ function StorefrontContent() {
       >
         <div className="flex justify-between items-start border-b border-border/40 pb-3">
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+            <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">
               {t('receipt_order_id')}
             </p>
             <p className="text-sm font-black font-mono text-foreground">{order.order_number || order.id}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+            <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">
               {t('receipt_date_time')}
             </p>
             <p className="text-xs font-semibold text-foreground">
@@ -3996,7 +3996,7 @@ function StorefrontContent() {
         </div>
 
         <div className="space-y-1 text-xs">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
+          <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mb-1">
             {t('receipt_details')}
           </p>
           <div className="flex justify-between">
@@ -4067,7 +4067,7 @@ function StorefrontContent() {
         </div>
 
         <div className="border-t border-border/40 pt-3">
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
+          <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mb-2">
             {t('receipt_items')}
           </p>
           <ul className="space-y-2 text-xs">
@@ -4079,7 +4079,7 @@ function StorefrontContent() {
                       {item.qty}× {lang === 'en' && item.name_en ? item.name_en : item.name}
                     </p>
                     {(item.addedIngredients?.length > 0 || item.removedIngredients?.length > 0) && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-normal">
                         {item.addedIngredients
                           ?.map((i: any) => `+${addedLabel(i, lang)}`)
                           .concat(item.removedIngredients?.map((i: string) => (lang === 'en' ? `-Without ${localizedRemoved(item, i, lang)}` : `-${i}`)))
@@ -5458,7 +5458,7 @@ function StorefrontContent() {
       {isCurrentlyClosed && (
         <div
           ref={closedBannerRef}
-          className={`relative z-50 text-white text-[10px] sm:text-xs font-bold py-2.5 px-3 text-center flex items-center justify-center gap-1.5 shadow-xs ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}
+          className={`relative z-50 text-white text-[11px] sm:text-xs font-bold py-2.5 px-3 text-center flex items-center justify-center gap-1.5 shadow-xs ${isPreOrderAllowed ? 'bg-amber-600' : 'bg-red-600'}`}
         >
           <Clock size={12} className="animate-pulse flex-shrink-0" />
           <span className="truncate max-w-full">
@@ -5667,7 +5667,7 @@ function StorefrontContent() {
               <ShoppingCart size={14} />
               <span>{t('menu_cart')}</span>
               {cartCount > 0 && (
-                <span className="bg-white text-primary text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
+                <span className="bg-white text-primary text-[11px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
                   {cartCount}
                 </span>
               )}
@@ -5764,12 +5764,12 @@ function StorefrontContent() {
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-3 sm:gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
-                    className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs ${status.color}`}
+                    className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[11px] sm:text-xs ${status.color}`}
                   >
                     {status.label}
                   </span>
                   {isMounted && formattedTodayHours && (
-                    <span className="flex items-center gap-1.5 border border-white/20 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg font-black tracking-wide text-[10px] sm:text-xs text-white">
+                    <span className="flex items-center gap-1.5 border border-white/20 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg font-black tracking-wide text-[11px] sm:text-xs text-white">
                       <Clock size={11} className="text-white/70" />
                       <span>{formattedTodayHours}</span>
                     </span>
@@ -6355,7 +6355,7 @@ function StorefrontContent() {
                     {t('booking_title')}
                   </h3>
                   {!bookingConfirmed && (
-                    <p className="text-[10px] text-muted-foreground leading-tight">
+                    <p className="text-[11px] text-muted-foreground leading-tight">
                       {t('booking_details')}
                     </p>
                   )}
@@ -6801,7 +6801,7 @@ function StorefrontContent() {
                           {/* Row 1: Left: Order Type, Right: Date and Time in Italian format */}
                           <div className="flex justify-between items-center text-xs mb-3">
                             <div className="text-left space-y-0.5">
-                              <span className="block text-[10px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
+                              <span className="block text-[11px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
                                 {t('order_type_label')}
                               </span>
                               <span className="text-xs sm:text-[13px] font-black text-foreground">
@@ -6809,7 +6809,7 @@ function StorefrontContent() {
                               </span>
                             </div>
                             <div className="text-right space-y-0.5 flex flex-col items-end">
-                              <span className="block text-[10px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
+                              <span className="block text-[11px] sm:text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
                                 {t('order_date_label')}
                               </span>
                               <span className="text-xs sm:text-[13px] font-extrabold text-foreground/80">

@@ -445,7 +445,7 @@ export default function TranslationsTab({
 
                     {ings.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
                           Ingredienti
                         </p>
                         {ings.map((ing, idx) => (
@@ -463,7 +463,7 @@ export default function TranslationsTab({
 
                     {allergens.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
                           Allergeni
                         </p>
                         {allergens.map((a, idx) => (
@@ -482,7 +482,7 @@ export default function TranslationsTab({
 
                     {tags.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
                           Tag
                         </p>
                         {tags.map((tag, idx) => {
@@ -514,7 +514,7 @@ export default function TranslationsTab({
                       const supp = isSupplementGroup(g);
                       return (
                         <div key={g.id} className="space-y-2">
-                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                          <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
                             {supp ? 'Aggiunte / Supplementi' : `Opzioni: ${g.name}`}
                           </p>
                           {!supp && (

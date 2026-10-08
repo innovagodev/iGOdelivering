@@ -121,12 +121,12 @@
   /* Pannelli admin e ristorante su tablet: comandi e campi alti almeno 40px,
      quelli con la sola icona anche larghi 40px. Solo con puntatore touch. */
   @media (pointer: coarse) {
-    .panel-shell main button:not([role='switch']),
+    .panel-shell main button:not([role='switch']):not([class*='absolute']),
     .panel-shell main select,
     .panel-shell main [role='button'] {
       min-height: 40px;
     }
-    .panel-shell main button:not([role='switch']):has(> svg:only-child) {
+    .panel-shell main button:not([role='switch']):not([class*='absolute']):has(> svg:only-child) {
       min-width: 40px;
       display: inline-flex;
       align-items: center;

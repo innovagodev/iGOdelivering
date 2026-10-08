@@ -226,7 +226,7 @@ export default function AdminImpostazioniPage() {
                       <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                         Modalità Manutenzione
                         {maintenanceMode && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wide">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wide">
                             Attiva
                           </span>
                         )}

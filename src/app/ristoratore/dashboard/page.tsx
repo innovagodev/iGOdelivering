@@ -159,7 +159,7 @@ export default function RestaurantDashboardPage() {
                     ) : (
                       stats.topProducts.map((p, i) => (
                         <li key={`top-${p?.name}`} className="flex items-center gap-3">
-                          <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                          <span className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-[11px] font-bold flex items-center justify-center flex-shrink-0">
                             {i + 1}
                           </span>
                           <span className="text-xs text-foreground flex-1 truncate">{p?.name}</span>

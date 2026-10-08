@@ -735,7 +735,7 @@ export default function PrenotazioniPage() {
                       {/* Date & Time Widget */}
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="w-12 h-12 rounded-lg bg-card border border-border flex flex-col items-center justify-center shadow-sm">
-                          <span className="text-[10px] uppercase font-bold text-primary tracking-wider">
+                          <span className="text-[11px] uppercase font-bold text-primary tracking-wider">
                                 {new Date(booking.date).toLocaleDateString('it-IT', {
                                   month: 'short',
                                 })}
@@ -751,7 +751,7 @@ export default function PrenotazioniPage() {
                             <Clock size={12} className="text-muted-foreground" />
                             {booking.time}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[11px] text-muted-foreground">
                             {new Date(booking.date).toLocaleDateString('it-IT', {
                               weekday: 'short',
                             })}
@@ -766,7 +766,7 @@ export default function PrenotazioniPage() {
                             {booking.name}
                           </h3>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="primary" className="text-[10px] px-1.5 py-0">
+                            <Badge variant="primary" className="text-[11px] px-1.5 py-0">
                               {booking.guests} {booking.guests === 1 ? 'ospite' : 'ospiti'}
                             </Badge>
                                 {booking.status !== 'cancelled' &&
@@ -776,7 +776,7 @@ export default function PrenotazioniPage() {
                                     return (
                                       <Badge
                                         variant={over ? 'danger' : 'neutral'}
-                                        className="text-[10px] px-1.5 py-0"
+                                        className="text-[11px] px-1.5 py-0"
                                       >
                                         {capacity !== null
                                           ? `Fascia ${occupied}/${capacity} coperti`
@@ -792,7 +792,7 @@ export default function PrenotazioniPage() {
                                     ? 'danger'
                                     : 'info'
                               }
-                              className="text-[10px] px-1.5 py-0"
+                              className="text-[11px] px-1.5 py-0"
                             >
                               {booking.status === 'confirmed'
                                 ? 'Confermata'
@@ -803,7 +803,7 @@ export default function PrenotazioniPage() {
                                   : 'In attesa'}
                             </Badge>
                             {booking.status === 'pending' && booking.acceptDeadline && (
-                              <span className="text-[10px] font-semibold text-amber-600">
+                              <span className="text-[11px] font-semibold text-amber-600">
                                 Rispondi entro{' '}
                                 {new Date(booking.acceptDeadline).toLocaleTimeString('it-IT', {
                                   hour: '2-digit',
@@ -841,12 +841,12 @@ export default function PrenotazioniPage() {
                           )}
                           {booking.preOrderItems && booking.preOrderItems.length > 0 && (
                             <div className="bg-green-500/5 dark:bg-green-950/10 p-2.5 rounded-lg border border-green-500/20 text-xs space-y-1.5 max-w-xs lg:max-w-none">
-                              <div className="flex items-center justify-between gap-1 text-green-700 dark:text-green-400 font-bold text-[9px] uppercase tracking-wider">
+                              <div className="flex items-center justify-between gap-1 text-green-700 dark:text-green-400 font-bold text-[11px] uppercase tracking-wider">
                                 <span>Pre-Ordine Cibo</span>
                                 {booking.status === 'confirmed' && (
                                   <a
                                     href="/ristoratore/ordini"
-                                    className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[9px] px-2 py-0.5 rounded-full transition-colors shadow-sm cursor-pointer border border-transparent"
+                                    className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[11px] px-2 py-0.5 rounded-full transition-colors shadow-sm cursor-pointer border border-transparent"
                                   >
                                     In cucina &rarr;
                                   </a>

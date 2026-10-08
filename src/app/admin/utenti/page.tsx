@@ -782,7 +782,7 @@ export default function AdminUtentiPage() {
                     Rigenera
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                   Al primo accesso al ristoratore verrà richiesto di cambiare questa password.
                 </p>
               </div>
@@ -848,7 +848,7 @@ export default function AdminUtentiPage() {
                     )}
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
                   Invia questa password temporanea al ristoratore.
                 </p>
               </div>

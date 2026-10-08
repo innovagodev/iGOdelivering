@@ -301,7 +301,7 @@ export default function PagamentiPage() {
                         </h3>
                         {stripeStatus && (
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${STATE_LABEL[stripeStatus.state].className}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${STATE_LABEL[stripeStatus.state].className}`}
                           >
                             {STATE_LABEL[stripeStatus.state].text}
                           </span>
@@ -486,7 +486,7 @@ export default function PagamentiPage() {
                               <p className="font-semibold text-sm text-foreground">
                                 POS / Carta Fisico
                               </p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
                                 Corriere con POS portatile o pagamento in cassa
                               </p>
                             </div>
@@ -519,7 +519,7 @@ export default function PagamentiPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-sm text-foreground">Contanti</p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
                                 Pagamento in contanti al corriere o in cassa
                               </p>
                             </div>
@@ -554,7 +554,7 @@ export default function PagamentiPage() {
                 <div>
                   <p className="font-semibold text-sm text-foreground">
                     PayPal{' '}
-                    <span className="text-[10px] font-bold text-muted-foreground ml-1">
+                    <span className="text-[11px] font-bold text-muted-foreground ml-1">
                       IN ARRIVO
                     </span>
                   </p>

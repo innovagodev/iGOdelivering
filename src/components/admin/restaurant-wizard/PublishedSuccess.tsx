@@ -67,7 +67,7 @@ export default function PublishedSuccess({
                 {copied ? 'Copiato' : 'Copia'}
               </button>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
               {activationLink
                 ? 'Il proprietario dovrà cliccare su questo link per impostare la propria password e attivare l’utenza. Il link scade dopo 7 giorni ed è utilizzabile una sola volta.'
                 : 'Non è stato possibile generare il link di attivazione. Puoi rigenerarlo dalla lista ristoranti con il pulsante “Link Attivazione”.'}

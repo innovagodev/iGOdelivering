@@ -93,7 +93,7 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
                     </div>
                     <div>
                       <div className="text-xs font-bold text-foreground">POS / Carta Fisico</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">Pagamento con carta tramite POS fisico</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">Pagamento con carta tramite POS fisico</div>
                     </div>
                   </div>
                 </td>
@@ -135,7 +135,7 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
                     </div>
                     <div>
                       <div className="text-xs font-bold text-foreground">Contanti</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">Pagamento in contanti alla consegna o in cassa</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">Pagamento in contanti alla consegna o in cassa</div>
                     </div>
                   </div>
                 </td>
@@ -184,7 +184,7 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
             Pagamenti online con Stripe
           </span>
           <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${
               paymentConfig.stripe_connected
                 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
                 : 'bg-muted text-muted-foreground border-border'
@@ -225,9 +225,9 @@ export default function PaymentStep({ paymentConfig, setPaymentConfig }: Payment
         </div>
         <div>
           <div className="text-xs font-bold text-foreground">
-            PayPal <span className="text-[10px] text-muted-foreground ml-1">IN ARRIVO</span>
+            PayPal <span className="text-[11px] text-muted-foreground ml-1">IN ARRIVO</span>
           </div>
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-[11px] text-muted-foreground">
             Il collegamento a PayPal sarà disponibile con un prossimo aggiornamento.
           </div>
         </div>

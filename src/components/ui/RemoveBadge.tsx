@@ -25,7 +25,7 @@ export default function RemoveBadge({ onClick, title }: RemoveBadgeProps) {
       }}
       title={title}
       aria-label={title || 'Rimuovi'}
-      className="absolute -top-2 -right-2 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-md ring-2 ring-white transition-transform hover:scale-110 hover:bg-red-600 active:scale-95 dark:ring-card"
+      className="absolute -top-2 -right-2 flex h-5 w-5 cursor-pointer before:absolute before:-inset-2 before:content-[''] items-center justify-center rounded-full bg-red-500 text-white shadow-md ring-2 ring-white transition-transform hover:scale-110 hover:bg-red-600 active:scale-95 dark:ring-card"
     >
       <X size={12} strokeWidth={3} />
     </button>

@@ -113,7 +113,7 @@ export default function TranslationsStep({
   });
 
   const Heading = ({ children }: { children: React.ReactNode }) => (
-    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+    <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">
       {children}
     </p>
   );

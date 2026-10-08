@@ -617,7 +617,7 @@ export default function MenuStep({
         {showNewCategory && (
           <div className="bg-card border border-border rounded-2xl p-4 max-w-sm space-y-3 shadow-xs">
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Nome Categoria (IT) *
               </label>
               <input
@@ -690,14 +690,14 @@ export default function MenuStep({
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {group.defaultOption && (
-                  <span className="text-[10px] bg-primary/10 border border-primary/20 text-primary font-semibold px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] bg-primary/10 border border-primary/20 text-primary font-semibold px-2 py-0.5 rounded-md">
                     {group.defaultOption} (Default, €0)
                   </span>
                 )}
                 {group.choices.map((c) => (
                   <span
                     key={c.id}
-                    className="text-[10px] bg-muted px-2 py-0.5 rounded-md border border-border"
+                    className="text-[11px] bg-muted px-2 py-0.5 rounded-md border border-border"
                   >
                     {c.name} (+€{c.price.toFixed(2)})
                   </span>
@@ -767,7 +767,7 @@ export default function MenuStep({
                       </span>
                       Una sola scelta (es. Impasto)
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente può scegliere un solo elemento. La selezione di uno esclude gli
                       altri.
                     </span>
@@ -794,7 +794,7 @@ export default function MenuStep({
                       </span>
                       Scelte multiple (es. Aggiunte)
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente può selezionare più opzioni contemporaneamente o nessuna.
                     </span>
                   </button>
@@ -822,7 +822,7 @@ export default function MenuStep({
                       <span className="text-xs">⚪</span>
                       Facoltativa
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente può procedere all&apos;ordine anche senza selezionare alcuna
                       opzione da questo gruppo.
                     </span>
@@ -843,7 +843,7 @@ export default function MenuStep({
                       <span className="text-xs">🔴</span>
                       Obbligatoria
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente non può aggiungere il piatto al carrello se non seleziona almeno
                       un&apos;opzione.
                     </span>
@@ -873,13 +873,13 @@ export default function MenuStep({
                 </p>
                 {newGroupChoices.length > 1 && (
                   <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-0.5 shadow-2xs">
-                    <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                    <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-0.5">
                       <ArrowUpDown size={11} /> Ordina:
                     </span>
                     <button
                       type="button"
                       onClick={() => handleSortNewChoices('asc')}
-                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                       title="Ordina A-Z"
                     >
                       A-Z
@@ -887,7 +887,7 @@ export default function MenuStep({
                     <button
                       type="button"
                       onClick={() => handleSortNewChoices('desc')}
-                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                       title="Ordina Z-A"
                     >
                       Z-A
@@ -934,7 +934,7 @@ export default function MenuStep({
               ))}
               <button
                 onClick={addChoice}
-                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Plus size={12} />
                 Aggiungi Opzione
@@ -1037,7 +1037,7 @@ export default function MenuStep({
                       </span>
                       Una sola scelta (es. Impasto)
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente può scegliere un solo elemento. La selezione di uno esclude gli
                       altri.
                     </span>
@@ -1064,7 +1064,7 @@ export default function MenuStep({
                       </span>
                       Scelte multiple (es. Aggiunte)
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente può selezionare più opzioni contemporaneamente o nessuna.
                     </span>
                   </button>
@@ -1092,7 +1092,7 @@ export default function MenuStep({
                       <span className="text-xs">⚪</span>
                       Facoltativa
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente può procedere all&apos;ordine anche senza selezionare alcuna
                       opzione da questo gruppo.
                     </span>
@@ -1113,7 +1113,7 @@ export default function MenuStep({
                       <span className="text-xs">🔴</span>
                       Obbligatoria
                     </span>
-                    <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                    <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                       Il cliente non può aggiungere il piatto al carrello se non seleziona almeno
                       un&apos;opzione.
                     </span>
@@ -1143,13 +1143,13 @@ export default function MenuStep({
                 </p>
                 {editGroupChoices.length > 1 && (
                   <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-0.5 shadow-2xs">
-                    <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                    <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-0.5">
                       <ArrowUpDown size={11} /> Ordina:
                     </span>
                     <button
                       type="button"
                       onClick={() => handleSortEditChoices('asc')}
-                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                       title="Ordina A-Z"
                     >
                       A-Z
@@ -1157,7 +1157,7 @@ export default function MenuStep({
                     <button
                       type="button"
                       onClick={() => handleSortEditChoices('desc')}
-                      className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                      className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                       title="Ordina Z-A"
                     >
                       Z-A
@@ -1206,7 +1206,7 @@ export default function MenuStep({
               <button
                 type="button"
                 onClick={addEditChoice}
-                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Plus size={12} />
                 Aggiungi Opzione
@@ -1273,7 +1273,7 @@ export default function MenuStep({
                     <span className="text-xs font-black text-primary uppercase tracking-wider">
                       {catName}
                     </span>
-                    <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full border border-border/40">
+                    <span className="text-[11px] font-bold bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full border border-border/40">
                       {catItems.length} {catItems.length === 1 ? 'piatto' : 'piatti'}
                     </span>
                   </div>
@@ -1371,7 +1371,7 @@ export default function MenuStep({
                                 </div>
                               </div>
                               {item.ingredients && item.ingredients.length > 0 && (
-                                <p className="text-[10px] text-muted-foreground/80 font-medium truncate mt-0.5">
+                                <p className="text-[11px] text-muted-foreground/80 font-medium truncate mt-0.5">
                                   {item.ingredients.join(', ')}
                                 </p>
                               )}
@@ -1451,7 +1451,7 @@ export default function MenuStep({
                     }`}
                   />
                   {showErrors && !newItem.name.trim() && (
-                    <p className="text-red-500 text-[10px] font-semibold mt-1">
+                    <p className="text-red-500 text-[11px] font-semibold mt-1">
                       Il nome del piatto è obbligatorio
                     </p>
                   )}
@@ -1511,13 +1511,13 @@ export default function MenuStep({
                           }}
                           className="w-4 h-4 text-primary border-border rounded focus:ring-ring cursor-pointer"
                         />
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                           Promo
                         </span>
                       </label>
                     </div>
                     {showErrors && !newItem.price.trim() && (
-                      <p className="text-red-500 text-[10px] font-semibold mt-1">
+                      <p className="text-red-500 text-[11px] font-semibold mt-1">
                         Il prezzo di listino è obbligatorio
                       </p>
                     )}
@@ -1567,7 +1567,7 @@ export default function MenuStep({
                       <button
                         type="button"
                         onClick={() => setNewItem((p) => ({ ...p, ingredients: [] }))}
-                        className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                        className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
                       >
                         Pulisci tutto
                       </button>
@@ -1582,7 +1582,7 @@ export default function MenuStep({
                     {(newItem.ingredients || []).map((ing) => (
                       <div
                         key={ing}
-                        className="relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border bg-card border-border text-foreground select-none pr-6 flex items-center"
+                        className="relative px-2.5 py-1.5 rounded-lg text-[11px] font-bold border bg-card border-border text-foreground select-none pr-6 flex items-center"
                       >
                         {ing}
                         <RemoveBadge onClick={() => handleRemoveIngredient(ing)} title={`Elimina ${ing}`} />
@@ -1617,7 +1617,7 @@ export default function MenuStep({
                           setNewIngredientInput('');
                         }
                       }}
-                      className="px-2.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-[11px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
                       <Plus size={10} />
                       Aggiungi
@@ -1689,7 +1689,7 @@ export default function MenuStep({
                       >
                         <div className="flex flex-col">
                           <span className="text-xs font-semibold">{g.name}</span>
-                          <span className="text-[9px] text-muted-foreground font-semibold">
+                          <span className="text-[11px] text-muted-foreground font-semibold">
                             {g.minSelections !== undefined && g.minSelections > 0
                               ? 'Obbligatorio'
                               : 'Opzionale'}
@@ -1716,17 +1716,17 @@ export default function MenuStep({
                         onClick={() => {
                           setNewItem((p) => ({ ...p, allergens: [] }));
                         }}
-                        className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                        className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
                       >
                         Pulisci
                       </button>
-                      <span className="text-[9px] text-muted-foreground">|</span>
+                      <span className="text-[11px] text-muted-foreground">|</span>
                       <button
                         type="button"
                         onClick={() => {
                           setNewItem((p) => ({ ...p, allergens: [...availableAllergens] }));
                         }}
-                        className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                        className="text-[11px] font-bold text-primary hover:underline uppercase cursor-pointer"
                       >
                         Tutti
                       </button>
@@ -1745,7 +1745,7 @@ export default function MenuStep({
                         <div
                           key={a}
                           onClick={() => toggleAllergen(a)}
-                          className={`relative px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
+                          className={`relative px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer select-none active:scale-95 pr-6 ${
                             isActive
                               ? 'bg-amber-100 border-amber-300 text-amber-800'
                               : 'bg-card border-border text-muted-foreground hover:bg-muted'
@@ -1832,7 +1832,7 @@ export default function MenuStep({
                           setAllergenEmoji('➕');
                         }
                       }}
-                      className="px-2.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-[10px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                      className="px-2.5 py-2 bg-primary text-white hover:bg-primary-hover rounded-lg text-[11px] font-bold flex items-center justify-center gap-0.5 cursor-pointer transition-colors"
                     >
                       <Plus size={10} />
                       Aggiungi
@@ -1852,11 +1852,11 @@ export default function MenuStep({
                         onClick={() => {
                           setNewItem((p) => ({ ...p, dishTags: [] }));
                         }}
-                        className="text-[9px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                        className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
                       >
                         Pulisci
                       </button>
-                      <span className="text-[9px] text-muted-foreground">|</span>
+                      <span className="text-[11px] text-muted-foreground">|</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -1873,7 +1873,7 @@ export default function MenuStep({
                             dishTags: Array.from(new Set([...(p.dishTags || []), ...standardOnly])),
                           }));
                         }}
-                        className="text-[9px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                        className="text-[11px] font-bold text-primary hover:underline uppercase cursor-pointer"
                       >
                         Standard
                       </button>
@@ -1915,7 +1915,7 @@ export default function MenuStep({
                   {/* Visual custom tag creator */}
                   <div className="p-3.5 border border-border/70 bg-muted/10 rounded-2xl space-y-3">
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                      <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
                         1. Scegli Icona
                       </label>
                       <div className="flex flex-wrap gap-1">
@@ -1945,7 +1945,7 @@ export default function MenuStep({
                       <div className="space-y-1.5">
                         <label
                           htmlFor="custom-tag-name-wizard"
-                          className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide"
+                          className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wide"
                         >
                           2. Inserisci Testo Etichetta
                         </label>
@@ -2002,7 +2002,7 @@ export default function MenuStep({
                     <span className="text-xs font-bold text-foreground block">
                       Consenti modifiche al piatto
                     </span>
-                    <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                    <span className="text-[11px] text-muted-foreground leading-normal block mt-0.5">
                       Se disattivato, il cliente non potrà aggiungere supplementi o rimuovere
                       ingredienti. Il piatto verrà aggiunto direttamente al carrello.
                     </span>
@@ -2019,7 +2019,7 @@ export default function MenuStep({
                     <span className="text-xs font-bold text-foreground block">
                       Consenti note per la cucina
                     </span>
-                    <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                    <span className="text-[11px] text-muted-foreground leading-normal block mt-0.5">
                       Se disattivato, il campo note cucina non verrà mostrato nel dettaglio di
                       questo piatto.
                     </span>

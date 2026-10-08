@@ -149,12 +149,12 @@ function PaymentForm({ amountCents, orderId, lang, scheduled, onPaid, onCancel }
       >
         {lang === 'en' ? 'Cancel and choose another method' : 'Annulla e scegli un altro metodo'}
       </button>
-      <p className="text-[10px] text-muted-foreground text-center">
+      <p className="text-[11px] text-muted-foreground text-center">
         {lang === 'en'
           ? `The amount is only held on your card: you are charged when the restaurant accepts your order, and not at all if it declines or does not reply ${scheduled ? 'in time' : 'within 3 minutes'}.`
           : `L’importo viene solo bloccato sulla carta: viene addebitato quando il ristorante accetta l’ordine, e non viene addebitato affatto se lo rifiuta o non risponde ${scheduled ? 'in tempo' : 'entro 3 minuti'}.`}
       </p>
-      <p className="text-[10px] text-muted-foreground text-center">
+      <p className="text-[11px] text-muted-foreground text-center">
         {lang === 'en'
           ? 'Payment processed securely by Stripe. Card details never reach our servers.'
           : 'Pagamento gestito in sicurezza da Stripe. I dati della carta non passano dai nostri server.'}

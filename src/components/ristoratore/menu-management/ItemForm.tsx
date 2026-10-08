@@ -743,7 +743,7 @@ export default function ItemForm({
             }`}
           />
           {showErrors && !draft.name.trim() && (
-            <p className="text-red-500 text-[10px] font-semibold mt-1">
+            <p className="text-red-500 text-[11px] font-semibold mt-1">
               Il nome del piatto è obbligatorio
             </p>
           )}
@@ -805,7 +805,7 @@ export default function ItemForm({
               />
             </div>
             {showErrors && !draft.price.trim() && (
-              <p className="text-red-500 text-[10px] font-semibold mt-1">
+              <p className="text-red-500 text-[11px] font-semibold mt-1">
                 Il prezzo di listino è obbligatorio
               </p>
             )}
@@ -956,7 +956,7 @@ export default function ItemForm({
               <button
                 type="button"
                 onClick={() => setDraft((p) => ({ ...p, ingredients: [] }))}
-                className="text-[10px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
               >
                 Pulisci tutto
               </button>
@@ -1104,15 +1104,15 @@ export default function ItemForm({
               <button
                 type="button"
                 onClick={() => setDraft((p) => ({ ...p, allergens: [] }))}
-                className="text-[10px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
               >
                 Pulisci
               </button>
-              <span className="text-[10px] text-muted-foreground">|</span>
+              <span className="text-[11px] text-muted-foreground">|</span>
               <button
                 type="button"
                 onClick={() => setDraft((p) => ({ ...p, allergens: [...availableAllergens] }))}
-                className="text-[10px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                className="text-[11px] font-bold text-primary hover:underline uppercase cursor-pointer"
               >
                 Seleziona Tutti
               </button>
@@ -1257,11 +1257,11 @@ export default function ItemForm({
               <button
                 type="button"
                 onClick={() => setDraft((p) => ({ ...p, dishTags: [] }))}
-                className="text-[10px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
+                className="text-[11px] font-bold text-muted-foreground hover:text-foreground hover:underline uppercase cursor-pointer"
               >
                 Pulisci
               </button>
-              <span className="text-[10px] text-muted-foreground">|</span>
+              <span className="text-[11px] text-muted-foreground">|</span>
               <button
                 type="button"
                 onClick={() => {
@@ -1278,7 +1278,7 @@ export default function ItemForm({
                     dishTags: Array.from(new Set([...(p.dishTags || []), ...standardOnly])),
                   }));
                 }}
-                className="text-[10px] font-bold text-primary hover:underline uppercase cursor-pointer"
+                className="text-[11px] font-bold text-primary hover:underline uppercase cursor-pointer"
               >
                 Seleziona Standard
               </button>
@@ -1322,7 +1322,7 @@ export default function ItemForm({
           {/* Inline input with visual icon picker to add a custom tag */}
           <div className="mt-3.5 p-4 border border-border/70 bg-muted/10 rounded-2xl space-y-3.5">
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+              <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
                 1. Scegli Icona
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -1352,7 +1352,7 @@ export default function ItemForm({
               <div className="space-y-1.5">
                 <label
                   htmlFor="custom-tag-name"
-                  className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide"
+                  className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wide"
                 >
                   2. Inserisci Testo Etichetta
                 </label>
@@ -1382,7 +1382,7 @@ export default function ItemForm({
                 <div className="flex-1">
                   <label
                     htmlFor="custom-tag-name-en"
-                    className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wide"
+                    className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wide"
                   >
                     🌐 Traduzione Inglese (opzionale)
                   </label>
@@ -1429,7 +1429,7 @@ export default function ItemForm({
                 <span className="text-xs font-bold text-foreground block">
                   Consenti modifiche al piatto
                 </span>
-                <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                <span className="text-[11px] text-muted-foreground leading-normal block mt-0.5">
                   Se disattivato, il cliente non potrà aggiungere supplementi o rimuovere
                   ingredienti standard. Il piatto verrà aggiunto direttamente al carrello.
                 </span>
@@ -1462,7 +1462,7 @@ export default function ItemForm({
                 <span className="text-xs font-bold text-foreground block">
                   Consenti note per la cucina
                 </span>
-                <span className="text-[10px] text-muted-foreground leading-normal block mt-0.5">
+                <span className="text-[11px] text-muted-foreground leading-normal block mt-0.5">
                   Se disattivato, il campo di testo per le note cucina non verrà mostrato nel
                   dettaglio di questo piatto.
                 </span>
@@ -1494,19 +1494,19 @@ export default function ItemForm({
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Supplementi del Piatto
                 </label>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5">
                   Aggiungi ingredienti extra, oppure importa da un gruppo.
                 </p>
               </div>
               {supplementiSingoli.length > 1 && (
                 <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-1 shadow-2xs">
-                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                  <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-0.5">
                     <ArrowUpDown size={11} /> Ordina:
                   </span>
                   <button
                     type="button"
                     onClick={() => handleSortSupplementiSingoli('asc')}
-                    className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                    className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                     title="Ordina A-Z"
                   >
                     A-Z
@@ -1514,7 +1514,7 @@ export default function ItemForm({
                   <button
                     type="button"
                     onClick={() => handleSortSupplementiSingoli('desc')}
-                    className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                    className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                     title="Ordina Z-A"
                   >
                     Z-A
@@ -1530,7 +1530,7 @@ export default function ItemForm({
                 g.name !== 'Supplementi Singoli'
             ).length > 0 && (
               <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   Inserisci da Gruppo:
                 </label>
                 <select
@@ -1721,7 +1721,7 @@ export default function ItemForm({
                         </button>
                       </div>
                       <div className="flex gap-1.5 items-center">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-bold">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-bold">
                           {group.minSelections > 0 ? 'Obblig.' : 'Opz.'}
                           {group.maxSelections === 1
                             ? ' (Singola)'
@@ -1729,7 +1729,7 @@ export default function ItemForm({
                               ? ` (Max ${group.maxSelections})`
                               : ''}
                         </span>
-                        <span className="text-[10px] font-medium text-muted-foreground bg-card px-1.5 py-0.5 rounded border border-border font-semibold">
+                        <span className="text-[11px] font-medium text-muted-foreground bg-card px-1.5 py-0.5 rounded border border-border font-semibold">
                           {group.choices.length} {group.choices.length === 1 ? 'scelta' : 'scelte'}
                         </span>
                       </div>
@@ -1737,26 +1737,26 @@ export default function ItemForm({
                     {(group.defaultOption || group.choices.length > 0) ? (
                       <div className="flex flex-wrap gap-1">
                         {group.defaultOption && (
-                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary">
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20 text-[11px] font-bold text-primary">
                             {group.defaultOption} (Default, €0)
                           </span>
                         )}
                         {group.choices.slice(0, 5).map((choice) => (
                           <span
                             key={choice.id}
-                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-card border border-border/60 text-[10px] font-semibold text-muted-foreground"
+                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-card border border-border/60 text-[11px] font-semibold text-muted-foreground"
                           >
                             {choice.name} (+€{parseFloat(choice.price || '0').toFixed(2)})
                           </span>
                         ))}
                         {group.choices.length > 5 && (
-                          <span className="text-[9px] text-muted-foreground font-bold pl-1 mt-1">
+                          <span className="text-[11px] text-muted-foreground font-bold pl-1 mt-1">
                             +{group.choices.length - 5} altre
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-[10px] text-muted-foreground italic">
+                      <span className="text-[11px] text-muted-foreground italic">
                         Nessuna scelta inserita
                       </span>
                     )}
@@ -1959,7 +1959,7 @@ export default function ItemForm({
                               <span className="text-xs truncate font-medium">{g.name}</span>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
                                 {g.choices.length}
                               </span>
                               <button
@@ -2082,7 +2082,7 @@ export default function ItemForm({
                                 </span>
                                 Una sola scelta (es. Impasto)
                               </span>
-                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                              <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                                 Il cliente può scegliere un solo elemento. La selezione di uno
                                 esclude gli altri.
                               </span>
@@ -2113,7 +2113,7 @@ export default function ItemForm({
                                 </span>
                                 Scelte multiple (es. Aggiunte)
                               </span>
-                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                              <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                                 Il cliente può selezionare più opzioni contemporaneamente o nessuna.
                               </span>
                             </button>
@@ -2143,7 +2143,7 @@ export default function ItemForm({
                                 <span className="text-xs">⚪</span>
                                 Facoltativa
                               </span>
-                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                              <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                                 Il cliente può procedere all&apos;ordine anche senza selezionare
                                 alcuna opzione da questo gruppo.
                               </span>
@@ -2166,7 +2166,7 @@ export default function ItemForm({
                                 <span className="text-xs">🔴</span>
                                 Obbligatoria
                               </span>
-                              <span className="text-[10px] text-muted-foreground mt-1 leading-relaxed font-medium">
+                              <span className="text-[11px] text-muted-foreground mt-1 leading-relaxed font-medium">
                                 Il cliente non può aggiungere il piatto al carrello se non seleziona
                                 almeno un&apos;opzione.
                               </span>
@@ -2247,13 +2247,13 @@ export default function ItemForm({
                           </label>
                           {activeGroup.choices.length > 1 && (
                             <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-2 py-0.5 shadow-2xs">
-                              <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-0.5">
+                              <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-0.5">
                                 <ArrowUpDown size={11} /> Ordina:
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleSortChoices(gid, 'asc')}
-                                className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                                className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                                 title="Ordina A-Z"
                               >
                                 A-Z
@@ -2261,7 +2261,7 @@ export default function ItemForm({
                               <button
                                 type="button"
                                 onClick={() => handleSortChoices(gid, 'desc')}
-                                className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
+                                className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-muted hover:bg-primary/10 hover:text-primary border border-border text-foreground transition-colors cursor-pointer"
                                 title="Ordina Z-A"
                               >
                                 Z-A
@@ -2274,7 +2274,7 @@ export default function ItemForm({
                             <p className="text-xs text-muted-foreground font-semibold">
                               Nessuna scelta creata in questo gruppo.
                             </p>
-                            <p className="text-[10px] text-muted-foreground/75 mt-0.5">
+                            <p className="text-[11px] text-muted-foreground/75 mt-0.5">
                               Usa il form sopra per aggiungere opzioni.
                             </p>
                           </div>
@@ -2308,7 +2308,7 @@ export default function ItemForm({
                                   />
 
                                   <div className="relative w-24 flex-shrink-0">
-                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
                                       +€
                                     </span>
                                     <input

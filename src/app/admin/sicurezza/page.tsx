@@ -213,7 +213,7 @@ export default function AdminSicurezzaPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wide border ${
                                 log.severity === 'high'
                                   ? 'bg-red-500/10 text-red-500 border-red-500/20'
                                   : log.severity === 'medium'
@@ -268,7 +268,7 @@ export default function AdminSicurezzaPage() {
                     <div key={log.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
                       <div className="flex items-start justify-between">
                         <div>
-                          <span className="text-[10px] font-mono text-muted-foreground block mb-0.5">
+                          <span className="text-[11px] font-mono text-muted-foreground block mb-0.5">
                             {log.timestamp}
                           </span>
                           <h4 className="font-semibold text-sm text-foreground leading-snug">
@@ -295,14 +295,14 @@ export default function AdminSicurezzaPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-0.5">Indirizzo IP</p>
-                          <p className="font-mono text-foreground text-[10px]">{log.ipAddress}</p>
+                          <p className="font-mono text-foreground text-[11px]">{log.ipAddress}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between pt-1">
                         <span className="text-xs text-muted-foreground">Severità</span>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wide border ${
                             log.severity === 'high'
                               ? 'bg-red-500/10 text-red-500 border-red-500/20'
                               : log.severity === 'medium'

@@ -425,7 +425,7 @@ export default function ProductDetailSheet({
                   return (
                     <span
                       key={tag}
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold ${getTagStyle(displayTag)}`}
+                      className={`inline-flex items-center gap-1 text-[11px] font-bold ${getTagStyle(displayTag)}`}
                     >
                       {icon}
                       <span>{label}</span>
@@ -439,7 +439,7 @@ export default function ProductDetailSheet({
             {/* Allergens */}
             {item.allergens && item.allergens.length > 0 && (
               <div className="pt-1 flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">
+                <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider mr-1">
                   {lang === 'en' ? 'Allergens:' : 'Allergeni:'}
                 </span>
                 {item.allergens.map((a, idx) => {
@@ -447,7 +447,7 @@ export default function ProductDetailSheet({
                   return (
                     <span
                       key={a}
-                      className="text-[9px] bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full px-2 py-0.5 font-semibold"
+                      className="text-[11px] bg-amber-500/10 text-amber-700 border border-amber-500/20 rounded-full px-2 py-0.5 font-semibold"
                     >
                       {displayAllergen}
                     </span>
@@ -494,7 +494,7 @@ export default function ProductDetailSheet({
                           </span>
                         </div>
                         {isRemoved && (
-                          <span className="text-[10px] font-bold text-red-500 uppercase">
+                          <span className="text-[11px] font-bold text-red-500 uppercase">
                             {lang === 'en' ? 'Removed' : 'Rimosso'}
                           </span>
                         )}
@@ -551,12 +551,12 @@ export default function ProductDetailSheet({
                             <h5 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
                                 {lang === 'en' && group.name_en ? group.name_en : group.name}
-                                <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.2 font-black animate-pulse">
+                                <span className="text-[11px] bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.2 font-black animate-pulse">
                                   {lang === 'en' ? 'Required' : 'Obbligatorio'}
                                 </span>
                               </span>
                               <span
-                                className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${isSatisfied ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border/40'}`}
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${isSatisfied ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border/40'}`}
                               >
                                 {isSingle
                                   ? (lang === 'en' ? 'Single choice' : 'Scelta singola')
@@ -713,14 +713,14 @@ export default function ProductDetailSheet({
                                     {displayGroupName}
                                   </span>
                                   {selectedCount > 0 && (
-                                    <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full border border-primary/20">
+                                    <span className="text-[11px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full border border-primary/20">
                                       {selectedCount}{' '}
                                       {selectedCount === 1 ? (lang === 'en' ? 'selected' : 'selezionato') : (lang === 'en' ? 'selected' : 'selezionati')}
                                     </span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                  <span className="text-[10px] font-medium">
+                                  <span className="text-[11px] font-medium">
                                     {isSingle ? '' : max ? `Max ${max}` : ''}
                                   </span>
                                   <ChevronDown

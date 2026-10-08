@@ -1825,7 +1825,7 @@ export default function RestaurantConfigurePage() {
                       }`}
                     >
                       <span
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
                           isCurrent
                             ? 'bg-white/25'
                             : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600'
@@ -2340,7 +2340,7 @@ export default function RestaurantConfigurePage() {
                           <div className="space-y-1">
                             <h4 className="font-extrabold text-sm text-foreground">Tavolo {num}</h4>
                             <p
-                              className="text-[10px] text-muted-foreground font-mono truncate max-w-[200px]"
+                              className="text-[11px] text-muted-foreground font-mono truncate max-w-[200px]"
                               title={tableUrl}
                             >
                               {tableUrl}
@@ -2641,7 +2641,7 @@ export default function RestaurantConfigurePage() {
                                   )}
                                   {promo.applicableDeliveryModes &&
                                     promo.applicableDeliveryModes.length > 0 && (
-                                      <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                      <span className="italic bg-secondary px-1.5 py-0.5 rounded text-[11px] font-bold">
                                         Canali: {promo.applicableDeliveryModes.join(', ')}
                                       </span>
                                     )}

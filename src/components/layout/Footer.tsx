@@ -57,7 +57,7 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
   if (variant === 'compact') {
     return (
       <div
-        className={`flex flex-col gap-1 text-[10px] text-muted-foreground select-none ${className}`}
+        className={`flex flex-col gap-1 text-[11px] text-muted-foreground select-none ${className}`}
       >
         <div className="flex items-center justify-between gap-2">
           <span>© {year} iGOdelivering</span>
@@ -96,7 +96,7 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
             innovago.it
           </a>
         </p>
-        <div className="flex items-center gap-2 text-[10px] opacity-75">
+        <div className="flex items-center gap-2 text-[11px] opacity-75">
           <span className="font-semibold">v{versionData.version}</span>
           <span className="text-border">|</span>
           <span>Build: {formattedDate}</span>
