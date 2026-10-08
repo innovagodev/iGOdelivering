@@ -4793,7 +4793,9 @@ function StorefrontContent() {
 
   const triggerFlyToCart = () => {
     const sourceEl = document.getElementById('add-to-cart-confirm-btn');
-    const targetEl = document.getElementById('header-cart-button');
+    const targetEl = ['header-cart-button', 'floating-cart-button']
+      .map((id) => document.getElementById(id))
+      .find((el) => el && el.getBoundingClientRect().width > 0);
     if (!sourceEl || !targetEl) return;
 
     const sourceRect = sourceEl.getBoundingClientRect();
@@ -5423,7 +5425,7 @@ function StorefrontContent() {
 
   return (
     <div
-      className="storefront flex flex-col min-h-[100dvh] bg-background pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:pb-0"
+      className="storefront flex flex-col min-h-[100dvh] bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-0"
       // Durante una prenotazione con ordine la barra del tavolo è fissa in alto
       // (44 px): il resto della pagina scende di altrettanto, e le parti fisse
       // (navbar, categorie) ne tengono conto con --booking-bar-h.
@@ -5543,20 +5545,6 @@ function StorefrontContent() {
                   <FlagEN />
                 </button>
               </div>
-
-              {/* Cart Button */}
-              <button
-                id="header-cart-button-mobile"
-                onClick={() => setCartOpen((o) => !o)}
-                className="relative flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl font-bold text-xs transition-all active:scale-95 shadow-sm bg-primary text-white hover:bg-primary-hover border border-primary/20"
-              >
-                <ShoppingCart size={15} />
-                {cartCount > 0 && (
-                  <span className="bg-white text-primary text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
             </div>
           </div>
 
@@ -5726,7 +5714,7 @@ function StorefrontContent() {
       )}
 
       {/* Restaurant Hero */}
-      <div className="relative min-h-[22rem] sm:min-h-[26rem] md:min-h-[30rem] h-auto flex flex-col justify-end overflow-hidden">
+      <div className="relative min-h-[clamp(15rem,42dvh,20rem)] sm:min-h-[26rem] md:min-h-[30rem] h-auto flex flex-col justify-end overflow-hidden">
         <AppImage
           src={restaurantSettings.image || ''}
           alt={restaurantSettings.imageAlt || ''}
@@ -6852,43 +6840,44 @@ function StorefrontContent() {
         </div>
       </Modal>
 
-      {/* Barra inferiore fissa (solo telefono): prenota tavolo e carrello sempre
-          raggiungibili, perché sotto sm l'header scorre via con la pagina. */}
+      {/* Comandi flottanti (solo telefono): sotto sm l'header scorre via con la
+          pagina, quindi carrello e prenota tavolo restano raggiungibili qui.
+          Minimali: tondi, il carrello si allarga solo per totale e badge. */}
       {!cartOpen && !checkoutOpen && !isDetailSheetOpen && (
-        <div className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.08)] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
-          <div className="flex items-stretch gap-2">
-            {deliveryType !== 'tavolo' && (
-              <button
-                type="button"
-                onClick={() => setShowBookingModal(true)}
-                className="flex items-center justify-center gap-1.5 px-3 h-12 rounded-xl bg-[var(--success)] text-white font-bold text-xs active:scale-95 transition-all shadow-sm flex-shrink-0"
-              >
-                <CalendarCheck size={16} />
-                <span>{lang === 'en' ? 'Book a table' : 'Prenota tavolo'}</span>
-              </button>
-            )}
+        <div className="sm:hidden fixed z-40 right-[max(0.75rem,env(safe-area-inset-right))] bottom-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-2.5">
+          {deliveryType !== 'tavolo' && (
             <button
               type="button"
-              onClick={() => setCartOpen(true)}
-              className="flex-1 min-w-0 flex items-center justify-between gap-2 px-4 h-12 rounded-xl bg-primary text-white font-bold text-sm active:scale-95 transition-all shadow-sm"
+              onClick={() => setShowBookingModal(true)}
+              aria-label={lang === 'en' ? 'Book a table' : 'Prenota tavolo'}
+              title={lang === 'en' ? 'Book a table' : 'Prenota tavolo'}
+              className="w-11 h-11 rounded-full flex items-center justify-center bg-card text-[var(--success)] border border-border shadow-lg shadow-black/10 active:scale-90 transition-all"
             >
-              <span className="flex items-center gap-2 min-w-0">
-                <ShoppingCart size={16} className="flex-shrink-0" />
-                <span className="truncate">{t('menu_cart')}</span>
-                {cartCount > 0 && (
-                  <span className="bg-white text-primary text-[11px] font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center flex-shrink-0">
-                    {cartCount}
-                  </span>
-                )}
-              </span>
-              {cartCount > 0 && <span className="tabular-nums flex-shrink-0">€ {total.toFixed(2)}</span>}
+              <CalendarCheck size={19} />
             </button>
-          </div>
+          )}
+          <button
+            id="floating-cart-button"
+            type="button"
+            onClick={() => setCartOpen(true)}
+            aria-label={t('menu_cart')}
+            className="relative h-12 min-w-12 px-3.5 rounded-full flex items-center justify-center gap-2 bg-primary text-white font-bold text-sm shadow-lg shadow-primary/30 active:scale-95 transition-all"
+          >
+            <ShoppingCart size={20} />
+            {cartCount > 0 && (
+              <>
+                <span className="tabular-nums">€ {total.toFixed(2)}</span>
+                <span className="absolute -top-1.5 -right-1 min-w-5 h-5 px-1 rounded-full bg-foreground text-white text-[11px] font-black flex items-center justify-center ring-2 ring-background">
+                  {cartCount}
+                </span>
+              </>
+            )}
+          </button>
         </div>
       )}
 
       {showCopiedToast && (
-        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 bg-black/85 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 animate-fade-in backdrop-blur-xs">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 bg-black/85 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-1.5 animate-fade-in backdrop-blur-xs">
           <span>Link copiato negli appunti!</span>
         </div>
       )}
