@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
+import { isCountedOrder, ordersOfDay } from '@/lib/dashboardStats';
+import { nowInZone } from '@/lib/serviceHours';
 import {
   Store,
   ShoppingBag,
@@ -10,7 +12,6 @@ import {
   UserPlus,
   ArrowUpRight,
   Activity,
-  ArrowRight,
   Plus,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -24,9 +25,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
 } from 'recharts';
 
 // Mock data for the charts
@@ -71,17 +69,15 @@ export default function AdminDashboardPage() {
         const ordersList = dbOrders || [];
 
         const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
         const activeCount = restaurantsList.filter((r) => r.status === 'published').length;
 
-        const todayOrdersList = ordersList.filter((o) => new Date(o.created_at) >= startOfToday);
+        // Ordini e incassi di oggi (giorno di Roma): annullati, rifiutati e scaduti non contano
+        const todayOrdersList = ordersOfDay(ordersList, nowInZone('Europe/Rome').date);
         const todayOrdersCount = todayOrdersList.length;
 
-        const todayRevenueVal = todayOrdersList
-          .filter((o) => o.status !== 'cancelled')
-          .reduce((acc, o) => acc + Number(o.total || 0), 0);
+        const todayRevenueVal = todayOrdersList.reduce((acc, o) => acc + Number(o.total || 0), 0);
 
         const newRestaurantsCount = restaurantsList.filter(
           (r) => new Date(r.created_at) >= startOfMonth
@@ -93,7 +89,7 @@ export default function AdminDashboardPage() {
         });
 
         ordersList.forEach((o) => {
-          if (o.status === 'cancelled') return;
+          if (!isCountedOrder(o)) return;
           if (revenueMap[o.restaurant_id]) {
             revenueMap[o.restaurant_id].ordini += 1;
             revenueMap[o.restaurant_id].ricavi += Number(o.total || 0);
@@ -119,7 +115,7 @@ export default function AdminDashboardPage() {
         }
 
         ordersList.forEach((o) => {
-          if (o.status === 'cancelled') return;
+          if (!isCountedOrder(o)) return;
           const orderDate = new Date(o.created_at).toDateString();
           const dayObj = daysTrend.find((d) => d.dateStr === orderDate);
           if (dayObj) {

@@ -1,5 +1,7 @@
 'use client';
 import React from 'react';
+import { isCountedOrder, romeDay, shiftDay } from '@/lib/dashboardStats';
+import { nowInZone } from '@/lib/serviceHours';
 import {
   AreaChart,
   Area,
@@ -42,22 +44,23 @@ export default function RevenueChart({ orders = [] }: { orders?: any[] }) {
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
     const days: { dateStr: string; label: string; ricavi: number; ordini: number }[] = [];
 
-    // Initialize last 7 days
+    // Ultimi 7 giorni di Roma, oggi compreso
+    const today = nowInZone('Europe/Rome').date;
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+      const day = shiftDay(today, -i);
+      const [y, m, dd] = day.split('-').map(Number);
       days.push({
-        dateStr: d.toDateString(),
-        label: dayNames[d.getDay()],
+        dateStr: day,
+        label: dayNames[new Date(Date.UTC(y, m - 1, dd)).getUTCDay()],
         ricavi: 0,
         ordini: 0,
       });
     }
 
-    // Populate with real orders
+    // Solo ordini veri: annullati, rifiutati e scaduti non contano
     orders.forEach((o) => {
-      if (!o.created_at || o.status === 'cancelled') return;
-      const orderDate = new Date(o.created_at).toDateString();
+      if (!o.created_at || !isCountedOrder(o)) return;
+      const orderDate = romeDay(o.created_at);
       const dayObj = days.find((d) => d.dateStr === orderDate);
       if (dayObj) {
         dayObj.ricavi += Number(o.total || 0);

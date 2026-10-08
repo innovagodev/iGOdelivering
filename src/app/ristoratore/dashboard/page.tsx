@@ -1,14 +1,15 @@
 'use client';
 import React from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import PageTopbar from '@/components/layout/PageTopbar';
 import KPIBentoGrid from '@/components/ristoratore/KPIBentoGrid';
 import OrderHistoryTable from '@/components/ristoratore/OrderHistoryTable';
 import PaymentsSetupBanner from '@/components/ristoratore/PaymentsSetupBanner';
-import { Search, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/hooks/useOrders';
+import { ordersOfDay } from '@/lib/dashboardStats';
+import { nowInZone } from '@/lib/serviceHours';
 
 const RevenueChart = dynamic(() => import('@/components/ristoratore/RevenueChart'), { ssr: false });
 
@@ -24,7 +25,10 @@ export default function RestaurantDashboardPage() {
     let tableCount = 0;
     const productsMap: Record<string, { qty: number; revenue: number }> = {};
 
-    orders.forEach((o) => {
+    // "Oggi" nel titolo del riquadro: solo gli ordini di oggi (giorno di Roma), non gli ultimi 14 giorni
+    const todaysOrders = ordersOfDay(orders, nowInZone('Europe/Rome').date);
+
+    todaysOrders.forEach((o) => {
       if (o.type === 'domicilio') deliveryCount++;
       else if (o.type === 'asporto') pickupCount++;
       else if (o.type === 'tavolo') tableCount++;
@@ -45,10 +49,10 @@ export default function RestaurantDashboardPage() {
       }
     });
 
-    const totalCount = orders.length || 1;
+    const totalCount = todaysOrders.length || 1;
     const deliveryPct = Math.round((deliveryCount / totalCount) * 100);
     const pickupPct = Math.round((pickupCount / totalCount) * 100);
-    const tablePct = Math.max(0, 100 - deliveryPct - pickupPct);
+    const tablePct = Math.round((tableCount / totalCount) * 100);
 
     const topProducts = Object.entries(productsMap)
       .map(([name, val]) => ({ name, qty: val.qty, revenue: Math.round(val.revenue) }))
@@ -59,11 +63,11 @@ export default function RestaurantDashboardPage() {
       distribution: [
         {
           label: 'Consegna a domicilio',
-          pct: orders.length ? deliveryPct : 0,
+          pct: todaysOrders.length ? deliveryPct : 0,
           color: 'bg-primary',
         },
-        { label: 'Asporto', pct: orders.length ? pickupPct : 0, color: 'bg-accent' },
-        { label: 'Tavolo', pct: orders.length ? tablePct : 0, color: 'bg-muted-foreground' },
+        { label: 'Asporto', pct: todaysOrders.length ? pickupPct : 0, color: 'bg-accent' },
+        { label: 'Tavolo', pct: todaysOrders.length ? tablePct : 0, color: 'bg-muted-foreground' },
       ],
       topProducts: topProducts,
     };
@@ -130,7 +134,7 @@ export default function RestaurantDashboardPage() {
               <div className="flex flex-col gap-4">
                 <div className="bg-card rounded-xl border border-border shadow-card p-5 flex-1">
                   <h4 className="text-sm font-semibold text-foreground mb-4">
-                    Distribuzione Ordini
+                    Distribuzione ordini di oggi
                   </h4>
                   <div className="space-y-4">
                     {stats.distribution.map((row) => (
