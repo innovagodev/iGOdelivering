@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { gsap } from 'gsap';
 import { useLenisRef } from '@/components/layout/LenisProvider';
@@ -27,13 +26,10 @@ import {
   Mail,
   CreditCard,
   Banknote,
-  Wallet,
   Share2,
   Printer,
   History,
-  ArrowLeft,
   UtensilsCrossed,
-  ChevronRight,
   Users,
   Leaf,
   Flame,
@@ -51,7 +47,6 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 
-import AppLogo from '@/components/ui/AppLogo';
 import AppImage from '@/components/ui/AppImage';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -61,8 +56,6 @@ import { ScheduledOrdersConfig } from '@/types/wizard';
 import { usePromoCode } from '@/hooks/usePromoCode';
 import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
-import { getRestaurantId, isMockRestaurant } from '@/lib/restaurant-utils';
-import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { supabase } from '@/lib/supabase';
 import StripePayment from '@/components/menu/StripePayment';
 import {

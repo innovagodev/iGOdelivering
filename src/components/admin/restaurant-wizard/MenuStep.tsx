@@ -7,8 +7,6 @@ import {
   Upload,
   X,
   Euro,
-  Eye,
-  EyeOff,
   ChevronDown,
   ChevronUp,
   ChevronLeft,
@@ -125,7 +123,6 @@ const parseTag = (tag: string) => {
 
 import {
   MenuItemWizardDraft,
-  DishVisibility,
   WizardOptionGroup,
   WizardOptionChoice,
 } from '@/types';

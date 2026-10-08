@@ -7,9 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
 import { supabase } from '@/lib/supabase';
 import {
-  Calendar,
   Plus,
-  User,
   Phone,
   Mail,
   Clock,

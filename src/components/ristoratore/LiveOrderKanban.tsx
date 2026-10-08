@@ -22,9 +22,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { STORAGE_KEYS } from '@/lib/storage-keys';
 import { useOrders } from '@/hooks/useOrders';
-import { supabase } from '@/lib/supabase';
 import { useAudioNotification } from '@/components/ristoratore/AudioNotificationProvider';
 
 type OrderStatus = 'pending' | 'accepted' | 'completed';

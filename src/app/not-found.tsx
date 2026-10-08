@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Home, Compass } from 'lucide-react';
+import { ArrowLeft, Home } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 
 export default function NotFound() {

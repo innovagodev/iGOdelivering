@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import { ChevronDown, ChevronUp, Bell, Clock } from 'lucide-react';
-import Toggle from '@/components/ui/Toggle';
 
 import { ScheduledOrdersConfig } from '@/types';
 

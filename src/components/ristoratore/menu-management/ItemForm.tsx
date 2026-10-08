@@ -6,8 +6,6 @@ import {
   X,
   Plus,
   Euro,
-  Upload,
-  Clock,
   Trash2,
   Leaf,
   Flame,

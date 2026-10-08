@@ -4,17 +4,13 @@ import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
-  Users,
   Phone,
   Mail,
   Search,
   ArrowUpDown,
-  Calendar,
-  DollarSign,
   Download,
   AlertCircle,
   Store,
-  ShoppingBag,
 } from 'lucide-react';
 
 interface CustomerSummary {

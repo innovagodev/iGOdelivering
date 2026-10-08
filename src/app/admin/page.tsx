@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { supabase } from '@/lib/supabase';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertTriangle } from 'lucide-react';
 
 interface LoginForm {
   email: string;

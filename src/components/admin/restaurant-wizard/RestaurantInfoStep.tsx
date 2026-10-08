@@ -10,12 +10,10 @@ import {
   Phone,
   Mail,
   Globe,
-  ChevronDown,
   Plus,
   Check,
   Tag,
 } from 'lucide-react';
-import Toggle from '@/components/ui/Toggle';
 import { RestaurantInfo, TableBookingConfig } from '@/types';
 
 interface RestaurantInfoStepProps {

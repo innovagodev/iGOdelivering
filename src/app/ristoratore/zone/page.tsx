@@ -3,45 +3,11 @@ import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import Toggle from '@/components/ui/Toggle';
 import Modal from '@/components/ui/Modal';
-import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { DeliveryZoneConfig } from '@/types';
-import { MapPin, Plus, Edit2, Trash2, Euro, Info, AlertCircle, Store } from 'lucide-react';
+import { Plus, Edit2, Trash2, Euro, Info, AlertCircle, Store } from 'lucide-react';
 import { notify, confirmAction } from '@/lib/notify';
-
-const defaultZones: DeliveryZoneConfig[] = [
-  {
-    id: 'zone-1',
-    name: 'Zona Centro (Vicino)',
-    radius: 2,
-    minOrder: 0,
-    deliveryFee: 2.0,
-    freeDeliveryThreshold: 25,
-    enabled: true,
-    caps: '20121, 20122, 20123',
-  },
-  {
-    id: 'zone-2',
-    name: 'Zona Periferia (Medio)',
-    radius: 5,
-    minOrder: 0,
-    deliveryFee: 4.0,
-    freeDeliveryThreshold: 35,
-    enabled: true,
-    caps: '20124, 20125, 20126',
-  },
-  {
-    id: 'zone-3',
-    name: 'Fuori Comune (Lontano)',
-    radius: 10,
-    minOrder: 0,
-    deliveryFee: 6.0,
-    freeDeliveryThreshold: 50,
-    enabled: false,
-    caps: '20127, 20128, 20129',
-  },
-];
 
 export default function DeliveryZonesPage() {
   const { user, isLoading } = useAuth();

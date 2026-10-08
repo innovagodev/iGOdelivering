@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
-import { PauseCircle, Plus, PlayCircle, Zap, Store } from 'lucide-react';
+import { Plus, Zap, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { uploadImage } from '@/lib/storage-upload';
@@ -11,7 +11,6 @@ import TranslationsTab from '@/components/ristoratore/menu-management/Translatio
 import { getItemMissing } from '@/components/ristoratore/menu-management/TranslationStatus';
 import TranslationStatus from '@/components/ristoratore/menu-management/TranslationStatus';
 import { MenuItem, MenuItemDraft } from '@/types';
-import { isMockRestaurant } from '@/lib/restaurant-utils';
 import { notify } from '@/lib/notify';
 
 // Constants

@@ -12,7 +12,6 @@ import {
   Printer,
   Grid,
   CheckCircle,
-  HelpCircle,
   Store,
   Link as LinkIcon,
   Copy,

@@ -63,7 +63,6 @@ import {
 import {
   DAYS,
   ALLERGENS_LIST,
-  DEFAULT_CATEGORIES,
   TIME_UNITS,
   TIME_WINDOWS,
 } from '@/lib/constants';

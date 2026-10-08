@@ -19,7 +19,6 @@ import {
   X,
   AlertTriangle,
   ExternalLink,
-  Mail,
   Copy,
   Zap,
   AlertCircle,

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { RestaurantSettings } from '@/types/settings';
-import { ScheduledOrdersConfig } from '@/types/wizard';
 
 export interface UnifiedSettings extends RestaurantSettings {
   id?: string;

@@ -7,7 +7,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Zap, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ScheduledOrdersConfig } from '@/types';
-import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 

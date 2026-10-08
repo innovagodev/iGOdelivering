@@ -8,7 +8,6 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { PromoCode, PromoType } from '@/types';
 import {
-  Tag,
   Plus,
   Edit2,
   Trash2,

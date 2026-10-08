@@ -5,7 +5,6 @@ import {
   MapPin,
   Clock,
   UtensilsCrossed,
-  CheckCircle2,
   ArrowRight,
   Layers,
   Tag,
