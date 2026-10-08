@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.38.2](https://github.com/innovagodev/iGOdelivering/compare/v1.38.1...v1.38.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **conteggi:** clienti, tavoli e admin contano solo ordini veri e il giorno di Roma ([1ca1e25](https://github.com/innovagodev/iGOdelivering/commit/1ca1e250cb97b90a419d5b0773251831e04241ff))
+
 ### [1.38.1](https://github.com/innovagodev/iGOdelivering/compare/v1.38.0...v1.38.1) (2026-10-08)
 
 
