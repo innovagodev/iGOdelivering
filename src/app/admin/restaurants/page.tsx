@@ -409,28 +409,28 @@ export default function AdminRestaurantsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Ristorante
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
                         Proprietario
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Città
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
                         Pubblicato il
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Stato
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Menu
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden xl:table-cell">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden xl:table-cell">
                         Ordini oggi
                       </th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-right px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Azioni
                       </th>
                     </tr>
@@ -454,7 +454,7 @@ export default function AdminRestaurantsPage() {
                         const isSuspended = r.status === 'suspended';
                         return (
                           <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-5 py-4">
+                            <td className="px-3 lg:px-5 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
                                   <Store size={16} className="text-primary" />
@@ -465,7 +465,7 @@ export default function AdminRestaurantsPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-5 py-4 hidden md:table-cell">
+                            <td className="px-3 lg:px-5 py-4 hidden md:table-cell">
                               <div className="flex flex-col">
                                 {r.owner_id ? (
                                   <>
@@ -484,18 +484,18 @@ export default function AdminRestaurantsPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-5 py-4 hidden lg:table-cell">
+                            <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
                               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                                 <MapPin size={12} />
                                 {r.city}
                               </div>
                             </td>
-                            <td className="px-5 py-4 hidden md:table-cell">
+                            <td className="px-3 lg:px-5 py-4 hidden md:table-cell">
                               <span className="text-sm text-muted-foreground">
                                 {r.publishedAt ? r.publishedAt.split('-').reverse().join('/') : '—'}
                               </span>
                             </td>
-                            <td className="px-5 py-4">
+                            <td className="px-3 lg:px-5 py-4">
                               <span
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                                   r.status === 'published'
@@ -509,18 +509,18 @@ export default function AdminRestaurantsPage() {
                                 {sc.label}
                               </span>
                             </td>
-                            <td className="px-5 py-4 hidden lg:table-cell">
+                            <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
                               <span className="text-sm font-semibold tabular-nums text-foreground">
                                 {r.menuItems}
                               </span>
                               <span className="text-xs text-muted-foreground ml-1">voci</span>
                             </td>
-                            <td className="px-5 py-4 hidden xl:table-cell">
+                            <td className="px-3 lg:px-5 py-4 hidden xl:table-cell">
                               <span className="text-sm font-semibold tabular-nums text-foreground">
                                 {r.ordersToday}
                               </span>
                             </td>
-                            <td className="px-5 py-4">
+                            <td className="px-3 lg:px-5 py-4">
                               <div className="flex items-center justify-end gap-1">
                                 <Link
                                   href={`/menu/${r.slug || slugify(r.name)}`}

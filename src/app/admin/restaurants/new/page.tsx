@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Sidebar from '@/components/layout/Sidebar';
@@ -280,6 +280,18 @@ export default function NewRestaurantPage() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showVisibilityPanel, setShowVisibilityPanel] = useState(false);
 
+  // La riga dei passaggi scorre in orizzontale (senza barra): il passaggio
+  // corrente viene portato in vista, così non resta nascosto a destra.
+  const stepsRowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = stepsRowRef.current;
+    const cur = row?.querySelector<HTMLElement>('[data-current-step="true"]');
+    if (!row || !cur) return;
+    row.scrollTo({
+      left: Math.max(0, cur.offsetLeft - (row.clientWidth - cur.offsetWidth) / 2),
+      behavior: 'smooth',
+    });
+  }, [currentStep]);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -969,7 +981,7 @@ export default function NewRestaurantPage() {
                 className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors flex-shrink-0"
               >
                 <ArrowLeft size={15} />
-                <span className="hidden md:inline">Ristoranti</span>
+                <span className="hidden xl:inline">Ristoranti</span>
               </Link>
               <span className="text-muted-foreground flex-shrink-0">/</span>
               <span className="text-sm font-semibold text-foreground truncate max-w-[120px] sm:max-w-none">
@@ -1015,7 +1027,10 @@ export default function NewRestaurantPage() {
             </div>
 
             {/* Desktop: step pills */}
-            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-hide">
+            <div
+              ref={stepsRowRef}
+              className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-hide"
+            >
               {steps.map((step, idx) => {
                 const isCompleted = stepOrder.indexOf(step.id) < currentIndex;
                 const isCurrent = step.id === currentStep;
@@ -1025,6 +1040,7 @@ export default function NewRestaurantPage() {
                       onClick={() =>
                         stepOrder.indexOf(step.id) < currentIndex && setCurrentStep(step.id)
                       }
+                      data-current-step={isCurrent ? 'true' : undefined}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
                         isCurrent
                           ? 'bg-primary text-white shadow-sm shadow-primary/30'

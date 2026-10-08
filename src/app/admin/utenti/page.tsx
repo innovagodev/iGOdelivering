@@ -459,19 +459,19 @@ export default function AdminUtentiPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Ristoratore
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Ristorante Associato
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Stato
                       </th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Ultimo Accesso
                       </th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-right px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Azioni
                       </th>
                     </tr>
@@ -487,18 +487,18 @@ export default function AdminUtentiPage() {
                     {filteredUsers.map((u) => {
                       return (
                         <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-5 py-4">
+                          <td className="px-3 lg:px-5 py-4">
                             <div>
                               <p className="font-semibold text-sm text-foreground">{u.name}</p>
                               <p className="text-xs text-muted-foreground">{u.email}</p>
                             </div>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-3 lg:px-5 py-4">
                             <span className="text-sm font-medium text-foreground">
                               {u.restaurantName}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
+                          <td className="px-3 lg:px-5 py-4">
                             <span
                               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                                 u.status === 'active'
@@ -522,10 +522,10 @@ export default function AdminUtentiPage() {
                                   : 'Sospeso'}
                             </span>
                           </td>
-                          <td className="px-5 py-4 hidden lg:table-cell">
+                          <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
                             <span className="text-xs text-muted-foreground">{u.lastLogin}</span>
                           </td>
-                          <td className="px-5 py-4 text-right">
+                          <td className="px-3 lg:px-5 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               {u.status === 'active' ? (
                                 <button
@@ -562,9 +562,10 @@ export default function AdminUtentiPage() {
                                 onClick={() => handlePasswordReset(u)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border"
                                 title="Resetta Password"
+                                aria-label="Resetta Password"
                               >
                                 <Key size={13} className="text-muted-foreground" />
-                                Reset Password
+                                <span className="hidden xl:inline">Reset Password</span>
                               </button>
                             </div>
                           </td>

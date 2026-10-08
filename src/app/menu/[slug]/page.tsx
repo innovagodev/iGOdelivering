@@ -2937,13 +2937,17 @@ function CheckoutModal({
             </>
           )}
 
-          <button
-            onClick={() => setStep('payment')}
-            disabled={!detailsValid || loading}
-            className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
-          >
-            {t('checkout_next')}
-          </button>
+          {/* Il pulsante resta ancorato in fondo alla finestra: su tablet e
+              telefoni in orizzontale non va cercato scorrendo il modulo. */}
+          <div className="sticky bottom-0 -mx-6 -mb-5 px-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 bg-card border-t border-border/40">
+            <button
+              onClick={() => setStep('payment')}
+              disabled={!detailsValid || loading}
+              className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
+            >
+              {t('checkout_next')}
+            </button>
+          </div>
         </div>
       )}
 

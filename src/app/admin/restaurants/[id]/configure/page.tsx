@@ -422,6 +422,18 @@ export default function RestaurantConfigurePage() {
         .replace(/[^\w-]+/g, '')
     : '';
 
+  // La riga dei passaggi scorre in orizzontale (senza barra): il passaggio
+  // corrente viene portato in vista, così non resta nascosto a destra.
+  const stepsRowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = stepsRowRef.current;
+    const cur = row?.querySelector<HTMLElement>('[data-current-step="true"]');
+    if (!row || !cur) return;
+    row.scrollTo({
+      left: Math.max(0, cur.offsetLeft - (row.clientWidth - cur.offsetWidth) / 2),
+      behavior: 'smooth',
+    });
+  }, [currentStep]);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -1749,7 +1761,7 @@ export default function RestaurantConfigurePage() {
                 className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors flex-shrink-0"
               >
                 <ArrowLeft size={15} />
-                <span className="hidden md:inline">Ristoranti</span>
+                <span className="hidden xl:inline">Ristoranti</span>
               </Link>
               <span className="text-muted-foreground flex-shrink-0">/</span>
               <span className="text-sm font-semibold text-foreground truncate max-w-[80px] sm:max-w-[200px] md:max-w-none">
@@ -1811,7 +1823,10 @@ export default function RestaurantConfigurePage() {
             </div>
 
             {/* Desktop: step pills */}
-            <div className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-hide">
+            <div
+              ref={stepsRowRef}
+              className="hidden sm:flex items-center gap-0 px-6 py-3 overflow-x-auto scrollbar-hide"
+            >
               {steps.map((step, idx) => {
                 const isCompleted = stepOrder.indexOf(step.id) < currentIndex;
                 const isCurrent = step.id === currentStep;
@@ -1819,6 +1834,7 @@ export default function RestaurantConfigurePage() {
                   <React.Fragment key={step.id}>
                     <button
                       onClick={() => setCurrentStep(step.id)}
+                      data-current-step={isCurrent ? 'true' : undefined}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap ${
                         isCurrent
                           ? 'bg-primary text-white shadow-sm shadow-primary/30'
