@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server';
 import { fromCents } from '@/lib/pricing';
 import { decideAcceptance } from '@/lib/acceptance';
 import {
+  bookingMaxDays,
+  bookingNoticeMinutes,
+  checkBookingNotice,
+  formatNotice,
   HoursConfig,
   isSuspended,
   isTemporarilyClosed,
   nowInZone,
+  ScheduledOrdersConfig,
   serviceRanges,
   toMinutes,
 } from '@/lib/serviceHours';
@@ -108,7 +113,7 @@ export async function POST(request: Request) {
 
   const { data: restaurant, error: rErr } = await admin
     .from('restaurants')
-    .select('id, status, hours_config')
+    .select('id, status, hours_config, scheduled_orders')
     .eq('id', restaurantId)
     .maybeSingle();
   if (rErr) {
@@ -130,6 +135,29 @@ export async function POST(request: Request) {
       fail(409, 'booking_closed', 'Il locale non accetta prenotazioni per questo giorno.')
     );
   }
+  // Preavviso minimo e anticipo massimo impostati dal ristorante (predefiniti: 1 ora, 30
+  // giorni). La vetrina non propone gli orari fuori limite; qui si impone.
+  const scheduled = restaurant.scheduled_orders as ScheduledOrdersConfig | null;
+  const notice = checkBookingNotice(scheduled, { date, minutes: toMinutes(time) }, nowRome);
+  if (!notice.ok && notice.reason === 'too_soon') {
+    return reply(
+      fail(
+        409,
+        'booking_too_soon',
+        `Per prenotare serve un preavviso di almeno ${formatNotice(bookingNoticeMinutes(scheduled))}. Scegli un orario più avanti.`
+      )
+    );
+  }
+  if (!notice.ok && notice.reason === 'too_far') {
+    return reply(
+      fail(
+        409,
+        'booking_too_far',
+        `Si può prenotare al massimo ${bookingMaxDays(scheduled)} giorni prima. Scegli una data più vicina.`
+      )
+    );
+  }
+
   const ranges = serviceRanges(hoursConfig, 'reservation', date);
   const slotMinutes = toMinutes(time);
   if (ranges !== null && !ranges.some((r) => slotMinutes >= r.start && slotMinutes <= r.end)) {

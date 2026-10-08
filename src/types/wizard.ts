@@ -66,10 +66,14 @@ export interface ScheduledOrdersConfig {
     maxNoticeDays: number;
     timeWindowMinutes: number;
   };
+  /** Prenotazioni del tavolo. */
+  booking: { minNoticeValue: number; minNoticeUnit: string; maxNoticeDays: number };
+  /** Non più usato: tenuto per non perdere i dati salvati. */
   onPremise: { minNoticeValue: number; minNoticeUnit: string; maxNoticeDays: number };
   hideAsap: boolean;
   pickupExpanded: boolean;
   deliveryExpanded: boolean;
+  bookingExpanded: boolean;
   onPremiseExpanded: boolean;
   altroExpanded: boolean;
 }

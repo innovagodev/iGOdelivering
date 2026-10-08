@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { notify, confirmAction } from '@/lib/notify';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_SCHEDULED_ORDERS, withScheduledDefaults } from '@/lib/scheduledOrders';
 import { uploadImage } from '@/lib/storage-upload';
 import {
   ArrowLeft,
@@ -319,17 +320,7 @@ export default function RestaurantConfigurePage() {
     serviceEnabled: true,
   });
 
-  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({
-    enabled: true,
-    pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
-    delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
-    onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
-    hideAsap: false,
-    pickupExpanded: true,
-    deliveryExpanded: true,
-    onPremiseExpanded: true,
-    altroExpanded: true,
-  });
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>(DEFAULT_SCHEDULED_ORDERS);
 
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({
     card_delivery: true,
@@ -603,34 +594,7 @@ export default function RestaurantConfigurePage() {
         setTableBooking(tableBookingData);
 
         // Restore Scheduled orders config
-        const scheduledOrdersData: ScheduledOrdersConfig = {
-          enabled: true,
-          pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
-          delivery: {
-            minNoticeValue: 1,
-            minNoticeUnit: 'ore',
-            maxNoticeDays: 4,
-            timeWindowMinutes: 15,
-          },
-          onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
-          hideAsap: false,
-          pickupExpanded: true,
-          deliveryExpanded: true,
-          onPremiseExpanded: true,
-          altroExpanded: true,
-        };
-        if (restaurant.scheduled_orders) {
-          const so = restaurant.scheduled_orders as any;
-          scheduledOrdersData.enabled = so.enabled ?? true;
-          if (so.pickup)
-            scheduledOrdersData.pickup = { ...scheduledOrdersData.pickup, ...so.pickup };
-          if (so.delivery)
-            scheduledOrdersData.delivery = { ...scheduledOrdersData.delivery, ...so.delivery };
-          if (so.onPremise)
-            scheduledOrdersData.onPremise = { ...scheduledOrdersData.onPremise, ...so.onPremise };
-          scheduledOrdersData.hideAsap = so.hideAsap ?? false;
-        }
-        setScheduledOrders(scheduledOrdersData);
+        setScheduledOrders(withScheduledDefaults(restaurant.scheduled_orders));
 
         // Restore hours
         let hoursData: Record<string, DayHours> = defaultDayHours();

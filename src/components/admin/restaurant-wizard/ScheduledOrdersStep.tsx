@@ -150,6 +150,20 @@ export default function ScheduledOrdersStep({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Max giorni anticipo
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={scheduledOrders.delivery.maxNoticeDays}
+                    onChange={(e) =>
+                      updateScheduled('delivery.maxNoticeDays', parseInt(e.target.value) || 0)
+                    }
+                    className={`w-full ${inputCls}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                     Finestra temporale
                   </label>
                   <select
@@ -169,25 +183,21 @@ export default function ScheduledOrdersStep({
           )}
         </div>
 
-        {/* Table / On-Premise */}
+        {/* Prenotazione tavolo */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <button
-            onClick={() => toggleSection('onPremiseExpanded')}
+            onClick={() => toggleSection('bookingExpanded')}
             className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
                 <Bell size={16} />
               </div>
-              <span className="font-semibold text-sm">Ordini al Tavolo</span>
+              <span className="font-semibold text-sm">Prenotazione tavolo</span>
             </div>
-            {scheduledOrders.onPremiseExpanded ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
+            {scheduledOrders.bookingExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
-          {scheduledOrders.onPremiseExpanded && (
+          {scheduledOrders.bookingExpanded && (
             <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/50">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -197,15 +207,16 @@ export default function ScheduledOrdersStep({
                   <div className="flex gap-2">
                     <input
                       type="number"
-                      value={scheduledOrders.onPremise.minNoticeValue}
+                      min={0}
+                      value={scheduledOrders.booking.minNoticeValue}
                       onChange={(e) =>
-                        updateScheduled('onPremise.minNoticeValue', parseInt(e.target.value) || 0)
+                        updateScheduled('booking.minNoticeValue', parseInt(e.target.value) || 0)
                       }
                       className={`w-20 ${inputCls}`}
                     />
                     <select
-                      value={scheduledOrders.onPremise.minNoticeUnit}
-                      onChange={(e) => updateScheduled('onPremise.minNoticeUnit', e.target.value)}
+                      value={scheduledOrders.booking.minNoticeUnit}
+                      onChange={(e) => updateScheduled('booking.minNoticeUnit', e.target.value)}
                       className={`flex-1 ${inputCls}`}
                     >
                       {timeUnits.map((u) => (
@@ -214,7 +225,25 @@ export default function ScheduledOrdersStep({
                     </select>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Max giorni anticipo
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={scheduledOrders.booking.maxNoticeDays}
+                    onChange={(e) =>
+                      updateScheduled('booking.maxNoticeDays', parseInt(e.target.value) || 0)
+                    }
+                    className={`w-full ${inputCls}`}
+                  />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Valgono per le prenotazioni dalla vetrina. Chi ordina dal QR del tavolo non ha
+                preavviso: è già seduto.
+              </p>
             </div>
           )}
         </div>

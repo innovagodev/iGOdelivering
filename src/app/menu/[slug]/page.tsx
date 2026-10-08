@@ -66,6 +66,9 @@ import {
   nowInZone,
   serviceRanges,
   toMinutes as hhmmToMinutes,
+  bookingMaxDays,
+  bookingNoticeMinutes,
+  daysBetween,
 } from '@/lib/serviceHours';
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
@@ -2147,14 +2150,16 @@ function CheckoutModal({
     const slots: string[] = [];
     if (activeRanges.length === 0) return [];
 
-    const isToday = !selectedDate || (dateOptions[0] && selectedDate === dateOptions[0].value);
+    // Quanti giorni dopo oggi è la data scelta (le opzioni sono giorni consecutivi da oggi).
+    const aheadDays = Math.max(0, dateOptions.findIndex((o) => o.value === selectedDate));
 
     // Parse current time in minutes
     const [currH, currM] = (currentTimeStr || '00:00').split(':').map(Number);
     const currMin = currH * 60 + currM;
 
-    // Apply minimum notice buffer if it's today
-    const minTimeStart = isToday ? currMin + minNoticeMinutes : 0;
+    // Preavviso minimo: vale anche per i giorni successivi (con 30 ore di
+    // preavviso, le prime ore di domani non sono prenotabili).
+    const minTimeStart = Math.max(0, currMin + minNoticeMinutes - aheadDays * 1440);
 
     // Convert "HH:MM" to minutes. "00:00" as end means midnight (1440 min).
     const toMin = (t: string, isEnd = false): number => {
@@ -2174,7 +2179,7 @@ function CheckoutModal({
         });
 
         if (inRange) {
-          if (!isToday || slotMin >= minTimeStart) {
+          if (slotMin >= minTimeStart) {
             const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
             slots.push(timeStr);
           }
@@ -4257,16 +4262,27 @@ function StorefrontContent() {
   // Una prenotazione non può essere retroattiva: per oggi restano solo gli
   // orari successivi a quello attuale (ora di Roma), per un giorno passato
   // nessuno. Il server rifiuta comunque ciò che qui dovesse sfuggire.
+  // Preavviso minimo e anticipo massimo sono impostazioni del ristorante
+  // ("Prenotazione tavolo"); il server li impone di nuovo.
+  const bookingScheduled = restaurantSettings.scheduledOrders as any;
+  const bookingNotice = bookingNoticeMinutes(bookingScheduled);
+  const bookingMaxAhead = bookingMaxDays(bookingScheduled);
+  const bookingMaxDate = React.useMemo(() => {
+    const [y, m, d] = nowInZone('Europe/Rome').date.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d + bookingMaxAhead)).toISOString().slice(0, 10);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingMaxAhead, bookingClock]);
+
   const bookingTimeSlots = React.useMemo(() => {
     if (!bookingDate) return allBookingTimeSlots;
     const now = nowInZone('Europe/Rome');
-    if (bookingDate < now.date) return [];
-    if (bookingDate === now.date) {
-      return allBookingTimeSlots.filter((slot) => hhmmToMinutes(slot) > now.minutes);
-    }
-    return allBookingTimeSlots;
+    const ahead = daysBetween(now.date, bookingDate);
+    if (ahead < 0 || ahead > bookingMaxAhead) return [];
+    // Primo orario prenotabile, in minuti di quel giorno: adesso + preavviso.
+    const earliest = Math.max(now.minutes + bookingNotice - ahead * 1440, ahead === 0 ? now.minutes + 1 : 0);
+    return allBookingTimeSlots.filter((slot) => hhmmToMinutes(slot) >= earliest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allBookingTimeSlots, bookingDate, bookingClock]);
+  }, [allBookingTimeSlots, bookingDate, bookingClock, bookingNotice, bookingMaxAhead]);
 
   // Sincronizza orario di prenotazione con gli slot orari validi
   useEffect(() => {
@@ -6441,9 +6457,11 @@ function StorefrontContent() {
                         onChange={(e) => {
                           // `min` non basta: la data si può digitare a mano.
                           const today = getCurrentDateStr();
-                          setBookingDate(e.target.value && e.target.value < today ? today : e.target.value);
+                          const v = e.target.value;
+                          setBookingDate(v && v < today ? today : v > bookingMaxDate ? bookingMaxDate : v);
                         }}
                         min={getCurrentDateStr()}
+                        max={bookingMaxDate}
                         className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors appearance-none"
                       />
                     </div>
@@ -6474,6 +6492,23 @@ function StorefrontContent() {
                       )}
                     </div>
                   </div>
+
+                  <p className="-mt-2 text-[11px] text-muted-foreground">
+                    {(() => {
+                      const hours = bookingNotice >= 60 && bookingNotice % 60 === 0;
+                      const en = hours
+                        ? `${bookingNotice / 60} hour${bookingNotice / 60 === 1 ? '' : 's'}`
+                        : `${bookingNotice} minutes`;
+                      const it = hours
+                        ? bookingNotice / 60 === 1
+                          ? '1 ora'
+                          : `${bookingNotice / 60} ore`
+                        : `${bookingNotice} minuti`;
+                      return lang === 'en'
+                        ? `Bookings need at least ${en} notice, up to ${bookingMaxAhead} days ahead.`
+                        : `Prenotazioni con almeno ${it} di preavviso, fino a ${bookingMaxAhead} giorni prima.`;
+                    })()}
+                  </p>
 
                   {/* Guests stepper */}
                   <div>

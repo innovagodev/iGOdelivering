@@ -47,6 +47,9 @@ interface ScheduledServiceConfig {
 export interface ScheduledOrdersConfig {
   delivery?: ScheduledServiceConfig;
   pickup?: ScheduledServiceConfig;
+  /** Prenotazioni del tavolo: preavviso minimo e anticipo massimo. */
+  booking?: ScheduledServiceConfig;
+  /** Vecchio "ordini al tavolo": non applicato da nessuna parte. */
   onPremise?: ScheduledServiceConfig;
 }
 
@@ -165,7 +168,7 @@ export const nowInZone = (timeZone = 'Europe/Rome', at = new Date()) => {
   };
 };
 
-const daysBetween = (from: string, to: string) => {
+export const daysBetween = (from: string, to: string) => {
   const [y1, m1, d1] = from.split('-').map(Number);
   const [y2, m2, d2] = to.split('-').map(Number);
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
@@ -255,4 +258,54 @@ export const checkSchedule = (
     return { ok: false, reason: 'out_of_hours' };
   }
   return { ok: true };
+};
+
+/** Valori predefiniti per le prenotazioni di chi non ha ancora impostato nulla. */
+export const BOOKING_NOTICE_DEFAULTS = { minNoticeMinutes: 60, maxNoticeDays: 30 };
+
+/** Preavviso minimo di una prenotazione, in minuti (unità italiane "minuti"/"ore" comprese). */
+export const bookingNoticeMinutes = (scheduled: ScheduledOrdersConfig | null | undefined): number => {
+  const c = scheduled?.booking;
+  if (!c || c.minNoticeValue === undefined || c.minNoticeValue === null) {
+    return BOOKING_NOTICE_DEFAULTS.minNoticeMinutes;
+  }
+  const value = Math.max(0, Number(c.minNoticeValue) || 0);
+  const unit = (c.minNoticeUnit || 'minuti').toLowerCase();
+  return unit === 'hours' || unit === 'ore' || unit === 'ora' ? value * 60 : value;
+};
+
+/** Quanti giorni in anticipo si può prenotare. */
+export const bookingMaxDays = (scheduled: ScheduledOrdersConfig | null | undefined): number => {
+  const d = scheduled?.booking?.maxNoticeDays;
+  return typeof d === 'number' && d >= 0 ? d : BOOKING_NOTICE_DEFAULTS.maxNoticeDays;
+};
+
+/**
+ * Una prenotazione per quel giorno e quell'ora rispetta preavviso minimo e
+ * anticipo massimo? Gli orari di apertura si controllano a parte.
+ * `graceMinutes` assorbe il tempo fra l'apertura della lista orari e l'invio.
+ */
+export const checkBookingNotice = (
+  scheduled: ScheduledOrdersConfig | null | undefined,
+  slot: { date: string; minutes: number },
+  now: { date: string; minutes: number },
+  graceMinutes = 5
+): ScheduleCheck => {
+  const ahead = daysBetween(now.date, slot.date);
+  if (ahead < 0) return { ok: false, reason: 'too_soon' };
+  if (ahead > bookingMaxDays(scheduled)) return { ok: false, reason: 'too_far' };
+  const absSlot = ahead * 1440 + slot.minutes;
+  if (absSlot < now.minutes + bookingNoticeMinutes(scheduled) - graceMinutes) {
+    return { ok: false, reason: 'too_soon' };
+  }
+  return { ok: true };
+};
+
+/** "1 ora", "90 minuti": per i messaggi all'utente. */
+export const formatNotice = (minutes: number): string => {
+  if (minutes >= 60 && minutes % 60 === 0) {
+    const h = minutes / 60;
+    return h === 1 ? '1 ora' : `${h} ore`;
+  }
+  return `${minutes} minuti`;
 };

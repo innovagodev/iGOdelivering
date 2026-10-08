@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_SCHEDULED_ORDERS } from '@/lib/scheduledOrders';
 import { uploadImage } from '@/lib/storage-upload';
 
 // Wizard step components — dynamically imported so each step is a separate chunk
@@ -192,17 +193,7 @@ export default function NewRestaurantPage() {
     advanceBookingDays: 30,
     serviceEnabled: true,
   });
-  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({
-    enabled: true,
-    pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
-    delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
-    onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
-    hideAsap: false,
-    pickupExpanded: true,
-    deliveryExpanded: true,
-    onPremiseExpanded: true,
-    altroExpanded: true,
-  });
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>(DEFAULT_SCHEDULED_ORDERS);
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>({
     card_delivery: true,
     card_pickup: true,

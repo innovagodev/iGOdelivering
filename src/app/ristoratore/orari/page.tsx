@@ -7,6 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Zap, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ScheduledOrdersConfig } from '@/types';
+import { DEFAULT_SCHEDULED_ORDERS, withScheduledDefaults } from '@/lib/scheduledOrders';
+import { notify } from '@/lib/notify';
 
 const DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
@@ -94,17 +96,7 @@ export default function RistoratoreOrariPage() {
     messageEn: '',
   });
 
-  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>({
-    enabled: true,
-    pickup: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 4 },
-    delivery: { minNoticeValue: 1, minNoticeUnit: 'ore', maxNoticeDays: 4, timeWindowMinutes: 15 },
-    onPremise: { minNoticeValue: 30, minNoticeUnit: 'minuti', maxNoticeDays: 1 },
-    hideAsap: false,
-    pickupExpanded: true,
-    deliveryExpanded: true,
-    onPremiseExpanded: true,
-    altroExpanded: true,
-  });
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrdersConfig>(DEFAULT_SCHEDULED_ORDERS);
 
   const showFeedback = (msg: string) => {
     setFeedback(msg);
@@ -194,7 +186,7 @@ export default function RistoratoreOrariPage() {
             }
           }
           if (data.scheduled_orders) {
-            setScheduledOrders(data.scheduled_orders as any);
+            setScheduledOrders(withScheduledDefaults(data.scheduled_orders));
           }
         }
       } catch (e: any) {
@@ -300,22 +292,29 @@ export default function RistoratoreOrariPage() {
     }
 
     // Sync to Supabase
+    let saveError: string | null = null;
     if (restaurantId && restaurantId !== 'r-001') {
       try {
         // Update hours_config and scheduled_orders in restaurants table
-        const { error: configError } = await supabase
+        // .select('id'): una scrittura scartata in silenzio da RLS torna senza errore e
+        // senza righe; senza questo controllo la pagina direbbe "salvato" a vuoto.
+        const { data: updatedRows, error: configError } = await supabase
           .from('restaurants')
           .update({
             hours_config: dataToSave,
             scheduled_orders: scheduledOrders,
           })
-          .eq('id', restaurantId);
+          .eq('id', restaurantId)
+          .select('id');
 
         if (configError) {
           console.warn(
             'Failed to update Supabase hours_config:',
             configError.message || configError
           );
+          saveError = 'Orari non salvati: ' + (configError.message || 'errore del database') + '.';
+        } else if (!updatedRows || updatedRows.length === 0) {
+          saveError = 'Orari non salvati: nessuna modifica è stata accettata dal database.';
         }
 
         // Synchronize restaurant_hours table
@@ -358,10 +357,17 @@ export default function RistoratoreOrariPage() {
             'Failed to update Supabase restaurant_hours table:',
             hoursError.message || hoursError
           );
+          saveError = saveError || 'Orari salvati solo in parte: ' + (hoursError.message || 'errore del database') + '.';
         }
       } catch (dbErr: any) {
         console.warn('Database connection error during hours sync:', dbErr.message || dbErr);
+        saveError = 'Orari non salvati: connessione al database non riuscita.';
       }
+    }
+
+    if (saveError) {
+      notify.error(saveError);
+      return;
     }
 
     setSaved(true);
