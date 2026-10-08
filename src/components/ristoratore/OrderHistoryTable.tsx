@@ -213,7 +213,7 @@ export default function OrderHistoryTable({
                 key={order.id}
                 className={`border-b border-border last:border-0 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/20'}`}
               >
-                <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">
+                <td className="px-4 py-3 font-mono text-xs font-semibold text-primary whitespace-nowrap">
                   {order.num}
                 </td>
                 <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">

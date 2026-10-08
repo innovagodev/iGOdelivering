@@ -109,7 +109,7 @@ function DayRow({
         </div>
 
         {dayData.open ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 min-w-0">
             {/* Pranzo slot */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/10 lg:bg-transparent p-3 lg:p-0 rounded-xl lg:rounded-none border border-border/30 lg:border-0">
               <div className="flex items-center gap-2 flex-shrink-0 w-24">
@@ -121,7 +121,7 @@ function DayRow({
                 />
                 <span className="text-xs font-bold text-foreground">Pranzo</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <input
                   type="time"
                   disabled={dayData.lunchEnabled === false}
@@ -160,7 +160,7 @@ function DayRow({
                 />
                 <span className="text-xs font-bold text-foreground">Cena</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <input
                   type="time"
                   disabled={dayData.dinnerEnabled === false}

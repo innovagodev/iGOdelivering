@@ -82,7 +82,7 @@ export default function RestaurantDashboardPage() {
   }, [orders]);
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden relative">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}

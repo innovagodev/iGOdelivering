@@ -469,7 +469,7 @@ export default function PrenotazioniPage() {
   });
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden relative">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
@@ -607,7 +607,7 @@ export default function PrenotazioniPage() {
                       <select
                         value={slotInput}
                         onChange={(e) => setSlotInput(Number(e.target.value))}
-                        className="px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground"
+                        className="min-w-28 px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground"
                       >
                         {[60, 90, 120, 150, 180].map((m) => (
                           <option key={m} value={m}>

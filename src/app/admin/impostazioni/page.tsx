@@ -180,7 +180,7 @@ export default function AdminImpostazioniPage() {
   const pageLoading = profileLoading && settingsLoading;
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}

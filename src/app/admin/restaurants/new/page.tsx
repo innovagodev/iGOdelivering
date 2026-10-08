@@ -926,7 +926,7 @@ export default function NewRestaurantPage() {
 
   if (published) {
     return (
-      <div className="flex h-dvh bg-background overflow-hidden">
+      <div className="panel-shell flex h-dvh bg-background overflow-hidden">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -946,7 +946,7 @@ export default function NewRestaurantPage() {
   }
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}

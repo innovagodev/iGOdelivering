@@ -227,7 +227,7 @@ export default function ServiceHoursTab({
                 </div>
 
                 {activeHoursSource[day].enabled ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 w-full">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 w-full min-w-0">
                     {/* Lunch slot */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/10 lg:bg-transparent p-3 lg:p-0 rounded-xl lg:rounded-none border border-border/30 lg:border-0">
                       <div className="flex items-center gap-2 flex-shrink-0 w-24">
@@ -239,7 +239,7 @@ export default function ServiceHoursTab({
                         />
                         <span className="text-xs font-bold text-foreground">Pranzo</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <input
                           type="time"
                           disabled={activeHoursSource[day].lunchEnabled === false}
@@ -286,7 +286,7 @@ export default function ServiceHoursTab({
                         />
                         <span className="text-xs font-bold text-foreground">Cena</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
                         <input
                           type="time"
                           disabled={activeHoursSource[day].dinnerEnabled === false}
@@ -483,7 +483,7 @@ export default function ServiceHoursTab({
                   </div>
 
                   {activeHoursSource[day].enabled ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 w-full">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 w-full min-w-0">
                       {/* Lunch slot */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/10 lg:bg-transparent p-3 lg:p-0 rounded-xl lg:rounded-none border border-border/30 lg:border-0">
                         <div className="flex items-center gap-2 flex-shrink-0 w-24">
@@ -495,7 +495,7 @@ export default function ServiceHoursTab({
                           />
                           <span className="text-xs font-bold text-foreground">Pranzo</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <input
                             type="time"
                             disabled={activeHoursSource[day].lunchEnabled === false}
@@ -542,7 +542,7 @@ export default function ServiceHoursTab({
                           />
                           <span className="text-xs font-bold text-foreground">Cena</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <input
                             type="time"
                             disabled={activeHoursSource[day].dinnerEnabled === false}

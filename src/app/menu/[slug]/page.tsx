@@ -5956,7 +5956,7 @@ function StorefrontContent() {
       )}
 
       {/* Main layout */}
-      <div id="menu-section" className="flex-1 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
+      <div id="menu-section" className="flex-1 min-h-[calc(100dvh-var(--sticky-offset,9rem))] w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8">
         {/* Menu content */}
         <main className="space-y-10 sm:space-y-12">
           {searchQuery ? (

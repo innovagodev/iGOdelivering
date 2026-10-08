@@ -743,7 +743,7 @@ export default function RistoratoreTavoliPage() {
   };
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
@@ -804,7 +804,7 @@ export default function RistoratoreTavoliPage() {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={handlePrintAll}
-                  className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 whitespace-nowrap bg-primary text-white px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-primary-hover transition-all duration-150 active:scale-95 shadow-sm w-full sm:w-auto"
                 >
                   <Printer size={14} />
                   Stampa Tutti i QR

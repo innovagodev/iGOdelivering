@@ -268,7 +268,7 @@ export default function AdminRestaurantsPage() {
   });
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}

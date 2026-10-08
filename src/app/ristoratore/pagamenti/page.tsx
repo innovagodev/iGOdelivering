@@ -230,7 +230,7 @@ export default function PagamentiPage() {
     : 0;
 
   return (
-    <div className="flex h-dvh bg-background overflow-hidden relative">
+    <div className="panel-shell flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}

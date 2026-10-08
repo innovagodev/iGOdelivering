@@ -37,7 +37,7 @@ export default function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => !disabled && onChange(!checked)}
-        className={`relative inline-flex items-center ${trackSize} rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+        className={`relative inline-flex items-center before:absolute before:-inset-2.5 before:content-[''] ${trackSize} rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
           checked ? 'bg-primary' : 'bg-border'
         }`}
       >

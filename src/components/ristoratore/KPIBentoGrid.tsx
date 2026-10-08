@@ -34,7 +34,7 @@ function KPICard({ label, value, sub, trend, icon, variant, hero }: KPICardProps
 
   return (
     <div
-      className={`rounded-xl border p-4 sm:p-5 shadow-card flex flex-col gap-3 ${variantMap[variant]} ${hero ? 'lg:col-span-2' : ''}`}
+      className={`rounded-xl border p-4 sm:p-5 shadow-card flex flex-col gap-3 ${variantMap[variant]} `}
     >
       <div className="flex items-start justify-between">
         <div>

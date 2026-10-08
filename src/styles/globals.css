@@ -118,6 +118,27 @@
 }
 
 @layer utilities {
+  /* Pannelli admin e ristorante su tablet: comandi e campi alti almeno 40px,
+     quelli con la sola icona anche larghi 40px. Solo con puntatore touch. */
+  @media (pointer: coarse) {
+    .panel-shell main button:not([role='switch']),
+    .panel-shell main select,
+    .panel-shell main [role='button'] {
+      min-height: 40px;
+    }
+    .panel-shell main button:not([role='switch']):has(> svg:only-child) {
+      min-width: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .panel-shell main input[type='checkbox'],
+    .panel-shell main input[type='radio'] {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
   /* Area di tocco da 44px sui dispositivi touch (tablet), senza cambiare il
      disegno su mouse. */
   @media (pointer: coarse) {
