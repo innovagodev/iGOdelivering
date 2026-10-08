@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.40.0](https://github.com/innovagodev/iGOdelivering/compare/v1.39.1...v1.40.0) (2026-10-08)
+
+
+### Features
+
+* **sicurezza:** verifica del primo ordine dal server e migration 037/038 per i rilievi del Security Advisor ([9632eca](https://github.com/innovagodev/iGOdelivering/commit/9632eca9762b077cacd7af6d198396765d111b40))
+
 ### [1.39.1](https://github.com/innovagodev/iGOdelivering/compare/v1.39.0...v1.39.1) (2026-10-08)
 
 
