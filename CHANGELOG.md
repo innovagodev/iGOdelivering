@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.39.1](https://github.com/innovagodev/iGOdelivering/compare/v1.39.0...v1.39.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **admin:** testo della sezione Prenotazione tavolo piu' sobrio ([396f170](https://github.com/innovagodev/iGOdelivering/commit/396f1706f43e8bb7c77d56ab3689f98253c9b9f6))
+* **prestazioni:** meno richieste dei clienti in attesa, niente Realtime dai clienti, elenchi letti a pagine ([3831c87](https://github.com/innovagodev/iGOdelivering/commit/3831c879aaa9758b38fc4d41004fffc483483eb1))
+
 ## [1.39.0](https://github.com/innovagodev/iGOdelivering/compare/v1.38.2...v1.39.0) (2026-10-08)
 
 
