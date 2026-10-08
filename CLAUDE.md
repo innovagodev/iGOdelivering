@@ -62,6 +62,7 @@ Prima di chiudere una modifica di interfaccia, guardarla almeno a 390, 768, 1024
 - **Una query anon che torna vuota non significa "non esiste"**: con RLS può significare "non puoi vederlo". Chi interpreta il vuoto come stato legittimo produce guasti silenziosi.
 - **Orari e preavvisi** stanno in `src/lib/serviceHours.ts`, condivisi tra vetrina e server; non confrontare orari come stringhe.
 - **La regola di accettazione** di ordini e prenotazioni è una sola e vive in `src/lib/acceptance.ts`.
+- **KPI e grafici** usano `src/lib/dashboardStats.ts`: "oggi" è il giorno di Roma, gli ordini annullati/rifiutati/scaduti non contano, la variazione si confronta con ieri alla stessa ora e compare solo se il confronto è maggiore di zero. Mai percentuali o numeri scritti nel codice; si prova sempre il caso "zero ordini".
 - **Notifiche e conferme** da `src/lib/notify.ts`: niente `alert()` né `confirm()` nativi.
 - Ogni migration che aggiunge colonne si applica **prima** del deploy del codice che le scrive.
 
