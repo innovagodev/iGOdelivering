@@ -81,7 +81,7 @@ export default function PaymentsSetupBanner({ restaurantId }: { restaurantId: st
       <button
         type="button"
         onClick={dismiss}
-        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+        className="touch-target p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
         aria-label="Chiudi"
       >
         <X size={14} />

@@ -139,7 +139,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  collapsed,
+  collapsed: _collapsedProp,
   onToggle,
   activeSection,
   onSectionChange,
@@ -149,6 +149,39 @@ export default function Sidebar({
 }: SidebarProps) {
   const { user } = useAuth();
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+
+  // Sidebar adattiva: da 1024px è fissa, ma tra 1024 e 1280px (tablet in
+  // orizzontale, laptop piccoli) parte compressa per lasciare spazio ai
+  // contenuti. Se l'utente sceglie, la scelta vince ed è la stessa su tutte
+  // le pagine (prima ogni pagina teneva uno stato suo). Sotto 1024px è un
+  // drawer e mostra sempre le etichette.
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [isWide, setIsWide] = useState(true);
+  const [userPref, setUserPref] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const wide = window.matchMedia('(min-width: 1280px)');
+    const sync = () => {
+      setIsDesktop(desktop.matches);
+      setIsWide(wide.matches);
+    };
+    sync();
+    desktop.addEventListener('change', sync);
+    wide.addEventListener('change', sync);
+    try {
+      const stored = localStorage.getItem('iGO_sidebar_collapsed');
+      if (stored !== null) setUserPref(JSON.parse(stored) === true);
+    } catch {
+      /* preferenza non leggibile: resta l'adattamento automatico */
+    }
+    return () => {
+      desktop.removeEventListener('change', sync);
+      wide.removeEventListener('change', sync);
+    };
+  }, []);
+
+  const collapsed = isDesktop && (userPref ?? !isWide);
 
   useEffect(() => {
     const updateCount = () => {
@@ -181,7 +214,13 @@ export default function Sidebar({
   }, [role, user]);
 
   const handleToggleClick = () => {
-    localStorage.setItem('iGO_sidebar_collapsed', JSON.stringify(!collapsed));
+    const next = !collapsed;
+    try {
+      localStorage.setItem('iGO_sidebar_collapsed', JSON.stringify(next));
+    } catch {
+      /* storage non disponibile */
+    }
+    setUserPref(next);
     onToggle();
   };
 
@@ -245,7 +284,7 @@ export default function Sidebar({
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="absolute right-4 p-1 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden cursor-pointer"
+            className="touch-target absolute right-3 p-1 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden cursor-pointer"
             aria-label="Chiudi menu"
           >
             <X size={18} />

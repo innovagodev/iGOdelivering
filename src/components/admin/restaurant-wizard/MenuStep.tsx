@@ -587,7 +587,7 @@ export default function MenuStep({
                 <button
                   type="button"
                   onClick={() => moveCategory(idx, 'left')}
-                  className="text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer"
+                  className="touch-target text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer"
                   title="Sposta a sinistra"
                 >
                   <ChevronLeft size={12} />
@@ -598,7 +598,7 @@ export default function MenuStep({
                 <button
                   type="button"
                   onClick={() => moveCategory(idx, 'right')}
-                  className="text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer"
+                  className="touch-target text-muted-foreground hover:text-primary transition-colors p-0.5 cursor-pointer"
                   title="Sposta a destra"
                 >
                   <ChevronRight size={12} />
@@ -607,7 +607,7 @@ export default function MenuStep({
               <button
                 type="button"
                 onClick={() => setMenuCategories((p) => p.filter((c) => c.name !== cat.name))}
-                className="text-muted-foreground hover:text-[var(--danger)] transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer"
+                className="touch-target text-muted-foreground hover:text-[var(--danger)] transition-colors cursor-pointer"
               >
                 <X size={10} />
               </button>
@@ -1640,9 +1640,12 @@ export default function MenuStep({
                         alt="Preview"
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                      <div className="absolute inset-0 bg-black/40 opacity-0 [@media(hover:hover)]:group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                         <Upload size={24} />
                       </div>
+                      <span className="absolute bottom-2 right-2 rounded-full bg-black/60 p-2 text-white [@media(hover:hover)]:hidden">
+                        <Upload size={16} />
+                      </span>
                     </>
                   ) : (
                     <>

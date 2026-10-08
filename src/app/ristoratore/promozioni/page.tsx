@@ -281,7 +281,7 @@ export default function PromozioniPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
@@ -380,12 +380,12 @@ export default function PromozioniPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          <th className="px-6 py-4">Stato</th>
-                          <th className="px-6 py-4">Codice</th>
-                          <th className="px-6 py-4">Valore Sconto</th>
-                          <th className="px-6 py-4 hidden lg:table-cell">Ordine Minimo</th>
-                          <th className="px-6 py-4">Descrizione / Validità</th>
-                          <th className="px-6 py-4 text-center">Azioni</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Stato</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Codice</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Valore Sconto</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 hidden lg:table-cell">Ordine Minimo</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Descrizione / Validità</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 text-center">Azioni</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border text-sm">
@@ -394,19 +394,19 @@ export default function PromozioniPage() {
                             key={promo.id}
                             className={`hover:bg-muted/30 transition-colors ${!promo.active ? 'opacity-65' : ''}`}
                           >
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                               <Toggle
                                 checked={promo.active}
                                 onChange={() => handleTogglePromo(promo.id)}
                                 size="sm"
                               />
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                               <span className="font-bold text-foreground bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 rounded-lg text-xs tracking-wider">
                                 {promo.code}
                               </span>
                             </td>
-                            <td className="px-6 py-4 font-semibold text-foreground whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 font-semibold text-foreground whitespace-nowrap">
                               {promo.type === 'percentage' && (
                                 <Badge variant="primary" icon={<Percent size={11} />}>
                                   {promo.value}% di sconto
@@ -433,12 +433,12 @@ export default function PromozioniPage() {
                                 </Badge>
                               )}
                             </td>
-                            <td className="px-6 py-4 font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
                               {promo.minOrderSubtotal
                                 ? `€ ${promo.minOrderSubtotal.toFixed(2)}`
                                 : 'Nessuno'}
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4">
                               <p className="text-foreground font-medium line-clamp-1">
                                 {promo.description || 'Nessuna descrizione'}
                               </p>
@@ -467,7 +467,7 @@ export default function PromozioniPage() {
                                   )}
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenEditModal(promo)}

@@ -908,7 +908,7 @@ export default function ItemForm({
                         setDraft((p) => ({ ...p, imageUrl: '' }));
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
-                      className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                      className="touch-target p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
                       title="Rimuovi immagine"
                     >
                       <X size={14} />
@@ -1714,7 +1714,7 @@ export default function ItemForm({
                             setSelectedGroupId(group.id);
                             setIsSupplementsModalOpen(true);
                           }}
-                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          className="touch-target p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                           title="Modifica gruppo"
                         >
                           <Edit2 size={12} />
@@ -1815,7 +1815,7 @@ export default function ItemForm({
                 setShowNewCategory(false);
                 setNewCategoryInput('');
               }}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
+              className="touch-target absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
             >
               <X size={15} />
             </button>
@@ -1867,7 +1867,7 @@ export default function ItemForm({
       {/* Quick Supplements Modal dialog */}
       {isSupplementsModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-fade-in relative text-left">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-4xl h-[85dvh] flex flex-col overflow-hidden animate-fade-in relative text-left">
             {/* Header */}
             <div className="p-4 border-b border-border flex items-center justify-between bg-muted/10">
               <div>
@@ -1879,7 +1879,7 @@ export default function ItemForm({
               <button
                 type="button"
                 onClick={() => setIsSupplementsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
+                className="touch-target text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -1968,7 +1968,7 @@ export default function ItemForm({
                                   e.stopPropagation();
                                   handleDeleteGroup(g.id);
                                 }}
-                                className="text-muted-foreground hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                                className="touch-target text-muted-foreground hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                                 title="Elimina gruppo"
                               >
                                 <Trash2 size={13} />

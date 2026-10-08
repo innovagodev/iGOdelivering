@@ -252,7 +252,7 @@ export default function DeliveryZonesPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
@@ -352,14 +352,14 @@ export default function DeliveryZonesPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          <th className="px-6 py-4">Stato</th>
-                          <th className="px-6 py-4">Nome Zona</th>
-                          <th className="px-6 py-4">CAP Serviti</th>
-                          <th className="px-6 py-4 text-right">Raggio (Km)</th>
-                          <th className="px-6 py-4 text-right">Ordine Minimo</th>
-                          <th className="px-6 py-4 text-right">Costo Consegna</th>
-                          <th className="px-6 py-4 text-right hidden lg:table-cell">Gratis Da</th>
-                          <th className="px-6 py-4 text-center">Azioni</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Stato</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Nome Zona</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">CAP Serviti</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 text-right">Raggio (Km)</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 text-right">Ordine Minimo</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 text-right">Costo Consegna</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 text-right hidden lg:table-cell">Gratis Da</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4 text-center">Azioni</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border text-sm">
@@ -368,38 +368,38 @@ export default function DeliveryZonesPage() {
                             key={zone.id}
                             className={`hover:bg-muted/30 transition-colors ${!zone.enabled ? 'opacity-65' : ''}`}
                           >
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                               <Toggle
                                 checked={zone.enabled}
                                 onChange={() => handleToggleZone(zone.id)}
                                 size="sm"
                               />
                             </td>
-                            <td className="px-6 py-4 font-semibold text-foreground whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 font-semibold text-foreground whitespace-nowrap">
                               {zone.name}
                             </td>
-                            <td className="px-6 py-4 font-mono text-xs text-muted-foreground whitespace-nowrap max-w-[200px] truncate" title={zone.caps || 'Tutti i CAP'}>
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 font-mono text-xs text-muted-foreground whitespace-nowrap max-w-[200px] truncate" title={zone.caps || 'Tutti i CAP'}>
                               {zone.caps || 'Tutti i CAP'}
                             </td>
-                            <td className="px-6 py-4 text-right font-medium tabular-nums whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-right font-medium tabular-nums whitespace-nowrap">
                               {zone.radius} km
                             </td>
-                            <td className="px-6 py-4 text-right font-medium tabular-nums whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-right font-medium tabular-nums whitespace-nowrap">
                               € {zone.minOrder.toFixed(2)}
                             </td>
-                            <td className="px-6 py-4 text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
                               {zone.deliveryFee === 0 ? (
                                 <span className="text-[var(--success)]">Gratis</span>
                               ) : (
                                 `€ ${zone.deliveryFee.toFixed(2)}`
                               )}
                             </td>
-                            <td className="px-6 py-4 text-right font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-right font-medium tabular-nums whitespace-nowrap hidden lg:table-cell">
                               {zone.freeDeliveryThreshold
                                 ? `€ ${zone.freeDeliveryThreshold.toFixed(2)}`
                                 : 'Non attivo'}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                               <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenEditModal(zone)}

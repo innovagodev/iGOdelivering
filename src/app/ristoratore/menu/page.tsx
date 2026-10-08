@@ -439,7 +439,7 @@ export default function RistoratoreMenuPage() {
   });
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-dvh bg-background overflow-hidden">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -521,7 +521,7 @@ export default function RistoratoreMenuPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-3 sm:gap-4">
                   <div className="bg-card border border-border rounded-xl p-4 shadow-card">
                     <p className="text-xs text-muted-foreground font-medium">Totale piatti</p>
                     <p className="text-2xl font-bold tabular-nums text-foreground mt-1">

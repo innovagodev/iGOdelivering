@@ -141,6 +141,17 @@ export default function LiveOrderKanban() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [ticker, setTicker] = useState(0);
   const [activeMobileTab, setActiveMobileTab] = useState<OrderStatus>('pending');
+  // Tre colonne solo se il pannello è largo abbastanza: dipende dalla larghezza
+  // reale (sidebar compresa), non da quella dello schermo.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 800));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Orologio al secondo per il conto alla rovescia sulle schede in attesa: gira
   // solo finché c'è un ordine da accettare con una scadenza.
@@ -673,7 +684,7 @@ export default function LiveOrderKanban() {
       return (
         <div className="mt-3 space-y-2">
           {order.paymentMethod === 'online' && (
-            <p className="text-[10px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] font-medium leading-snug text-slate-500 dark:text-slate-400">
               Scaduto: il cliente non è stato addebitato.
             </p>
           )}
@@ -767,7 +778,7 @@ export default function LiveOrderKanban() {
               e.stopPropagation();
               rejectOrder('completed', order.id);
             }}
-            className="text-[10px] text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer"
+            className="text-[11px] text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer"
           >
             Rimuovi dalla vista
           </button>
@@ -785,7 +796,7 @@ export default function LiveOrderKanban() {
   ) => {
     if (isBookingPreOrder) {
       return (
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200/60 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/50">
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200/60 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/50">
           <Calendar size={11} className="text-purple-500" /> Prenotazione
         </span>
       );
@@ -793,19 +804,19 @@ export default function LiveOrderKanban() {
     switch (type) {
       case 'delivery':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
             <Bike size={11} className="text-slate-500" /> Domicilio
           </span>
         );
       case 'takeaway':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
             <ShoppingBag size={11} className="text-slate-500" /> Asporto
           </span>
         );
       case 'table':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50">
             <Utensils size={11} className="text-blue-500" /> Tavolo {tableNumber || '-'}
           </span>
         );
@@ -815,9 +826,9 @@ export default function LiveOrderKanban() {
   };
 
   return (
-    <div className="bg-card border border-border shadow-xs rounded-lg p-4 relative">
+    <div ref={rootRef} className="bg-card border border-border shadow-xs rounded-lg p-4 relative">
       {/* Toast notifications */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -833,7 +844,7 @@ export default function LiveOrderKanban() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -847,7 +858,7 @@ export default function LiveOrderKanban() {
               Gestione ordinazioni in tempo reale
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Connesso
           </span>
@@ -858,13 +869,13 @@ export default function LiveOrderKanban() {
             <span className="font-medium text-muted-foreground select-none">Suoni notifica</span>
             <button
               onClick={() => setIsMuted(!isMuted)}
-              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none before:absolute before:-inset-2 before:content-[''] ${
                 !isMuted ? 'bg-slate-900 dark:bg-slate-100' : 'bg-slate-200 dark:bg-slate-800'
               }`}
             >
               <span
-                className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white dark:bg-slate-900 transition-transform duration-200 ${
-                  !isMuted ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                className={`inline-block h-5 w-5 transform rounded-full bg-white dark:bg-slate-900 transition-transform duration-200 ${
+                  !isMuted ? 'translate-x-[22px]' : 'translate-x-[2px]'
                 }`}
               />
             </button>
@@ -910,7 +921,7 @@ export default function LiveOrderKanban() {
       </div>
 
       {/* Mobile Tab Bar */}
-      <div className="flex md:hidden border border-border rounded-xl p-1 bg-muted/30 mb-4 gap-1">
+      <div className={`${wide ? 'hidden' : 'flex'} border border-border rounded-xl p-1 bg-muted/30 mb-4 gap-1`}>
         {columns.map((col) => {
           const count = filteredOrders(col.key).length;
           const isActive = activeMobileTab === col.key;
@@ -927,7 +938,7 @@ export default function LiveOrderKanban() {
             >
               {col.label}
               <span
-                className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded-full ${
                   isActive
                     ? 'bg-primary/10 text-primary border border-primary/20'
                     : 'bg-muted text-muted-foreground'
@@ -941,15 +952,15 @@ export default function LiveOrderKanban() {
       </div>
 
       {/* Kanban Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${wide ? 'grid-cols-3' : 'grid-cols-1'}`}>
         {columns.map((col) => {
-          const isMobileHidden = activeMobileTab !== col.key;
+          const isMobileHidden = !wide && activeMobileTab !== col.key;
           const colOrders = filteredOrders(col.key);
           return (
             <div
               key={`col-${col.key}`}
               className={`flex flex-col gap-2.5 border rounded-lg p-3 ${col.bgClass} ${
-                isMobileHidden ? 'hidden md:flex' : 'flex'
+                isMobileHidden ? 'hidden' : 'flex'
               }`}
             >
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-2 px-1">
@@ -963,13 +974,13 @@ export default function LiveOrderKanban() {
                   {col.key === 'accepted' && colOrders.length > 0 && (
                     <button
                       onClick={() => handlePrintAllAcceptedOrders(colOrders)}
-                      className="p-1 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors flex items-center gap-1 text-[10px] font-bold cursor-pointer"
+                      className="touch-target px-2 py-1.5 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                       title="Stampa tutte le comande in corso"
                     >
                       <Printer size={12} /> Stampa Tutto
                     </button>
                   )}
-                  <span className="bg-slate-200/75 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-slate-200/75 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded-full">
                     {colOrders.length}
                   </span>
                 </div>
@@ -996,11 +1007,11 @@ export default function LiveOrderKanban() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 mb-1">
                           {order.status === 'expired' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 border border-rose-500/20 uppercase flex-shrink-0 animate-pulse">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 border border-rose-500/20 uppercase flex-shrink-0 animate-pulse">
                               Scaduto
                             </span>
                           )}
-                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+                          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
                             #{order.orderNumber}
                           </span>
                         </div>
@@ -1027,7 +1038,7 @@ export default function LiveOrderKanban() {
                             e.stopPropagation();
                             handlePrintSingleOrder(order.id);
                           }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
+                          className="touch-target p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
                           title="Stampa comanda"
                         >
                           <Printer size={13} />
@@ -1047,7 +1058,7 @@ export default function LiveOrderKanban() {
                             <div className="min-w-0">
                               <span className="block truncate font-semibold">{item.name}</span>
                               {(item.addedIngredients?.length || item.removedIngredients?.length) ? (
-                                <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-snug">
+                                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-snug">
                                   {[
                                     ...(item.addedIngredients || []).map((a) => '+' + extraLabel(a)),
                                     ...(item.removedIngredients || []).map((r) => '-' + r),
@@ -1055,7 +1066,7 @@ export default function LiveOrderKanban() {
                                 </span>
                               ) : null}
                             </div>
-                            <span className="font-extrabold text-slate-900 dark:text-slate-200 ml-2 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] flex-shrink-0">
+                            <span className="font-extrabold text-slate-900 dark:text-slate-200 ml-2 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
                               ×{item.qty}
                             </span>
                           </li>
@@ -1070,7 +1081,7 @@ export default function LiveOrderKanban() {
                         const deadline = new Date(order.acceptDeadline).getTime();
                         if (order.acceptanceMode === 'deferred') {
                           return (
-                            <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                            <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
                               Preordine: da confermare entro{' '}
                               {new Date(deadline).toLocaleString('it-IT', {
                                 day: '2-digit',
@@ -1085,7 +1096,7 @@ export default function LiveOrderKanban() {
                         const urgent = left <= 60;
                         return (
                           <div
-                            className={`mt-1 flex items-center justify-between rounded-md px-2 py-1 text-[10px] font-bold ${
+                            className={`mt-1 flex items-center justify-between rounded-md px-2 py-1 text-[11px] font-bold ${
                               urgent
                                 ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 animate-pulse'
                                 : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
@@ -1102,28 +1113,28 @@ export default function LiveOrderKanban() {
 
                     {/* Service/Additional info */}
                     {order.isBookingPreOrder && (
-                      <div className="bg-purple-500/5 border border-purple-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[10px] text-purple-700 dark:text-purple-300 font-semibold mt-0.5">
+                      <div className="bg-purple-500/5 border border-purple-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-purple-700 dark:text-purple-300 font-semibold mt-0.5">
                         <Calendar size={10} />
                         <span>Pre-ordine tavolo</span>
                       </div>
                     )}
 
                     {order.type === 'table' && !order.isBookingPreOrder && order.tableNumber && (
-                      <div className="bg-blue-500/5 border border-blue-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[10px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">
+                      <div className="bg-blue-500/5 border border-blue-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">
                         <Utensils size={10} />
                         <span>Servire al Tavolo {order.tableNumber}</span>
                       </div>
                     )}
 
                     {order.address && (
-                      <div className="flex items-start gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-900">
+                      <div className="flex items-start gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-900">
                         <MapPin size={11} className="mt-0.5 flex-shrink-0 text-slate-400" />
                         <span className="line-clamp-1 font-medium">{order.address}</span>
                       </div>
                     )}
 
                     {order.scheduledAt && order.deliveryTime && (
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-300 font-bold mt-0.5 animate-pulse">
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 font-bold mt-0.5 animate-pulse">
                         <Clock size={10} className="text-amber-500" />
                         <span>
                           PROGRAMMATO: {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
@@ -1134,7 +1145,7 @@ export default function LiveOrderKanban() {
 
                     {/* Footer: Elapsed Time and Total Price */}
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-900 mt-1">
-                      <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                         <div className="flex items-center gap-1 font-medium">
                           <Clock size={11} />
                           <span className="tabular-nums">{formatMinutesAgo(order.minutesAgo)}</span>
@@ -1142,15 +1153,15 @@ export default function LiveOrderKanban() {
                       </div>
                       <div className="flex items-center gap-1.5">
                         {order.paymentStatus === 'paid' ? (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
                             Pagato online
                           </span>
                         ) : order.paymentStatus === 'refunded' || order.paymentStatus === 'partially_refunded' ? (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                             Rimborsato
                           </span>
                         ) : order.paymentMethod === 'cash' || order.paymentMethod === 'pos' ? (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
                             Da incassare · {order.paymentMethod === 'pos' ? 'POS' : 'Contanti'}
                           </span>
                         ) : null}
@@ -1183,35 +1194,35 @@ export default function LiveOrderKanban() {
               onClick={() => setSelectedOrderId(null)}
             />
 
-            <div className="relative w-full sm:w-[480px] h-full bg-white dark:bg-slate-950 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col z-10 animate-in slide-in-from-right duration-200">
+            <div className="relative w-full sm:w-[clamp(26rem,50vw,30rem)] h-full bg-white dark:bg-slate-950 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col z-10 animate-in slide-in-from-right duration-200">
               {/* Drawer Header */}
               <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
                 <div className="flex flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
                       #{selectedOrder.order_number || selectedOrder.id.replace('ord-', '').toUpperCase()}
                     </span>
                     {selectedOrderStatus === 'new' || selectedOrderStatus === 'pending' ? (
-                      <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/20">
+                      <span className="bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-bold px-2 py-0.5 rounded border border-amber-500/20">
                         Da Accettare
                       </span>
                     ) : selectedOrderStatus === 'expired' ? (
-                      <span className="bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 text-[10px] font-extrabold px-2 py-0.5 rounded border border-rose-500/20 animate-pulse">
+                      <span className="bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 text-[11px] font-extrabold px-2 py-0.5 rounded border border-rose-500/20 animate-pulse">
                         Scaduto
                       </span>
                     ) : selectedOrderStatus === 'accepted' ||
                       selectedOrderStatus === 'preparing' ||
                       selectedOrderStatus === 'delivering' ? (
-                      <span className="bg-blue-500/10 text-blue-700 dark:text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/20">
+                      <span className="bg-blue-500/10 text-blue-700 dark:text-blue-400 text-[11px] font-bold px-2 py-0.5 rounded border border-blue-500/20">
                         In Corso
                       </span>
                     ) : selectedOrderStatus === 'completed' ||
                       selectedOrderStatus === 'delivered' ? (
-                      <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-500/20">
+                      <span className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2 py-0.5 rounded border border-emerald-500/20">
                         Completato
                       </span>
                     ) : (
-                      <span className="bg-rose-500/10 text-rose-700 dark:text-rose-450 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/20">
+                      <span className="bg-rose-500/10 text-rose-700 dark:text-rose-450 text-[11px] font-bold px-2 py-0.5 rounded border border-rose-500/20">
                         Rifiutato
                       </span>
                     )}
@@ -1224,7 +1235,7 @@ export default function LiveOrderKanban() {
                 </div>
                 <button
                   onClick={() => setSelectedOrderId(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all cursor-pointer"
+                  className="touch-target p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -1235,7 +1246,7 @@ export default function LiveOrderKanban() {
                 {/* Canale / Tipo Ordine & Data */}
                 <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-900/30 p-3 rounded-xl border border-slate-100 dark:border-slate-900/60">
                   <div>
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-1">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-1">
                       Tipo Canale
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -1261,7 +1272,7 @@ export default function LiveOrderKanban() {
                     </div>
                   </div>
                   <div>
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-1">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-1">
                       Ricevuto Il
                     </span>
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block tabular-nums">
@@ -1279,7 +1290,7 @@ export default function LiveOrderKanban() {
 
                   {selectedOrder.deliveryTime && (
                     <div className="col-span-2 border-t border-slate-100 dark:border-slate-900/60 pt-2 mt-1">
-                      <span className="text-[9px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-0.5">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-0.5">
                         Orario Consegna/Ritiro
                       </span>
                       <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
@@ -1295,7 +1306,7 @@ export default function LiveOrderKanban() {
 
                 {/* Informazioni Cliente */}
                 <div className="space-y-2">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                     Dettaglio Cliente
                   </h3>
                   <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-3 space-y-2.5">
@@ -1304,7 +1315,7 @@ export default function LiveOrderKanban() {
                         <User size={13} />
                       </div>
                       <div>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
                           Nominativo
                         </span>
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -1319,7 +1330,7 @@ export default function LiveOrderKanban() {
                           <Phone size={13} />
                         </div>
                         <div>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
                             Telefono
                           </span>
                           <a
@@ -1340,7 +1351,7 @@ export default function LiveOrderKanban() {
                             <Mail size={13} />
                           </div>
                           <div>
-                            <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
                               Email
                             </span>
                             <a
@@ -1360,7 +1371,7 @@ export default function LiveOrderKanban() {
                             <MapPin size={13} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <span className="text-[9px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-none mb-0.5">
                               Indirizzo Consegna
                             </span>
                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block leading-tight">
@@ -1370,7 +1381,7 @@ export default function LiveOrderKanban() {
                               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedOrder.address || selectedOrder.customer?.address || '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-600 hover:underline dark:text-blue-400 mt-1 cursor-pointer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline dark:text-blue-400 mt-1 cursor-pointer"
                             >
                               Mappa Google <ExternalLink size={9} />
                             </a>
@@ -1385,7 +1396,7 @@ export default function LiveOrderKanban() {
                   <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex gap-2">
                     <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-amber-700 block mb-0.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-0.5">
                         Note dalla Cucina
                       </span>
                       <p className="text-xs text-amber-900 dark:text-amber-300 italic leading-tight">
@@ -1397,7 +1408,7 @@ export default function LiveOrderKanban() {
 
                 {/* Dettagli Piatti / Carrello */}
                 <div className="space-y-2">
-                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                     Riepilogo Piatti
                   </h3>
                   <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
@@ -1428,12 +1439,12 @@ export default function LiveOrderKanban() {
                                   </span>
                                 </div>
                                 {customNotes && (
-                                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
                                     <strong>Personalizzazioni:</strong> {customNotes}
                                   </div>
                                 )}
                                 {itemNote && (
-                                  <div className="text-[10px] text-rose-600 dark:text-rose-400 font-medium italic mt-0.5 leading-snug flex items-center gap-1">
+                                  <div className="text-[11px] text-rose-600 dark:text-rose-400 font-medium italic mt-0.5 leading-snug flex items-center gap-1">
                                     <MessageSquare size={10} /> {itemNote}
                                   </div>
                                 )}
@@ -1462,12 +1473,12 @@ export default function LiveOrderKanban() {
                 {/* Visual Mockup Thermal Receipt Comanda */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 font-sans font-bold">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 font-sans font-bold">
                       Scontrino Comanda
                     </h3>
                     <button
                       onClick={() => handlePrintSingleOrder(selectedOrder.id)}
-                      className="text-[9px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-sans"
+                      className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-sans"
                     >
                       <Printer size={10} /> Stampa Comanda
                     </button>
@@ -1480,7 +1491,7 @@ export default function LiveOrderKanban() {
                       <div className="text-xs font-bold tracking-widest uppercase">
                         {user?.restaurantName || 'iGOdelivering'}
                       </div>
-                      <div className="text-[9px] uppercase font-bold text-slate-600">
+                      <div className="text-[11px] uppercase font-bold text-slate-600">
                         COMANDA CUCINA
                       </div>
                       <div className="text-[8px] text-slate-500">
@@ -1507,7 +1518,7 @@ export default function LiveOrderKanban() {
                     </div>
 
                     {selectedOrder.deliveryTime && (
-                      <div className="text-center font-bold text-[10px] bg-black/5 p-1 rounded my-1.5 border border-black/10">
+                      <div className="text-center font-bold text-[11px] bg-black/5 p-1 rounded my-1.5 border border-black/10">
                         ORARIO:{' '}
                         {selectedOrder.deliveryTime === 'asap'
                           ? 'IL PRIMA POSSIBILE'
@@ -1537,12 +1548,12 @@ export default function LiveOrderKanban() {
                               </span>
                             </div>
                             {itemCustomStr && (
-                              <div className="text-[9px] text-slate-700 pl-3 leading-tight">
+                              <div className="text-[11px] text-slate-700 pl-3 leading-tight">
                                 * {itemCustomStr}
                               </div>
                             )}
                             {item.note && (
-                              <div className="text-[9px] text-red-600 pl-3 font-bold italic leading-tight">
+                              <div className="text-[11px] text-red-600 pl-3 font-bold italic leading-tight">
                                 NOTA: {item.note}
                               </div>
                             )}
@@ -1552,14 +1563,14 @@ export default function LiveOrderKanban() {
                     </div>
 
                     {selectedOrder.notes && (
-                      <div className="bg-black/5 p-1.5 border border-black/10 rounded text-[9px] leading-tight my-1.5">
+                      <div className="bg-black/5 p-1.5 border border-black/10 rounded text-[11px] leading-tight my-1.5">
                         <strong>NOTA CUCINA:</strong> {selectedOrder.notes}
                       </div>
                     )}
 
                     <div className="border-t border-dashed border-black/35 my-2" />
 
-                    <div className="space-y-0.5 text-[10px] text-slate-700">
+                    <div className="space-y-0.5 text-[11px] text-slate-700">
                       <div>
                         <strong>Cliente:</strong>{' '}
                         {selectedOrder.customerName || selectedOrder.customer?.name || 'Cliente'}
@@ -1592,7 +1603,7 @@ export default function LiveOrderKanban() {
               <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex gap-2.5">
                 <button
                   onClick={() => handlePrintSingleOrder(selectedOrder.id)}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 transition-colors flex items-center justify-center cursor-pointer"
+                  className="min-h-11 min-w-11 p-2 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 transition-colors flex items-center justify-center cursor-pointer"
                   title="Stampa comanda"
                 >
                   <Printer size={16} />
@@ -1613,7 +1624,7 @@ export default function LiveOrderKanban() {
                       onClick={() => {
                         acceptOrder(selectedOrder.id);
                       }}
-                      className="flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                      className="min-h-11 flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
                     >
                       <Check size={14} /> Accetta
                     </button>
@@ -1661,7 +1672,7 @@ export default function LiveOrderKanban() {
                       onClick={() => {
                         completeOrder(selectedOrder.id);
                       }}
-                      className="flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                      className="min-h-11 flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
                     >
                       <CheckCheck size={14} /> Completa
                     </button>

@@ -304,7 +304,7 @@ export default function MenuEditorTab({
                     e.stopPropagation();
                     moveCategory(idx - 1, 'left');
                   }}
-                  className="p-0.5 rounded text-white/80 hover:bg-white/20 hover:text-white cursor-pointer"
+                  className="touch-target p-0.5 rounded text-white/80 hover:bg-white/20 hover:text-white cursor-pointer"
                   title="Sposta a sinistra"
                 >
                   <ChevronLeft size={14} />
@@ -320,7 +320,7 @@ export default function MenuEditorTab({
                     e.stopPropagation();
                     moveCategory(idx - 1, 'right');
                   }}
-                  className="p-0.5 rounded text-white/80 hover:bg-white/20 hover:text-white cursor-pointer"
+                  className="touch-target p-0.5 rounded text-white/80 hover:bg-white/20 hover:text-white cursor-pointer"
                   title="Sposta a destra"
                 >
                   <ChevronRight size={14} />
@@ -334,7 +334,7 @@ export default function MenuEditorTab({
                     e.stopPropagation();
                     toggleCategoryVisibility(cat);
                   }}
-                  className={`p-0.5 rounded transition-colors cursor-pointer ${
+                  className={`touch-target p-0.5 rounded transition-colors cursor-pointer ${
                     isActive
                       ? 'text-white/80 hover:bg-white/20 hover:text-white'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -504,7 +504,7 @@ export default function MenuEditorTab({
                 setIsCategoryModalOpen(false);
                 setNewCatVal('');
               }}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
+              className="touch-target absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1 rounded-lg cursor-pointer"
             >
               <X size={15} />
             </button>

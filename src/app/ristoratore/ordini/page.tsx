@@ -21,7 +21,7 @@ export default function OrdiniLivePage() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}

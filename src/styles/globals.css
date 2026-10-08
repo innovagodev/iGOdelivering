@@ -118,6 +118,18 @@
 }
 
 @layer utilities {
+  /* Area di tocco da 44px sui dispositivi touch (tablet), senza cambiare il
+     disegno su mouse. */
+  @media (pointer: coarse) {
+    .touch-target {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }

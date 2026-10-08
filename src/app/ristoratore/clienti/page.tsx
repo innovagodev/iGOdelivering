@@ -317,7 +317,7 @@ export default function ClientiPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div className="flex h-dvh bg-background overflow-hidden relative">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((c) => !c)}
@@ -549,39 +549,39 @@ export default function ClientiPage() {
                         <tr className="bg-muted/30 border-b border-border/80 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                           <th
                             onClick={() => handleSort('name')}
-                            className="px-6 py-4 cursor-pointer hover:bg-muted/50 select-none group"
+                            className="px-3 lg:px-6 py-3 lg:py-4 cursor-pointer hover:bg-muted/50 select-none group"
                           >
                             <span className="flex items-center gap-1">
                               Cliente
-                              <ArrowUpDown size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowUpDown size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                             </span>
                           </th>
-                          <th className="px-6 py-4">Telefono & Email</th>
+                          <th className="px-3 lg:px-6 py-3 lg:py-4">Telefono & Email</th>
                           <th
                             onClick={() => handleSort('ordersCount')}
-                            className="px-6 py-4 cursor-pointer hover:bg-muted/50 select-none group text-center"
+                            className="px-3 lg:px-6 py-3 lg:py-4 cursor-pointer hover:bg-muted/50 select-none group text-center"
                           >
                             <span className="flex items-center justify-center gap-1">
                               Ordini
-                              <ArrowUpDown size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowUpDown size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                             </span>
                           </th>
                           <th
                             onClick={() => handleSort('totalSpent')}
-                            className="px-6 py-4 cursor-pointer hover:bg-muted/50 select-none group text-right"
+                            className="px-3 lg:px-6 py-3 lg:py-4 cursor-pointer hover:bg-muted/50 select-none group text-right"
                           >
                             <span className="flex items-center justify-end gap-1">
                               Spesa Totale
-                              <ArrowUpDown size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowUpDown size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                             </span>
                           </th>
                           <th
                             onClick={() => handleSort('lastOrderDate')}
-                            className="px-6 py-4 cursor-pointer hover:bg-muted/50 select-none group text-right"
+                            className="px-3 lg:px-6 py-3 lg:py-4 cursor-pointer hover:bg-muted/50 select-none group text-right"
                           >
                             <span className="flex items-center justify-end gap-1">
                               Ultimo Ordine
-                              <ArrowUpDown size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <ArrowUpDown size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                             </span>
                           </th>
                         </tr>
@@ -589,12 +589,12 @@ export default function ClientiPage() {
                       <tbody className="divide-y divide-border">
                         {processedCustomers.map((customer) => (
                           <tr key={customer.key} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-6 py-4">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4">
                               <span className="font-semibold text-foreground text-sm">
                                 {customer.name}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-xs space-y-1">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-xs space-y-1">
                               {customer.phone && (
                                 <p className="flex items-center gap-1.5 text-foreground/80">
                                   <Phone size={11} className="text-muted-foreground/60" />
@@ -611,13 +611,13 @@ export default function ClientiPage() {
                                 <span className="text-muted-foreground/45 italic">Nessun contatto</span>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-center font-extrabold text-foreground text-sm tabular-nums">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-center font-extrabold text-foreground text-sm tabular-nums">
                               {customer.ordersCount}
                             </td>
-                            <td className="px-6 py-4 text-right font-black text-primary text-sm tabular-nums">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-right font-black text-primary text-sm tabular-nums">
                               € {customer.totalSpent.toFixed(2)}
                             </td>
-                            <td className="px-6 py-4 text-right text-xs text-muted-foreground tabular-nums">
+                            <td className="px-3 lg:px-6 py-3 lg:py-4 text-right text-xs text-muted-foreground tabular-nums">
                               {new Date(customer.lastOrderDate).toLocaleString('it-IT', {
                                 day: '2-digit',
                                 month: '2-digit',
