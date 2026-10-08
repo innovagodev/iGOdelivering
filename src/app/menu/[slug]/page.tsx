@@ -4714,6 +4714,8 @@ function StorefrontContent() {
     const handleScroll = () => {
       syncBannerOffset(closedBannerRef.current);
       const scrolled = window.scrollY > 40;
+      // Sotto sm l'header non è fisso: padding compatto, senza il respiro del desktop.
+      const isSm = window.matchMedia('(min-width: 640px)').matches;
       setIsScrolled(scrolled);
 
       if (scrolled) {
@@ -4730,8 +4732,8 @@ function StorefrontContent() {
           overwrite: 'auto',
         });
         gsap.to(headerContentRef.current, {
-          paddingTop: '12px',
-          paddingBottom: '12px',
+          paddingTop: isSm ? '12px' : '8px',
+          paddingBottom: isSm ? '12px' : '8px',
           duration: 0.3,
           ease: 'power2.out',
           overwrite: 'auto',
@@ -4750,8 +4752,8 @@ function StorefrontContent() {
           overwrite: 'auto',
         });
         gsap.to(headerContentRef.current, {
-          paddingTop: '16px',
-          paddingBottom: '16px',
+          paddingTop: isSm ? '16px' : '8px',
+          paddingBottom: isSm ? '16px' : '8px',
           duration: 0.3,
           ease: 'power2.out',
           overwrite: 'auto',
@@ -5403,6 +5405,18 @@ function StorefrontContent() {
 
   // Cambiata categoria, il contenuto sotto viene sostituito: la pagina si
   // riancora all'inizio del menu e la pillola scelta si centra nella riga.
+  const [categoryFadeRight, setCategoryFadeRight] = useState(false);
+  const updateCategoryFade = React.useCallback(() => {
+    const el = categoryScrollerRef.current;
+    if (!el) return;
+    setCategoryFadeRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+  useEffect(() => {
+    updateCategoryFade();
+    window.addEventListener('resize', updateCategoryFade);
+    return () => window.removeEventListener('resize', updateCategoryFade);
+  }, [updateCategoryFade, categories]);
+
   const didMountCategoryRef = useRef(false);
   useEffect(() => {
     if (!didMountCategoryRef.current) {
@@ -5474,12 +5488,12 @@ function StorefrontContent() {
 
         <div
           ref={headerContentRef}
-          className="max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-8 py-2.5 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"
+          className="max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-8 py-2 sm:py-4 flex flex-row items-center justify-between gap-2 sm:gap-4"
         >
           {/* Top Row on Mobile: Logo (left) + Action Controls (right) */}
-          <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+          <div className="contents sm:flex sm:items-center sm:justify-start sm:gap-3 sm:w-auto">
             {/* Restaurant Logo and Name */}
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="order-1 flex items-center gap-3 flex-shrink-0">
               {restaurantSettings.logoUrl ? (
                 <div
                   className={`w-10 h-10 rounded-full overflow-hidden border bg-white flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300 ${!isScrolled ? 'border-primary/20 sm:border-white/20' : 'border-border/30'}`}
@@ -5498,7 +5512,7 @@ function StorefrontContent() {
             </div>
 
             {/* Mobile Actions Container (Right side of Top Row on Mobile) */}
-            <div className="flex sm:hidden items-center gap-2 flex-shrink-0">
+            <div className="order-3 flex sm:hidden items-center gap-1.5 flex-shrink-0">
               {/* Share Button */}
               <button
                 onClick={handleShare}
@@ -5523,7 +5537,7 @@ function StorefrontContent() {
               )}
 
               {/* Language Switcher */}
-              <div className="flex items-center gap-1.5 px-1">
+              <div className="flex flex-col items-center gap-1 px-0.5">
                 <button
                   onClick={() => setLang('it')}
                   className={`w-5 h-5 rounded-full flex items-center justify-center transition-all transform active:scale-90 select-none overflow-hidden ${lang === 'it'
@@ -5549,7 +5563,7 @@ function StorefrontContent() {
           </div>
 
           {/* Search bar (Full width on mobile, centered on desktop) */}
-          <div className="w-full sm:flex-1 sm:max-w-xs md:max-w-md sm:mx-auto">
+          <div className="order-2 sm:order-none flex-1 min-w-0 sm:max-w-xs md:max-w-md sm:mx-auto">
             <div className="relative">
               <Search
                 size={14}
@@ -5827,9 +5841,11 @@ function StorefrontContent() {
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-2 py-2.5">
             {/* Scrollable horizontal category list */}
+            <div className="relative flex-1 min-w-0">
             <div
               ref={categoryScrollerRef}
-              className="flex-1 flex items-center gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide no-scrollbar py-0.5 snap-x snap-proximity scroll-px-4"
+              onScroll={updateCategoryFade}
+              className="flex items-center gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide no-scrollbar py-0.5 snap-x snap-proximity scroll-px-4"
             >
               {categories.map((cat) => {
                 const isActive = activeCategory === cat;
@@ -5849,6 +5865,11 @@ function StorefrontContent() {
                   </button>
                 );
               })}
+            </div>
+            <div
+              aria-hidden
+              className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card to-transparent transition-opacity duration-200 ${categoryFadeRight ? 'opacity-100' : 'opacity-0'}`}
+            />
             </div>
 
             {/* Modal opener button */}
