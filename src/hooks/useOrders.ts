@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { fetchAllPages } from '@/lib/fetchAll';
 
 export function useOrders(restaurantId: string) {
   const [orders, setOrders] = useState<any[]>([]);
@@ -16,18 +17,22 @@ export function useOrders(restaurantId: string) {
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
       const isoString = fourteenDaysAgo.toISOString();
 
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('restaurant_id', restaurantId)
-        .gte('created_at', isoString)
-        // Ordini online non (ancora) pagati: fuori dalla cucina e dai conteggi.
-        // In attesa di pagamento o scaduti senza pagamento (migration 028/030).
-        .not('payment_status', 'in', '(pending,failed)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrders(data || []);
+      // A pagine: una richiesta è tagliata a 1000 righe senza avviso, e un locale
+      // molto attivo supera gli 1000 ordini in 14 giorni.
+      const data = await fetchAllPages((from, to) =>
+        supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', isoString)
+          // Ordini online non (ancora) pagati: fuori dalla cucina e dai conteggi.
+          // In attesa di pagamento o scaduti senza pagamento (migration 028/030).
+          .not('payment_status', 'in', '(pending,failed)')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
+      setOrders(data);
     } catch (e) {
       console.error('Error fetching orders:', e);
     } finally {
@@ -40,6 +45,17 @@ export function useOrders(restaurantId: string) {
 
     if (!restaurantId || restaurantId === 'r-001') return;
 
+    // Più eventi ravvicinati (un ordine che passa da più stati) fanno una sola
+    // rilettura: prima ognuno rileggeva da capo 14 giorni di ordini con le righe.
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (refetchTimer) return;
+      refetchTimer = setTimeout(() => {
+        refetchTimer = null;
+        fetchOrders();
+      }, 800);
+    };
+
     // Subscribe to changes on orders table for this restaurant
     const channel = supabase
       .channel(`orders:${restaurantId}`)
@@ -51,14 +67,15 @@ export function useOrders(restaurantId: string) {
           table: 'orders',
           filter: `restaurant_id=eq.${restaurantId}`,
         },
-        async (payload) => {
-          // Re-fetch to get complete order details with nested items
-          fetchOrders();
+        () => {
+          // Rilettura per avere i dettagli completi con le righe, raggruppata
+          scheduleRefetch();
         }
       )
       .subscribe();
 
     return () => {
+      if (refetchTimer) clearTimeout(refetchTimer);
       supabase.removeChannel(channel);
     };
   }, [restaurantId]);

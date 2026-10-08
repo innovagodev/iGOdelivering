@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { Volume2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { fetchAllPages } from '@/lib/fetchAll';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 
 interface AudioNotificationContextType {
@@ -221,12 +222,16 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const isoString = sevenDaysAgo.toISOString();
 
-        const { data, error } = await supabase
-          .from('orders')
-          .select('id, status, created_at, total, order_number')
-          .eq('restaurant_id', restaurantId)
-          .gte('created_at', isoString)
-          .order('created_at', { ascending: false });
+        const data = await fetchAllPages((from, to) =>
+          supabase
+            .from('orders')
+            .select('id, status, created_at, total, order_number')
+            .eq('restaurant_id', restaurantId)
+            .gte('created_at', isoString)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: true })
+            .range(from, to)
+        );
 
         if (data) {
           // Un ordine in attesa di pagamento online non si segna come visto:
@@ -246,6 +251,64 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     };
 
     fetchInitial();
+
+    // Rilettura in background per tenere allineati badge e pannelli. Il suono non
+    // aspetta questa lettura (parte subito dall'evento); gli eventi ravvicinati
+    // si raggruppano in una sola rilettura.
+    const refetchRecent = async () => {
+      // Re-fetch orders in background to keep badge and kanban/others synced (only recent ones)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const isoString = sevenDaysAgo.toISOString();
+
+      const data = await fetchAllPages((from, to) =>
+        supabase
+          .from('orders')
+          .select('id, status, created_at, total, order_number')
+          .eq('restaurant_id', restaurantId)
+          .gte('created_at', isoString)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
+
+      if (data) {
+        let hasNew = false;
+
+        data.forEach((o: any) => {
+          // Only alert for NEW or PENDING orders that we haven't seen yet
+          if (
+            (o.status === 'new' || o.status === 'pending') &&
+            !seenOrderIdsRef.current.has(o.id)
+          ) {
+            seenOrderIdsRef.current.add(o.id);
+            hasNew = true;
+          } else if (!seenOrderIdsRef.current.has(o.id) && o.status !== 'awaiting_payment') {
+            // If it's a past order in another status, just mark as seen.
+            // Gli ordini in attesa di pagamento restano "non visti" finché
+            // il webhook non li porta in cucina.
+            seenOrderIdsRef.current.add(o.id);
+          }
+        });
+
+        // Write to localStorage to update sidebar badge
+        localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
+        window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
+        setOrders(data);
+
+        if (hasNew) {
+          playAlert();
+        }
+      }
+    };
+    let refetchTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (refetchTimer) return;
+      refetchTimer = setTimeout(() => {
+        refetchTimer = null;
+        void refetchRecent().catch((e) => console.error('Error refetching orders:', e));
+      }, 800);
+    };
 
     // Subscribe to Postgres changes on the orders table for this restaurant
     const channel = supabase
@@ -292,51 +355,13 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
             }
           }
 
-          // Re-fetch orders in background to keep badge and kanban/others synced (only recent ones)
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const isoString = sevenDaysAgo.toISOString();
-
-          const { data, error } = await supabase
-            .from('orders')
-            .select('id, status, created_at, total, order_number')
-            .eq('restaurant_id', restaurantId)
-            .gte('created_at', isoString)
-            .order('created_at', { ascending: false });
-
-          if (data) {
-            let hasNew = false;
-
-            data.forEach((o: any) => {
-              // Only alert for NEW or PENDING orders that we haven't seen yet
-              if (
-                (o.status === 'new' || o.status === 'pending') &&
-                !seenOrderIdsRef.current.has(o.id)
-              ) {
-                seenOrderIdsRef.current.add(o.id);
-                hasNew = true;
-              } else if (!seenOrderIdsRef.current.has(o.id) && o.status !== 'awaiting_payment') {
-                // If it's a past order in another status, just mark as seen.
-                // Gli ordini in attesa di pagamento restano "non visti" finché
-                // il webhook non li porta in cucina.
-                seenOrderIdsRef.current.add(o.id);
-              }
-            });
-
-            // Write to localStorage to update sidebar badge
-            localStorage.setItem(STORAGE_KEYS.orders(restaurantId), JSON.stringify(data));
-            window.dispatchEvent(new CustomEvent('iGO_orders_updated'));
-            setOrders(data);
-
-            if (hasNew) {
-              playAlert();
-            }
-          }
+          scheduleRefetch();
         }
       )
       .subscribe();
 
     return () => {
+      if (refetchTimer) clearTimeout(refetchTimer);
       supabase.removeChannel(channel);
     };
   }, [restaurantId]); // NOTE: isMuted intentionally excluded — toggling mute must NOT tear down and

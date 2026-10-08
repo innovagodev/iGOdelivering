@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { fetchAllPages } from '@/lib/fetchAll';
 import {
   Plus,
   Phone,
@@ -198,17 +199,21 @@ export default function PrenotazioniPage() {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .gte('date', dateStr)
-        .order('date', { ascending: true })
-        .order('time', { ascending: true });
+      // A pagine: oltre 1000 prenotazioni da 30 giorni fa in avanti verrebbero
+      // tagliate in silenzio.
+      const data = await fetchAllPages((from, to) =>
+        supabase
+          .from('bookings')
+          .select('*')
+          .eq('restaurant_id', restaurantId)
+          .gte('date', dateStr)
+          .order('date', { ascending: true })
+          .order('time', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-
-      const mapped: TableBooking[] = (data || []).map((b: any) => ({
+      const mapped: TableBooking[] = data.map((b: any) => ({
         id: b.id,
         restaurantId: b.restaurant_id,
         name: b.name,

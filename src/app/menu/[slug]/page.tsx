@@ -74,6 +74,7 @@ import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
 import { notify, confirmAction } from '@/lib/notify';
 import { LIVE_ACCEPT_SECONDS } from '@/lib/acceptance';
+import { startAdaptivePolling } from '@/lib/polling';
 import BookingStatusNotice from '@/components/menu/BookingStatusNotice';
 
 
@@ -1599,39 +1600,6 @@ function CheckoutModal({
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [orderId]);
 
-    // ─── Supabase Realtime subscription (best-effort, may be blocked by RLS) ─
-    useEffect(() => {
-      if (!orderId) return;
-
-      const tableName = isBooking ? 'bookings' : 'orders';
-      const channelName = `tracker-status-${orderId}`;
-
-      const channel = supabase
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: tableName, filter: `id=eq.${orderId}` },
-          (payload) => {
-            const newStatus = (payload.new as any).status;
-            if (!newStatus) return;
-
-            setLastCreatedOrder((prev: any) => {
-              if (prev?.status === newStatus) return prev;
-              const next = { ...prev, status: newStatus };
-              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
-              return next;
-            });
-
-            const resolved = resolvePhase(newStatus);
-            if (resolved) { stopTimer(); setPhase(resolved); }
-          }
-        )
-        .subscribe();
-
-      return () => { supabase.removeChannel(channel); };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [orderId, slug, setLastCreatedOrder, isBooking]);
-
     // ─── Server-side API polling (primary reliable fallback, bypasses RLS) ───
     // Polls /api/order-status/[orderId] which uses the Supabase service role key
     // server-side, so RLS can never block it. This is the definitive fallback
@@ -1692,11 +1660,10 @@ function CheckoutModal({
         }
       };
 
-      // Poll immediately on mount, then every 3 seconds
-      pollStatus();
-      const interval = setInterval(pollStatus, 3000);
-
-      return () => clearInterval(interval);
+      // Controllo subito, poi a ritmo che rallenta e si ferma a scheda nascosta
+      // (src/lib/polling.ts): con 3 secondi fissi, centinaia di clienti in attesa
+      // sommergevano il server.
+      return startAdaptivePolling(pollStatus);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase, orderId, slug, setLastCreatedOrder, lastCreatedOrder?.status, isBooking]);
 
@@ -3629,136 +3596,93 @@ function StorefrontContent() {
     restaurantSettingsRef.current = restaurantSettings;
   }, [restaurantSettings]);
 
-  // Listen to order updates via Supabase Realtime
+  // Avviso al cliente quando cambia lo stato del suo ordine o della sua prenotazione.
+  // Prima arrivava da un canale Realtime che, con le policy attuali (nessuna
+  // lettura anonima di orders e bookings), non riceveva mai nulla: ogni cliente
+  // teneva una connessione aperta per niente. Il cambio di stato lo rileva il
+  // tracker con il controllo periodico; questo effetto lo notifica.
+  const notifiedRef = useRef<{ id: string; status: string } | null>(null);
   useEffect(() => {
-    if (typeof window === 'undefined' || !lastCreatedOrder) return;
-    const orderId = lastCreatedOrder.id;
-
-    let tableName = '';
-    let channelName = '';
+    const currentOrder = lastCreatedOrder;
+    if (!currentOrder?.id || !currentOrder.status) return;
+    const orderId: string = currentOrder.id;
+    const newStatus: string = currentOrder.status;
+    const previous = notifiedRef.current;
+    notifiedRef.current = { id: orderId, status: newStatus };
+    // Prima volta che si vede l'ordine (o ricaricamento della pagina): niente avviso.
+    if (!previous || previous.id !== orderId || previous.status === newStatus) return;
 
     const isBooking =
-      lastCreatedOrder.type === 'prenotazione_tavolo' ||
+      currentOrder.type === 'prenotazione_tavolo' ||
       orderId.startsWith('booking-') ||
-      (lastCreatedOrder.guests !== undefined && lastCreatedOrder.customer_email !== undefined);
+      (currentOrder.guests !== undefined && currentOrder.customer_email !== undefined);
+    const tableName = isBooking ? 'bookings' : 'orders';
 
-    if (isBooking) {
-      tableName = 'bookings';
-      channelName = `booking-status-${orderId}`;
+    const restName = restaurantSettingsRef.current?.name || 'iGOdelivering';
+    const en = langRef.current === 'en';
+    const customerName =
+      currentOrder.customer_name || currentOrder.name || (en ? 'Customer' : 'Cliente');
+
+    let variant: 'success' | 'warning' | 'danger' = 'success';
+    let title = '';
+    let message = '';
+
+    if (tableName === 'bookings') {
+      if (newStatus === 'cancelled') {
+        variant = 'danger';
+        title = en ? `Booking Declined ❌` : `Prenotazione Rifiutata ❌`;
+        message = en
+          ? `Sorry ${customerName}, your table booking for ${currentOrder.date} was not accepted by the restaurant.`
+          : `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${currentOrder.date} non è stata accettata dal ristorante.`;
+      } else if (newStatus === 'confirmed') {
+        variant = 'success';
+        title = en ? `Table Confirmed! 📅` : `Tavolo Confermato! 📅`;
+        message = en
+          ? `Great news ${customerName}! Your table booking has been confirmed by ${restName}.`
+          : `Ottime notizie ${customerName}! La tua prenotazione per il tavolo è stata confermata da ${restName}.`;
+      }
     } else {
-      tableName = 'orders';
-      channelName = `order-status-${orderId}`;
+      const tableNum = currentOrder.table_number;
+      const isTable = currentOrder.type === 'tavolo';
+
+      if (newStatus === 'rejected' || newStatus === 'cancelled') {
+        variant = 'danger';
+        title = en
+          ? isTable ? `Table ${tableNum} order declined` : `Order declined`
+          : isTable ? `Ordine Tavolo ${tableNum} rifiutato` : `Ordine rifiutato`;
+        message = en
+          ? isTable
+            ? `Your order for table ${tableNum} was declined by the restaurant.`
+            : `Sorry ${customerName}, your order was declined by the restaurant.`
+          : isTable
+            ? `Il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante.`
+            : `Spiacenti ${customerName}, il tuo ordine è stato rifiutato dal ristorante.`;
+      } else if (newStatus === 'accepted' || newStatus === 'preparing') {
+        variant = 'success';
+        title = en
+          ? isTable ? `Table ${tableNum} — Being prepared` : `Order confirmed`
+          : isTable ? `Tavolo ${tableNum} — In preparazione` : `Ordine confermato`;
+        message = en ? `Your order is being prepared!` : `Il tuo ordine è in preparazione!`;
+      } else if (newStatus === 'ready') {
+        variant = 'warning';
+        title = en
+          ? isTable ? `Table ${tableNum} — Ready` : `Order ready`
+          : isTable ? `Tavolo ${tableNum} — Pronto` : `Ordine pronto`;
+        message = en
+          ? isTable
+            ? `Your dishes are ready and on their way to the table!`
+            : `Your order is ready for pickup/delivery.`
+          : isTable
+            ? `I tuoi piatti sono pronti e stanno arrivando al tavolo!`
+            : `Il tuo ordine è pronto per il ritiro/consegna.`;
+      }
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: tableName,
-          filter: `id=eq.${orderId}`,
-        },
-        (payload) => {
-          const updatedRecord = payload.new;
-          const currentOrder = lastCreatedOrderRef.current;
-          if (!currentOrder) return;
 
-          if (updatedRecord.status !== currentOrder.status) {
-            const oldStatus = currentOrder.status;
-            const newStatus = updatedRecord.status;
-            const restName = restaurantSettingsRef.current?.name || 'iGOdelivering';
-            const en = langRef.current === 'en';
-            const customerName =
-              currentOrder.customer_name || currentOrder.name || (en ? 'Customer' : 'Cliente');
-
-            let variant: 'success' | 'warning' | 'danger' = 'success';
-            let title = '';
-            let message = '';
-
-            if (tableName === 'bookings') {
-              if (newStatus === 'cancelled') {
-                variant = 'danger';
-                title = en ? `Booking Declined ❌` : `Prenotazione Rifiutata ❌`;
-                message = en
-                  ? `Sorry ${customerName}, your table booking for ${currentOrder.date} was not accepted by the restaurant.`
-                  : `Spiacenti ${customerName}, la tua prenotazione per il tavolo il ${currentOrder.date} non è stata accettata dal ristorante.`;
-              } else if (newStatus === 'confirmed') {
-                variant = 'success';
-                title = en ? `Table Confirmed! 📅` : `Tavolo Confermato! 📅`;
-                message = en
-                  ? `Great news ${customerName}! Your table booking has been confirmed by ${restName}.`
-                  : `Ottime notizie ${customerName}! La tua prenotazione per il tavolo è stata confermata da ${restName}.`;
-              }
-            } else {
-              const tableNum = currentOrder.table_number;
-              const isTable = currentOrder.type === 'tavolo';
-
-              if (newStatus === 'rejected' || newStatus === 'cancelled') {
-                variant = 'danger';
-                title = en
-                  ? isTable ? `Table ${tableNum} order declined` : `Order declined`
-                  : isTable ? `Ordine Tavolo ${tableNum} rifiutato` : `Ordine rifiutato`;
-                message = en
-                  ? isTable
-                    ? `Your order for table ${tableNum} was declined by the restaurant.`
-                    : `Sorry ${customerName}, your order was declined by the restaurant.`
-                  : isTable
-                    ? `Il tuo ordine al tavolo ${tableNum} è stato rifiutato dal ristorante.`
-                    : `Spiacenti ${customerName}, il tuo ordine è stato rifiutato dal ristorante.`;
-              } else if (newStatus === 'accepted' || newStatus === 'preparing') {
-                variant = 'success';
-                title = en
-                  ? isTable ? `Table ${tableNum} — Being prepared` : `Order confirmed`
-                  : isTable ? `Tavolo ${tableNum} — In preparazione` : `Ordine confermato`;
-                message = en ? `Your order is being prepared!` : `Il tuo ordine è in preparazione!`;
-              } else if (newStatus === 'ready') {
-                variant = 'warning';
-                title = en
-                  ? isTable ? `Table ${tableNum} — Ready` : `Order ready`
-                  : isTable ? `Tavolo ${tableNum} — Pronto` : `Ordine pronto`;
-                message = en
-                  ? isTable
-                    ? `Your dishes are ready and on their way to the table!`
-                    : `Your order is ready for pickup/delivery.`
-                  : isTable
-                    ? `I tuoi piatti sono pronti e stanno arrivando al tavolo!`
-                    : `Il tuo ordine è pronto per il ritiro/consegna.`;
-              }
-            }
-
-            setIncomingNotification({ variant, title, message, orderId });
-
-            // ─── CRITICAL: dispatch a synchronous window event BEFORE calling
-            // setLastCreatedOrder. This ensures the currently-mounted
-            // OrderStatusTracker receives the status change immediately,
-            // before React unmounts/remounts it due to the state update below.
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(
-                new CustomEvent('iGO_order_status_changed', {
-                  detail: { orderId, newStatus },
-                })
-              );
-            }
-
-            setLastCreatedOrder((prev: any) => {
-              const next = { ...prev, status: newStatus };
-              sessionStorage.setItem(`iGO_last_order_${slug}`, JSON.stringify(next));
-              return next;
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // NOTE: restaurantSettings intentionally excluded from deps — it is an object
-    // and would cause the channel to be destroyed and recreated on every render,
-    // potentially losing realtime events. It is accessed via ref inside the callback.
-  }, [lastCreatedOrder?.id, slug]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Stati senza un messaggio (in attesa, in consegna…): nessun avviso vuoto.
+    if (!title) return;
+    setIncomingNotification({ variant, title, message, orderId });
+  }, [lastCreatedOrder?.id, lastCreatedOrder?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
   const [historyOrders, setHistoryOrders] = useState<any[]>([]);

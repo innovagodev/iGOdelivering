@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Clock, Phone, X } from 'lucide-react';
 import { LIVE_ACCEPT_SECONDS } from '@/lib/acceptance';
+import { startAdaptivePolling } from '@/lib/polling';
 
 /**
  * Stato di una prenotazione di solo tavolo, mostrato nella conferma della
@@ -64,11 +65,11 @@ export default function BookingStatusNotice({
         // Rete assente: si riprova al prossimo giro.
       }
     };
-    poll();
-    const id = setInterval(poll, 3000);
+    // Ritmo che rallenta e pausa a scheda nascosta (src/lib/polling.ts).
+    const stop = startAdaptivePolling(poll);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      stop();
     };
   }, [bookingId]);
 

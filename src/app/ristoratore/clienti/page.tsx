@@ -4,6 +4,7 @@ import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { isCountedOrder } from '@/lib/dashboardStats';
+import { fetchAllPages } from '@/lib/fetchAll';
 import {
   Phone,
   Mail,
@@ -56,6 +57,33 @@ export default function ClientiPage() {
   const [sortField, setSortField] = useState<'name' | 'ordersCount' | 'totalSpent' | 'lastOrderDate'>('totalSpent');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Intervallo del periodo scelto: si leggono dal database solo gli ordini che
+  // servono (prima tutti gli ordini di sempre, e oltre i primi 1000 la
+  // pagina ne mostrava meno senza dirlo).
+  const periodRange = useMemo((): { from?: Date; to?: Date } => {
+    if (period === 'month') {
+      return { from: new Date(selectedYear, selectedMonth, 1), to: new Date(selectedYear, selectedMonth + 1, 1) };
+    }
+    if (period === 'year') {
+      return { from: new Date(selectedYear, 0, 1), to: new Date(selectedYear + 1, 0, 1) };
+    }
+    if (period === '7days') {
+      const from = new Date();
+      from.setDate(from.getDate() - 7);
+      return { from };
+    }
+    if (period === 'custom') {
+      const from = startDate ? new Date(startDate) : undefined;
+      let to: Date | undefined;
+      if (endDate) {
+        to = new Date(endDate);
+        to.setHours(23, 59, 59, 999);
+      }
+      return { from, to };
+    }
+    return {};
+  }, [period, selectedMonth, selectedYear, startDate, endDate]);
+
   const fetchOrders = async () => {
     if (!restaurantId || restaurantId === 'r-001') {
       setLoading(false);
@@ -63,14 +91,20 @@ export default function ClientiPage() {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('created_at, type, status, payment_status, customer_name, customer_email, customer_phone, total')
-        .eq('restaurant_id', restaurantId);
-
-      if (error) throw error;
+      const data = await fetchAllPages((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from('orders')
+          .select('created_at, type, status, payment_status, customer_name, customer_email, customer_phone, total')
+          .eq('restaurant_id', restaurantId);
+        if (periodRange.from) q = q.gte('created_at', periodRange.from.toISOString());
+        if (periodRange.to) q = q.lt('created_at', periodRange.to.toISOString());
+        return q
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(rangeFrom, rangeTo);
+      });
       // Un ordine annullato, rifiutato, scaduto o con pagamento online non completato non è una vendita.
-      setOrders((data || []).filter(isCountedOrder));
+      setOrders(data.filter(isCountedOrder));
     } catch (e) {
       console.error('Error fetching orders for customers view:', e);
     } finally {
@@ -80,18 +114,33 @@ export default function ClientiPage() {
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, periodRange]);
+
+  // Anni selezionabili: dal primo ordine di sempre a oggi. Si legge una riga sola,
+  // perché gli ordini caricati sono solo quelli del periodo scelto.
+  const [firstOrderYear, setFirstOrderYear] = useState<number | null>(null);
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    supabase
+      .from('orders')
+      .select('created_at')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .then(({ data }) => {
+        const yr = data?.[0]?.created_at ? new Date(data[0].created_at).getFullYear() : NaN;
+        if (!isNaN(yr)) setFirstOrderYear(yr);
+      });
   }, [restaurantId]);
 
-  // Extract available years dynamically from fetched orders
   const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    years.add(new Date().getFullYear()); // Always ensure current year is present
-    orders.forEach((o) => {
-      const yr = new Date(o.created_at).getFullYear();
-      if (!isNaN(yr)) years.add(yr);
-    });
-    return Array.from(years).sort((a, b) => b - a);
-  }, [orders]);
+    const current = new Date().getFullYear();
+    const first = Math.min(firstOrderYear ?? current, current);
+    const years: number[] = [];
+    for (let y = current; y >= first; y--) years.push(y);
+    return years;
+  }, [firstOrderYear]);
 
   // Aggregate and filter customers
   const customersList = useMemo(() => {

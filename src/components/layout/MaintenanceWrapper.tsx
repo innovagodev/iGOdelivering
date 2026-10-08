@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { startAdaptivePolling } from '@/lib/polling';
 import { Wrench, Mail, Phone, Lock } from 'lucide-react';
 import Link from 'next/link';
 
@@ -32,32 +33,12 @@ export default function MaintenanceWrapper({ children }: { children: React.React
       }
     }
 
-    checkMaintenance();
-
-    // Listen to changes in real-time
-    const channel = supabase
-      .channel('platform_settings_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'platform_settings',
-          filter: 'key=eq.maintenance_mode',
-        },
-        (payload: any) => {
-          if (payload.new && payload.new.value) {
-            setMaintenanceMode(!!payload.new.value.active);
-          } else {
-            setMaintenanceMode(false);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Prima ogni visitatore, anche chi guardava solo il menu, teneva aperta una
+    // connessione Realtime per sapere subito se la manutenzione si accendeva:
+    // con centinaia di clienti insieme era il primo limite di connessioni del
+    // piano. La manutenzione si accende di rado e a mano: si controlla
+    // all'apertura e poi ogni 5 minuti (e al ritorno sulla scheda).
+    return startAdaptivePolling(checkMaintenance, [{ untilMs: Infinity, everyMs: 300_000 }]);
   }, []);
 
   // Exclude admin routes, API, login, and static files

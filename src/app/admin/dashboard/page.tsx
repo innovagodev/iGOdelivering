@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
 import { isCountedOrder, ordersOfDay } from '@/lib/dashboardStats';
+import { fetchAllPages } from '@/lib/fetchAll';
 import { nowInZone } from '@/lib/serviceHours';
 import {
   Store,
@@ -58,15 +59,22 @@ export default function AdminDashboardPage() {
 
         if (restError) throw restError;
 
-        const { data: dbOrders, error: orderError } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (orderError) throw orderError;
+        // Ultimi 30 giorni, solo le colonne che servono, a pagine. Prima: tutti gli
+        // ordini della piattaforma con tutte le colonne, tagliati a 1000 senza avviso.
+        const since = new Date();
+        since.setDate(since.getDate() - 30);
+        const dbOrders = await fetchAllPages((from, to) =>
+          supabase
+            .from('orders')
+            .select('id, restaurant_id, total, status, payment_status, type, created_at')
+            .gte('created_at', since.toISOString())
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: true })
+            .range(from, to)
+        );
 
         const restaurantsList = dbRestaurants || [];
-        const ordersList = dbOrders || [];
+        const ordersList = dbOrders;
 
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -379,7 +387,7 @@ export default function AdminDashboardPage() {
               <div className="bg-card rounded-xl border border-border p-5 shadow-card space-y-4">
                 <div>
                   <h2 className="text-base font-bold text-foreground">Top Ristoranti</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Per fatturato totale</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Per fatturato, ultimi 30 giorni</p>
                 </div>
                 <div className="space-y-4">
                   {loading ? (
