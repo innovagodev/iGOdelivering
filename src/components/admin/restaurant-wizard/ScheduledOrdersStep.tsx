@@ -242,7 +242,7 @@ export default function ScheduledOrdersStep({
               </div>
               <p className="text-xs text-muted-foreground">
                 Valgono per le prenotazioni dalla vetrina. Chi ordina dal QR del tavolo non ha
-                preavviso: è già seduto.
+                preavviso.
               </p>
             </div>
           )}
