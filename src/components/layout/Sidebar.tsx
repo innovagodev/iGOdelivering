@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import AppLogo from '@/components/ui/AppLogo';
@@ -23,6 +23,11 @@ import {
   QrCode,
   CreditCard,
 } from 'lucide-react';
+
+// useLayoutEffect applica la preferenza prima del primo disegno: con useEffect la
+// sidebar compariva espansa per un istante a ogni cambio pagina (più a lungo
+// sulle pagine pesanti, come Menu). Sul server resta useEffect, che non gira.
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 interface NavItem {
   id: string;
@@ -159,7 +164,7 @@ export default function Sidebar({
   const [isWide, setIsWide] = useState(true);
   const [userPref, setUserPref] = useState<boolean | null>(null);
 
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     const desktop = window.matchMedia('(min-width: 1024px)');
     const wide = window.matchMedia('(min-width: 1280px)');
     const sync = () => {
@@ -182,6 +187,15 @@ export default function Sidebar({
   }, []);
 
   const collapsed = isDesktop && (userPref ?? !isWide);
+
+  // Le transizioni partono solo dopo il primo disegno: altrimenti la sidebar
+  // si "chiuderebbe" animata a ogni apertura di pagina.
+  const [animate, setAnimate] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const tr = animate ? 'transition-all duration-300' : '';
 
   useEffect(() => {
     const updateCount = () => {
@@ -252,16 +266,16 @@ export default function Sidebar({
       <div className="flex items-center h-16 border-b border-border px-4 relative justify-center">
         <div className="flex items-center justify-center overflow-hidden">
           {role === 'admin' ? (
-            <div className="transition-all duration-300 flex items-center justify-center">
+            <div className={`${tr} flex items-center justify-center`}>
               <AppLogo size={collapsed ? 28 : 50} />
             </div>
           ) : (
-            <div className="transition-all duration-300 flex items-center justify-center">
+            <div className={`${tr} flex items-center justify-center`}>
               {user?.restaurantLogo ? (
                 <img
                   src={user.restaurantLogo}
                   alt={user.restaurantName || 'Logo'}
-                  className={`object-contain transition-all duration-300 ${
+                  className={`object-contain ${tr} ${
                     collapsed ? 'w-7 h-7' : 'h-10 max-w-[140px]'
                   }`}
                 />
@@ -269,7 +283,7 @@ export default function Sidebar({
                 <div
                   className={`bg-gradient-to-br ${getGradientColor(
                     user?.restaurantName
-                  )} text-white flex items-center justify-center font-extrabold shadow-xs transition-all duration-300 ${
+                  )} text-white flex items-center justify-center font-extrabold shadow-xs ${tr} ${
                     collapsed ? 'w-7 h-7 rounded-full text-[10px]' : 'w-10 h-10 rounded-xl text-sm'
                   }`}
                 >
@@ -378,7 +392,7 @@ export default function Sidebar({
       {/* Sidebar Container — relative for the absolute toggle button */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 flex flex-col h-full bg-card border-r border-border transition-all duration-300 ease-in-out flex-shrink-0
+          fixed inset-y-0 left-0 z-50 flex flex-col h-full bg-card border-r border-border ${animate ? 'transition-all duration-300 ease-in-out' : ''} flex-shrink-0
           lg:static lg:translate-x-0 lg:relative
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${collapsed ? 'lg:w-16' : 'lg:w-64 w-64'}
