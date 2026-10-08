@@ -244,7 +244,7 @@ export default function AdminDashboardPage() {
                   </p>
                   <span className="text-xs text-[var(--success)] font-semibold flex items-center gap-1 mt-1">
                     <ArrowUpRight size={12} />
-                    Aggiornato live
+                    Pubblicati
                   </span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-primary">

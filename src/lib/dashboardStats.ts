@@ -1,4 +1,4 @@
-import { nowInZone } from '@/lib/serviceHours';
+import { nowInZone, zonedToUtc } from '@/lib/serviceHours';
 
 /**
  * Numeri della dashboard: un solo posto, usato da KPI, grafico e riepiloghi.
@@ -16,11 +16,24 @@ const NOT_COUNTED = new Set(['cancelled', 'rejected', 'expired']);
 
 export interface DashboardOrder {
   status?: string | null;
+  payment_status?: string | null;
   total?: number | string | null;
   created_at?: string | null;
 }
 
-export const isCountedOrder = (o: DashboardOrder) => !NOT_COUNTED.has(String(o.status ?? ''));
+// Pagamento online non completato (in attesa o fallito): l'ordine non è mai arrivato in cucina.
+const UNPAID = new Set(['pending', 'failed']);
+
+export const isCountedOrder = (o: DashboardOrder) =>
+  !NOT_COUNTED.has(String(o.status ?? '')) && !UNPAID.has(String(o.payment_status ?? ''));
+
+/** Inizio del giorno di Roma (mezzanotte) come istante ISO, per i filtri sul database. */
+export const romeDayStartIso = (at = new Date()) =>
+  zonedToUtc(nowInZone('Europe/Rome', at).date, 0).toISOString();
+
+/** Valori da escludere nei filtri del database, nella forma `(a,b,c)`. */
+export const NOT_COUNTED_STATUS_FILTER = '(cancelled,rejected,expired)';
+export const UNPAID_PAYMENT_FILTER = '(pending,failed)';
 
 /** Giorno di Roma ("YYYY-MM-DD") di un istante. */
 export const romeDay = (at: Date | string) => nowInZone('Europe/Rome', new Date(at)).date;

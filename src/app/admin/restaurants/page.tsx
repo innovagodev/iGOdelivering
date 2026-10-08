@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
+import { romeDayStartIso, NOT_COUNTED_STATUS_FILTER, UNPAID_PAYMENT_FILTER } from '@/lib/dashboardStats';
 import {
   Plus,
   Search,
@@ -78,14 +79,13 @@ export default function AdminRestaurantsPage() {
   const loadRestaurants = async () => {
     try {
       setLoading(true);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString();
-
+      // Ordini di oggi = giorno di Roma, senza annullati, rifiutati, scaduti e non pagati
       const { data, error } = await supabase
         .from('restaurants')
         .select('*, profiles(name, email), menu_items(count), orders(count)')
-        .filter('orders.created_at', 'gte', todayStr);
+        .filter('orders.created_at', 'gte', romeDayStartIso())
+        .not('orders.status', 'in', NOT_COUNTED_STATUS_FILTER)
+        .not('orders.payment_status', 'in', UNPAID_PAYMENT_FILTER);
 
       if (error) throw error;
 

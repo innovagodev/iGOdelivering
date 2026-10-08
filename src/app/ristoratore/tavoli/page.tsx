@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { romeDayStartIso, NOT_COUNTED_STATUS_FILTER, UNPAID_PAYMENT_FILTER } from '@/lib/dashboardStats';
 import {
   QrCode,
   Plus,
@@ -378,17 +379,15 @@ export default function RistoratoreTavoliPage() {
   // Fetch table orders count for today
   useEffect(() => {
     if (!restaurantId || restaurantId === 'r-001') return;
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString();
-
+    // Oggi = giorno di Roma; annullati, rifiutati, scaduti e non pagati non contano
     supabase
       .from('orders')
       .select('id', { count: 'exact', head: true })
       .eq('restaurant_id', restaurantId)
       .eq('type', 'tavolo')
-      .gte('created_at', startOfDay)
-      .lte('created_at', endOfDay)
+      .gte('created_at', romeDayStartIso())
+      .not('status', 'in', NOT_COUNTED_STATUS_FILTER)
+      .not('payment_status', 'in', UNPAID_PAYMENT_FILTER)
       .then(({ count }) => {
         setTableOrdersTodayCount(count || 0);
       });
@@ -791,7 +790,7 @@ export default function RistoratoreTavoliPage() {
             </div>
 
             {/* KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-card rounded-xl border border-border p-4 shadow-card">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                   Tavoli Configurati
@@ -803,12 +802,6 @@ export default function RistoratoreTavoliPage() {
                   Ordini al Tavolo Oggi
                 </p>
                 <p className="text-2xl font-bold text-[var(--success)] mt-1 tabular-nums">{tableOrdersTodayCount}</p>
-              </div>
-              <div className="bg-card rounded-xl border border-border p-4 shadow-card">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                  Scansioni Totali Oggi
-                </p>
-                <p className="text-2xl font-bold text-primary mt-1 tabular-nums">0</p>
               </div>
             </div>
 

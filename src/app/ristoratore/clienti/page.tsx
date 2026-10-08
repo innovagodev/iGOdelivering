@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { isCountedOrder } from '@/lib/dashboardStats';
 import {
   Phone,
   Mail,
@@ -64,11 +65,12 @@ export default function ClientiPage() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('created_at, type, customer_name, customer_email, customer_phone, total')
+        .select('created_at, type, status, payment_status, customer_name, customer_email, customer_phone, total')
         .eq('restaurant_id', restaurantId);
 
       if (error) throw error;
-      setOrders(data || []);
+      // Un ordine annullato, rifiutato, scaduto o con pagamento online non completato non è una vendita.
+      setOrders((data || []).filter(isCountedOrder));
     } catch (e) {
       console.error('Error fetching orders for customers view:', e);
     } finally {
