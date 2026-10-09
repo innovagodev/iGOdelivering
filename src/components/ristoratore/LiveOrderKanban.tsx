@@ -1272,7 +1272,7 @@ export default function LiveOrderKanban() {
 
               <div
                 className={`flex-1 gap-2.5 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-2.5 ${
-                  !wide && twoCols ? 'grid grid-cols-2 auto-rows-max content-start items-start' : 'flex flex-col'
+                  !wide && twoCols ? 'grid grid-cols-2 auto-rows-max content-start items-stretch' : 'flex flex-col'
                 }`}
               >
                 {colOrders.length === 0 && (
@@ -1465,7 +1465,7 @@ export default function LiveOrderKanban() {
                       )}
 
                       {/* Piede: pagamento e azioni sulla stessa riga (vanno a capo solo se manca lo spazio) */}
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2">
                         {order.paymentStatus === 'paid' ? (
                           <span className="inline-flex flex-shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                             Pagato online
