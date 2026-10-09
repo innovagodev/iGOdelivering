@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.48.3](https://github.com/innovagodev/iGOdelivering/compare/v1.48.2...v1.48.3) (2026-10-09)
+
+
+### Bug Fixes
+
+* **vetrina:** totale del carrello senza consegna, riepilogo che segue la scelta, giorno e orario sotto la modalita' e orario che riparte dal primo disponibile ([b887e29](https://github.com/innovagodev/iGOdelivering/commit/b887e291e32c5ce8b0756d1f48b569761ba82ae1))
+
 ### [1.48.2](https://github.com/innovagodev/iGOdelivering/compare/v1.48.1...v1.48.2) (2026-10-09)
 
 
