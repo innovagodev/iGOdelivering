@@ -9,6 +9,8 @@ import { createContext, useContext } from 'react';
 export interface PanelShellValue {
   leftEl: HTMLElement | null;
   rightEl: HTMLElement | null;
+  /** Una pagina (Ordini live) può nascondere barra laterale e barra in alto per riempire lo schermo. */
+  setImmersive: (value: boolean) => void;
 }
 
 export const PanelShellContext = createContext<PanelShellValue | null>(null);

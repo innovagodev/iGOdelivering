@@ -24,10 +24,15 @@ import {
   MessageSquare,
   Volume2,
   VolumeX,
+  Maximize2,
+  Minimize2,
+  History,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/hooks/useOrders';
 import { useAudioNotification } from '@/components/ristoratore/AudioNotificationProvider';
+import { usePanelShell } from '@/components/layout/PanelShellContext';
+import { romeDay } from '@/lib/dashboardStats';
 
 type OrderStatus = 'pending' | 'accepted' | 'completed';
 
@@ -80,7 +85,7 @@ const columns: ColumnDef[] = [
     hint: 'I nuovi ordini compaiono qui',
     icon: <Bell size={16} />,
     ui: {
-      wrap: 'border-amber-300/70 bg-amber-50/60 dark:border-amber-500/25 dark:bg-amber-500/[0.06]',
+      wrap: 'bg-amber-100/50 dark:bg-amber-500/[0.08]',
       bar: 'bg-amber-500',
       iconWrap: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
       count: 'bg-amber-500 text-white',
@@ -94,7 +99,7 @@ const columns: ColumnDef[] = [
     hint: 'Gli ordini accettati restano qui finché non sono pronti',
     icon: <ChefHat size={16} />,
     ui: {
-      wrap: 'border-sky-300/70 bg-sky-50/60 dark:border-sky-500/25 dark:bg-sky-500/[0.06]',
+      wrap: 'bg-sky-100/50 dark:bg-sky-500/[0.08]',
       bar: 'bg-sky-500',
       iconWrap: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
       count: 'bg-sky-500 text-white',
@@ -108,7 +113,7 @@ const columns: ColumnDef[] = [
     hint: 'Gli ordini consegnati compaiono qui',
     icon: <CheckCheck size={16} />,
     ui: {
-      wrap: 'border-emerald-300/60 bg-emerald-50/50 dark:border-emerald-500/20 dark:bg-emerald-500/[0.05]',
+      wrap: 'bg-emerald-100/50 dark:bg-emerald-500/[0.07]',
       bar: 'bg-emerald-500/70',
       iconWrap: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
       count: 'bg-emerald-600/80 text-white',
@@ -128,7 +133,7 @@ const lostColumn: ColumnDef = {
   hint: 'Ordini non accettati in tempo: spariscono da soli dopo un\'ora',
   icon: <Ban size={16} />,
   ui: {
-    wrap: 'border-rose-300/70 bg-rose-50/60 dark:border-rose-500/25 dark:bg-rose-500/[0.06]',
+    wrap: 'bg-rose-100/50 dark:bg-rose-500/[0.08]',
     bar: 'bg-rose-500',
     iconWrap: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
     count: 'bg-rose-500 text-white',
@@ -246,6 +251,76 @@ export default function LiveOrderKanban() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Schermo pieno: nasconde barra laterale e barra in alto (e, dove il browser lo permette,
+  // passa allo schermo intero vero). La scelta si ricorda su questo dispositivo.
+  const IMMERSIVE_KEY = 'iGO_live_immersive';
+  const setChromeHidden = usePanelShell()?.setImmersive;
+  const [immersive, setImmersive] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const persistImmersive = (v: boolean) => {
+    try {
+      localStorage.setItem(IMMERSIVE_KEY, v ? '1' : '0');
+    } catch {
+      /* senza archivio la scelta vale solo per questa visita */
+    }
+  };
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(IMMERSIVE_KEY) === '1') setImmersive(true);
+    } catch {
+      /* ignora */
+    }
+  }, []);
+  useEffect(() => {
+    setChromeHidden?.(immersive);
+    return () => setChromeHidden?.(false);
+  }, [immersive, setChromeHidden]);
+  useEffect(() => {
+    // Uscito dallo schermo intero con Esc o dal browser: esce anche la modalità.
+    const onFs = () => {
+      if (!document.fullscreenElement) {
+        setImmersive(false);
+        persistImmersive(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+  const toggleImmersive = async () => {
+    const next = !immersive;
+    setImmersive(next);
+    persistImmersive(next);
+    try {
+      if (next) {
+        if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } else if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      /* iPad e telefoni non sempre lo permettono: resta la modalità a schermo pieno dell'app */
+    }
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (showHistory) {
+        setShowHistory(false);
+        return;
+      }
+      if (immersive && !selectedOrderId && !document.fullscreenElement) {
+        setImmersive(false);
+        persistImmersive(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [immersive, showHistory, selectedOrderId]);
 
   // Orologio al secondo per il conto alla rovescia sulle schede in attesa: gira
   // solo finché c'è un ordine da accettare con una scadenza.
@@ -502,7 +577,10 @@ export default function LiveOrderKanban() {
             orderStatus === 'delivering'
           );
         if (colKey === 'completed')
-          return orderStatus === 'completed' || orderStatus === 'delivered';
+          return (
+            (orderStatus === 'completed' || orderStatus === 'delivered') &&
+            romeDay(o.created_at || o.timestamp || o.createdAt) === romeDay(new Date())
+          );
         return false;
       })
       .map(mapFlatOrder)
@@ -781,10 +859,11 @@ export default function LiveOrderKanban() {
 
   // Pulsante d'azione di una scheda: alto almeno 44px (tablet), testo leggibile.
   const actionBase =
-    'touch-target inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-bold transition-colors cursor-pointer';
-  const actionGhost = `${actionBase} border border-border bg-card text-foreground hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:hover:border-red-500/40 dark:hover:bg-red-950/30 dark:hover:text-red-400`;
-  const actionNeutral = `${actionBase} border border-border bg-card text-foreground hover:bg-muted`;
-  const actionPrimary = `${actionBase} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700`;
+    'touch-target inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-bold transition-colors cursor-pointer';
+  // Un solo pulsante pieno per scheda; l'azione contraria è solo testo.
+  const actionGhost = `${actionBase} flex-none text-muted-foreground hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-400`;
+  const actionNeutral = `${actionBase} flex-1 bg-muted/70 text-foreground hover:bg-muted`;
+  const actionPrimary = `${actionBase} flex-1 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700`;
 
   const renderActions = (colKey: OrderStatus, order: LiveOrder) => {
     if (order.status === 'expired') {
@@ -892,26 +971,10 @@ export default function LiveOrderKanban() {
       );
     }
 
-    if (colKey === 'completed') {
-      return (
-        <div className="flex justify-end">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              rejectOrder('completed', order.id);
-            }}
-            className="touch-target -mb-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 cursor-pointer"
-          >
-            Rimuovi dalla vista
-          </button>
-        </div>
-      );
-    }
-
     return null;
   };
 
-  const chip = 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold';
+  const chip = 'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold';
   const getOrderTypeBadge = (
     type: LiveOrder['type'],
     tableNumber?: string,
@@ -919,7 +982,7 @@ export default function LiveOrderKanban() {
   ) => {
     if (isBookingPreOrder) {
       return (
-        <span className={`${chip} border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300`}>
+        <span className={`${chip} bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300`}>
           <Calendar size={12} /> Prenotazione
         </span>
       );
@@ -927,19 +990,19 @@ export default function LiveOrderKanban() {
     switch (type) {
       case 'delivery':
         return (
-          <span className={`${chip} border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300`}>
+          <span className={`${chip} bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300`}>
             <Bike size={12} /> Domicilio
           </span>
         );
       case 'takeaway':
         return (
-          <span className={`${chip} border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300`}>
+          <span className={`${chip} bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300`}>
             <ShoppingBag size={12} /> Asporto
           </span>
         );
       case 'table':
         return (
-          <span className={`${chip} border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300`}>
+          <span className={`${chip} bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300`}>
             <Utensils size={12} /> Tavolo {tableNumber || '-'}
           </span>
         );
@@ -947,6 +1010,41 @@ export default function LiveOrderKanban() {
         return null;
     }
   };
+
+  // ─── Completati: gli ultimi in righe compatte, tutti gli altri nello storico di oggi ───
+  const COMPLETED_VISIBLE = 5;
+  const allCompleted = filteredOrders('completed');
+  const completedRevenue = allCompleted.reduce((sum, o) => sum + o.total, 0);
+  const timeOf = (iso?: string) =>
+    iso ? new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }) : '';
+  const typeLabel = (o: LiveOrder) =>
+    o.isBookingPreOrder ? 'Prenotazione' : o.type === 'delivery' ? 'Domicilio' : o.type === 'takeaway' ? 'Asporto' : 'Tavolo';
+  const typeIcon = (o: LiveOrder) =>
+    o.isBookingPreOrder ? <Calendar size={14} /> : o.type === 'delivery' ? <Bike size={14} /> : o.type === 'takeaway' ? <ShoppingBag size={14} /> : <Utensils size={14} />;
+  const renderCompactRow = (order: LiveOrder, large = false) => (
+    <button
+      key={order.id}
+      type="button"
+      onClick={() => setSelectedOrderId(order.id)}
+      className={`flex w-full flex-shrink-0 items-center gap-3 rounded-xl bg-card px-3 py-2 text-left shadow-sm transition-shadow hover:shadow-md cursor-pointer ${
+        large ? 'min-h-[3.5rem]' : 'min-h-[3rem]'
+      }`}
+    >
+      <span
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+        title={typeLabel(order)}
+      >
+        {typeIcon(order)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">{order.customer}</span>
+        <span className="block truncate text-xs tabular-nums text-muted-foreground">
+          #{order.orderNumber} · {timeOf(order.timestamp)}
+        </span>
+      </span>
+      <span className="flex-shrink-0 text-sm font-bold tabular-nums text-foreground">€ {order.total.toFixed(2)}</span>
+    </button>
+  );
 
   const channelFilters: { key: typeof orderTypeFilter; label: string; icon?: React.ReactNode }[] = [
     { key: 'all', label: 'Tutti' },
@@ -971,34 +1069,46 @@ export default function LiveOrderKanban() {
         ))}
       </div>
 
-      {/* Intestazione: titolo, stato della connessione, suoni */}
+      {/* Intestazione */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-            Ordini live
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            </span>
-          </h1>
-          <span className="hidden text-sm text-muted-foreground sm:inline">Gestione ordinazioni in tempo reale</span>
+        <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
+          Ordini live
+          <span className="relative flex h-2.5 w-2.5" title="Connesso">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+        </h1>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={!isMuted}
+            aria-label={isMuted ? 'Attiva i suoni' : 'Disattiva i suoni'}
+            title={isMuted ? 'Suoni disattivati' : 'Suoni attivi'}
+            onClick={() => setIsMuted(!isMuted)}
+            className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors cursor-pointer ${
+              isMuted
+                ? 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
+            }`}
+          >
+            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+            <span className="hidden sm:inline">{isMuted ? 'Suoni off' : 'Suoni on'}</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={immersive}
+            aria-label={immersive ? 'Esci dallo schermo intero' : 'Schermo intero'}
+            title={immersive ? 'Esci dallo schermo intero (Esc)' : 'Schermo intero'}
+            onClick={toggleImmersive}
+            className="touch-target inline-flex h-10 items-center gap-2 rounded-xl bg-muted/60 px-3 text-sm font-semibold text-foreground/80 transition-colors hover:bg-muted cursor-pointer"
+          >
+            {immersive ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+            <span className="hidden sm:inline">{immersive ? 'Esci' : 'Schermo intero'}</span>
+          </button>
         </div>
-        <button
-          type="button"
-          aria-pressed={!isMuted}
-          onClick={() => setIsMuted(!isMuted)}
-          className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors cursor-pointer ${
-            isMuted
-              ? 'border-border bg-card text-muted-foreground hover:bg-muted'
-              : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300'
-          }`}
-        >
-          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          {isMuted ? 'Suoni disattivati' : 'Suoni attivi'}
-        </button>
       </div>
 
-      {/* Filtri: ricerca, canale (a pulsanti, comodi al tocco), stato */}
+      {/* Filtri: ricerca, canale, ordini persi */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[12rem] flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1007,10 +1117,10 @@ export default function LiveOrderKanban() {
             placeholder="Cerca per cliente o numero…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            className="h-11 w-full rounded-xl border border-transparent bg-muted/60 pl-9 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1" role="group" aria-label="Canale">
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1" role="group" aria-label="Canale">
           {channelFilters.map((f) => (
             <button
               key={f.key}
@@ -1019,8 +1129,8 @@ export default function LiveOrderKanban() {
               onClick={() => setOrderTypeFilter(f.key)}
               className={`touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors cursor-pointer ${
                 orderTypeFilter === f.key
-                  ? 'bg-foreground text-background shadow-sm'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {f.icon}
@@ -1033,10 +1143,8 @@ export default function LiveOrderKanban() {
           aria-pressed={showLost}
           onClick={() => setShowLost((v) => !v)}
           title="Ordini non accettati in tempo: restano un'ora"
-          className={`touch-target inline-flex h-11 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors cursor-pointer ${
-            showLost
-              ? 'border-rose-400 bg-rose-500 text-white shadow-sm'
-              : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
+          className={`touch-target inline-flex h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-semibold transition-colors cursor-pointer ${
+            showLost ? 'bg-rose-500 text-white shadow-sm' : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <Ban size={15} />
@@ -1054,7 +1162,7 @@ export default function LiveOrderKanban() {
       </div>
 
       {/* Schede delle colonne (pannello stretto: una colonna alla volta) */}
-      <div className={`${wide ? 'hidden' : 'flex'} gap-1.5 rounded-2xl border border-border bg-card p-1.5`} role="tablist">
+      <div className={`${wide ? 'hidden' : 'flex'} gap-1.5 rounded-2xl bg-muted/60 p-1.5`} role="tablist">
         {viewColumns.map((col) => {
           const count = filteredOrders(col.key).length;
           const isActive = activeMobileTab === col.key;
@@ -1073,7 +1181,7 @@ export default function LiveOrderKanban() {
               <span className="whitespace-nowrap min-[480px]:order-2">{col.label}</span>
               <span
                 className={`order-first min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-xs font-extrabold tabular-nums min-[480px]:order-last ${
-                  isActive ? 'bg-white/25 text-inherit' : 'bg-muted text-foreground'
+                  isActive ? 'bg-white/25 text-inherit' : 'bg-card text-foreground'
                 }`}
               >
                 {count}
@@ -1088,16 +1196,15 @@ export default function LiveOrderKanban() {
         {viewColumns.map((col) => {
           const isMobileHidden = !wide && activeMobileTab !== col.key;
           const colOrders = filteredOrders(col.key);
+          const isCompleted = col.key === 'completed';
+          const shownOrders = isCompleted ? colOrders.slice(0, COMPLETED_VISIBLE) : colOrders;
           return (
             <section
               key={`col-${col.key}`}
               aria-label={col.label}
-              className={`min-h-0 flex-col overflow-hidden rounded-2xl border ${col.ui.wrap} ${
-                isMobileHidden ? 'hidden' : 'flex'
-              }`}
+              className={`min-h-0 flex-col overflow-hidden rounded-2xl ${col.ui.wrap} ${isMobileHidden ? 'hidden' : 'flex'}`}
             >
-              <div className={`h-1 flex-shrink-0 ${col.ui.bar}`} />
-              <header className={`${wide ? 'flex' : 'hidden'} flex-shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3`}>
+              <header className={`${wide ? 'flex' : 'hidden'} flex-shrink-0 items-center justify-between gap-2 px-3.5 pb-2 pt-3.5`}>
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${col.ui.iconWrap}`}>
                     {col.icon}
@@ -1105,7 +1212,7 @@ export default function LiveOrderKanban() {
                   <h2 className="truncate text-base font-bold text-foreground">{col.label}</h2>
                   <span
                     className={`min-w-[1.75rem] rounded-full px-2 py-0.5 text-center text-sm font-extrabold tabular-nums ${col.ui.count} ${
-                      col.key === 'pending' && colOrders.length > 0 ? 'motion-safe:animate-pulse' : ''
+                      col.key === 'pending' && colOrders.length > 0 && !showLost ? 'motion-safe:animate-pulse' : ''
                     }`}
                   >
                     {colOrders.length}
@@ -1114,33 +1221,44 @@ export default function LiveOrderKanban() {
                 {col.key === 'accepted' && colOrders.length > 0 && (
                   <button
                     onClick={() => handlePrintAllAcceptedOrders(colOrders)}
-                    className="touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg border border-sky-200 bg-white/70 px-2.5 text-xs font-bold text-sky-700 transition-colors hover:bg-white dark:border-sky-500/30 dark:bg-transparent dark:text-sky-300 cursor-pointer"
+                    className="touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-sky-700 transition-colors hover:bg-sky-500/10 dark:text-sky-300 cursor-pointer"
                     title="Stampa tutte le comande in corso"
                   >
                     <Printer size={14} /> Stampa tutto
                   </button>
                 )}
+                {isCompleted && colOrders.length > 0 && (
+                  <span className="flex-shrink-0 text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                    € {completedRevenue.toFixed(2)}
+                  </span>
+                )}
               </header>
-
               {!wide && col.key === 'accepted' && colOrders.length > 0 && (
                 <div className="flex flex-shrink-0 justify-end px-2.5 pt-2.5">
                   <button
                     onClick={() => handlePrintAllAcceptedOrders(colOrders)}
-                    className="touch-target inline-flex h-10 items-center gap-1.5 rounded-lg border border-sky-200 bg-white/70 px-3 text-sm font-bold text-sky-700 transition-colors hover:bg-white dark:border-sky-500/30 dark:bg-transparent dark:text-sky-300 cursor-pointer"
+                    className="touch-target inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-sky-700 transition-colors hover:bg-sky-500/10 dark:text-sky-300 cursor-pointer"
                   >
                     <Printer size={14} /> Stampa tutto
                   </button>
                 </div>
               )}
+              {!wide && isCompleted && colOrders.length > 0 && (
+                <p className="flex-shrink-0 px-3.5 pt-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                  Oggi · {colOrders.length} {colOrders.length === 1 ? 'ordine' : 'ordini'} · € {completedRevenue.toFixed(2)}
+                </p>
+              )}
+
               <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-2.5">
                 {colOrders.length === 0 && (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/60 px-4 py-10 text-center">
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-card/70 px-4 py-10 text-center">
                     <span className={`flex h-10 w-10 items-center justify-center rounded-full ${col.ui.iconWrap}`}>{col.icon}</span>
                     <p className="text-sm font-semibold text-foreground">Nessun ordine</p>
                     <p className="text-xs text-muted-foreground">{col.hint}</p>
                   </div>
                 )}
-                {colOrders.map((order) => {
+                {shownOrders.map((order) => {
+                  if (isCompleted) return renderCompactRow(order);
                   const expired = order.status === 'expired';
                   return (
                     <article
@@ -1154,11 +1272,9 @@ export default function LiveOrderKanban() {
                           setSelectedOrderId(order.id);
                         }
                       }}
-                      className={`group flex flex-shrink-0 flex-col gap-3 rounded-xl border border-l-4 bg-card p-3.5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
-                        expired
-                          ? 'border-2 border-dashed border-rose-400/80 bg-rose-500/5'
-                          : `border-border ${col.ui.accent}`
-                      } ${col.key === 'completed' && !expired ? 'opacity-90 hover:opacity-100' : ''}`}
+                      className={`group flex flex-shrink-0 flex-col gap-3 rounded-xl p-3.5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
+                        expired ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-card'
+                      }`}
                     >
                       {/* Testa: numero, canale, tempo trascorso, stampa */}
                       <div className="flex items-start justify-between gap-2">
@@ -1308,7 +1424,7 @@ export default function LiveOrderKanban() {
                       )}
 
                       {/* Piede: pagamento e totale */}
-                      <div className="flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                      <div className="flex items-center justify-between gap-2 pt-1">
                         <div className="min-w-0">
                           {order.paymentStatus === 'paid' ? (
                             <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
@@ -1331,11 +1447,69 @@ export default function LiveOrderKanban() {
                     </article>
                   );
                 })}
+                {isCompleted && colOrders.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory(true)}
+                    className="touch-target mt-0.5 flex h-11 w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300 cursor-pointer"
+                  >
+                    <History size={16} />
+                    {colOrders.length > COMPLETED_VISIBLE ? `Vedi tutti gli ordini di oggi (${colOrders.length})` : 'Storico di oggi'}
+                  </button>
+                )}
               </div>
             </section>
           );
         })}
       </div>
+
+      {/* Storico di oggi: tutti gli ordini completati della giornata, solo consultazione */}
+      {showHistory && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs" onClick={() => setShowHistory(false)} />
+          <aside
+            className="relative z-10 flex h-full w-full flex-col bg-card shadow-2xl animate-in slide-in-from-right duration-200 sm:w-[clamp(24rem,45vw,30rem)]"
+            aria-label="Storico di oggi"
+          >
+            <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-foreground">Storico di oggi</h2>
+                <p className="text-sm text-muted-foreground">Ordini completati dalla mezzanotte</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistory(false)}
+                aria-label="Chiudi"
+                className="touch-target rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2 px-4 pb-3">
+              {[
+                { label: 'Ordini', value: String(allCompleted.length) },
+                { label: 'Incasso', value: `€ ${completedRevenue.toFixed(2)}` },
+                {
+                  label: 'Scontrino medio',
+                  value: `€ ${(allCompleted.length ? completedRevenue / allCompleted.length : 0).toFixed(2)}`,
+                },
+              ].map((k) => (
+                <div key={k.label} className="rounded-xl bg-muted/60 px-3 py-2.5">
+                  <p className="text-xs font-semibold text-muted-foreground">{k.label}</p>
+                  <p className="mt-0.5 text-base font-black tabular-nums text-foreground">{k.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-4">
+              {allCompleted.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">Nessun ordine completato oggi.</p>
+              ) : (
+                allCompleted.map((order) => renderCompactRow(order, true))
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Right Sidebar Drawer Modal */}
       {(() => {
@@ -1835,17 +2009,7 @@ export default function LiveOrderKanban() {
                       <CheckCheck size={14} /> Completa
                     </button>
                   </>
-                ) : (
-                  <button
-                    onClick={() => {
-                      rejectOrder('completed', selectedOrder.id);
-                      setSelectedOrderId(null);
-                    }}
-                    className="w-full py-2 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 dark:border-slate-850 dark:hover:bg-slate-900 dark:text-slate-300 transition-all font-semibold text-xs cursor-pointer"
-                  >
-                    Rimuovi dalla vista
-                  </button>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
