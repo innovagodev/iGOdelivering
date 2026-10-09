@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.41.0](https://github.com/innovagodev/iGOdelivering/compare/v1.40.0...v1.41.0) (2026-10-09)
+
+
+### Features
+
+* **profilo:** pagina Profilo ristorante, contatti nella testata della vetrina, sito e social salvati ([a64646d](https://github.com/innovagodev/iGOdelivering/commit/a64646dcf25ab722fdfe876575a84590f9a96d74))
+
+
+### Bug Fixes
+
+* **profilo:** la pagina Profilo ristorante e' raggiungibile (elenco pagine del middleware) e migration 041 ([407894c](https://github.com/innovagodev/iGOdelivering/commit/407894c043aaa88f5cc979bfcefb3796daeb4aa2))
+
 ## [1.40.0](https://github.com/innovagodev/iGOdelivering/compare/v1.39.1...v1.40.0) (2026-10-08)
 
 
