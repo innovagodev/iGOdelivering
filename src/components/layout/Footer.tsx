@@ -10,11 +10,6 @@ interface FooterProps {
 export default function Footer({ className = '', variant = 'full' }: FooterProps) {
   const year = new Date().getFullYear();
   const buildDate = new Date(versionData.buildDate);
-  const formattedDate = buildDate.toLocaleDateString('it-IT', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
@@ -99,7 +94,6 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
         <div className="flex items-center gap-2 text-[11px] opacity-75">
           <span className="font-semibold">v{versionData.version}</span>
           <span className="text-border">|</span>
-          <span>Build: {formattedDate}</span>
         </div>
       </div>
     </footer>
