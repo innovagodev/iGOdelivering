@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.48.2](https://github.com/innovagodev/iGOdelivering/compare/v1.48.1...v1.48.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ordini:** schede della stessa riga alla stessa altezza, con i pulsanti allineati ([75c8ec6](https://github.com/innovagodev/iGOdelivering/commit/75c8ec6ce1ae5b8ba6d7dfdb0934ec4ce2ea874e))
+
 ### [1.48.1](https://github.com/innovagodev/iGOdelivering/compare/v1.48.0...v1.48.1) (2026-10-09)
 
 
