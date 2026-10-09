@@ -27,6 +27,7 @@ import {
   Maximize2,
   Minimize2,
   History,
+  Timer,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/hooks/useOrders';
@@ -250,10 +251,14 @@ export default function LiveOrderKanban() {
   // reale (sidebar compresa), non da quella dello schermo.
   const rootRef = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(false);
+  const [twoCols, setTwoCols] = useState(false);
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 800));
+    const ro = new ResizeObserver(([entry]) => {
+      setWide(entry.contentRect.width >= 800);
+      setTwoCols(entry.contentRect.width >= 640);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -1280,9 +1285,13 @@ export default function LiveOrderKanban() {
                 </p>
               )}
 
-              <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-2.5">
+              <div
+                className={`flex-1 gap-2.5 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-2.5 ${
+                  !wide && twoCols ? 'grid grid-cols-2 content-start items-start' : 'flex flex-col'
+                }`}
+              >
                 {colOrders.length === 0 && (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-card/70 px-4 py-10 text-center">
+                  <div className="col-span-2 flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-card/70 px-4 py-10 text-center">
                     <span className={`flex h-10 w-10 items-center justify-center rounded-full ${col.ui.iconWrap}`}>{col.icon}</span>
                     <p className="text-sm font-semibold text-foreground">Nessun ordine</p>
                     <p className="text-xs text-muted-foreground">{col.hint}</p>
@@ -1303,52 +1312,22 @@ export default function LiveOrderKanban() {
                           setSelectedOrderId(order.id);
                         }
                       }}
-                      className={`group flex flex-shrink-0 flex-col gap-2.5 rounded-xl p-3 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
+                      className={`group flex flex-shrink-0 flex-col gap-2 rounded-xl p-3 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
                         expired ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-card'
                       }`}
                     >
-                      {/* Testa: numero, canale, tempo trascorso, stampa */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {expired && (
-                              <span className="inline-flex flex-shrink-0 items-center rounded-md bg-rose-500 px-1.5 py-0.5 text-xs font-extrabold uppercase text-white">
-                                Scaduto
-                              </span>
-                            )}
-                            <span className="text-sm font-bold tabular-nums text-muted-foreground">#{order.orderNumber}</span>
-                            {getOrderTypeBadge(order.type, order.tableNumber, order.isBookingPreOrder)}
-                          </div>
-                          <h3 className="line-clamp-2 break-words text-base font-bold leading-tight text-foreground">{order.customer}</h3>
-                          {order.phone && (
-                            <a
-                              href={`tel:${order.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-                              title="Chiama il cliente"
-                            >
-                              <Phone size={12} />
-                              {order.phone}
-                            </a>
+                      {/* Riga 1: numero e canale, tempo trascorso e stampa */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                          {expired && (
+                            <span className="inline-flex flex-shrink-0 items-center rounded-md bg-rose-500 px-1.5 py-0.5 text-xs font-extrabold uppercase text-white">
+                              Scaduto
+                            </span>
                           )}
-                          {(() => {
-                            const when = serviceWhen(order);
-                            if (!when) return null;
-                            return (
-                              <div
-                                className={`flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold ${
-                                  when.scheduled
-                                    ? 'bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200'
-                                    : 'bg-muted text-foreground/70'
-                                }`}
-                              >
-                                <Clock size={13} className="flex-shrink-0" />
-                                {when.kind} {when.label}
-                              </div>
-                            );
-                          })()}
+                          <span className="text-sm font-bold tabular-nums text-muted-foreground">#{order.orderNumber}</span>
+                          {getOrderTypeBadge(order.type, order.tableNumber, order.isBookingPreOrder)}
                         </div>
-                        <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                        <div className="flex flex-shrink-0 items-center gap-1">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-muted-foreground">
                             <Clock size={12} />
                             {formatMinutesAgo(order.minutesAgo)}
@@ -1367,10 +1346,90 @@ export default function LiveOrderKanban() {
                         </div>
                       </div>
 
+                      {/* Riga 2: cliente e totale */}
+                      <div className="flex items-baseline justify-between gap-3">
+                        <h3 className="line-clamp-2 min-w-0 break-words text-base font-bold leading-tight text-foreground">
+                          {order.customer}
+                        </h3>
+                        <span className="flex-shrink-0 text-base font-black tabular-nums text-foreground">
+                          € {order.total.toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Riga 3: telefono, orario richiesto e scadenza, affiancati */}
+                      {(() => {
+                        const when = serviceWhen(order);
+                        const waiting = (order.status === 'new' || order.status === 'pending') && order.acceptDeadline;
+                        if (!order.phone && !when && !waiting) return null;
+                        const chipCls = 'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold';
+                        return (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                            {order.phone && (
+                              <a
+                                href={`tel:${order.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                                title="Chiama il cliente"
+                              >
+                                <Phone size={12} />
+                                {order.phone}
+                              </a>
+                            )}
+                            {when && (
+                              <span
+                                className={`${chipCls} ${
+                                  when.scheduled
+                                    ? 'bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200'
+                                    : 'bg-muted text-foreground/70'
+                                }`}
+                              >
+                                <Clock size={13} className="flex-shrink-0" />
+                                {when.kind} {when.label}
+                              </span>
+                            )}
+                            {waiting &&
+                              (() => {
+                                const deadline = new Date(order.acceptDeadline as string).getTime();
+                                if (order.acceptanceMode === 'deferred') {
+                                  return (
+                                    <span className={`${chipCls} bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300`}>
+                                      <Timer size={13} className="flex-shrink-0" />
+                                      Conferma entro{' '}
+                                      {new Date(deadline).toLocaleString('it-IT', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  );
+                                }
+                                const left = Math.max(0, Math.ceil((deadline - nowMs) / 1000));
+                                const urgent = left <= 60;
+                                return (
+                                  <span
+                                    className={`${chipCls} ${
+                                      urgent
+                                        ? 'bg-red-50 text-red-700 motion-safe:animate-pulse dark:bg-red-500/10 dark:text-red-300'
+                                        : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
+                                    }`}
+                                  >
+                                    <Timer size={13} className="flex-shrink-0" />
+                                    Accetta entro
+                                    <span className="font-mono tabular-nums">
+                                      {String(Math.floor(left / 60)).padStart(2, '0')}:{String(left % 60).padStart(2, '0')}
+                                    </span>
+                                  </span>
+                                );
+                              })()}
+                          </div>
+                        );
+                      })()}
+
                       {/* Piatti: quantità davanti, come su una comanda */}
-                      <ul className="space-y-1.5">
+                      <ul className="space-y-1">
                         {order.items.map((item, idx) => (
-                          <li key={`${order.id}-item-${idx}`} className="flex items-start gap-2.5 text-sm text-foreground">
+                          <li key={`${order.id}-item-${idx}`} className="flex items-start gap-2 text-sm text-foreground">
                             <span className="min-w-[1.75rem] rounded-md bg-muted px-1 py-0.5 text-center text-[13px] font-extrabold tabular-nums">
                               {item.qty}×
                             </span>
@@ -1385,7 +1444,7 @@ export default function LiveOrderKanban() {
                                 </span>
                               ) : null}
                               {item.note ? (
-                                <span className="mt-0.5 block text-xs font-semibold italic leading-snug text-amber-700 dark:text-amber-400">
+                                <span className="block text-xs font-semibold italic leading-snug text-amber-700 dark:text-amber-400">
                                   “{item.note}”
                                 </span>
                               ) : null}
@@ -1394,47 +1453,11 @@ export default function LiveOrderKanban() {
                         ))}
                       </ul>
 
-                      {/* Scadenza per accettare */}
-                      {(order.status === 'new' || order.status === 'pending') &&
-                        order.acceptDeadline &&
-                        (() => {
-                          const deadline = new Date(order.acceptDeadline).getTime();
-                          if (order.acceptanceMode === 'deferred') {
-                            return (
-                              <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                                Preordine: da confermare entro{' '}
-                                {new Date(deadline).toLocaleString('it-IT', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </div>
-                            );
-                          }
-                          const left = Math.max(0, Math.ceil((deadline - nowMs) / 1000));
-                          const urgent = left <= 60;
-                          return (
-                            <div
-                              className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-bold ${
-                                urgent
-                                  ? 'bg-red-50 text-red-700 motion-safe:animate-pulse dark:bg-red-500/10 dark:text-red-300'
-                                  : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
-                              }`}
-                            >
-                              <span>Accetta entro</span>
-                              <span className="font-mono text-sm tabular-nums">
-                                {String(Math.floor(left / 60)).padStart(2, '0')}:{String(left % 60).padStart(2, '0')}
-                              </span>
-                            </div>
-                          );
-                        })()}
-
                       {/* Informazioni di servizio */}
                       {(order.address ||
                         (order.type === 'table' && !order.isBookingPreOrder && order.tableNumber) ||
                         order.isBookingPreOrder) && (
-                        <div className="flex flex-col gap-1.5 text-xs">
+                        <div className="flex flex-col gap-1 text-xs">
                           {order.isBookingPreOrder && (
                             <div className="flex items-center gap-1.5 font-semibold text-purple-700 dark:text-purple-300">
                               <Calendar size={13} className="flex-shrink-0" />
@@ -1456,27 +1479,23 @@ export default function LiveOrderKanban() {
                         </div>
                       )}
 
-                      {/* Piede: pagamento e totale */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
-                        <div className="min-w-0">
-                          {order.paymentStatus === 'paid' ? (
-                            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                              Pagato online
-                            </span>
-                          ) : order.paymentStatus === 'refunded' || order.paymentStatus === 'partially_refunded' ? (
-                            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
-                              Rimborsato
-                            </span>
-                          ) : order.paymentMethod === 'cash' || order.paymentMethod === 'pos' ? (
-                            <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                              Da incassare · {order.paymentMethod === 'pos' ? 'POS' : 'Contanti'}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="text-base font-black tabular-nums text-foreground">€ {order.total.toFixed(2)}</span>
+                      {/* Piede: pagamento e azioni sulla stessa riga (vanno a capo solo se manca lo spazio) */}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        {order.paymentStatus === 'paid' ? (
+                          <span className="inline-flex flex-shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                            Pagato online
+                          </span>
+                        ) : order.paymentStatus === 'refunded' || order.paymentStatus === 'partially_refunded' ? (
+                          <span className="inline-flex flex-shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+                            Rimborsato
+                          </span>
+                        ) : order.paymentMethod === 'cash' || order.paymentMethod === 'pos' ? (
+                          <span className="inline-flex flex-shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                            Da incassare · {order.paymentMethod === 'pos' ? 'POS' : 'Contanti'}
+                          </span>
+                        ) : null}
+                        <div className="min-w-[13rem] flex-1">{renderActions(col.key, order)}</div>
                       </div>
-
-                      {renderActions(col.key, order)}
                     </article>
                   );
                 })}
@@ -1484,7 +1503,7 @@ export default function LiveOrderKanban() {
                   <button
                     type="button"
                     onClick={() => setShowHistory(true)}
-                    className="touch-target mt-0.5 flex h-11 w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300 cursor-pointer"
+                    className="touch-target col-span-2 mt-0.5 flex h-11 w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300 cursor-pointer"
                   >
                     <History size={16} />
                     {colOrders.length > COMPLETED_VISIBLE ? `Vedi tutti gli ordini di oggi (${colOrders.length})` : 'Storico di oggi'}
