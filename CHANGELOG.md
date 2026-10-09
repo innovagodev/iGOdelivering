@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.44.0](https://github.com/innovagodev/iGOdelivering/compare/v1.43.0...v1.44.0) (2026-10-09)
+
+
+### Features
+
+* **ordini:** ordini persi in una pillola con contatore, nascondibili e spariscono dopo un'ora ([1a286f0](https://github.com/innovagodev/iGOdelivering/commit/1a286f0523ff70578d10f987ab5f4504cdba81fc))
+
 ## [1.43.0](https://github.com/innovagodev/iGOdelivering/compare/v1.42.5...v1.43.0) (2026-10-09)
 
 
