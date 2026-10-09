@@ -79,6 +79,7 @@ export async function middleware(request: NextRequest) {
     }
     const validRistoratoreRoutes = [
       '/ristoratore/dashboard',
+      '/ristoratore/dashboard/storico',
       '/ristoratore/profilo',
       '/ristoratore/ordini',
       '/ristoratore/orari',
