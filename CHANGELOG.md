@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.41.2](https://github.com/innovagodev/iGOdelivering/compare/v1.41.1...v1.41.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **admin:** il controllo del CAP rifiutava anche i CAP corretti ([a1b958c](https://github.com/innovagodev/iGOdelivering/commit/a1b958ca16afc527dbefb7f5dfd83fba7a511139))
+
 ### [1.41.1](https://github.com/innovagodev/iGOdelivering/compare/v1.41.0...v1.41.1) (2026-10-09)
 
 
