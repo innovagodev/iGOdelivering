@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.48.1](https://github.com/innovagodev/iGOdelivering/compare/v1.48.0...v1.48.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **storico:** pulsante per tornare alla dashboard piu' evidente ([693330b](https://github.com/innovagodev/iGOdelivering/commit/693330babf100da72034ee5b81a5c7ba2289e48b))
+
 ## [1.48.0](https://github.com/innovagodev/iGOdelivering/compare/v1.47.2...v1.48.0) (2026-10-09)
 
 
