@@ -7,6 +7,7 @@ import {
   CheckCheck,
   AlertCircle,
   Bell,
+  Ban,
   User,
   X,
   Check,
@@ -117,6 +118,25 @@ const columns: ColumnDef[] = [
   },
 ];
 
+// Gli ordini non accettati in tempo ("persi") restano visibili un'ora dalla scadenza,
+// poi spariscono da soli; si possono anche nascondere prima.
+const LOST_VISIBLE_MS = 60 * 60 * 1000;
+
+const lostColumn: ColumnDef = {
+  key: 'pending',
+  label: 'Persi',
+  hint: 'Ordini non accettati in tempo: spariscono da soli dopo un\'ora',
+  icon: <Ban size={16} />,
+  ui: {
+    wrap: 'border-rose-300/70 bg-rose-50/60 dark:border-rose-500/25 dark:bg-rose-500/[0.06]',
+    bar: 'bg-rose-500',
+    iconWrap: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+    count: 'bg-rose-500 text-white',
+    tab: 'bg-rose-500 text-white shadow-sm',
+    accent: 'border-l-rose-500',
+  },
+};
+
 interface Toast {
   id: string;
   message: string;
@@ -188,7 +208,29 @@ export default function LiveOrderKanban() {
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'delivery' | 'takeaway' | 'table'>(
     'all'
   );
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [showLost, setShowLost] = useState(false);
+  // "Nascondi" è una scelta di vista, per questo dispositivo: non cambia nulla nell'ordine.
+  const dismissKey = `iGO_lost_dismissed_${restaurantId}`;
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(dismissKey);
+      setDismissed(raw ? JSON.parse(raw) : []);
+    } catch {
+      setDismissed([]);
+    }
+  }, [dismissKey]);
+  const dismissLost = (id: string) => {
+    setDismissed((prev) => {
+      const next = Array.from(new Set([...prev, id]));
+      try {
+        localStorage.setItem(dismissKey, JSON.stringify(next.slice(-300)));
+      } catch {
+        /* senza archivio il nascondimento vale solo finché la pagina è aperta */
+      }
+      return next;
+    });
+  };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [ticker, setTicker] = useState(0);
@@ -429,11 +471,29 @@ export default function LiveOrderKanban() {
     }
   };
 
+  // Quando è scaduto: la scadenza decisa dal server, o 3 minuti dalla creazione per gli ordini più vecchi.
+  const lostSince = (o: any) =>
+    o.accept_deadline
+      ? new Date(o.accept_deadline).getTime()
+      : new Date(o.created_at || o.timestamp || o.createdAt).getTime() + 3 * 60000;
+  const isLostVisible = (o: any) => !dismissed.includes(o.id) && Date.now() - lostSince(o) < LOST_VISIBLE_MS;
+  const lostCount = orders.filter(
+    (o) =>
+      (o.status === 'new' || o.status === 'pending' || o.status === 'expired') &&
+      getOrderStatus(o) === 'expired' &&
+      isLostVisible(o)
+  ).length;
+  const viewColumns = columns.map((c) => (c.key === 'pending' && showLost ? lostColumn : c));
+
   const filteredOrders = (colKey: OrderStatus) => {
     return orders
       .filter((o) => {
         const orderStatus = o.status;
-        if (colKey === 'pending') return orderStatus === 'new' || orderStatus === 'pending' || orderStatus === 'expired';
+        if (colKey === 'pending') {
+          if (orderStatus !== 'new' && orderStatus !== 'pending' && orderStatus !== 'expired') return false;
+          const lost = getOrderStatus(o) === 'expired';
+          return showLost ? lost && isLostVisible(o) : !lost;
+        }
         if (colKey === 'accepted')
           return (
             orderStatus === 'accepted' ||
@@ -452,14 +512,7 @@ export default function LiveOrderKanban() {
           order.id.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesType = orderTypeFilter === 'all' || order.type === orderTypeFilter;
         
-        let matchesStatus = true;
-        if (statusFilter === 'active') {
-          matchesStatus = order.status !== 'expired';
-        } else if (statusFilter === 'expired') {
-          matchesStatus = order.status === 'expired';
-        }
-
-        return matchesSearch && matchesType && matchesStatus;
+        return matchesSearch && matchesType;
       });
   };
 
@@ -771,6 +824,16 @@ export default function LiveOrderKanban() {
               </button>
             )}
           </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              dismissLost(order.id);
+            }}
+            className="touch-target flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+          >
+            <X size={14} />
+            Nascondi dalla vista
+          </button>
         </div>
       );
     }
@@ -965,21 +1028,34 @@ export default function LiveOrderKanban() {
             </button>
           ))}
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as any)}
-          aria-label="Stato"
-          className="h-11 rounded-xl border border-border bg-card pl-3 pr-9 text-base text-foreground focus:border-primary focus:outline-none"
+        <button
+          type="button"
+          aria-pressed={showLost}
+          onClick={() => setShowLost((v) => !v)}
+          title="Ordini non accettati in tempo: restano un'ora"
+          className={`touch-target inline-flex h-11 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors cursor-pointer ${
+            showLost
+              ? 'border-rose-400 bg-rose-500 text-white shadow-sm'
+              : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
         >
-          <option value="all">Tutti gli stati</option>
-          <option value="active">Solo attivi</option>
-          <option value="expired">Solo persi</option>
-        </select>
+          <Ban size={15} />
+          Persi
+          {lostCount > 0 && (
+            <span
+              className={`min-w-[1.375rem] rounded-full px-1.5 py-0.5 text-center text-xs font-extrabold tabular-nums ${
+                showLost ? 'bg-white/25 text-white' : 'bg-rose-500 text-white'
+              }`}
+            >
+              {lostCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Schede delle colonne (pannello stretto: una colonna alla volta) */}
       <div className={`${wide ? 'hidden' : 'flex'} gap-1.5 rounded-2xl border border-border bg-card p-1.5`} role="tablist">
-        {columns.map((col) => {
+        {viewColumns.map((col) => {
           const count = filteredOrders(col.key).length;
           const isActive = activeMobileTab === col.key;
           return (
@@ -1009,7 +1085,7 @@ export default function LiveOrderKanban() {
 
       {/* Kanban: ogni colonna scorre per conto suo, l'intestazione resta ferma */}
       <div className={`grid min-h-0 flex-1 gap-3 ${wide ? 'grid-cols-3' : 'grid-cols-1'}`}>
-        {columns.map((col) => {
+        {viewColumns.map((col) => {
           const isMobileHidden = !wide && activeMobileTab !== col.key;
           const colOrders = filteredOrders(col.key);
           return (
@@ -1080,7 +1156,7 @@ export default function LiveOrderKanban() {
                       }}
                       className={`group flex flex-shrink-0 flex-col gap-3 rounded-xl border border-l-4 bg-card p-3.5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
                         expired
-                          ? 'border-2 border-dashed border-rose-400/80 bg-rose-500/5 opacity-70 hover:opacity-100'
+                          ? 'border-2 border-dashed border-rose-400/80 bg-rose-500/5'
                           : `border-border ${col.ui.accent}`
                       } ${col.key === 'completed' && !expired ? 'opacity-90 hover:opacity-100' : ''}`}
                     >
