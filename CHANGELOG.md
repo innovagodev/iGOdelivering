@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.49.0](https://github.com/innovagodev/iGOdelivering/compare/v1.48.4...v1.49.0) (2026-10-09)
+
+
+### Features
+
+* **privacy:** avviso con link all'informativa in checkout, prenotazione e registrazione; link Privacy nel footer ([c8ecf1e](https://github.com/innovagodev/iGOdelivering/commit/c8ecf1e984526f0f21c660ef7d1e9a232f1389e4))
+
 ### [1.48.4](https://github.com/innovagodev/iGOdelivering/compare/v1.48.3...v1.48.4) (2026-10-09)
 
 
