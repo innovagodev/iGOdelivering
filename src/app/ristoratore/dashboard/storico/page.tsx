@@ -379,9 +379,9 @@ export default function StoricoOrdiniPage() {
                   <div className="min-w-0">
                     <Link
                       href="/ristoratore/dashboard"
-                      className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground"
+                      className="group inline-flex items-center gap-1.5 rounded-full bg-card py-1 pl-2.5 pr-3.5 text-sm font-semibold text-foreground shadow-sm transition-shadow hover:shadow-md"
                     >
-                      <ArrowLeft size={14} /> Dashboard
+                      <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" /> Dashboard
                     </Link>
                     <h1 className="mt-1 text-2xl font-bold text-foreground">Storico ordini</h1>
                     <p className="text-sm text-muted-foreground">
