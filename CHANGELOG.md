@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.45.0](https://github.com/innovagodev/iGOdelivering/compare/v1.44.0...v1.45.0) (2026-10-09)
+
+
+### Features
+
+* **ordini:** schermo pieno, completati compatti con storico di oggi, interfaccia piu' minimal ([326d37e](https://github.com/innovagodev/iGOdelivering/commit/326d37ea2b2e0bd5ff668f82c1a53c9aa939d04e))
+
 ## [1.44.0](https://github.com/innovagodev/iGOdelivering/compare/v1.43.0...v1.44.0) (2026-10-09)
 
 
