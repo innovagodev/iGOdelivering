@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fromCents } from '@/lib/pricing';
 import { decideAcceptance } from '@/lib/acceptance';
+import { normalizePhone } from '@/lib/contacts';
 import {
   bookingMaxDays,
   bookingNoticeMinutes,
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
   const time = str(body.time, 5);
   const guests = body.guests;
 
-  if (!name || !phone) return reply(invalid);
+  if (!name || !phone || normalizePhone(phone) === undefined) return reply(invalid);
   if (email && !EMAIL_RE.test(email)) return reply(invalid);
   if (!Number.isInteger(guests) || (guests as number) < 1 || (guests as number) > 100) {
     return reply(invalid);

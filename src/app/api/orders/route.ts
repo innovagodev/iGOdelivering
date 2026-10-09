@@ -5,6 +5,7 @@ import { checkSchedule, HoursConfig, nowInZone, ScheduledOrdersConfig } from '@/
 import { getStripe } from '@/lib/stripeServer';
 import { expireDueRequests } from '@/lib/orderPayments';
 import { decideAcceptance } from '@/lib/acceptance';
+import { normalizePhone } from '@/lib/contacts';
 import {
   adminClient,
   EMAIL_RE,
@@ -125,6 +126,8 @@ async function createOrder(admin: SupabaseClient, body: Record<string, unknown>,
   if (isOnline && type === 'tavolo') return invalid;
 
   if (!name) return invalid;
+  // Telefono facoltativo al tavolo, ma se c'è deve essere un numero vero.
+  if (phone && normalizePhone(phone) === undefined) return invalid;
   if (type === 'tavolo') {
     if (!tableNumber) return invalid;
   } else {

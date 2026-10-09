@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { fetchAllPages } from '@/lib/fetchAll';
+import { phoneDigits } from '@/lib/fields';
 import {
   Plus,
   Phone,
@@ -985,10 +986,11 @@ export default function PrenotazioniPage() {
                 Telefono *
               </label>
               <input
-                type="text"
+                type="tel"
+                inputMode="tel"
                 required
                 value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                onChange={(e) => setPhone(phoneDigits(e.target.value))}
                 placeholder="+39 3331234567"
                 className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
               />

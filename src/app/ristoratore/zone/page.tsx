@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { DeliveryZoneConfig } from '@/types';
 import { Plus, Edit2, Trash2, Euro, Info, AlertCircle, Store } from 'lucide-react';
 import { notify, confirmAction } from '@/lib/notify';
+import { capListChars, normalizeCapList } from '@/lib/fields';
 
 export default function DeliveryZonesPage() {
   const { user, isLoading } = useAuth();
@@ -139,6 +140,11 @@ export default function DeliveryZonesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !caps.trim()) return;
+    const validCaps = normalizeCapList(caps);
+    if (!validCaps) {
+      notify.error('I CAP devono avere 5 cifre ciascuno, separati da virgola (es. 20121, 20122).');
+      return;
+    }
 
     const zoneData = {
       restaurant_id: restaurantId,
@@ -148,7 +154,7 @@ export default function DeliveryZonesPage() {
       delivery_fee: parseFloat(deliveryFee) || 0,
       free_delivery_threshold: parseFloat(freeDeliveryThreshold) || 0,
       enabled: isEnabled,
-      caps: caps.trim(),
+      caps: validCaps,
     };
 
     try {
@@ -501,9 +507,10 @@ export default function DeliveryZonesPage() {
             </label>
             <input
               type="text"
+              inputMode="numeric"
               required
               value={caps}
-              onChange={(e) => setCaps(e.target.value)}
+              onChange={(e) => setCaps(capListChars(e.target.value))}
               placeholder="Es. 20121, 20122, 20123"
               className="w-full px-3.5 py-2.5 text-base bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
             />

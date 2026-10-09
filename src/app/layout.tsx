@@ -6,6 +6,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import LenisProvider from '@/components/layout/LenisProvider';
 import MaintenanceWrapper from '@/components/layout/MaintenanceWrapper';
 import NotifyHost from '@/components/ui/NotifyHost';
+import NumberInputGuard from '@/components/ui/NumberInputGuard';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </MaintenanceWrapper>
         </AuthProvider>
         <NotifyHost />
+        <NumberInputGuard />
       </body>
     </html>
   );

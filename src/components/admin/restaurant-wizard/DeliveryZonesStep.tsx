@@ -4,6 +4,7 @@ import { MapPin, Trash2, Euro, Plus, Radius, ShoppingBag, Gift } from 'lucide-re
 import Toggle from '@/components/ui/Toggle';
 
 import { DeliveryZone } from '@/types';
+import { capListChars } from '@/lib/fields';
 
 interface DeliveryZonesStepProps {
   zones: DeliveryZone[];
@@ -89,9 +90,10 @@ export default function DeliveryZonesStep({
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   required
                   value={zone.caps || ''}
-                  onChange={(e) => updateZone(zone.id, 'caps', e.target.value)}
+                  onChange={(e) => updateZone(zone.id, 'caps', capListChars(e.target.value))}
                   placeholder="Es. 20121, 20122, 20123"
                   className={inputClass}
                 />

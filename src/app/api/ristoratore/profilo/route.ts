@@ -135,7 +135,7 @@ export async function PATCH(request: Request) {
   }
   if (has('province')) {
     const v = text(body.province).toUpperCase();
-    if (v && !/^[A-Z]{2,3}$/.test(v)) fields.province = 'La provincia va scritta con la sigla (per esempio RG).';
+    if (v && !/^[A-Z]{2}$/.test(v)) fields.province = 'La provincia va scritta con la sigla di 2 lettere (per esempio RG).';
     else patch.province = v || null;
   }
   if (has('cap')) {

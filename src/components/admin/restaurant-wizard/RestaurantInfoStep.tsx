@@ -17,6 +17,14 @@ import {
 } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '@/components/ui/BrandIcons';
 import { RestaurantInfo, TableBookingConfig } from '@/types';
+import {
+  digitsOnly,
+  phoneChars,
+  provinceLetters,
+  vatDigits,
+  websiteOnBlur,
+  websiteOnFocus,
+} from '@/lib/fields';
 
 interface RestaurantInfoStepProps {
   info: RestaurantInfo;
@@ -205,7 +213,7 @@ export default function RestaurantInfoStep({
 
           {/* P.IVA */}
           <div>
-            <label className={labelCls}>Partita IVA</label>
+            <label className={labelCls}>Partita IVA (11 cifre)</label>
             <div className="relative">
               <FileText
                 size={15}
@@ -213,9 +221,12 @@ export default function RestaurantInfoStep({
               />
               <input
                 type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={13}
                 value={info.vatNumber}
-                onChange={(e) => setInfo((p) => ({ ...p, vatNumber: e.target.value }))}
-                placeholder="IT12345678901"
+                onChange={(e) => setInfo((p) => ({ ...p, vatNumber: vatDigits(e.target.value) }))}
+                placeholder="12345678901"
                 className={inputIconCls}
               />
             </div>
@@ -373,7 +384,7 @@ export default function RestaurantInfoStep({
               <input
                 type="text"
                 value={info.province}
-                onChange={(e) => setInfo((p) => ({ ...p, province: e.target.value }))}
+                onChange={(e) => setInfo((p) => ({ ...p, province: provinceLetters(e.target.value) }))}
                 placeholder="NA"
                 maxLength={2}
                 className={`${inputCls} uppercase`}
@@ -383,8 +394,9 @@ export default function RestaurantInfoStep({
               <label className={labelCls}>CAP</label>
               <input
                 type="text"
+                inputMode="numeric"
                 value={info.cap}
-                onChange={(e) => setInfo((p) => ({ ...p, cap: e.target.value }))}
+                onChange={(e) => setInfo((p) => ({ ...p, cap: digitsOnly(e.target.value, 5) }))}
                 placeholder="80100"
                 maxLength={5}
                 className={inputCls}
@@ -410,10 +422,9 @@ export default function RestaurantInfoStep({
               />
               <input
                 type="tel"
+                inputMode="tel"
                 value={info.phone}
-                onChange={(e) =>
-                  setInfo((p) => ({ ...p, phone: e.target.value.replace(/[^\d+]/g, '') }))
-                }
+                onChange={(e) => setInfo((p) => ({ ...p, phone: phoneChars(e.target.value) }))}
                 placeholder="+39 081 123 4567"
                 className={inputIconCls}
               />
@@ -452,7 +463,10 @@ export default function RestaurantInfoStep({
               />
               <input
                 type="url"
+                inputMode="url"
                 value={info.website}
+                onFocus={() => setInfo((p) => ({ ...p, website: websiteOnFocus(p.website ?? '') }))}
+                onBlur={() => setInfo((p) => ({ ...p, website: websiteOnBlur(p.website ?? '') }))}
                 onChange={(e) => setInfo((p) => ({ ...p, website: e.target.value }))}
                 placeholder="https://www.ristorante.it"
                 className={inputIconCls}
@@ -502,7 +516,7 @@ export default function RestaurantInfoStep({
                 type="tel"
                 inputMode="tel"
                 value={info.whatsapp ?? ''}
-                onChange={(e) => setInfo((p) => ({ ...p, whatsapp: e.target.value }))}
+                onChange={(e) => setInfo((p) => ({ ...p, whatsapp: phoneChars(e.target.value) }))}
                 placeholder="+39 333 1234567"
                 className={inputIconCls}
               />

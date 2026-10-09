@@ -8,7 +8,8 @@ import { notify, confirmAction } from '@/lib/notify';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_SCHEDULED_ORDERS, withScheduledDefaults } from '@/lib/scheduledOrders';
-import { normalizeContacts } from '@/lib/contacts';
+import { normalizeContacts, normalizePhone } from '@/lib/contacts';
+import { keepValidCaps, normalizeVat, vatDigits } from '@/lib/fields';
 import { uploadImage } from '@/lib/storage-upload';
 import {
   ArrowLeft,
@@ -543,7 +544,7 @@ export default function RestaurantConfigurePage() {
           city: restaurant.city || '',
           province: restaurant.province || '',
           cap: restaurant.cap || '',
-          vatNumber: restaurant.vat_number || '',
+          vatNumber: vatDigits(restaurant.vat_number || ''),
           logoUrl: restaurant.logo_url || '',
           backgroundImageUrl: restaurant.background_url || '',
         };
@@ -929,6 +930,18 @@ export default function RestaurantConfigurePage() {
     if (!info.email.trim()) {
       return { isValid: false, message: 'L\'"Email" di contatto è obbligatoria.' };
     }
+    if (normalizePhone(info.phone) === undefined) {
+      return { isValid: false, message: 'Il "Telefono" non è valido: usa solo cifre (almeno 6) e il + iniziale.' };
+    }
+    if (normalizeVat(info.vatNumber) === undefined) {
+      return { isValid: false, message: 'La "Partita IVA" deve avere esattamente 11 cifre.' };
+    }
+    if (info.cap.trim() && !/^d{5}$/.test(info.cap.trim())) {
+      return { isValid: false, message: 'Il "CAP" deve avere 5 cifre.' };
+    }
+    if (info.province.trim() && !/^[A-Za-z]{2}$/.test(info.province.trim())) {
+      return { isValid: false, message: 'La "Provincia" è la sigla di 2 lettere (es. NA).' };
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(info.email.trim())) {
       return { isValid: false, message: 'Inserisci un indirizzo email valido.' };
@@ -1134,7 +1147,7 @@ export default function RestaurantConfigurePage() {
         city: info.city,
         province: info.province,
         cap: info.cap,
-        vat_number: info.vatNumber || null,
+        vat_number: normalizeVat(info.vatNumber) ?? null,
         category: info.category || null,
         description: info.description || null,
         description_en: info.descriptionEn?.trim() || null,
@@ -1244,7 +1257,7 @@ export default function RestaurantConfigurePage() {
           delivery_fee: z.deliveryFee,
           free_delivery_threshold: z.freeDeliveryThreshold,
           enabled: z.enabled,
-          caps: z.caps || '',
+          caps: keepValidCaps(z.caps),
         }));
         const { error: zonesErr } = await supabase.from('delivery_zones').insert(zonesPayload);
         if (zonesErr) {

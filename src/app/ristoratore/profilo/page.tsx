@@ -7,6 +7,7 @@ import StorefrontHero from '@/components/menu/StorefrontHero';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { notify } from '@/lib/notify';
+import { digitsOnly, phoneChars, provinceLetters, websiteOnBlur, websiteOnFocus } from '@/lib/fields';
 import { uploadImage } from '@/lib/storage-upload';
 import {
   ACCEPTED_IMAGE_TYPES,
@@ -704,7 +705,7 @@ export default function ProfiloRistorantePage() {
                             type="tel"
                             inputMode="tel"
                             value={form.phone}
-                            onChange={(e) => set('phone', e.target.value)}
+                            onChange={(e) => set('phone', phoneChars(e.target.value))}
                             placeholder="0932 123456"
                             className={inputCls}
                           />
@@ -714,7 +715,7 @@ export default function ProfiloRistorantePage() {
                             type="tel"
                             inputMode="tel"
                             value={form.whatsapp}
-                            onChange={(e) => set('whatsapp', e.target.value)}
+                            onChange={(e) => set('whatsapp', phoneChars(e.target.value))}
                             placeholder="+39 333 1234567"
                             className={inputCls}
                           />
@@ -724,8 +725,10 @@ export default function ProfiloRistorantePage() {
                             type="url"
                             inputMode="url"
                             value={form.website}
+                            onFocus={() => set('website', websiteOnFocus(form.website))}
+                            onBlur={() => set('website', websiteOnBlur(form.website))}
                             onChange={(e) => set('website', e.target.value)}
-                            placeholder="www.tuosito.it"
+                            placeholder="https://www.tuosito.it"
                             className={inputCls}
                           />
                         </Field>
@@ -803,8 +806,8 @@ export default function ProfiloRistorantePage() {
                             <input
                               type="text"
                               value={form.province}
-                              onChange={(e) => set('province', e.target.value.toUpperCase())}
-                              maxLength={3}
+                              onChange={(e) => set('province', provinceLetters(e.target.value))}
+                              maxLength={2}
                               className={inputCls}
                             />
                           </Field>
@@ -815,7 +818,7 @@ export default function ProfiloRistorantePage() {
                               type="text"
                               inputMode="numeric"
                               value={form.cap}
-                              onChange={(e) => set('cap', e.target.value.replace(/\D/g, '').slice(0, 5))}
+                              onChange={(e) => set('cap', digitsOnly(e.target.value, 5))}
                               className={inputCls}
                             />
                           </Field>

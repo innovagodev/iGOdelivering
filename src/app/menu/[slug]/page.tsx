@@ -73,6 +73,7 @@ import {
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
 import { notify, confirmAction } from '@/lib/notify';
+import { phoneDigits, tableNumberDigits } from '@/lib/fields';
 import { LIVE_ACCEPT_SECONDS } from '@/lib/acceptance';
 import { startAdaptivePolling } from '@/lib/polling';
 import BookingStatusNotice from '@/components/menu/BookingStatusNotice';
@@ -2543,9 +2544,11 @@ function CheckoutModal({
                     />
                     <input
                       type="text"
+                      inputMode="numeric"
+                      maxLength={3}
                       value={tableNumber || ''}
                       onChange={
-                        isTableEditable ? (e) => setTableNumber?.(e.target.value) : undefined
+                        isTableEditable ? (e) => setTableNumber?.(tableNumberDigits(e.target.value)) : undefined
                       }
                       readOnly={!isTableEditable}
                       placeholder={lang === 'en' ? 'E.g. 5' : 'Es. 5'}
@@ -2763,7 +2766,7 @@ function CheckoutModal({
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                    onChange={(e) => setPhone(phoneDigits(e.target.value))}
                     placeholder="+39 3331234567"
                     className="w-full pl-9 pr-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground/50"
                   />
@@ -6453,7 +6456,7 @@ function StorefrontContent() {
                       <input
                         type="tel"
                         value={bookingPhone}
-                        onChange={(e) => setBookingPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                        onChange={(e) => setBookingPhone(phoneDigits(e.target.value))}
                         placeholder="+39 3331234567"
                         className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
                       />
