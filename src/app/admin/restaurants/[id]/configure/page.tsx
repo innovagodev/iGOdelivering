@@ -936,7 +936,7 @@ export default function RestaurantConfigurePage() {
     if (normalizeVat(info.vatNumber) === undefined) {
       return { isValid: false, message: 'La "Partita IVA" deve avere esattamente 11 cifre.' };
     }
-    if (info.cap.trim() && !/^d{5}$/.test(info.cap.trim())) {
+    if (info.cap.trim() && !/^[0-9]{5}$/.test(info.cap.trim())) {
       return { isValid: false, message: 'Il "CAP" deve avere 5 cifre.' };
     }
     if (info.province.trim() && !/^[A-Za-z]{2}$/.test(info.province.trim())) {
