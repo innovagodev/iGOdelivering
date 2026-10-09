@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.42.5](https://github.com/innovagodev/iGOdelivering/compare/v1.42.4...v1.42.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* rimossa data build footer vetrina ([67c4a00](https://github.com/innovagodev/iGOdelivering/commit/67c4a0030b334ebfe27c6cc34e76c36659eb8ca1))
+
 ### [1.42.4](https://github.com/innovagodev/iGOdelivering/compare/v1.42.3...v1.42.4) (2026-10-09)
 
 
