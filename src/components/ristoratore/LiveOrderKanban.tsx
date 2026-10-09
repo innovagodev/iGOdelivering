@@ -736,7 +736,15 @@ export default function LiveOrderKanban() {
 
     const slipsHtml = colOrders
       .map((flatOrder, index) => {
-        const rawOrder = orders.find((o) => o.id === flatOrder.id) || flatOrder;
+        // Come nella stampa singola: alias dei campi del database (nome, data) e orario programmato.
+        const baseOrder = orders.find((o) => o.id === flatOrder.id);
+        const rawOrder: any = baseOrder
+          ? withAliases({
+              ...baseOrder,
+              deliveryTime: flatOrder.deliveryTime || baseOrder.deliveryTime,
+              deliveryDate: flatOrder.deliveryDate || baseOrder.deliveryDate,
+            })
+          : flatOrder;
 
         const itemsHtml = orderLines(rawOrder)
           .map((item: any) => {
