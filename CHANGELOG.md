@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.46.0](https://github.com/innovagodev/iGOdelivering/compare/v1.45.1...v1.46.0) (2026-10-09)
+
+
+### Features
+
+* **ordini:** orario di consegna e ritiro sempre visibile, telefono sotto il nome, comandi piu' compatti ([6d79b95](https://github.com/innovagodev/iGOdelivering/commit/6d79b95cb5188408aa534f52e7cc77c3d5096fdd))
+
 ### [1.45.1](https://github.com/innovagodev/iGOdelivering/compare/v1.45.0...v1.45.1) (2026-10-09)
 
 
