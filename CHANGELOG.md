@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.42.1](https://github.com/innovagodev/iGOdelivering/compare/v1.42.0...v1.42.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **profilo:** l'anteprima resta di lato anche in vista computer ([897343c](https://github.com/innovagodev/iGOdelivering/commit/897343ccebf3ae4e281d5afb7df2073fb850a9e3))
+
 ## [1.42.0](https://github.com/innovagodev/iGOdelivering/compare/v1.41.3...v1.42.0) (2026-10-09)
 
 
