@@ -269,10 +269,21 @@ const DESKTOP_W = 1280;
 const DESKTOP_H = 820;
 
 /** Una riga di sola lettura: etichetta sopra, valore subito sotto (la colonna è stretta: niente tagli). */
-function ReadOnlyRow({ label, children }: { label: string; children: React.ReactNode }) {
+function ReadOnlyRow({
+  label,
+  action,
+  children,
+}: {
+  label: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1 px-4 py-3">
-      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      <dt className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
+        {label}
+        {action}
+      </dt>
       <dd className="min-w-0">{children}</dd>
     </div>
   );
@@ -773,7 +784,7 @@ export default function ProfiloRistorantePage() {
                       />
                       <ImageField
                         label="Foto di copertina"
-                        hint="Orizzontale, almeno 1200 px di larghezza. Il testo ci scorre sopra: meglio una foto non troppo chiara."
+                        hint="Orizzontale."
                         url={preview.bannerShown}
                         shape="wide"
                         state={banner}
@@ -789,7 +800,7 @@ export default function ProfiloRistorantePage() {
                       hint="Nome, categoria e descrizione: compaiono in testa alla vetrina."
                       badge={{ label: 'Visibile ai clienti', tone: 'public' }}
                     >
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className={`grid gap-4 sm:grid-cols-2 ${device === 'desktop' ? 'xl:grid-cols-1' : ''}`}>
                         <Field label="Nome *" error={errors.name}>
                           <input
                             type="text"
@@ -904,7 +915,7 @@ export default function ProfiloRistorantePage() {
                       hint="Compaiono nel pulsante “Contatti” della vetrina. Lascia vuoto ciò che non hai."
                       badge={{ label: 'Visibile ai clienti', tone: 'public' }}
                     >
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className={`grid gap-4 sm:grid-cols-2 ${device === 'desktop' ? 'xl:grid-cols-1' : ''}`}>
                         <Field label="Telefono *" error={errors.phone}>
                           <input
                             type="tel"
@@ -915,7 +926,7 @@ export default function ProfiloRistorantePage() {
                             className={inputCls}
                           />
                         </Field>
-                        <Field label="WhatsApp" error={errors.whatsapp} hint="Con il prefisso, per esempio +39 333 1234567.">
+                        <Field label="WhatsApp" error={errors.whatsapp}>
                           <input
                             type="tel"
                             inputMode="tel"
@@ -925,6 +936,7 @@ export default function ProfiloRistorantePage() {
                             className={inputCls}
                           />
                         </Field>
+                        <div className="sm:col-span-2 xl:col-span-1">
                         <Field label="Sito web" error={errors.website}>
                           <input
                             type="url"
@@ -937,6 +949,8 @@ export default function ProfiloRistorantePage() {
                             className={inputCls}
                           />
                         </Field>
+                        </div>
+                        <div className="sm:col-span-2 xl:col-span-1">
                         <Field label="Instagram" error={errors.instagram} hint="@nomeprofilo oppure il link.">
                           <input
                             type="text"
@@ -946,6 +960,8 @@ export default function ProfiloRistorantePage() {
                             className={inputCls}
                           />
                         </Field>
+                        </div>
+                        <div className="sm:col-span-2 xl:col-span-1">
                         <Field label="Facebook" error={errors.facebook} hint="Il nome della pagina oppure il link.">
                           <input
                             type="text"
@@ -955,6 +971,7 @@ export default function ProfiloRistorantePage() {
                             className={inputCls}
                           />
                         </Field>
+                        </div>
                       </div>
                     </Section>
 
@@ -964,20 +981,22 @@ export default function ProfiloRistorantePage() {
                       badge={{ label: 'Sola lettura', tone: 'private' }}
                     >
                       <dl className="divide-y divide-border/70 rounded-xl border border-border bg-muted/40 text-sm">
-                        <ReadOnlyRow label="Indirizzo web della vetrina">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="min-w-0 font-medium text-foreground [overflow-wrap:anywhere]">
-                              {row.slug ? `${origin}/menu/${row.slug}` : '—'}
-                            </span>
-                          <button
-                            type="button"
-                            onClick={copyLink}
-                            className="touch-target inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-sm font-semibold text-foreground hover:bg-muted"
-                          >
-                            {copied ? <Check size={15} className="text-[var(--success)]" /> : <Copy size={15} />}
-                            {copied ? 'Copiato' : 'Copia'}
-                          </button>
-                          </div>
+                        <ReadOnlyRow
+                          label="Indirizzo web della vetrina"
+                          action={
+                            <button
+                              type="button"
+                              onClick={copyLink}
+                              className="touch-target -my-1 inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-muted"
+                            >
+                              {copied ? <Check size={13} className="text-[var(--success)]" /> : <Copy size={13} />}
+                              {copied ? 'Copiato' : 'Copia'}
+                            </button>
+                          }
+                        >
+                          <span className="font-medium text-foreground [overflow-wrap:anywhere]">
+                            {row.slug ? `${origin}/menu/${row.slug}` : '—'}
+                          </span>
                         </ReadOnlyRow>
                         <ReadOnlyRow label="Email dell’account">
                           <span className="font-medium text-foreground [overflow-wrap:anywhere]">{row.email || '—'}</span>
