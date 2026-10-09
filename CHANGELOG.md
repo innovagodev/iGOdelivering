@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.42.4](https://github.com/innovagodev/iGOdelivering/compare/v1.42.3...v1.42.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* **profilo:** la categoria e' un menu a tendina con + per aggiungerne una, come nell'admin ([71cf15b](https://github.com/innovagodev/iGOdelivering/commit/71cf15b0bb68f0af9d84c4cc546c2611639db8ae))
+
 ### [1.42.3](https://github.com/innovagodev/iGOdelivering/compare/v1.42.2...v1.42.3) (2026-10-09)
 
 
