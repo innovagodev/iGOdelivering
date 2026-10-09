@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, ExternalLink, ImagePlus, Lock, Smartphone, Monitor, Store, Trash2 } from 'lucide-react';
+import { Check, Copy, ExternalLink, ImagePlus, Lock, Plus, Smartphone, Monitor, Store, Tag, Trash2, X } from 'lucide-react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -261,6 +261,106 @@ function ImageField({
         />
       </div>
       {error && <p className="mt-1 text-xs font-semibold text-[var(--danger)]">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Categoria: menu a tendina con le categorie esistenti e un "+" per aggiungerne una nuova,
+ * come nel modulo dell'admin. La categoria nuova entra nell'elenco al salvataggio (la route).
+ */
+function CategoryPicker({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [added, setAdded] = useState<string[]>([]);
+  const draftRef = useRef<HTMLInputElement>(null);
+
+  // Il valore attuale e le categorie aggiunte qui compaiono sempre, anche se non sono ancora nell'elenco.
+  const all = Array.from(new Set([...options, ...added, ...(value ? [value] : [])])).sort((a, b) =>
+    a.localeCompare(b, 'it')
+  );
+
+  const confirm = () => {
+    const v = draft.trim().slice(0, 60);
+    if (!v) return;
+    const existing = all.find((c) => c.toLowerCase() === v.toLowerCase());
+    if (!existing) setAdded((p) => [...p, v]);
+    onChange(existing ?? v);
+    setDraft('');
+    setAdding(false);
+  };
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Tag size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <select value={value} onChange={(e) => onChange(e.target.value)} className={`${inputCls} pl-9`}>
+            <option value="">Seleziona categoria…</option>
+            {all.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setAdding((v) => !v);
+            setTimeout(() => draftRef.current?.focus(), 50);
+          }}
+          title="Aggiungi una categoria"
+          aria-label="Aggiungi una categoria"
+          className="touch-target flex h-[2.875rem] w-[2.875rem] flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+      {adding && (
+        <div className="mt-2 flex gap-2">
+          <input
+            ref={draftRef}
+            type="text"
+            value={draft}
+            maxLength={60}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                confirm();
+              }
+              if (e.key === 'Escape') setAdding(false);
+            }}
+            placeholder="Nuova categoria…"
+            className={`${inputCls} min-w-0 flex-1`}
+          />
+          <button
+            type="button"
+            onClick={confirm}
+            aria-label="Conferma la categoria"
+            className="touch-target flex h-[2.875rem] w-[2.875rem] flex-shrink-0 items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-hover"
+          >
+            <Check size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdding(false)}
+            aria-label="Annulla"
+            className="touch-target flex h-[2.875rem] w-[2.875rem] flex-shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -809,21 +909,17 @@ export default function ProfiloRistorantePage() {
                             className={inputCls}
                           />
                         </Field>
-                        <Field label="Categoria" error={errors.category}>
-                          <input
-                            type="text"
-                            list="categorie-ristorante"
+                        <div>
+                          <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Categoria</span>
+                          <CategoryPicker
                             value={form.category}
-                            onChange={(e) => set('category', e.target.value)}
-                            placeholder="Pizzeria, Trattoria…"
-                            className={inputCls}
+                            options={categories}
+                            onChange={(v) => set('category', v)}
                           />
-                          <datalist id="categorie-ristorante">
-                            {categories.map((c) => (
-                              <option key={c} value={c} />
-                            ))}
-                          </datalist>
-                        </Field>
+                          {errors.category && (
+                            <span className="mt-1 block text-xs font-semibold text-[var(--danger)]">{errors.category}</span>
+                          )}
+                        </div>
                       </div>
                       <Field
                         label="Descrizione in italiano"
