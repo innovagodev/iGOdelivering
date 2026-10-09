@@ -178,8 +178,14 @@ const orderLines = (o: any): any[] => {
  */
 const withAliases = (o: any) => {
   const email = o.customer?.email ?? o.customer_email;
+  // Orario richiesto: nel database c'è solo scheduled_at, il formato per il pannello si ricava qui.
+  const sched = o.scheduled_at ? new Date(o.scheduled_at) : null;
   return {
     ...o,
+    deliveryTime:
+      o.deliveryTime ||
+      (sched ? sched.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }) : undefined),
+    deliveryDate: o.deliveryDate || (sched ? romeDay(sched) : undefined),
     customerName: o.customerName || o.customer_name,
     createdAt: o.createdAt || o.created_at,
     timestamp: o.timestamp || o.created_at,
@@ -655,7 +661,9 @@ export default function LiveOrderKanban() {
           }
           ${rawOrder.deliveryTime === 'asap' ? 'IL PRIMA POSSIBILE' : `alle ${rawOrder.deliveryTime}`}
          </div>`
-      : '';
+      : rawOrder.type === 'domicilio' || rawOrder.type === 'asporto'
+        ? `<div style="font-size: 13px; margin-top: 5px; text-align: center; font-weight: bold;">${rawOrder.type === 'domicilio' ? 'CONSEGNA' : 'RITIRO'}: IL PRIMA POSSIBILE</div>`
+        : '';
 
     const kitchenNotes = rawOrder.notes
       ? `<div style="margin-top: 10px; padding: 8px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 4px; font-size: 12px; color: #b45309;">
@@ -790,7 +798,9 @@ export default function LiveOrderKanban() {
               }
               ${rawOrder.deliveryTime === 'asap' ? 'IL PRIMA POSSIBILE' : `alle ${rawOrder.deliveryTime}`}
              </div>`
-          : '';
+          : rawOrder.type === 'domicilio' || rawOrder.type === 'asporto'
+            ? `<div style="font-size: 13px; margin-top: 5px; text-align: center; font-weight: bold;">${rawOrder.type === 'domicilio' ? 'CONSEGNA' : 'RITIRO'}: IL PRIMA POSSIBILE</div>`
+            : '';
 
         const kitchenNotes = rawOrder.notes
           ? `<div style="margin-top: 10px; padding: 8px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 4px; font-size: 12px; color: #b45309;">
@@ -867,7 +877,7 @@ export default function LiveOrderKanban() {
 
   // Pulsante d'azione di una scheda: alto almeno 44px (tablet), testo leggibile.
   const actionBase =
-    'touch-target inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-bold transition-colors cursor-pointer';
+    'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-bold transition-colors cursor-pointer';
   // Un solo pulsante pieno per scheda; l'azione contraria è solo testo.
   const actionGhost = `${actionBase} flex-none text-muted-foreground hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 dark:hover:text-red-400`;
   const actionNeutral = `${actionBase} flex-1 bg-muted/70 text-foreground hover:bg-muted`;
@@ -906,7 +916,7 @@ export default function LiveOrderKanban() {
                 }}
                 className={actionPrimary}
               >
-                <Check size={15} />
+                <Check size={14} />
                 Riattiva
               </button>
             )}
@@ -916,7 +926,7 @@ export default function LiveOrderKanban() {
               e.stopPropagation();
               dismissLost(order.id);
             }}
-            className="touch-target flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
           >
             <X size={14} />
             Nascondi dalla vista
@@ -935,7 +945,7 @@ export default function LiveOrderKanban() {
             }}
             className={actionGhost}
           >
-            <X size={15} />
+            <X size={14} />
             Rifiuta
           </button>
           <button
@@ -945,7 +955,7 @@ export default function LiveOrderKanban() {
             }}
             className={actionPrimary}
           >
-            <Check size={15} />
+            <Check size={14} />
             Accetta
           </button>
         </div>
@@ -962,7 +972,7 @@ export default function LiveOrderKanban() {
             }}
             className={actionGhost}
           >
-            <X size={15} />
+            <X size={14} />
             Annulla
           </button>
           <button
@@ -972,7 +982,7 @@ export default function LiveOrderKanban() {
             }}
             className={actionPrimary}
           >
-            <CheckCheck size={15} />
+            <CheckCheck size={14} />
             Completa
           </button>
         </div>
@@ -1025,6 +1035,19 @@ export default function LiveOrderKanban() {
   const completedRevenue = allCompleted.reduce((sum, o) => sum + o.total, 0);
   const timeOf = (iso?: string) =>
     iso ? new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }) : '';
+  // Orario richiesto dal cliente. Senza orario scelto (scheduled_at vuoto) vale "appena possibile".
+  const serviceWhen = (o: LiveOrder): { kind: string; scheduled: boolean; label: string } | null => {
+    if (o.type !== 'delivery' && o.type !== 'takeaway') return null;
+    const kind = o.type === 'delivery' ? 'Consegna' : 'Ritiro';
+    if (!o.scheduledAt) return { kind, scheduled: false, label: 'appena possibile' };
+    const d = new Date(o.scheduledAt);
+    const time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+    const otherDay = romeDay(d) !== romeDay(new Date());
+    const day = otherDay
+      ? d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Rome' }) + ' '
+      : '';
+    return { kind, scheduled: true, label: `${day}alle ${time}` };
+  };
   const typeLabel = (o: LiveOrder) =>
     o.isBookingPreOrder ? 'Prenotazione' : o.type === 'delivery' ? 'Domicilio' : o.type === 'takeaway' ? 'Asporto' : 'Tavolo';
   const typeIcon = (o: LiveOrder) =>
@@ -1229,7 +1252,7 @@ export default function LiveOrderKanban() {
                 {col.key === 'accepted' && colOrders.length > 0 && (
                   <button
                     onClick={() => handlePrintAllAcceptedOrders(colOrders)}
-                    className="touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-sky-700 transition-colors hover:bg-sky-500/10 dark:text-sky-300 cursor-pointer"
+                    className="inline-flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-sky-700 transition-colors hover:bg-sky-500/10 dark:text-sky-300 cursor-pointer"
                     title="Stampa tutte le comande in corso"
                   >
                     <Printer size={14} /> Stampa tutto
@@ -1245,7 +1268,7 @@ export default function LiveOrderKanban() {
                 <div className="flex flex-shrink-0 justify-end px-2.5 pt-2.5">
                   <button
                     onClick={() => handlePrintAllAcceptedOrders(colOrders)}
-                    className="touch-target inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-bold text-sky-700 transition-colors hover:bg-sky-500/10 dark:text-sky-300 cursor-pointer"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-bold text-sky-700 transition-colors hover:bg-sky-500/10 dark:text-sky-300 cursor-pointer"
                   >
                     <Printer size={14} /> Stampa tutto
                   </button>
@@ -1280,7 +1303,7 @@ export default function LiveOrderKanban() {
                           setSelectedOrderId(order.id);
                         }
                       }}
-                      className={`group flex flex-shrink-0 flex-col gap-3 rounded-xl p-3.5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
+                      className={`group flex flex-shrink-0 flex-col gap-2.5 rounded-xl p-3 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
                         expired ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-card'
                       }`}
                     >
@@ -1297,6 +1320,33 @@ export default function LiveOrderKanban() {
                             {getOrderTypeBadge(order.type, order.tableNumber, order.isBookingPreOrder)}
                           </div>
                           <h3 className="line-clamp-2 break-words text-base font-bold leading-tight text-foreground">{order.customer}</h3>
+                          {order.phone && (
+                            <a
+                              href={`tel:${order.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                              title="Chiama il cliente"
+                            >
+                              <Phone size={12} />
+                              {order.phone}
+                            </a>
+                          )}
+                          {(() => {
+                            const when = serviceWhen(order);
+                            if (!when) return null;
+                            return (
+                              <div
+                                className={`flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold ${
+                                  when.scheduled
+                                    ? 'bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200'
+                                    : 'bg-muted text-foreground/70'
+                                }`}
+                              >
+                                <Clock size={13} className="flex-shrink-0" />
+                                {when.kind} {when.label}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-shrink-0 flex-col items-end gap-1">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-muted-foreground">
@@ -1308,20 +1358,20 @@ export default function LiveOrderKanban() {
                               e.stopPropagation();
                               handlePrintSingleOrder(order.id);
                             }}
-                            className="touch-target -mr-1.5 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+                            className="-mr-1 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
                             title="Stampa comanda"
                             aria-label="Stampa comanda"
                           >
-                            <Printer size={16} />
+                            <Printer size={15} />
                           </button>
                         </div>
                       </div>
 
                       {/* Piatti: quantità davanti, come su una comanda */}
-                      <ul className="space-y-2">
+                      <ul className="space-y-1.5">
                         {order.items.map((item, idx) => (
                           <li key={`${order.id}-item-${idx}`} className="flex items-start gap-2.5 text-sm text-foreground">
-                            <span className="min-w-[2rem] rounded-md bg-muted px-1.5 py-0.5 text-center text-sm font-extrabold tabular-nums">
+                            <span className="min-w-[1.75rem] rounded-md bg-muted px-1 py-0.5 text-center text-[13px] font-extrabold tabular-nums">
                               {item.qty}×
                             </span>
                             <div className="min-w-0 flex-1">
@@ -1381,11 +1431,9 @@ export default function LiveOrderKanban() {
                         })()}
 
                       {/* Informazioni di servizio */}
-                      {(order.phone ||
-                        order.address ||
+                      {(order.address ||
                         (order.type === 'table' && !order.isBookingPreOrder && order.tableNumber) ||
-                        order.isBookingPreOrder ||
-                        (order.scheduledAt && order.deliveryTime)) && (
+                        order.isBookingPreOrder) && (
                         <div className="flex flex-col gap-1.5 text-xs">
                           {order.isBookingPreOrder && (
                             <div className="flex items-center gap-1.5 font-semibold text-purple-700 dark:text-purple-300">
@@ -1404,29 +1452,6 @@ export default function LiveOrderKanban() {
                               <MapPin size={13} className="mt-0.5 flex-shrink-0" />
                               <span className="line-clamp-2">{order.address}</span>
                             </div>
-                          )}
-                          {order.scheduledAt && order.deliveryTime && (
-                            <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                              <Clock size={13} className="flex-shrink-0" />
-                              <span>
-                                Programmato:{' '}
-                                {order.deliveryDate
-                                  ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} `
-                                  : ''}
-                                alle {order.deliveryTime}
-                              </span>
-                            </div>
-                          )}
-                          {order.phone && (
-                            <a
-                              href={`tel:${order.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="touch-target inline-flex items-center gap-1.5 self-start font-semibold text-primary hover:underline"
-                              title="Chiama il cliente"
-                            >
-                              <Phone size={13} />
-                              {order.phone}
-                            </a>
                           )}
                         </div>
                       )}
@@ -1448,7 +1473,7 @@ export default function LiveOrderKanban() {
                             </span>
                           ) : null}
                         </div>
-                        <span className="text-lg font-black tabular-nums text-foreground">€ {order.total.toFixed(2)}</span>
+                        <span className="text-base font-black tabular-nums text-foreground">€ {order.total.toFixed(2)}</span>
                       </div>
 
                       {renderActions(col.key, order)}
@@ -1628,13 +1653,15 @@ export default function LiveOrderKanban() {
                     </span>
                   </div>
 
-                  {selectedOrder.deliveryTime && (
+                  {(selectedOrder.deliveryTime ||
+                    selectedOrder.type === 'domicilio' ||
+                    selectedOrder.type === 'asporto') && (
                     <div className="col-span-2 border-t border-slate-100 dark:border-slate-900/60 pt-2 mt-1">
                       <span className="text-[11px] text-slate-400 dark:text-slate-500 block uppercase font-bold tracking-wider mb-0.5">
                         Orario Consegna/Ritiro
                       </span>
                       <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                        {selectedOrder.deliveryTime === 'asap'
+                        {!selectedOrder.deliveryTime || selectedOrder.deliveryTime === 'asap'
                           ? 'IL PRIMA POSSIBILE (ASAP)'
                           : `ALLE ${selectedOrder.deliveryTime}`}
                         {selectedOrder.deliveryDate &&
@@ -1857,10 +1884,12 @@ export default function LiveOrderKanban() {
                             : `AL TAVOLO ${selectedOrder.tableNumber || ''}`}
                     </div>
 
-                    {selectedOrder.deliveryTime && (
+                    {(selectedOrder.deliveryTime ||
+                      selectedOrder.type === 'domicilio' ||
+                      selectedOrder.type === 'asporto') && (
                       <div className="text-center font-bold text-[11px] bg-black/5 p-1 rounded my-1.5 border border-black/10">
                         ORARIO:{' '}
-                        {selectedOrder.deliveryTime === 'asap'
+                        {!selectedOrder.deliveryTime || selectedOrder.deliveryTime === 'asap'
                           ? 'IL PRIMA POSSIBILE'
                           : `ALLE ${selectedOrder.deliveryTime}`}
                       </div>
