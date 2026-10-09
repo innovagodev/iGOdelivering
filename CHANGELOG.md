@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.47.1](https://github.com/innovagodev/iGOdelivering/compare/v1.47.0...v1.47.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ordini:** pillole filtro in una sola fila, con scorrimento chiaro, magnetismo e selezione evidente ([997a78b](https://github.com/innovagodev/iGOdelivering/commit/997a78b9f911350ed27fdb02883fe2c39be46bfb))
+
 ## [1.47.0](https://github.com/innovagodev/iGOdelivering/compare/v1.46.0...v1.47.0) (2026-10-09)
 
 
