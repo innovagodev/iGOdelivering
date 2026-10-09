@@ -1366,7 +1366,7 @@ export default function LiveOrderKanban() {
 
               <div
                 className={`flex-1 gap-2.5 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-2.5 ${
-                  !wide && twoCols ? 'grid grid-cols-2 content-start items-start' : 'flex flex-col'
+                  !wide && twoCols ? 'grid grid-cols-2 auto-rows-max content-start items-start' : 'flex flex-col'
                 }`}
               >
                 {colOrders.length === 0 && (
