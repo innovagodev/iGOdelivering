@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.48.4](https://github.com/innovagodev/iGOdelivering/compare/v1.48.3...v1.48.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* **vetrina:** footer su una sola riga e piu' basso da telefono ([1730068](https://github.com/innovagodev/iGOdelivering/commit/17300689af835dc649009326f1ccc1a4847eebe5))
+
 ### [1.48.3](https://github.com/innovagodev/iGOdelivering/compare/v1.48.2...v1.48.3) (2026-10-09)
 
 
