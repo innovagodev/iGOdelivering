@@ -265,6 +265,97 @@ function ImageField({
   );
 }
 
+const DESKTOP_W = 1280;
+
+/** Una riga di sola lettura: etichetta a sinistra, valore a destra (sotto, su schermi stretti). */
+function ReadOnlyRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+      <dt className="text-xs font-semibold text-muted-foreground sm:w-48 sm:flex-shrink-0">{label}</dt>
+      <dd className="min-w-0 flex-1">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * Cornice dell'anteprima. Telefono: larghezza fissa di 390px. Computer: la testata si
+ * disegna a 1280px, come su un computer vero, e si rimpicciolisce per stare nello spazio.
+ * Il logo sta in alto a sinistra come nell'intestazione della vetrina, che lo sovrappone alla testata.
+ */
+function PreviewFrame({
+  device,
+  logoUrl,
+  name,
+  children,
+}: {
+  device: 'phone' | 'desktop';
+  logoUrl: string;
+  name: string;
+  children: React.ReactNode;
+}) {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState({ scale: 1, height: 0 });
+
+  useEffect(() => {
+    const o = outer.current;
+    const i = inner.current;
+    if (!o || !i || device === 'phone') return;
+    const update = () => {
+      const scale = Math.min(1, o.clientWidth / DESKTOP_W);
+      setFit({ scale, height: i.offsetHeight * scale });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(o);
+    ro.observe(i);
+    return () => ro.disconnect();
+  }, [device]);
+
+  const logo = (
+    <>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-black/60 to-transparent" />
+      <div
+        className={`absolute z-20 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white shadow-sm ${
+          device === 'phone' ? 'left-3 top-3' : 'left-10 top-4'
+        }`}
+      >
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <span className="text-base font-bold text-primary">{(name || '?').charAt(0)}</span>
+        )}
+      </div>
+    </>
+  );
+
+  if (device === 'phone') {
+    return (
+      <div className="relative mx-auto max-w-[390px] overflow-hidden rounded-xl border border-border bg-black">
+        {logo}
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div
+      ref={outer}
+      className="relative w-full overflow-hidden rounded-xl border border-border bg-black"
+      style={{ height: fit.height || undefined }}
+    >
+      <div
+        ref={inner}
+        className="relative"
+        style={{ width: DESKTOP_W, transform: `scale(${fit.scale})`, transformOrigin: 'top left' }}
+      >
+        {logo}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 const STATUS_LABEL: Record<string, string> = {
   published: 'Pubblicato',
   draft: 'Bozza',
@@ -286,7 +377,7 @@ export default function ProfiloRistorantePage() {
   const [banner, setBanner] = useState<ImageState>(emptyImage);
   const [imageBusy, setImageBusy] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  const [device, setDevice] = useState<'phone' | 'auto'>('phone');
+  const [device, setDevice] = useState<'phone' | 'desktop'>('phone');
   const [previewLang, setPreviewLang] = useState<'it' | 'en'>('it');
   const [origin, setOrigin] = useState('');
   const [copied, setCopied] = useState(false);
@@ -563,9 +654,9 @@ export default function ProfiloRistorantePage() {
                   </p>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+                <div className={`grid gap-6 ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_420px]' : 'grid-cols-[minmax(0,1fr)]'}`}>
                   {/* ─── Anteprima: prima su schermi stretti, a destra su quelli larghi ─── */}
-                  <aside className="order-first xl:order-last xl:sticky xl:top-4 xl:self-start">
+                  <aside className={`order-first min-w-0 ${device === 'phone' ? 'xl:order-last xl:sticky xl:top-4 xl:self-start' : ''}`}>
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h2 className="text-sm font-bold text-foreground">Anteprima della vetrina</h2>
@@ -574,7 +665,7 @@ export default function ProfiloRistorantePage() {
                             {(
                               [
                                 ['phone', Smartphone, 'Telefono'],
-                                ['auto', Monitor, 'Computer'],
+                                ['desktop', Monitor, 'Computer'],
                               ] as const
                             ).map(([key, Icon, label]) => (
                               <button
@@ -608,13 +699,9 @@ export default function ProfiloRistorantePage() {
                           </div>
                         </div>
                       </div>
-                      <div
-                        className={`mx-auto overflow-hidden rounded-xl border border-border bg-black ${
-                          device === 'phone' ? 'max-w-[390px]' : 'w-full'
-                        }`}
-                      >
+                      <PreviewFrame device={device} logoUrl={preview.logoShown} name={preview.props.name}>
                         <StorefrontHero {...preview.props} variant={device} preview />
-                      </div>
+                      </PreviewFrame>
                       <p className="mt-3 text-[11px] text-muted-foreground">
                         Stato aperto/chiuso e orari di oggi li aggiunge la vetrina in base agli orari che imposti in
                         “Orari”.
@@ -831,15 +918,12 @@ export default function ProfiloRistorantePage() {
                       hint="Per modificarli scrivi all’assistenza: cambiarli senza controllo avrebbe effetti su QR code, accesso e pagamenti."
                       badge={{ label: 'Sola lettura', tone: 'private' }}
                     >
-                      <Field label="Indirizzo web della vetrina">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            disabled
-                            value={row.slug ? `${origin}/menu/${row.slug}` : ''}
-                            className={inputCls}
-                          />
+                      <dl className="divide-y divide-border/70 rounded-xl border border-border bg-muted/40 text-sm">
+                        <ReadOnlyRow label="Indirizzo web della vetrina">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="min-w-0 break-all font-medium text-foreground">
+                              {row.slug ? `${origin}/menu/${row.slug}` : '—'}
+                            </span>
                           <button
                             type="button"
                             onClick={copyLink}
@@ -848,25 +932,20 @@ export default function ProfiloRistorantePage() {
                             {copied ? <Check size={15} className="text-[var(--success)]" /> : <Copy size={15} />}
                             {copied ? 'Copiato' : 'Copia'}
                           </button>
-                        </div>
-                      </Field>
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <Field label="Email dell’account">
-                          <input type="text" readOnly disabled value={row.email ?? ''} className={inputCls} />
-                        </Field>
-                        <Field label="Partita IVA">
-                          <input type="text" readOnly disabled value={row.vat_number ?? ''} className={inputCls} />
-                        </Field>
-                        <Field label="Stato della vetrina">
-                          <input
-                            type="text"
-                            readOnly
-                            disabled
-                            value={STATUS_LABEL[row.status ?? ''] ?? row.status ?? ''}
-                            className={inputCls}
-                          />
-                        </Field>
-                      </div>
+                          </div>
+                        </ReadOnlyRow>
+                        <ReadOnlyRow label="Email dell’account">
+                          <span className="break-all font-medium text-foreground">{row.email || '—'}</span>
+                        </ReadOnlyRow>
+                        <ReadOnlyRow label="Partita IVA">
+                          <span className="font-medium text-foreground">{row.vat_number || '—'}</span>
+                        </ReadOnlyRow>
+                        <ReadOnlyRow label="Stato della vetrina">
+                          <span className="font-medium text-foreground">
+                            {STATUS_LABEL[row.status ?? ''] ?? row.status ?? '—'}
+                          </span>
+                        </ReadOnlyRow>
+                      </dl>
                     </Section>
                   </div>
                 </div>

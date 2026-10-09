@@ -47,10 +47,11 @@ export interface StorefrontHeroProps {
   /** Anteprima: l'immagine non è prioritaria e non serve il caricamento anticipato. */
   preview?: boolean;
   /**
-   * 'auto' (vetrina): si adatta alla larghezza dello schermo. 'phone': forza la
-   * disposizione da telefono, per l'anteprima del profilo su uno schermo largo.
+   * 'auto' (vetrina): si adatta alla larghezza dello schermo. 'phone' e 'desktop'
+   * forzano la disposizione da telefono o da computer, indipendentemente dallo
+   * schermo: servono all'anteprima del profilo.
    */
-  variant?: 'auto' | 'phone';
+  variant?: 'auto' | 'phone' | 'desktop';
 }
 
 // Le classi sono scritte per intero (non composte): Tailwind le trova solo così.
@@ -76,6 +77,17 @@ const CLS = {
     pillText: 'text-[11px]',
     topButton: 'absolute right-3 top-3 z-20 inline-flex h-10',
     sideButton: 'hidden',
+  },
+  desktop: {
+    root: 'min-h-[30rem]',
+    pad: 'pt-20 pb-8 px-10',
+    row: 'flex-row items-center gap-8',
+    h1: 'text-[3rem]',
+    p: 'text-base',
+    pills: 'gap-x-5 text-sm',
+    pillText: 'text-xs',
+    topButton: 'hidden',
+    sideButton: 'inline-flex h-11 flex-shrink-0',
   },
 } as const;
 
@@ -247,7 +259,7 @@ function ContactsSheet({ rows, lang, onClose }: { rows: ContactRow[]; lang: 'it'
 
 export default function StorefrontHero(props: StorefrontHeroProps) {
   const { name, tagline, image, imageAlt, address, deliveryFee, deliveryLabel, lang, status, hoursText, preview } = props;
-  const c = CLS[props.variant === 'phone' ? 'phone' : 'auto'];
+  const c = CLS[props.variant === 'phone' || props.variant === 'desktop' ? props.variant : 'auto'];
   const t = L[lang];
   const [open, setOpen] = useState(false);
   const rows = useRows(props);
