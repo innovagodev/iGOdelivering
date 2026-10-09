@@ -38,6 +38,8 @@ Commit in stile *conventional commits* (`fix(vetrina): …`, `refactor(pannelli)
 </div>
 ```
 
+Una pagina nuova del ristoratore va aggiunta anche a `validRistoratoreRoutes` in `src/middleware.ts`: ciò che non è nell'elenco rimanda alla dashboard.
+
 La voce attiva della sidebar segue l'URL. La sidebar è un drawer sotto 1024px, compressa tra 1024 e 1280px, espansa da 1280px; la scelta dell'utente (`STORAGE_KEYS.SIDEBAR_COLLAPSED`) vince su tutte le pagine.
 
 ## Responsive: regole da rispettare
@@ -64,6 +66,7 @@ Prima di chiudere una modifica di interfaccia, guardarla almeno a 390, 768, 1024
 - **La regola di accettazione** di ordini e prenotazioni è una sola e vive in `src/lib/acceptance.ts`.
 - **KPI e grafici** usano `src/lib/dashboardStats.ts`: "oggi" è il giorno di Roma, gli ordini annullati/rifiutati/scaduti non contano, la variazione si confronta con ieri alla stessa ora e compare solo se il confronto è maggiore di zero. Mai percentuali o numeri scritti nel codice; si prova sempre il caso "zero ordini".
 - **Carico.** I clienti non aprono canali Realtime (tetto di connessioni del piano): chi aspetta usa `startAdaptivePolling` (`src/lib/polling.ts`). Gli elenchi che possono superare 1000 righe si leggono con `fetchAllPages` (`src/lib/fetchAll.ts`): PostgREST taglia a 1000 senza avvisare.
+- **Contatti pubblici e profilo.** Sito, social e WhatsApp si validano e normalizzano con `src/lib/contacts.ts` (solo `https`, domini verificati); un valore del database non diventa mai un `href` senza `safeHttpsHref`. Il ristoratore modifica il proprio profilo solo da `PATCH /api/ristoratore/profilo` (elenco chiuso di campi); `slug`, `email`, `vat_number`, `status`, `owner_id`, `plan` sono dell'admin (trigger `guard_restaurant_identity`). Nella testata della vetrina (`StorefrontHero`) **non si aggiungono file di pulsanti**: i contatti stanno dietro l'unico pulsante "Contatti". Le immagini caricate si ridimensionano e comprimono prima (`src/lib/imageResize.ts`): la vetrina le serve così come sono.
 - **Notifiche e conferme** da `src/lib/notify.ts`: niente `alert()` né `confirm()` nativi.
 - Ogni migration che aggiunge colonne si applica **prima** del deploy del codice che le scrive.
 
