@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.45.1](https://github.com/innovagodev/iGOdelivering/compare/v1.45.0...v1.45.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ordini:** la stampa di tutte le comande in corso mostra data e nome del cliente ([e2ac34f](https://github.com/innovagodev/iGOdelivering/commit/e2ac34f7c15e2717884e69b47ec00ab40c20e314))
+
 ## [1.45.0](https://github.com/innovagodev/iGOdelivering/compare/v1.44.0...v1.45.0) (2026-10-09)
 
 
