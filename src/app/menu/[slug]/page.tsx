@@ -76,6 +76,7 @@ import { notify, confirmAction } from '@/lib/notify';
 import { LIVE_ACCEPT_SECONDS } from '@/lib/acceptance';
 import { startAdaptivePolling } from '@/lib/polling';
 import BookingStatusNotice from '@/components/menu/BookingStatusNotice';
+import StorefrontHero from '@/components/menu/StorefrontHero';
 
 
 // ─── Types ────────────────────────────────────────────────────
@@ -5664,63 +5665,33 @@ function StorefrontContent() {
         </div>
       )}
 
-      {/* Restaurant Hero */}
-      <div className="relative min-h-[clamp(15rem,42dvh,20rem)] sm:min-h-[26rem] md:min-h-[30rem] h-auto flex flex-col justify-end overflow-hidden">
-        <AppImage
-          src={restaurantSettings.image || ''}
-          alt={restaurantSettings.imageAlt || ''}
-          fill
-          sizes="100vw"
-          priority
-          className="object-cover"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 35%, rgba(0,0,0,0.88) 100%)',
-          }}
-        />
-
-        <div className="relative py-6 sm:pt-20 sm:pb-8 px-4 sm:px-6 lg:px-10 text-white z-10 w-full">
-          <div className="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-[clamp(1.5rem,1rem+2.6vw,3.25rem)] font-black tracking-tight text-white mb-2.5 leading-tight drop-shadow-sm">
-                {restaurantSettings.name}
-              </h1>
-              <p className="text-white/90 text-[clamp(0.8125rem,0.75rem+0.3vw,1rem)] font-medium mb-4 max-w-3xl leading-relaxed drop-shadow-xs">
-                {lang === 'en' && restaurantSettings.taglineEn
-                  ? restaurantSettings.taglineEn
-                  : restaurantSettings.tagline}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-3 sm:gap-x-5 text-xs sm:text-sm font-semibold text-white/95">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg font-black tracking-wide text-[11px] sm:text-xs ${status.color}`}
-                  >
-                    {status.label}
-                  </span>
-                  {isMounted && formattedTodayHours && (
-                    <span className="flex items-center gap-1.5 border border-white/20 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg font-black tracking-wide text-[11px] sm:text-xs text-white">
-                      <Clock size={11} className="text-white/70" />
-                      <span>{formattedTodayHours}</span>
-                    </span>
-                  )}
-                </div>
-                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
-                  <MapPin size={14} />
-                  {restaurantSettings.address ?? ''}
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-lg">
-                  <Bike size={14} />
-                  {t('ord_delivery')} € {(restaurantSettings.deliveryFee ?? 0).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Restaurant Hero: componente condiviso con l'anteprima del profilo */}
+      <StorefrontHero
+        name={restaurantSettings.name}
+        tagline={
+          lang === 'en' && restaurantSettings.taglineEn
+            ? restaurantSettings.taglineEn
+            : (restaurantSettings.tagline ?? '')
+        }
+        image={restaurantSettings.image || ''}
+        imageAlt={restaurantSettings.imageAlt || ''}
+        address={restaurantSettings.address}
+        city={restaurantSettings.city}
+        province={restaurantSettings.province}
+        cap={restaurantSettings.cap}
+        deliveryFee={restaurantSettings.deliveryFee ?? 0}
+        deliveryLabel={t('ord_delivery')}
+        lang={lang === 'en' ? 'en' : 'it'}
+        status={status}
+        hoursText={isMounted ? formattedTodayHours : null}
+        contacts={{
+          phone: restaurantSettings.phone,
+          whatsapp: restaurantSettings.whatsapp,
+          website: restaurantSettings.website,
+          instagram: restaurantSettings.instagram,
+          facebook: restaurantSettings.facebook,
+        }}
+      />
 
       {/* Promo banner */}
       {deliveryType !== 'tavolo' && activePromo && bannerText && (

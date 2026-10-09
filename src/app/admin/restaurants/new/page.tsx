@@ -14,6 +14,7 @@ import {
 import type { PaymentConfig } from '@/components/admin/restaurant-wizard/PaymentStep';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_SCHEDULED_ORDERS } from '@/lib/scheduledOrders';
+import { normalizeContacts } from '@/lib/contacts';
 import { uploadImage } from '@/lib/storage-upload';
 
 // Wizard step components — dynamically imported so each step is a separate chunk
@@ -134,6 +135,9 @@ export default function NewRestaurantPage() {
     phone: '',
     email: '',
     website: '',
+    instagram: '',
+    facebook: '',
+    whatsapp: '',
     address: '',
     city: '',
     province: '',
@@ -515,6 +519,10 @@ export default function NewRestaurantPage() {
     if (!emailRegex.test(info.email.trim())) {
       return { isValid: false, message: 'Inserisci un indirizzo email valido.' };
     }
+    const contacts = normalizeContacts(info);
+    if (!contacts.ok) {
+      return { isValid: false, message: `Controlla: ${contacts.invalid.join(', ')} non valido.` };
+    }
     return { isValid: true, message: '' };
   };
 
@@ -631,11 +639,18 @@ export default function NewRestaurantPage() {
       return;
     }
 
+    // Sito e social, validati e normalizzati (la validazione sta in validateInfoStep).
+    const normalizedContacts = normalizeContacts(info);
+    const contactsToSave = normalizedContacts.ok
+      ? normalizedContacts.value
+      : { website: null, instagram: null, facebook: null, whatsapp: null };
+
     const restaurantPayload = {
       name: info.name,
       slug: slug,
       email: info.email,
       phone: info.phone,
+      ...contactsToSave,
       address: info.address,
       city: info.city,
       province: info.province,

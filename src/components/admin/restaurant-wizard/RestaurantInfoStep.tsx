@@ -10,10 +10,12 @@ import {
   Phone,
   Mail,
   Globe,
+  MessageCircle,
   Plus,
   Check,
   Tag,
 } from 'lucide-react';
+import { FacebookIcon, InstagramIcon } from '@/components/ui/BrandIcons';
 import { RestaurantInfo, TableBookingConfig } from '@/types';
 
 interface RestaurantInfoStepProps {
@@ -453,6 +455,55 @@ export default function RestaurantInfoStep({
                 value={info.website}
                 onChange={(e) => setInfo((p) => ({ ...p, website: e.target.value }))}
                 placeholder="https://www.ristorante.it"
+                className={inputIconCls}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Instagram</label>
+            <div className="relative">
+              <InstagramIcon
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="text"
+                value={info.instagram ?? ''}
+                onChange={(e) => setInfo((p) => ({ ...p, instagram: e.target.value }))}
+                placeholder="@nomeprofilo"
+                className={inputIconCls}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Facebook</label>
+            <div className="relative">
+              <FacebookIcon
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="text"
+                value={info.facebook ?? ''}
+                onChange={(e) => setInfo((p) => ({ ...p, facebook: e.target.value }))}
+                placeholder="nomepagina"
+                className={inputIconCls}
+              />
+            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>WhatsApp</label>
+            <div className="relative">
+              <MessageCircle
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="tel"
+                inputMode="tel"
+                value={info.whatsapp ?? ''}
+                onChange={(e) => setInfo((p) => ({ ...p, whatsapp: e.target.value }))}
+                placeholder="+39 333 1234567"
                 className={inputIconCls}
               />
             </div>

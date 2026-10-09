@@ -23,6 +23,7 @@ import {
   Clock,
   QrCode,
   CreditCard,
+  Store,
 } from 'lucide-react';
 
 // useLayoutEffect applica la preferenza prima del primo disegno: con useEffect la
@@ -77,6 +78,12 @@ const ristoratoreNavItems: NavItem[] = [
     label: 'Dashboard',
     icon: <LayoutDashboard size={18} strokeWidth={1.75} />,
     href: '/ristoratore/dashboard',
+  },
+  {
+    id: 'nav-profilo',
+    label: 'Profilo ristorante',
+    icon: <Store size={18} strokeWidth={1.75} />,
+    href: '/ristoratore/profilo',
   },
   {
     id: 'nav-ordini',

@@ -114,7 +114,8 @@ export function useRestaurantSettings(slugOrId: string) {
          cash_delivery, cash_pickup, cash_table,
          paypal_enabled, paypal_connected, paypal_delivery, paypal_pickup, paypal_table,
          stripe_enabled, stripe_connected, stripe_delivery, stripe_pickup, stripe_table,
-         scheduled_orders, hours_config, tables_count`;
+         scheduled_orders, hours_config, tables_count,
+         website, instagram, facebook, whatsapp`;
 
       const lookup = (source: 'restaurants_public' | 'restaurants') => {
         const q = supabase.from(source).select(COLUMNS);
@@ -214,7 +215,14 @@ export function useRestaurantSettings(slugOrId: string) {
           tagline: restaurant.tagline || restaurant.description || '',
           taglineEn: restaurant.description_en || '',
           address: restaurant.address || '',
+          city: restaurant.city || '',
+          province: restaurant.province || '',
+          cap: restaurant.cap || '',
           phone: restaurant.phone || '',
+          website: restaurant.website || '',
+          instagram: restaurant.instagram || '',
+          facebook: restaurant.facebook || '',
+          whatsapp: restaurant.whatsapp || '',
           // Non selezionata: non leggibile dagli utenti anonimi (migration 017).
           email: '',
           logoUrl: restaurant.logo_url || '',

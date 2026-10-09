@@ -67,7 +67,15 @@ export interface RestaurantSettings {
   tagline?: string;
   taglineEn?: string;
   address?: string;
+  city?: string;
+  province?: string;
+  cap?: string;
   phone?: string;
+  /** Contatti pubblici mostrati nel foglio "Contatti" della vetrina. */
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  whatsapp?: string;
   email?: string;
   logoUrl?: string;
   image?: string;

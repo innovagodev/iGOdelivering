@@ -8,6 +8,10 @@ export interface RestaurantInfo {
   phone: string;
   email: string;
   website: string;
+  /** Social e WhatsApp: pubblici, mostrati nel foglio "Contatti" della vetrina. */
+  instagram?: string;
+  facebook?: string;
+  whatsapp?: string;
   address: string;
   city: string;
   province: string;

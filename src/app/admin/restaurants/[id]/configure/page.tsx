@@ -8,6 +8,7 @@ import { notify, confirmAction } from '@/lib/notify';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_SCHEDULED_ORDERS, withScheduledDefaults } from '@/lib/scheduledOrders';
+import { normalizeContacts } from '@/lib/contacts';
 import { uploadImage } from '@/lib/storage-upload';
 import {
   ArrowLeft,
@@ -257,6 +258,9 @@ export default function RestaurantConfigurePage() {
     phone: '',
     email: '',
     website: '',
+    instagram: '',
+    facebook: '',
+    whatsapp: '',
     address: '',
     city: '',
     province: '',
@@ -532,6 +536,9 @@ export default function RestaurantConfigurePage() {
           phone: restaurant.phone || '',
           email: restaurant.email || '',
           website: restaurant.website || '',
+          instagram: restaurant.instagram || '',
+          facebook: restaurant.facebook || '',
+          whatsapp: restaurant.whatsapp ? `+${restaurant.whatsapp}` : '',
           address: restaurant.address || '',
           city: restaurant.city || '',
           province: restaurant.province || '',
@@ -926,6 +933,10 @@ export default function RestaurantConfigurePage() {
     if (!emailRegex.test(info.email.trim())) {
       return { isValid: false, message: 'Inserisci un indirizzo email valido.' };
     }
+    const contacts = normalizeContacts(info);
+    if (!contacts.ok) {
+      return { isValid: false, message: `Controlla: ${contacts.invalid.join(', ')} non valido.` };
+    }
     return { isValid: true, message: '' };
   };
 
@@ -1106,12 +1117,19 @@ export default function RestaurantConfigurePage() {
         setPublishedAt(publishedAtValue);
       }
 
+      // Sito e social, validati e normalizzati (la validazione sta in validateInfoStep).
+      const normalizedContacts = normalizeContacts(info);
+      const contactsToSave = normalizedContacts.ok
+        ? normalizedContacts.value
+        : { website: null, instagram: null, facebook: null, whatsapp: null };
+
       // 1. Sync restaurant row
       const restaurantPayload: any = {
         name: info.name,
         slug: slug,
         email: info.email,
         phone: info.phone,
+        ...contactsToSave,
         address: info.address,
         city: info.city,
         province: info.province,
