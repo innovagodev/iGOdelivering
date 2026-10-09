@@ -673,9 +673,15 @@ export default function ProfiloRistorantePage() {
                   </p>
                 </div>
 
-                <div className={`grid gap-6 ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_440px]' : 'grid-cols-[minmax(0,1fr)]'}`}>
+                <div
+                  className={`grid gap-6 grid-cols-[minmax(0,1fr)] ${
+                    device === 'phone'
+                      ? 'xl:grid-cols-[minmax(0,1fr)_440px]'
+                      : 'xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]'
+                  }`}
+                >
                   {/* ─── Anteprima: la vetrina vera, in tempo reale ─── */}
-                  <aside className={`order-first min-w-0 ${device === 'phone' ? 'xl:order-last xl:sticky xl:top-4 xl:self-start' : ''}`}>
+                  <aside className="order-first min-w-0 xl:order-last xl:sticky xl:top-4 xl:self-start">
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">
