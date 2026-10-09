@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.43.0](https://github.com/innovagodev/iGOdelivering/compare/v1.42.5...v1.43.0) (2026-10-09)
+
+
+### Features
+
+* **ordini:** restyling di Ordini live, colonne distinte per colore, schede e comandi pensati per il tablet ([4970edc](https://github.com/innovagodev/iGOdelivering/commit/4970edc3d123718170aab91f5bf71f879cdd73ce))
+
 ### [1.42.5](https://github.com/innovagodev/iGOdelivering/compare/v1.42.4...v1.42.5) (2026-10-09)
 
 
