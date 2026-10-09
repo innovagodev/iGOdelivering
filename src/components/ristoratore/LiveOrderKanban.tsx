@@ -6,6 +6,7 @@ import {
   ChefHat,
   CheckCheck,
   AlertCircle,
+  Bell,
   User,
   X,
   Check,
@@ -20,6 +21,8 @@ import {
   Phone,
   ExternalLink,
   MessageSquare,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/hooks/useOrders';
@@ -59,33 +62,58 @@ interface LiveOrder {
 }
 
 
-const columns: {
+interface ColumnDef {
   key: OrderStatus;
   label: string;
+  hint: string;
   icon: React.ReactNode;
-  color: string;
-  bgClass: string;
-}[] = [
+  /** Classi complete (non composte): Tailwind le trova solo così. */
+  ui: { wrap: string; bar: string; iconWrap: string; count: string; tab: string; accent: string };
+}
+
+// Un colore per significato: ambra = serve un'azione, azzurro = al lavoro, verde = finito.
+const columns: ColumnDef[] = [
   {
     key: 'pending',
-    label: 'Da Accettare',
-    icon: <AlertCircle size={14} />,
-    color: 'text-amber-600 border-amber-500 bg-amber-50 dark:bg-amber-950/20',
-    bgClass: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/80',
+    label: 'Da accettare',
+    hint: 'I nuovi ordini compaiono qui',
+    icon: <Bell size={16} />,
+    ui: {
+      wrap: 'border-amber-300/70 bg-amber-50/60 dark:border-amber-500/25 dark:bg-amber-500/[0.06]',
+      bar: 'bg-amber-500',
+      iconWrap: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+      count: 'bg-amber-500 text-white',
+      tab: 'bg-amber-500 text-white shadow-sm',
+      accent: 'border-l-amber-500',
+    },
   },
   {
     key: 'accepted',
-    label: 'In Corso',
-    icon: <ChefHat size={14} />,
-    color: 'text-blue-600 border-blue-500 bg-blue-50 dark:bg-blue-950/20',
-    bgClass: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/80',
+    label: 'In corso',
+    hint: 'Gli ordini accettati restano qui finché non sono pronti',
+    icon: <ChefHat size={16} />,
+    ui: {
+      wrap: 'border-sky-300/70 bg-sky-50/60 dark:border-sky-500/25 dark:bg-sky-500/[0.06]',
+      bar: 'bg-sky-500',
+      iconWrap: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+      count: 'bg-sky-500 text-white',
+      tab: 'bg-sky-500 text-white shadow-sm',
+      accent: 'border-l-sky-500',
+    },
   },
   {
     key: 'completed',
     label: 'Completati',
-    icon: <CheckCheck size={14} />,
-    color: 'text-emerald-600 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20',
-    bgClass: 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/80',
+    hint: 'Gli ordini consegnati compaiono qui',
+    icon: <CheckCheck size={16} />,
+    ui: {
+      wrap: 'border-emerald-300/60 bg-emerald-50/50 dark:border-emerald-500/20 dark:bg-emerald-500/[0.05]',
+      bar: 'bg-emerald-500/70',
+      iconWrap: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+      count: 'bg-emerald-600/80 text-white',
+      tab: 'bg-emerald-600 text-white shadow-sm',
+      accent: 'border-l-emerald-500/60',
+    },
   },
 ];
 
@@ -115,6 +143,32 @@ const orderLines = (o: any): any[] => {
     }));
   }
   return Array.isArray(o?.items) ? o.items : [];
+};
+
+/**
+ * Dettaglio e stampa leggevano nomi in camelCase (customerName, createdAt, customer.email…)
+ * che gli ordini del database non hanno: hanno customer_name, created_at, customer_email.
+ * Risultato: "Cliente" al posto del nome e "Invalid Date" alla data. Qui si aggiungono gli
+ * alias, senza toccare i campi già presenti.
+ */
+const withAliases = (o: any) => {
+  const email = o.customer?.email ?? o.customer_email;
+  return {
+    ...o,
+    customerName: o.customerName || o.customer_name,
+    createdAt: o.createdAt || o.created_at,
+    timestamp: o.timestamp || o.created_at,
+    tableNumber: o.tableNumber || o.table_number,
+    address: o.address || o.customer_address,
+    customer: {
+      ...(o.customer || {}),
+      name: o.customer?.name || o.customer_name,
+      phone: o.customer?.phone || o.customer_phone,
+      address: o.customer?.address || o.customer_address,
+      // L'indirizzo finto degli ordini al tavolo non è un contatto.
+      email: email && !String(email).endsWith('@internal.it') ? email : undefined,
+    },
+  };
 };
 
 /** "Ai Cereali (+€2.00)": ogni supplemento a pagamento mostra il suo prezzo. */
@@ -412,7 +466,7 @@ export default function LiveOrderKanban() {
   const handlePrintSingleOrder = (orderId: string) => {
     const baseOrder = orders.find((o) => o.id === orderId);
     if (!baseOrder) return;
-    const rawOrder = { ...baseOrder };
+    const rawOrder = withAliases(baseOrder);
     if (rawOrder.scheduled_at && !rawOrder.deliveryTime) {
       const d = new Date(rawOrder.scheduled_at);
       const hours = d.getHours().toString().padStart(2, '0');
@@ -672,6 +726,13 @@ export default function LiveOrderKanban() {
     printWindow.document.close();
   };
 
+  // Pulsante d'azione di una scheda: alto almeno 44px (tablet), testo leggibile.
+  const actionBase =
+    'touch-target inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-bold transition-colors cursor-pointer';
+  const actionGhost = `${actionBase} border border-border bg-card text-foreground hover:border-red-300 hover:bg-red-50 hover:text-red-700 dark:hover:border-red-500/40 dark:hover:bg-red-950/30 dark:hover:text-red-400`;
+  const actionNeutral = `${actionBase} border border-border bg-card text-foreground hover:bg-muted`;
+  const actionPrimary = `${actionBase} bg-emerald-600 text-white shadow-sm hover:bg-emerald-700`;
+
   const renderActions = (colKey: OrderStatus, order: LiveOrder) => {
     if (order.status === 'expired') {
       // Un ordine scaduto è già stato comunicato al cliente ("nessuna risposta"):
@@ -680,9 +741,9 @@ export default function LiveOrderKanban() {
       // POS, di riattivare l'ordine. Un ordine online scaduto ha l'autorizzazione
       // annullata: il cliente non è addebitato e non si può più incassare.
       return (
-        <div className="mt-3 space-y-2">
+        <div className="space-y-2">
           {order.paymentMethod === 'online' && (
-            <p className="text-[11px] font-medium leading-snug text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-medium leading-snug text-muted-foreground">
               Scaduto: il cliente non è stato addebitato.
             </p>
           )}
@@ -691,9 +752,9 @@ export default function LiveOrderKanban() {
               <a
                 href={`tel:${order.phone}`}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
+                className={actionNeutral}
               >
-                <Phone size={12} />
+                <Phone size={15} />
                 Chiama
               </a>
             )}
@@ -703,9 +764,9 @@ export default function LiveOrderKanban() {
                   e.stopPropagation();
                   reactivateExpired(order.id, order.orderNumber);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-750 transition-colors cursor-pointer"
+                className={actionPrimary}
               >
-                <Check size={12} />
+                <Check size={15} />
                 Riattiva
               </button>
             )}
@@ -716,15 +777,15 @@ export default function LiveOrderKanban() {
 
     if (colKey === 'pending') {
       return (
-        <div className="mt-3 flex gap-2">
+        <div className="flex gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
               rejectOrder('pending', order.id);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
+            className={actionGhost}
           >
-            <X size={12} />
+            <X size={15} />
             Rifiuta
           </button>
           <button
@@ -732,9 +793,9 @@ export default function LiveOrderKanban() {
               e.stopPropagation();
               acceptOrder(order.id);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors cursor-pointer"
+            className={actionPrimary}
           >
-            <Check size={12} />
+            <Check size={15} />
             Accetta
           </button>
         </div>
@@ -743,15 +804,15 @@ export default function LiveOrderKanban() {
 
     if (colKey === 'accepted') {
       return (
-        <div className="mt-3 flex gap-2">
+        <div className="flex gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
               rejectOrder('accepted', order.id);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-900 dark:text-slate-300 transition-colors cursor-pointer"
+            className={actionGhost}
           >
-            <X size={12} />
+            <X size={15} />
             Annulla
           </button>
           <button
@@ -759,9 +820,9 @@ export default function LiveOrderKanban() {
               e.stopPropagation();
               completeOrder(order.id);
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-colors cursor-pointer"
+            className={actionPrimary}
           >
-            <CheckCheck size={12} />
+            <CheckCheck size={15} />
             Completa
           </button>
         </div>
@@ -770,13 +831,13 @@ export default function LiveOrderKanban() {
 
     if (colKey === 'completed') {
       return (
-        <div className="mt-2.5 flex justify-end">
+        <div className="flex justify-end">
           <button
             onClick={(e) => {
               e.stopPropagation();
               rejectOrder('completed', order.id);
             }}
-            className="text-[11px] text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer"
+            className="touch-target -mb-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 cursor-pointer"
           >
             Rimuovi dalla vista
           </button>
@@ -787,6 +848,7 @@ export default function LiveOrderKanban() {
     return null;
   };
 
+  const chip = 'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold';
   const getOrderTypeBadge = (
     type: LiveOrder['type'],
     tableNumber?: string,
@@ -794,28 +856,28 @@ export default function LiveOrderKanban() {
   ) => {
     if (isBookingPreOrder) {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200/60 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/50">
-          <Calendar size={11} className="text-purple-500" /> Prenotazione
+        <span className={`${chip} border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300`}>
+          <Calendar size={12} /> Prenotazione
         </span>
       );
     }
     switch (type) {
       case 'delivery':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-            <Bike size={11} className="text-slate-500" /> Domicilio
+          <span className={`${chip} border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-300`}>
+            <Bike size={12} /> Domicilio
           </span>
         );
       case 'takeaway':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-            <ShoppingBag size={11} className="text-slate-500" /> Asporto
+          <span className={`${chip} border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300`}>
+            <ShoppingBag size={12} /> Asporto
           </span>
         );
       case 'table':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50">
-            <Utensils size={11} className="text-blue-500" /> Tavolo {tableNumber || '-'}
+          <span className={`${chip} border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300`}>
+            <Utensils size={12} /> Tavolo {tableNumber || '-'}
           </span>
         );
       default:
@@ -823,17 +885,22 @@ export default function LiveOrderKanban() {
     }
   };
 
+  const channelFilters: { key: typeof orderTypeFilter; label: string; icon?: React.ReactNode }[] = [
+    { key: 'all', label: 'Tutti' },
+    { key: 'delivery', label: 'Domicilio', icon: <Bike size={14} /> },
+    { key: 'takeaway', label: 'Asporto', icon: <ShoppingBag size={14} /> },
+    { key: 'table', label: 'Tavolo', icon: <Utensils size={14} /> },
+  ];
+
   return (
-    <div ref={rootRef} className="bg-card border border-border shadow-xs rounded-lg p-4 relative">
+    <div ref={rootRef} className="relative flex h-full min-h-0 flex-col gap-3">
       {/* Toast notifications */}
       <div className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`px-3 py-2 rounded shadow-md text-xs font-semibold text-white animate-fade-in ${
-              toast.type === 'success'
-                ? 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900'
-                : 'bg-red-600'
+            className={`animate-fade-in rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg ${
+              toast.type === 'success' ? 'bg-slate-900 dark:bg-slate-100 dark:text-slate-900' : 'bg-red-600'
             }`}
           >
             {toast.message}
@@ -841,85 +908,77 @@ export default function LiveOrderKanban() {
         ))}
       </div>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              Pannello Ordini Live
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Gestione ordinazioni in tempo reale
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Connesso
-          </span>
+      {/* Intestazione: titolo, stato della connessione, suoni */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
+            Ordini live
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+          </h1>
+          <span className="hidden text-sm text-muted-foreground sm:inline">Gestione ordinazioni in tempo reale</span>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-muted/65 px-2.5 py-1 rounded border border-border text-xs">
-            <span className="font-medium text-muted-foreground select-none">Suoni notifica</span>
-            <button
-              onClick={() => setIsMuted(!isMuted)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none before:absolute before:-inset-2 before:content-[''] ${
-                !isMuted ? 'bg-slate-900 dark:bg-slate-100' : 'bg-slate-200 dark:bg-slate-800'
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white dark:bg-slate-900 transition-transform duration-200 ${
-                  !isMuted ? 'translate-x-[22px]' : 'translate-x-[2px]'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          aria-pressed={!isMuted}
+          onClick={() => setIsMuted(!isMuted)}
+          className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl border px-3.5 text-sm font-semibold transition-colors cursor-pointer ${
+            isMuted
+              ? 'border-border bg-card text-muted-foreground hover:bg-muted'
+              : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300'
+          }`}
+        >
+          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          {isMuted ? 'Suoni disattivati' : 'Suoni attivi'}
+        </button>
       </div>
 
-      {/* Filters Row */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="flex-1 relative">
+      {/* Filtri: ricerca, canale (a pulsanti, comodi al tocco), stato */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Cerca per cliente o ID..."
+            placeholder="Cerca per cliente o numero…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-9 pl-8 pr-3 text-base rounded border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-slate-400"
+            className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
-          <Search className="absolute left-2.5 top-3 h-3.5 w-3.5 text-muted-foreground" />
         </div>
-        <div className="w-full sm:w-44">
-          <select
-            value={orderTypeFilter}
-            onChange={(e) => setOrderTypeFilter(e.target.value as any)}
-            className="w-full h-9 px-2 text-base rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-slate-400"
-          >
-            <option value="all">Tutti i canali</option>
-            <option value="delivery">Domicilio</option>
-            <option value="takeaway">Asporto</option>
-            <option value="table">Tavolo</option>
-          </select>
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1" role="group" aria-label="Canale">
+          {channelFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={orderTypeFilter === f.key}
+              onClick={() => setOrderTypeFilter(f.key)}
+              className={`touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors cursor-pointer ${
+                orderTypeFilter === f.key
+                  ? 'bg-foreground text-background shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {f.icon}
+              {f.label}
+            </button>
+          ))}
         </div>
-        <div className="w-full sm:w-44">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="w-full h-9 px-2 text-base rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-slate-400"
-          >
-            <option value="all">Tutti gli stati</option>
-            <option value="active">Solo Attivi</option>
-            <option value="expired">Solo Persi</option>
-          </select>
-        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as any)}
+          aria-label="Stato"
+          className="h-11 rounded-xl border border-border bg-card pl-3 pr-9 text-base text-foreground focus:border-primary focus:outline-none"
+        >
+          <option value="all">Tutti gli stati</option>
+          <option value="active">Solo attivi</option>
+          <option value="expired">Solo persi</option>
+        </select>
       </div>
 
-      {/* Mobile Tab Bar */}
-      <div className={`${wide ? 'hidden' : 'flex'} border border-border rounded-xl p-1 bg-muted/30 mb-4 gap-1`}>
+      {/* Schede delle colonne (pannello stretto: una colonna alla volta) */}
+      <div className={`${wide ? 'hidden' : 'flex'} gap-1.5 rounded-2xl border border-border bg-card p-1.5`} role="tablist">
         {columns.map((col) => {
           const count = filteredOrders(col.key).length;
           const isActive = activeMobileTab === col.key;
@@ -927,19 +986,18 @@ export default function LiveOrderKanban() {
             <button
               key={`tab-${col.key}`}
               type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => setActiveMobileTab(col.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-1 text-xs font-bold rounded-lg transition-all ${
-                isActive
-                  ? 'bg-card text-foreground shadow-xs border border-border/80'
-                  : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+              className={`touch-target flex h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[13px] font-bold leading-tight transition-colors cursor-pointer min-[480px]:h-11 min-[480px]:flex-row min-[480px]:gap-1.5 min-[480px]:text-sm ${
+                isActive ? col.ui.tab : 'text-muted-foreground hover:bg-muted'
               }`}
             >
-              {col.label}
+              <span className="hidden min-[480px]:inline">{col.icon}</span>
+              <span className="whitespace-nowrap min-[480px]:order-2">{col.label}</span>
               <span
-                className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                  isActive
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'bg-muted text-muted-foreground'
+                className={`order-first min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-xs font-extrabold tabular-nums min-[480px]:order-last ${
+                  isActive ? 'bg-white/25 text-inherit' : 'bg-muted text-foreground'
                 }`}
               >
                 {count}
@@ -949,239 +1007,265 @@ export default function LiveOrderKanban() {
         })}
       </div>
 
-      {/* Kanban Grid */}
-      <div className={`grid gap-4 ${wide ? 'grid-cols-3' : 'grid-cols-1'}`}>
+      {/* Kanban: ogni colonna scorre per conto suo, l'intestazione resta ferma */}
+      <div className={`grid min-h-0 flex-1 gap-3 ${wide ? 'grid-cols-3' : 'grid-cols-1'}`}>
         {columns.map((col) => {
           const isMobileHidden = !wide && activeMobileTab !== col.key;
           const colOrders = filteredOrders(col.key);
           return (
-            <div
+            <section
               key={`col-${col.key}`}
-              className={`flex flex-col gap-2.5 border rounded-lg p-3 ${col.bgClass} ${
+              aria-label={col.label}
+              className={`min-h-0 flex-col overflow-hidden rounded-2xl border ${col.ui.wrap} ${
                 isMobileHidden ? 'hidden' : 'flex'
               }`}
             >
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-850 pb-2 px-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-600 dark:text-slate-400">{col.icon}</span>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {col.label}
+              <div className={`h-1 flex-shrink-0 ${col.ui.bar}`} />
+              <header className={`${wide ? 'flex' : 'hidden'} flex-shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3`}>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${col.ui.iconWrap}`}>
+                    {col.icon}
                   </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {col.key === 'accepted' && colOrders.length > 0 && (
-                    <button
-                      onClick={() => handlePrintAllAcceptedOrders(colOrders)}
-                      className="touch-target px-2 py-1.5 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
-                      title="Stampa tutte le comande in corso"
-                    >
-                      <Printer size={12} /> Stampa Tutto
-                    </button>
-                  )}
-                  <span className="bg-slate-200/75 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                  <h2 className="truncate text-base font-bold text-foreground">{col.label}</h2>
+                  <span
+                    className={`min-w-[1.75rem] rounded-full px-2 py-0.5 text-center text-sm font-extrabold tabular-nums ${col.ui.count} ${
+                      col.key === 'pending' && colOrders.length > 0 ? 'motion-safe:animate-pulse' : ''
+                    }`}
+                  >
                     {colOrders.length}
                   </span>
                 </div>
-              </div>
+                {col.key === 'accepted' && colOrders.length > 0 && (
+                  <button
+                    onClick={() => handlePrintAllAcceptedOrders(colOrders)}
+                    className="touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg border border-sky-200 bg-white/70 px-2.5 text-xs font-bold text-sky-700 transition-colors hover:bg-white dark:border-sky-500/30 dark:bg-transparent dark:text-sky-300 cursor-pointer"
+                    title="Stampa tutte le comande in corso"
+                  >
+                    <Printer size={14} /> Stampa tutto
+                  </button>
+                )}
+              </header>
 
-              <div className="flex flex-col gap-2.5 flex-1 min-h-[450px]">
+              {!wide && col.key === 'accepted' && colOrders.length > 0 && (
+                <div className="flex flex-shrink-0 justify-end px-2.5 pt-2.5">
+                  <button
+                    onClick={() => handlePrintAllAcceptedOrders(colOrders)}
+                    className="touch-target inline-flex h-10 items-center gap-1.5 rounded-lg border border-sky-200 bg-white/70 px-3 text-sm font-bold text-sky-700 transition-colors hover:bg-white dark:border-sky-500/30 dark:bg-transparent dark:text-sky-300 cursor-pointer"
+                  >
+                    <Printer size={14} /> Stampa tutto
+                  </button>
+                </div>
+              )}
+              <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-2.5">
                 {colOrders.length === 0 && (
-                  <div className="border border-dashed border-slate-200 dark:border-slate-800 rounded py-10 text-center text-xs text-muted-foreground bg-background/50">
-                    Nessun ordine
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/60 px-4 py-10 text-center">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-full ${col.ui.iconWrap}`}>{col.icon}</span>
+                    <p className="text-sm font-semibold text-foreground">Nessun ordine</p>
+                    <p className="text-xs text-muted-foreground">{col.hint}</p>
                   </div>
                 )}
-                {colOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => setSelectedOrderId(order.id)}
-                    className={`bg-white dark:bg-slate-950 border rounded-xl p-3.5 shadow-sm hover:shadow-md transition-all flex flex-col gap-3 cursor-pointer hover:scale-[1.01] duration-150 group ${
-                      order.status === 'expired'
-                        ? 'opacity-55 border-rose-500/80 bg-rose-500/5 dark:border-rose-500/30 dark:bg-rose-500/5 border-dashed border-2 hover:opacity-100 hover:border-rose-500'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    {/* Header: ID, Customer Name and Badges */}
-                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-900 pb-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {order.status === 'expired' && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-rose-500 text-white dark:bg-rose-950/40 dark:text-rose-450 border border-rose-500/20 uppercase flex-shrink-0 animate-pulse">
-                              Scaduto
-                            </span>
-                          )}
-                          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">
-                            #{order.orderNumber}
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors truncate">
-                          {order.customer}
-                        </h4>
-                        {order.phone && (
-                          <div className="mt-1">
-                            <a
-                              href={`tel:${order.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100/60 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40 transition-colors"
-                              title="Chiama cliente"
-                            >
-                              <Phone size={10} />
-                              {order.phone}
-                            </a>
+                {colOrders.map((order) => {
+                  const expired = order.status === 'expired';
+                  return (
+                    <article
+                      key={order.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedOrderId(order.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedOrderId(order.id);
+                        }
+                      }}
+                      className={`group flex flex-shrink-0 flex-col gap-3 rounded-xl border border-l-4 bg-card p-3.5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
+                        expired
+                          ? 'border-2 border-dashed border-rose-400/80 bg-rose-500/5 opacity-70 hover:opacity-100'
+                          : `border-border ${col.ui.accent}`
+                      } ${col.key === 'completed' && !expired ? 'opacity-90 hover:opacity-100' : ''}`}
+                    >
+                      {/* Testa: numero, canale, tempo trascorso, stampa */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {expired && (
+                              <span className="inline-flex flex-shrink-0 items-center rounded-md bg-rose-500 px-1.5 py-0.5 text-xs font-extrabold uppercase text-white">
+                                Scaduto
+                              </span>
+                            )}
+                            <span className="text-sm font-bold tabular-nums text-muted-foreground">#{order.orderNumber}</span>
+                            {getOrderTypeBadge(order.type, order.tableNumber, order.isBookingPreOrder)}
                           </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePrintSingleOrder(order.id);
-                          }}
-                          className="touch-target p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:bg-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
-                          title="Stampa comanda"
-                        >
-                          <Printer size={13} />
-                        </button>
-                        {getOrderTypeBadge(order.type, order.tableNumber, order.isBookingPreOrder)}
-                      </div>
-                    </div>
-
-                    {/* Middle: Items List */}
-                    <div className="py-0.5">
-                      <ul className="space-y-1.5">
-                        {order.items.map((item, idx) => (
-                          <li
-                            key={`${order.id}-item-${idx}`}
-                            className="text-xs text-slate-700 dark:text-slate-400 flex justify-between items-start"
+                          <h3 className="line-clamp-2 break-words text-base font-bold leading-tight text-foreground">{order.customer}</h3>
+                        </div>
+                        <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-muted-foreground">
+                            <Clock size={12} />
+                            {formatMinutesAgo(order.minutesAgo)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePrintSingleOrder(order.id);
+                            }}
+                            className="touch-target -mr-1.5 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+                            title="Stampa comanda"
+                            aria-label="Stampa comanda"
                           >
-                            <div className="min-w-0">
-                              <span className="block truncate font-semibold">{item.name}</span>
+                            <Printer size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Piatti: quantità davanti, come su una comanda */}
+                      <ul className="space-y-2">
+                        {order.items.map((item, idx) => (
+                          <li key={`${order.id}-item-${idx}`} className="flex items-start gap-2.5 text-sm text-foreground">
+                            <span className="min-w-[2rem] rounded-md bg-muted px-1.5 py-0.5 text-center text-sm font-extrabold tabular-nums">
+                              {item.qty}×
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <span className="block font-semibold leading-snug">{item.name}</span>
                               {(item.addedIngredients?.length || item.removedIngredients?.length) ? (
-                                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-snug">
+                                <span className="block text-xs font-medium leading-snug text-muted-foreground">
                                   {[
                                     ...(item.addedIngredients || []).map((a) => '+' + extraLabel(a)),
                                     ...(item.removedIngredients || []).map((r) => '-' + r),
                                   ].join(', ')}
                                 </span>
                               ) : null}
+                              {item.note ? (
+                                <span className="mt-0.5 block text-xs font-semibold italic leading-snug text-amber-700 dark:text-amber-400">
+                                  “{item.note}”
+                                </span>
+                              ) : null}
                             </div>
-                            <span className="font-extrabold text-slate-900 dark:text-slate-200 ml-2 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
-                              ×{item.qty}
-                            </span>
                           </li>
                         ))}
                       </ul>
-                    </div>
 
-                    {/* Scadenza per accettare */}
-                    {(order.status === 'new' || order.status === 'pending') &&
-                      order.acceptDeadline &&
-                      (() => {
-                        const deadline = new Date(order.acceptDeadline).getTime();
-                        if (order.acceptanceMode === 'deferred') {
+                      {/* Scadenza per accettare */}
+                      {(order.status === 'new' || order.status === 'pending') &&
+                        order.acceptDeadline &&
+                        (() => {
+                          const deadline = new Date(order.acceptDeadline).getTime();
+                          if (order.acceptanceMode === 'deferred') {
+                            return (
+                              <div className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                                Preordine: da confermare entro{' '}
+                                {new Date(deadline).toLocaleString('it-IT', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            );
+                          }
+                          const left = Math.max(0, Math.ceil((deadline - nowMs) / 1000));
+                          const urgent = left <= 60;
                           return (
-                            <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                              Preordine: da confermare entro{' '}
-                              {new Date(deadline).toLocaleString('it-IT', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                            <div
+                              className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-bold ${
+                                urgent
+                                  ? 'bg-red-50 text-red-700 motion-safe:animate-pulse dark:bg-red-500/10 dark:text-red-300'
+                                  : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
+                              }`}
+                            >
+                              <span>Accetta entro</span>
+                              <span className="font-mono text-sm tabular-nums">
+                                {String(Math.floor(left / 60)).padStart(2, '0')}:{String(left % 60).padStart(2, '0')}
+                              </span>
                             </div>
                           );
-                        }
-                        const left = Math.max(0, Math.ceil((deadline - nowMs) / 1000));
-                        const urgent = left <= 60;
-                        return (
-                          <div
-                            className={`mt-1 flex items-center justify-between rounded-md px-2 py-1 text-[11px] font-bold ${
-                              urgent
-                                ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 animate-pulse'
-                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
-                            }`}
-                          >
-                            <span>Accetta entro</span>
-                            <span className="font-mono tabular-nums text-xs">
-                              {String(Math.floor(left / 60)).padStart(2, '0')}:
-                              {String(left % 60).padStart(2, '0')}
-                            </span>
-                          </div>
-                        );
-                      })()}
+                        })()}
 
-                    {/* Service/Additional info */}
-                    {order.isBookingPreOrder && (
-                      <div className="bg-purple-500/5 border border-purple-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-purple-700 dark:text-purple-300 font-semibold mt-0.5">
-                        <Calendar size={10} />
-                        <span>Pre-ordine tavolo</span>
-                      </div>
-                    )}
-
-                    {order.type === 'table' && !order.isBookingPreOrder && order.tableNumber && (
-                      <div className="bg-blue-500/5 border border-blue-200/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-blue-700 dark:text-blue-300 font-semibold mt-0.5">
-                        <Utensils size={10} />
-                        <span>Servire al Tavolo {order.tableNumber}</span>
-                      </div>
-                    )}
-
-                    {order.address && (
-                      <div className="flex items-start gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-900">
-                        <MapPin size={11} className="mt-0.5 flex-shrink-0 text-slate-400" />
-                        <span className="line-clamp-1 font-medium">{order.address}</span>
-                      </div>
-                    )}
-
-                    {order.scheduledAt && order.deliveryTime && (
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 font-bold mt-0.5 animate-pulse">
-                        <Clock size={10} className="text-amber-500" />
-                        <span>
-                          PROGRAMMATO: {order.deliveryDate ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} ` : ''}
-                          alle {order.deliveryTime}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Footer: Elapsed Time and Total Price */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-900 mt-1">
-                      <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        <div className="flex items-center gap-1 font-medium">
-                          <Clock size={11} />
-                          <span className="tabular-nums">{formatMinutesAgo(order.minutesAgo)}</span>
+                      {/* Informazioni di servizio */}
+                      {(order.phone ||
+                        order.address ||
+                        (order.type === 'table' && !order.isBookingPreOrder && order.tableNumber) ||
+                        order.isBookingPreOrder ||
+                        (order.scheduledAt && order.deliveryTime)) && (
+                        <div className="flex flex-col gap-1.5 text-xs">
+                          {order.isBookingPreOrder && (
+                            <div className="flex items-center gap-1.5 font-semibold text-purple-700 dark:text-purple-300">
+                              <Calendar size={13} className="flex-shrink-0" />
+                              Pre-ordine tavolo
+                            </div>
+                          )}
+                          {order.type === 'table' && !order.isBookingPreOrder && order.tableNumber && (
+                            <div className="flex items-center gap-1.5 font-semibold text-sky-700 dark:text-sky-300">
+                              <Utensils size={13} className="flex-shrink-0" />
+                              Servire al tavolo {order.tableNumber}
+                            </div>
+                          )}
+                          {order.address && (
+                            <div className="flex items-start gap-1.5 font-medium text-muted-foreground">
+                              <MapPin size={13} className="mt-0.5 flex-shrink-0" />
+                              <span className="line-clamp-2">{order.address}</span>
+                            </div>
+                          )}
+                          {order.scheduledAt && order.deliveryTime && (
+                            <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                              <Clock size={13} className="flex-shrink-0" />
+                              <span>
+                                Programmato:{' '}
+                                {order.deliveryDate
+                                  ? `${new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })} `
+                                  : ''}
+                                alle {order.deliveryTime}
+                              </span>
+                            </div>
+                          )}
+                          {order.phone && (
+                            <a
+                              href={`tel:${order.phone}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="touch-target inline-flex items-center gap-1.5 self-start font-semibold text-primary hover:underline"
+                              title="Chiama il cliente"
+                            >
+                              <Phone size={13} />
+                              {order.phone}
+                            </a>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {order.paymentStatus === 'paid' ? (
-                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                            Pagato online
-                          </span>
-                        ) : order.paymentStatus === 'refunded' || order.paymentStatus === 'partially_refunded' ? (
-                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                            Rimborsato
-                          </span>
-                        ) : order.paymentMethod === 'cash' || order.paymentMethod === 'pos' ? (
-                          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-                            Da incassare · {order.paymentMethod === 'pos' ? 'POS' : 'Contanti'}
-                          </span>
-                        ) : null}
-                        <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-100">
-                          € {order.total.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
+                      )}
 
-                    {renderActions(col.key, order)}
-                  </div>
-                ))}
+                      {/* Piede: pagamento e totale */}
+                      <div className="flex items-center justify-between gap-2 border-t border-border pt-2.5">
+                        <div className="min-w-0">
+                          {order.paymentStatus === 'paid' ? (
+                            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                              Pagato online
+                            </span>
+                          ) : order.paymentStatus === 'refunded' || order.paymentStatus === 'partially_refunded' ? (
+                            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+                              Rimborsato
+                            </span>
+                          ) : order.paymentMethod === 'cash' || order.paymentMethod === 'pos' ? (
+                            <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                              Da incassare · {order.paymentMethod === 'pos' ? 'POS' : 'Contanti'}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="text-lg font-black tabular-nums text-foreground">€ {order.total.toFixed(2)}</span>
+                      </div>
+
+                      {renderActions(col.key, order)}
+                    </article>
+                  );
+                })}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>
 
       {/* Right Sidebar Drawer Modal */}
       {(() => {
-        const selectedOrder = orders.find((o) => o.id === selectedOrderId);
-        if (!selectedOrderId || !selectedOrder) return null;
+        const selectedBase = orders.find((o) => o.id === selectedOrderId);
+        if (!selectedOrderId || !selectedBase) return null;
+        const selectedOrder = withAliases(selectedBase);
 
         const selectedOrderStatus = getOrderStatus(selectedOrder);
 
@@ -1614,7 +1698,7 @@ export default function LiveOrderKanban() {
                         rejectOrder('pending', selectedOrder.id);
                         setSelectedOrderId(null);
                       }}
-                      className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-700 dark:border-slate-850 dark:hover:bg-red-950/20 dark:hover:text-red-400 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
+                      className="min-h-11 flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-700 dark:border-slate-850 dark:hover:bg-red-950/20 dark:hover:text-red-400 transition-all font-bold text-sm cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <X size={14} /> Rifiuta
                     </button>
@@ -1622,7 +1706,7 @@ export default function LiveOrderKanban() {
                       onClick={() => {
                         acceptOrder(selectedOrder.id);
                       }}
-                      className="min-h-11 flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                      className="min-h-11 flex-1 py-2 px-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-sm cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       <Check size={14} /> Accetta
                     </button>
@@ -1662,7 +1746,7 @@ export default function LiveOrderKanban() {
                         rejectOrder('accepted', selectedOrder.id);
                         setSelectedOrderId(null);
                       }}
-                      className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-700 dark:border-slate-850 dark:hover:bg-red-950/20 dark:hover:text-red-400 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1"
+                      className="min-h-11 flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-700 dark:border-slate-850 dark:hover:bg-red-950/20 dark:hover:text-red-400 transition-all font-bold text-sm cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <X size={14} /> Annulla
                     </button>
@@ -1670,7 +1754,7 @@ export default function LiveOrderKanban() {
                       onClick={() => {
                         completeOrder(selectedOrder.id);
                       }}
-                      className="min-h-11 flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                      className="min-h-11 flex-1 py-2 px-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-sm cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       <CheckCheck size={14} /> Completa
                     </button>
