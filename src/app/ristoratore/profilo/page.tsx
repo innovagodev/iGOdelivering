@@ -268,12 +268,12 @@ function ImageField({
 const DESKTOP_W = 1280;
 const DESKTOP_H = 820;
 
-/** Una riga di sola lettura: etichetta a sinistra, valore a destra (sotto, su schermi stretti). */
+/** Una riga di sola lettura: etichetta sopra, valore subito sotto (la colonna è stretta: niente tagli). */
 function ReadOnlyRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-      <dt className="text-xs font-semibold text-muted-foreground sm:w-48 sm:flex-shrink-0">{label}</dt>
-      <dd className="min-w-0 flex-1">{children}</dd>
+    <div className="flex flex-col gap-1 px-4 py-3">
+      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      <dd className="min-w-0">{children}</dd>
     </div>
   );
 }
@@ -966,7 +966,7 @@ export default function ProfiloRistorantePage() {
                       <dl className="divide-y divide-border/70 rounded-xl border border-border bg-muted/40 text-sm">
                         <ReadOnlyRow label="Indirizzo web della vetrina">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="min-w-0 break-all font-medium text-foreground">
+                            <span className="min-w-0 font-medium text-foreground [overflow-wrap:anywhere]">
                               {row.slug ? `${origin}/menu/${row.slug}` : '—'}
                             </span>
                           <button
@@ -980,7 +980,7 @@ export default function ProfiloRistorantePage() {
                           </div>
                         </ReadOnlyRow>
                         <ReadOnlyRow label="Email dell’account">
-                          <span className="break-all font-medium text-foreground">{row.email || '—'}</span>
+                          <span className="font-medium text-foreground [overflow-wrap:anywhere]">{row.email || '—'}</span>
                         </ReadOnlyRow>
                         <ReadOnlyRow label="Partita IVA">
                           <span className="font-medium text-foreground">{row.vat_number || '—'}</span>
