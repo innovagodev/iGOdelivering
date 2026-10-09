@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.47.0](https://github.com/innovagodev/iGOdelivering/compare/v1.46.0...v1.47.0) (2026-10-09)
+
+
+### Features
+
+* **ordini:** schede piu' compatte, a due colonne su tablet in verticale ([1c15517](https://github.com/innovagodev/iGOdelivering/commit/1c15517d007f1c5c3f5bb330dd51721d8cc53056))
+
 ## [1.46.0](https://github.com/innovagodev/iGOdelivering/compare/v1.45.1...v1.46.0) (2026-10-09)
 
 
