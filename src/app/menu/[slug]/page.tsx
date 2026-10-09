@@ -292,7 +292,10 @@ function CartSidebar({
 }) {
   const { t, lang } = useLang();
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const total = subtotal - discount + (deliveryType === 'domicilio' ? actualDeliveryFee : 0);
+  // Il totale del carrello non include la consegna: si sceglie, e si aggiunge, al passaggio successivo.
+  const promoIsDelivery = appliedPromoDetail?.type === 'free_delivery';
+  const shownDiscount = promoIsDelivery ? 0 : discount;
+  const total = Math.max(0, subtotal - shownDiscount);
   const meetsMin = subtotal >= minOrder;
 
   return (
@@ -474,7 +477,7 @@ function CartSidebar({
 
             {/* Totals */}
             <div className="space-y-1.5 text-xs">
-              {promoApplied && appliedPromoDetail && (
+              {promoApplied && appliedPromoDetail && !promoIsDelivery && (
                 <div className="flex justify-between text-[var(--success)]">
                   <span>
                     {t('cart_discount')} (
@@ -490,6 +493,13 @@ function CartSidebar({
                 <span>{t('cart_total')}</span>
                 <span className="tabular-nums text-primary">€ {total.toFixed(2)}</span>
               </div>
+              {deliveryType !== 'tavolo' && (
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  {lang === 'en'
+                    ? 'Delivery, if you choose it, is added in the next step.'
+                    : 'La consegna, se la scegli, si aggiunge nel passaggio successivo.'}
+                </p>
+              )}
             </div>
 
             {!meetsMin && (
@@ -2171,21 +2181,27 @@ function CheckoutModal({
 
   const showAsapOption = false;
 
+  // Cambiando tra consegna e ritiro l'orario riparte dal primo disponibile: la consegna ha
+  // più preavviso, e senza questo il ritiro restava sull'orario scelto per la consegna
+  // (es. 23:15) anche se si poteva ritirare prima (22:45).
+  const lastServiceRef = useRef(deliveryType);
   useEffect(() => {
+    const serviceChanged = lastServiceRef.current !== deliveryType;
+    lastServiceRef.current = deliveryType;
     if (showAsapOption) {
       if (!deliveryTime || (deliveryTime !== 'asap' && !timeSlots.includes(deliveryTime))) {
         setDeliveryTime('asap');
       }
     } else {
       if (timeSlots.length > 0) {
-        if (!deliveryTime || deliveryTime === 'asap' || !timeSlots.includes(deliveryTime)) {
+        if (serviceChanged || !deliveryTime || deliveryTime === 'asap' || !timeSlots.includes(deliveryTime)) {
           setDeliveryTime(timeSlots[0]);
         }
       } else {
         setDeliveryTime('');
       }
     }
-  }, [timeSlots, deliveryTime, setDeliveryTime, showAsapOption]);
+  }, [timeSlots, deliveryTime, setDeliveryTime, showAsapOption, deliveryType]);
 
   // Metodo preselezionato: lo stesso ordine di preferenza delle opzioni
   // mostrate (POS, poi contanti). Per una prenotazione resta solo "paga in
@@ -2671,6 +2687,84 @@ function CheckoutModal({
                 </div>
               </div>
 
+              {/* Data di consegna / ritiro (Scheduled Orders) */}
+              {isScheduledEnabled && maxDays > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <Calendar size={12} />
+                    {t('checkout_delivery_day', { service: deliveryType === 'domicilio' ? (lang === 'en' ? 'delivery' : 'consegna') : (lang === 'en' ? 'pickup' : 'ritiro') })} *
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-1.5 mb-1 scrollbar-hide">
+                    {dateOptions.map((opt) => {
+                      const isSelected = selectedDate === opt.value;
+                      const displayOptLabel = opt.label === 'Oggi' ? t('checkout_today') : opt.label === 'Domani' ? t('checkout_tomorrow') : opt.label;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSelectedDate(opt.value)}
+                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isSelected
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
+                            }`}
+                        >
+                          {displayOptLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Orario di consegna / ritiro */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <Clock size={12} />
+                  {t('checkout_delivery_time', { service: deliveryType === 'domicilio' ? (lang === 'en' ? 'delivery' : 'consegna') : (lang === 'en' ? 'pickup' : 'ritiro') })} *
+                </label>
+                <div className="relative">
+                  <Clock
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
+                  />
+                  <select
+                    value={deliveryTime}
+                    onChange={(e) => setDeliveryTime(e.target.value)}
+                    className="w-full pl-9 pr-10 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-foreground cursor-pointer"
+                  >
+                    {!showAsapOption && <option value="">{t('checkout_select_time')}</option>}
+                    {showAsapOption && <option value="asap">{t('checkout_asap')}</option>}
+                    {timeSlots.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {timeSlots.length === 0 && !showAsapOption && (
+                  <p className="text-xs text-red-500 font-semibold mt-1">
+                    {t('checkout_no_times')}
+                  </p>
+                )}
+                {timeSlots.length > 0 && minNoticeMinutes > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {lang === 'en'
+                      ? `Minimum notice for ${deliveryType === 'domicilio' ? 'delivery' : 'pickup'}: ${
+                          minNoticeMinutes >= 60 && minNoticeMinutes % 60 === 0
+                            ? `${minNoticeMinutes / 60} hour${minNoticeMinutes / 60 === 1 ? '' : 's'}`
+                            : `${minNoticeMinutes} minutes`
+                        }.`
+                      : `Preavviso minimo per ${deliveryType === 'domicilio' ? 'la consegna' : 'il ritiro'}: ${
+                          minNoticeMinutes >= 60 && minNoticeMinutes % 60 === 0
+                            ? minNoticeMinutes === 60
+                              ? '1 ora'
+                              : `${minNoticeMinutes / 60} ore`
+                            : `${minNoticeMinutes} minuti`
+                        }.`}
+                  </p>
+                )}
+              </div>
+
               {/* Name */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
@@ -2802,67 +2896,6 @@ function CheckoutModal({
                 )}
               </div>
 
-              {/* Data di consegna / ritiro (Scheduled Orders) */}
-              {isScheduledEnabled && maxDays > 0 && (
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                    <Calendar size={12} />
-                    {t('checkout_delivery_day', { service: deliveryType === 'domicilio' ? (lang === 'en' ? 'delivery' : 'consegna') : (lang === 'en' ? 'pickup' : 'ritiro') })} *
-                  </label>
-                  <div className="flex gap-2 overflow-x-auto pb-1.5 mb-1 scrollbar-hide">
-                    {dateOptions.map((opt) => {
-                      const isSelected = selectedDate === opt.value;
-                      const displayOptLabel = opt.label === 'Oggi' ? t('checkout_today') : opt.label === 'Domani' ? t('checkout_tomorrow') : opt.label;
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setSelectedDate(opt.value)}
-                          className={`flex-shrink-0 px-4 py-2 text-xs font-bold rounded-lg border transition-all ${isSelected
-                            ? 'bg-primary text-white border-primary shadow-sm'
-                            : 'bg-card border-border/80 text-foreground hover:bg-muted/50'
-                            }`}
-                        >
-                          {displayOptLabel}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Orario di consegna / ritiro */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-                  <Clock size={12} />
-                  {t('checkout_delivery_time', { service: deliveryType === 'domicilio' ? (lang === 'en' ? 'delivery' : 'consegna') : (lang === 'en' ? 'pickup' : 'ritiro') })} *
-                </label>
-                <div className="relative">
-                  <Clock
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10"
-                  />
-                  <select
-                    value={deliveryTime}
-                    onChange={(e) => setDeliveryTime(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all font-semibold text-foreground cursor-pointer"
-                  >
-                    {!showAsapOption && <option value="">{t('checkout_select_time')}</option>}
-                    {showAsapOption && <option value="asap">{t('checkout_asap')}</option>}
-                    {timeSlots.map((slot) => (
-                      <option key={slot} value={slot}>
-                        {slot}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {timeSlots.length === 0 && !showAsapOption && (
-                  <p className="text-xs text-red-500 font-semibold mt-1">
-                    {t('checkout_no_times')}
-                  </p>
-                )}
-              </div>
-
               {/* Notes */}
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
@@ -2879,13 +2912,6 @@ function CheckoutModal({
                   rows={2}
                   className="w-full px-3 py-2.5 text-base bg-card border border-border/80 rounded-lg focus:outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/20 transition-all resize-none text-foreground placeholder:text-muted-foreground/50"
                 />
-              </div>
-
-              <div className="flex justify-between items-center py-2.5 border-t border-border/40 mt-4 text-sm font-bold text-foreground">
-                <span>{t('cart_total')}</span>
-                <span className="tabular-nums text-primary text-base">
-                  € {itemsTotal.toFixed(2)}
-                </span>
               </div>
 
               {/* Remember me checkbox */}
@@ -2906,6 +2932,43 @@ function CheckoutModal({
               </div>
             </>
           )}
+
+          {/* Riepilogo: la consegna compare o sparisce, voce e totale, con la scelta consegna / ritiro. */}
+          <div className="bg-card border border-border/60 rounded-lg p-4 space-y-2 text-xs">
+            <div className="flex justify-between text-muted-foreground">
+              <span>{lang === 'en' ? 'Items' : 'Articoli'}</span>
+              <span className="tabular-nums font-semibold">€ {itemsTotal.toFixed(2)}</span>
+            </div>
+            {deliveryType === 'domicilio' && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>
+                  {t('receipt_delivery').replace(':', '')}
+                  {zones.length > 0 && !matchedZone && cap.length < 5 && (
+                    <span className="ml-1 text-[11px] font-normal">
+                      ({lang === 'en' ? 'depends on the postcode' : 'dipende dal CAP'})
+                    </span>
+                  )}
+                </span>
+                <span className="tabular-nums font-semibold">
+                  {currentDeliveryFee === 0 ? (
+                    <span className="text-[var(--success)] font-bold">{lang === 'en' ? 'Free' : 'Gratis'}</span>
+                  ) : (
+                    `€ ${currentDeliveryFee.toFixed(2)}`
+                  )}
+                </span>
+              </div>
+            )}
+            {checkoutDiscount > 0 && (
+              <div className="flex justify-between text-[var(--success)] font-semibold">
+                <span>{lang === 'en' ? 'Promo Discount' : 'Sconto promozionale'}</span>
+                <span className="tabular-nums">− € {checkoutDiscount.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-extrabold text-foreground pt-2 border-t border-border/60 text-sm">
+              <span>{t('cart_total')}</span>
+              <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
+            </div>
+          </div>
 
           {/* Il pulsante resta ancorato in fondo alla finestra: su tablet e
               telefoni in orizzontale non va cercato scorrendo il modulo. */}
@@ -5222,6 +5285,8 @@ function StorefrontContent() {
       : 0;
 
   const total = subtotal - discount + actualDeliveryFee;
+  // Totale mostrato prima del checkout (carrello e pulsante flottante): senza consegna, che dipende dalla scelta fra consegna e ritiro.
+  const cartTotal = Math.max(0, subtotal - (appliedPromoDetail?.type === 'free_delivery' ? 0 : discount));
 
   const applyPromo = async () => {
     const res = await validatePromo(promoCode, subtotal, email, deliveryType, actualDeliveryFee);
@@ -6830,7 +6895,7 @@ function StorefrontContent() {
             <ShoppingCart size={20} />
             {cartCount > 0 && (
               <>
-                <span className="tabular-nums">€ {total.toFixed(2)}</span>
+                <span className="tabular-nums">€ {cartTotal.toFixed(2)}</span>
                 <span className="absolute -top-1.5 -right-1 min-w-5 h-5 px-1 rounded-full bg-foreground text-white text-[11px] font-black flex items-center justify-center ring-2 ring-background">
                   {cartCount}
                 </span>
