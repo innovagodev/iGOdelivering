@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { PREVIEW_MESSAGE, PREVIEW_READY, PreviewValues, isProfilePreview, sanitizePreviewValues } from '@/lib/profilePreview';
 import { supabase } from '@/lib/supabase';
 import { RestaurantSettings } from '@/types/settings';
 
@@ -285,5 +286,23 @@ export function useRestaurantSettings(slugOrId: string) {
     loadSettings();
   }, [slugOrId]);
 
-  return { settings, loading, refetch: loadSettings };
+  // Anteprima del profilo: i valori non ancora salvati arrivano dalla pagina che incornicia la vetrina.
+  const [override, setOverride] = useState<PreviewValues | null>(null);
+  useEffect(() => {
+    if (!isProfilePreview()) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== window.parent) return;
+      if (!e.data || e.data.type !== PREVIEW_MESSAGE) return;
+      setOverride(sanitizePreviewValues(e.data.values));
+    };
+    window.addEventListener('message', onMessage);
+    window.parent.postMessage({ type: PREVIEW_READY }, window.location.origin);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+  const effective = useMemo(
+    () => (override ? { ...settings, ...override, imageAlt: override.name ?? settings.imageAlt } : settings),
+    [settings, override]
+  );
+
+  return { settings: effective, loading, refetch: loadSettings };
 }

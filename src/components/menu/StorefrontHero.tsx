@@ -9,9 +9,7 @@ import { mapsHref, safeHttpsHref, telHref, whatsappHref } from '@/lib/contacts';
 
 /**
  * Testata della vetrina: immagine, nome, descrizione e i riquadri con stato,
- * orari, indirizzo e consegna. La usano la vetrina pubblica e l'anteprima della
- * pagina "Profilo ristorante": quello che il ristoratore vede nell'anteprima è
- * la stessa testata che vede il cliente.
+ * orari, indirizzo e consegna.
  *
  * Per non appesantirla su telefono i contatti non sono una fila di pulsanti: un
  * solo pulsante "Contatti" (in alto a destra sul telefono, accanto ai riquadri
@@ -44,51 +42,19 @@ export interface StorefrontHeroProps {
   /** Riquadri di stato e orari di oggi: assenti nell'anteprima del profilo. */
   status?: { label: string; color: string };
   hoursText?: string | null;
-  /** Anteprima: l'immagine non è prioritaria e non serve il caricamento anticipato. */
-  preview?: boolean;
-  /**
-   * 'auto' (vetrina): si adatta alla larghezza dello schermo. 'phone' e 'desktop'
-   * forzano la disposizione da telefono o da computer, indipendentemente dallo
-   * schermo: servono all'anteprima del profilo.
-   */
-  variant?: 'auto' | 'phone' | 'desktop';
 }
 
 // Le classi sono scritte per intero (non composte): Tailwind le trova solo così.
-const CLS = {
-  auto: {
-    root: 'min-h-[clamp(15rem,42dvh,20rem)] sm:min-h-[26rem] md:min-h-[30rem]',
-    pad: 'pt-14 pb-6 sm:pt-20 sm:pb-8 px-4 sm:px-6 lg:px-10',
-    row: 'flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8',
-    h1: 'text-[clamp(1.5rem,1rem+2.6vw,3.25rem)]',
-    p: 'text-[clamp(0.8125rem,0.75rem+0.3vw,1rem)]',
-    pills: 'gap-x-3 sm:gap-x-5 text-xs sm:text-sm',
-    pillText: 'text-[11px] sm:text-xs',
-    topButton: 'absolute right-3 top-3 z-20 inline-flex h-10 sm:hidden',
-    sideButton: 'hidden sm:inline-flex h-11 flex-shrink-0',
-  },
-  phone: {
-    root: 'min-h-[17rem]',
-    pad: 'pt-14 pb-6 px-4',
-    row: 'flex-col items-start gap-5',
-    h1: 'text-2xl',
-    p: 'text-[13px]',
-    pills: 'gap-x-3 text-xs',
-    pillText: 'text-[11px]',
-    topButton: 'absolute right-3 top-3 z-20 inline-flex h-10',
-    sideButton: 'hidden',
-  },
-  desktop: {
-    root: 'min-h-[30rem]',
-    pad: 'pt-20 pb-8 px-10',
-    row: 'flex-row items-center gap-8',
-    h1: 'text-[3rem]',
-    p: 'text-base',
-    pills: 'gap-x-5 text-sm',
-    pillText: 'text-xs',
-    topButton: 'hidden',
-    sideButton: 'inline-flex h-11 flex-shrink-0',
-  },
+const c = {
+  root: 'min-h-[clamp(15rem,42dvh,20rem)] sm:min-h-[26rem] md:min-h-[30rem]',
+  pad: 'pt-14 pb-6 sm:pt-20 sm:pb-8 px-4 sm:px-6 lg:px-10',
+  row: 'flex-col sm:flex-row items-start sm:items-center gap-5 lg:gap-8',
+  h1: 'text-[clamp(1.5rem,1rem+2.6vw,3.25rem)]',
+  p: 'text-[clamp(0.8125rem,0.75rem+0.3vw,1rem)]',
+  pills: 'gap-x-3 sm:gap-x-5 text-xs sm:text-sm',
+  pillText: 'text-[11px] sm:text-xs',
+  topButton: 'absolute right-3 top-3 z-20 inline-flex h-10 sm:hidden',
+  sideButton: 'hidden sm:inline-flex h-11 flex-shrink-0',
 } as const;
 
 const L = {
@@ -258,9 +224,8 @@ function ContactsSheet({ rows, lang, onClose }: { rows: ContactRow[]; lang: 'it'
 }
 
 export default function StorefrontHero(props: StorefrontHeroProps) {
-  const { name, tagline, image, imageAlt, address, deliveryFee, deliveryLabel, lang, status, hoursText, preview } = props;
-  const c = CLS[props.variant === 'phone' || props.variant === 'desktop' ? props.variant : 'auto'];
-  const t = L[lang];
+  const { name, tagline, image, imageAlt, address, deliveryFee, deliveryLabel, lang, status, hoursText } = props;
+    const t = L[lang];
   const [open, setOpen] = useState(false);
   const rows = useRows(props);
   const maps = mapsHref(props);
@@ -294,7 +259,7 @@ export default function StorefrontHero(props: StorefrontHeroProps) {
         alt={imageAlt || ''}
         fill
         sizes="100vw"
-        priority={!preview}
+        priority
         unoptimized={image.startsWith('blob:')}
         className="object-cover"
       />

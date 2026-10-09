@@ -73,6 +73,7 @@ import {
 import { LanguageProvider, useLang } from '@/context/LanguageContext';
 import { mergeTranslated } from '@/lib/menu-translations';
 import { notify, confirmAction } from '@/lib/notify';
+import { PREVIEW_MESSAGE, isProfilePreview } from '@/lib/profilePreview';
 import { phoneDigits, tableNumberDigits } from '@/lib/fields';
 import { LIVE_ACCEPT_SECONDS } from '@/lib/acceptance';
 import { startAdaptivePolling } from '@/lib/polling';
@@ -4325,6 +4326,17 @@ function StorefrontContent() {
 
   // Lifted customer and delivery type states
   const searchParams = useSearchParams();
+  // Anteprima del profilo: la lingua la sceglie la pagina che incornicia la vetrina.
+  useEffect(() => {
+    if (!isProfilePreview()) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== window.parent) return;
+      if (e.data?.type === PREVIEW_MESSAGE && (e.data.lang === 'it' || e.data.lang === 'en')) setLang(e.data.lang);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [deliveryType, setDeliveryType] = useState<'domicilio' | 'asporto' | 'tavolo'>('domicilio');
   // "Prenota e ordina" porta la pagina in modalità 'tavolo'. Chiusa la
   // prenotazione (annullata o completata) bisogna tornare alla modalità di
@@ -4601,9 +4613,9 @@ function StorefrontContent() {
   // Immediate Availability Check on Page Load & Config Changes
   useEffect(() => {
     const tavoloParam = searchParams?.get('tavolo');
-    if (tavoloParam) {
+    if (tavoloParam || searchParams?.get('preview') === '1') {
       setAvailabilityError(null);
-      return; // Skip closed/delivery popups for table ordering
+      return; // Niente popup di chiusura: al tavolo e nell'anteprima del profilo
     }
 
     const isPickupOpen = checkServiceOpen('pickup');
@@ -5358,12 +5370,13 @@ function StorefrontContent() {
     return () => window.removeEventListener('resize', updateCategoryFade);
   }, [updateCategoryFade, categories]);
 
-  const didMountCategoryRef = useRef(false);
+  // Si scorre solo quando la categoria cambia davvero: l'effetto riparte anche se cambia
+  // scrollToMenuTop (dipende dall'offset misurato) e, subito dopo il caricamento, portava
+  // il cliente oltre la testata senza che avesse toccato nulla.
+  const lastCategoryRef = useRef(activeCategory);
   useEffect(() => {
-    if (!didMountCategoryRef.current) {
-      didMountCategoryRef.current = true;
-      return;
-    }
+    if (lastCategoryRef.current === activeCategory) return;
+    lastCategoryRef.current = activeCategory;
     const id = requestAnimationFrame(scrollToMenuTop);
     return () => cancelAnimationFrame(id);
   }, [activeCategory, scrollToMenuTop]);

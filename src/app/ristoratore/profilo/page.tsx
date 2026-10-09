@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, ImagePlus, Lock, Smartphone, Monitor, Store, Trash2 } from 'lucide-react';
+import { Check, Copy, ExternalLink, ImagePlus, Lock, Smartphone, Monitor, Store, Trash2 } from 'lucide-react';
 import PageTopbar from '@/components/layout/PageTopbar';
-import StorefrontHero from '@/components/menu/StorefrontHero';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { notify } from '@/lib/notify';
+import { PREVIEW_MESSAGE, PREVIEW_READY, PreviewValues } from '@/lib/profilePreview';
 import { digitsOnly, phoneChars, provinceLetters, websiteOnBlur, websiteOnFocus } from '@/lib/fields';
 import { uploadImage } from '@/lib/storage-upload';
 import {
@@ -266,6 +266,7 @@ function ImageField({
 }
 
 const DESKTOP_W = 1280;
+const DESKTOP_H = 820;
 
 /** Una riga di sola lettura: etichetta a sinistra, valore a destra (sotto, su schermi stretti). */
 function ReadOnlyRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -278,80 +279,105 @@ function ReadOnlyRow({ label, children }: { label: string; children: React.React
 }
 
 /**
- * Cornice dell'anteprima. Telefono: larghezza fissa di 390px. Computer: la testata si
- * disegna a 1280px, come su un computer vero, e si rimpicciolisce per stare nello spazio.
- * Il logo sta in alto a sinistra come nell'intestazione della vetrina, che lo sovrappone alla testata.
+ * Anteprima: la vetrina VERA (`/menu/<slug>?preview=1`) in una cornice, che riceve a ogni
+ * modifica i valori del modulo non ancora salvati (vedi src/lib/profilePreview.ts).
+ * Stato aperto/chiuso, orari, intestazione e categorie sono quelli reali.
+ * Telefono: larghezza reale del telefono. Computer: la vetrina a 1280px, rimpicciolita.
  */
-function PreviewFrame({
+function StorefrontPreview({
+  slug,
   device,
-  logoUrl,
-  name,
-  children,
+  lang,
+  values,
 }: {
+  slug: string;
   device: 'phone' | 'desktop';
-  logoUrl: string;
-  name: string;
-  children: React.ReactNode;
+  lang: 'it' | 'en';
+  values: PreviewValues;
 }) {
-  const outer = useRef<HTMLDivElement>(null);
-  const inner = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState({ scale: 1, height: 0 });
+  const frame = useRef<HTMLIFrameElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const latest = useRef({ values, lang });
+  latest.current = { values, lang };
+  const [ready, setReady] = useState(false);
+  const [scale, setScale] = useState(1);
+
+  const post = useCallback(() => {
+    frame.current?.contentWindow?.postMessage(
+      { type: PREVIEW_MESSAGE, values: latest.current.values, lang: latest.current.lang },
+      window.location.origin
+    );
+  }, []);
+
+  // La vetrina dice "pronta" quando ascolta; da lì in poi riceve ogni modifica.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== frame.current?.contentWindow) return;
+      if (e.data?.type === PREVIEW_READY) {
+        setReady(true);
+        post();
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [post]);
 
   useEffect(() => {
-    const o = outer.current;
-    const i = inner.current;
-    if (!o || !i || device === 'phone') return;
-    const update = () => {
-      const scale = Math.min(1, o.clientWidth / DESKTOP_W);
-      setFit({ scale, height: i.offsetHeight * scale });
-    };
+    if (ready) post();
+  }, [ready, values, lang, post]);
+
+  // Vista computer: la scala segue la larghezza disponibile.
+  useEffect(() => {
+    const el = box.current;
+    if (!el || device !== 'desktop') return;
+    const update = () => setScale(Math.min(1, el.clientWidth / DESKTOP_W));
     update();
     const ro = new ResizeObserver(update);
-    ro.observe(o);
-    ro.observe(i);
+    ro.observe(el);
     return () => ro.disconnect();
   }, [device]);
 
-  const logo = (
-    <>
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-black/60 to-transparent" />
-      <div
-        className={`absolute z-20 flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white shadow-sm ${
-          device === 'phone' ? 'left-3 top-3' : 'left-10 top-4'
-        }`}
-      >
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
-        ) : (
-          <span className="text-base font-bold text-primary">{(name || '?').charAt(0)}</span>
-        )}
-      </div>
-    </>
+  const src = `/menu/${encodeURIComponent(slug)}?preview=1`;
+  const loading = !ready && (
+    <div className="absolute inset-0 flex items-center justify-center bg-background/80 text-xs font-semibold text-muted-foreground">
+      Carico la vetrina…
+    </div>
   );
 
   if (device === 'phone') {
     return (
-      <div className="relative mx-auto max-w-[390px] overflow-hidden rounded-xl border border-border bg-black">
-        {logo}
-        {children}
+      <div className="mx-auto w-full max-w-[406px] rounded-[2.1rem] bg-neutral-900 p-2 shadow-xl">
+        <div
+          className="relative overflow-hidden rounded-[1.6rem] bg-background"
+          style={{ height: 'clamp(520px, calc(100dvh - 14rem), 760px)' }}
+        >
+          <iframe
+            ref={frame}
+            key="phone"
+            src={src}
+            title="Anteprima della vetrina su telefono"
+            className="h-full w-full border-0"
+          />
+          {loading}
+        </div>
       </div>
     );
   }
   return (
     <div
-      ref={outer}
-      className="relative w-full overflow-hidden rounded-xl border border-border bg-black"
-      style={{ height: fit.height || undefined }}
+      ref={box}
+      className="relative w-full overflow-hidden rounded-xl border border-border bg-background"
+      style={{ height: DESKTOP_H * scale }}
     >
-      <div
-        ref={inner}
-        className="relative"
-        style={{ width: DESKTOP_W, transform: `scale(${fit.scale})`, transformOrigin: 'top left' }}
-      >
-        {logo}
-        {children}
-      </div>
+      <iframe
+        ref={frame}
+        key="desktop"
+        src={src}
+        title="Anteprima della vetrina su computer"
+        className="absolute left-0 top-0 border-0"
+        style={{ width: DESKTOP_W, height: DESKTOP_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+      />
+      {loading}
     </div>
   );
 }
@@ -560,37 +586,30 @@ export default function ProfiloRistorantePage() {
     }
   };
 
-  // ─── Anteprima: la stessa testata della vetrina, dai valori del modulo ──────
+  // ─── Anteprima: i valori del modulo, anche non salvati, per la vetrina incorniciata ──────
   const preview = useMemo(() => {
     if (!form || !row) return null;
-    const ok = (v: string | null | undefined) => (typeof v === 'string' ? v : undefined);
+    const ok = (v: string | null | undefined) => (typeof v === 'string' ? v : '');
     const logoShown = logo.removed ? '' : (logo.previewUrl ?? row.logo_url ?? '');
     const bannerShown = banner.removed ? '' : (banner.previewUrl ?? row.background_url ?? '');
-    return {
-      logoShown,
-      props: {
-        name: form.name || 'Nome del ristorante',
-        tagline:
-          previewLang === 'en' ? form.descriptionEn.trim() || form.description : form.description,
-        image: bannerShown,
-        imageAlt: form.name,
-        address: form.address,
-        city: form.city,
-        province: form.province,
-        cap: form.cap,
-        deliveryFee: Number(row.delivery_fee) || 0,
-        deliveryLabel: previewLang === 'en' ? 'Delivery' : 'Consegna',
-        lang: previewLang,
-        contacts: {
-          phone: ok(normalizePhone(form.phone)),
-          whatsapp: ok(normalizeWhatsapp(form.whatsapp)),
-          website: ok(normalizeWebsite(form.website)),
-          instagram: ok(normalizeInstagram(form.instagram)),
-          facebook: ok(normalizeFacebook(form.facebook)),
-        },
-      },
+    const values: PreviewValues = {
+      name: form.name || 'Nome del ristorante',
+      tagline: form.description,
+      taglineEn: form.descriptionEn.trim(),
+      address: form.address,
+      city: form.city,
+      province: form.province,
+      cap: form.cap,
+      phone: ok(normalizePhone(form.phone)),
+      whatsapp: ok(normalizeWhatsapp(form.whatsapp)),
+      website: ok(normalizeWebsite(form.website)),
+      instagram: ok(normalizeInstagram(form.instagram)),
+      facebook: ok(normalizeFacebook(form.facebook)),
+      logoUrl: logoShown,
+      image: bannerShown,
     };
-  }, [form, row, logo, banner, previewLang]);
+    return { logoShown, bannerShown, values };
+  }, [form, row, logo, banner]);
 
   const copyLink = async () => {
     if (!row?.slug) return;
@@ -654,13 +673,16 @@ export default function ProfiloRistorantePage() {
                   </p>
                 </div>
 
-                <div className={`grid gap-6 ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_420px]' : 'grid-cols-[minmax(0,1fr)]'}`}>
-                  {/* ─── Anteprima: prima su schermi stretti, a destra su quelli larghi ─── */}
+                <div className={`grid gap-6 ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_440px]' : 'grid-cols-[minmax(0,1fr)]'}`}>
+                  {/* ─── Anteprima: la vetrina vera, in tempo reale ─── */}
                   <aside className={`order-first min-w-0 ${device === 'phone' ? 'xl:order-last xl:sticky xl:top-4 xl:self-start' : ''}`}>
                     <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-sm font-bold text-foreground">Anteprima della vetrina</h2>
-                        <div className="flex gap-2">
+                        <div className="min-w-0">
+                          <h2 className="text-sm font-bold text-foreground">Anteprima della vetrina</h2>
+                          <p className="text-[11px] text-muted-foreground">Si aggiorna mentre scrivi, prima di salvare.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
                           <div className="flex rounded-lg bg-muted p-0.5" role="group" aria-label="Dispositivo">
                             {(
                               [
@@ -699,13 +721,29 @@ export default function ProfiloRistorantePage() {
                           </div>
                         </div>
                       </div>
-                      <PreviewFrame device={device} logoUrl={preview.logoShown} name={preview.props.name}>
-                        <StorefrontHero {...preview.props} variant={device} preview />
-                      </PreviewFrame>
-                      <p className="mt-3 text-[11px] text-muted-foreground">
-                        Stato aperto/chiuso e orari di oggi li aggiunge la vetrina in base agli orari che imposti in
-                        “Orari”.
-                      </p>
+                      {row.slug ? (
+                        <StorefrontPreview slug={row.slug} device={device} lang={previewLang} values={preview.values} />
+                      ) : (
+                        <p className="rounded-xl bg-muted px-4 py-8 text-center text-sm text-muted-foreground">
+                          L’anteprima sarà disponibile appena la vetrina ha un indirizzo web.
+                        </p>
+                      )}
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="min-w-0 flex-1 text-[11px] text-muted-foreground">
+                          È la vetrina vera: stato, orari e categorie sono quelli di oggi.
+                        </p>
+                        {row.slug && (
+                          <a
+                            href={`/menu/${encodeURIComponent(row.slug)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                          >
+                            Apri la vetrina
+                            <ExternalLink size={11} />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </aside>
 
@@ -730,7 +768,7 @@ export default function ProfiloRistorantePage() {
                       <ImageField
                         label="Foto di copertina"
                         hint="Orizzontale, almeno 1200 px di larghezza. Il testo ci scorre sopra: meglio una foto non troppo chiara."
-                        url={preview.props.image}
+                        url={preview.bannerShown}
                         shape="wide"
                         state={banner}
                         busy={imageBusy || saving}
@@ -741,10 +779,35 @@ export default function ProfiloRistorantePage() {
                     </Section>
 
                     <Section
-                      title="Descrizione"
-                      hint="Compare sotto il nome del ristorante, in testa alla vetrina."
+                      title="Presentazione"
+                      hint="Nome, categoria e descrizione: compaiono in testa alla vetrina."
                       badge={{ label: 'Visibile ai clienti', tone: 'public' }}
                     >
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Nome *" error={errors.name}>
+                          <input
+                            type="text"
+                            value={form.name}
+                            onChange={(e) => set('name', e.target.value)}
+                            className={inputCls}
+                          />
+                        </Field>
+                        <Field label="Categoria" error={errors.category}>
+                          <input
+                            type="text"
+                            list="categorie-ristorante"
+                            value={form.category}
+                            onChange={(e) => set('category', e.target.value)}
+                            placeholder="Pizzeria, Trattoria…"
+                            className={inputCls}
+                          />
+                          <datalist id="categorie-ristorante">
+                            {categories.map((c) => (
+                              <option key={c} value={c} />
+                            ))}
+                          </datalist>
+                        </Field>
+                      </div>
                       <Field
                         label="Descrizione in italiano"
                         error={errors.description}
@@ -779,6 +842,55 @@ export default function ProfiloRistorantePage() {
                           className={inputCls}
                         />
                       </Field>
+                    </Section>
+
+                    <Section
+                      title="Dove siamo"
+                      hint="L’indirizzo compare in testa alla vetrina e apre le indicazioni stradali."
+                      badge={{ label: 'Visibile ai clienti', tone: 'public' }}
+                    >
+                      <Field label="Via / piazza *" error={errors.address}>
+                        <input
+                          type="text"
+                          value={form.address}
+                          onChange={(e) => set('address', e.target.value)}
+                          className={inputCls}
+                        />
+                      </Field>
+                      <div className="grid grid-cols-6 gap-4">
+                        <div className="col-span-6 sm:col-span-3">
+                          <Field label="Città *" error={errors.city}>
+                            <input
+                              type="text"
+                              value={form.city}
+                              onChange={(e) => set('city', e.target.value)}
+                              className={inputCls}
+                            />
+                          </Field>
+                        </div>
+                        <div className="col-span-3 sm:col-span-1">
+                          <Field label="Prov." error={errors.province}>
+                            <input
+                              type="text"
+                              value={form.province}
+                              onChange={(e) => set('province', provinceLetters(e.target.value))}
+                              maxLength={2}
+                              className={inputCls}
+                            />
+                          </Field>
+                        </div>
+                        <div className="col-span-3 sm:col-span-2">
+                          <Field label="CAP" error={errors.cap}>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={form.cap}
+                              onChange={(e) => set('cap', digitsOnly(e.target.value, 5))}
+                              className={inputCls}
+                            />
+                          </Field>
+                        </div>
+                      </div>
                     </Section>
 
                     <Section
@@ -841,79 +953,6 @@ export default function ProfiloRistorantePage() {
                     </Section>
 
                     <Section
-                      title="Dati del ristorante"
-                      badge={{ label: 'Nome e indirizzo visibili ai clienti', tone: 'public' }}
-                    >
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="Nome *" error={errors.name}>
-                          <input
-                            type="text"
-                            value={form.name}
-                            onChange={(e) => set('name', e.target.value)}
-                            className={inputCls}
-                          />
-                        </Field>
-                        <Field label="Categoria" error={errors.category}>
-                          <input
-                            type="text"
-                            list="categorie-ristorante"
-                            value={form.category}
-                            onChange={(e) => set('category', e.target.value)}
-                            placeholder="Pizzeria, Trattoria…"
-                            className={inputCls}
-                          />
-                          <datalist id="categorie-ristorante">
-                            {categories.map((c) => (
-                              <option key={c} value={c} />
-                            ))}
-                          </datalist>
-                        </Field>
-                      </div>
-                      <Field label="Via / piazza *" error={errors.address}>
-                        <input
-                          type="text"
-                          value={form.address}
-                          onChange={(e) => set('address', e.target.value)}
-                          className={inputCls}
-                        />
-                      </Field>
-                      <div className="grid grid-cols-6 gap-4">
-                        <div className="col-span-6 sm:col-span-3">
-                          <Field label="Città *" error={errors.city}>
-                            <input
-                              type="text"
-                              value={form.city}
-                              onChange={(e) => set('city', e.target.value)}
-                              className={inputCls}
-                            />
-                          </Field>
-                        </div>
-                        <div className="col-span-3 sm:col-span-1">
-                          <Field label="Prov." error={errors.province}>
-                            <input
-                              type="text"
-                              value={form.province}
-                              onChange={(e) => set('province', provinceLetters(e.target.value))}
-                              maxLength={2}
-                              className={inputCls}
-                            />
-                          </Field>
-                        </div>
-                        <div className="col-span-3 sm:col-span-2">
-                          <Field label="CAP" error={errors.cap}>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={form.cap}
-                              onChange={(e) => set('cap', digitsOnly(e.target.value, 5))}
-                              className={inputCls}
-                            />
-                          </Field>
-                        </div>
-                      </div>
-                    </Section>
-
-                    <Section
                       title="Gestiti dall’assistenza"
                       hint="Per modificarli scrivi all’assistenza: cambiarli senza controllo avrebbe effetti su QR code, accesso e pagamenti."
                       badge={{ label: 'Sola lettura', tone: 'private' }}
@@ -947,6 +986,10 @@ export default function ProfiloRistorantePage() {
                         </ReadOnlyRow>
                       </dl>
                     </Section>
+
+
+
+
                   </div>
                 </div>
               </>
