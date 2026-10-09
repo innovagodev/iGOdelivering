@@ -6673,7 +6673,7 @@ function StorefrontContent() {
       )}
 
       {/* Footer */}
-      <Footer className="!relative !translate-y-0 !z-auto !bg-card !backdrop-blur-none !shadow-none !py-6" />
+      <Footer className="!relative !translate-y-0 !z-auto !bg-card !backdrop-blur-none !shadow-none !py-3 md:!py-6" />
 
       {/* Floating Test controller for Simulation removed */}
 

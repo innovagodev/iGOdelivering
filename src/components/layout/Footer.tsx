@@ -75,13 +75,13 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
 
   return (
     <footer
-      className={`fixed md:relative bottom-0 left-0 right-0 z-30 md:z-auto bg-card/95 md:bg-card backdrop-blur-md md:backdrop-blur-none border-t border-border py-4 md:py-8 transition-transform duration-300 ease-in-out shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:shadow-none ${
+      className={`fixed md:relative bottom-0 left-0 right-0 z-30 md:z-auto bg-card/95 md:bg-card backdrop-blur-md md:backdrop-blur-none border-t border-border py-2.5 md:py-8 transition-transform duration-300 ease-in-out shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:shadow-none ${
         !isVisible ? 'translate-y-full md:translate-y-0' : 'translate-y-0'
       } ${className}`}
     >
-      <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-        <p>
-          © {year} iGOdelivering. Tecnologia di{' '}
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-muted-foreground">
+        <p className="min-w-0 truncate">
+          © {year} iGOdelivering. <span className="max-[359px]:hidden">Tecnologia di </span>
           <a
             href="https://www.innovago.it"
             target="_blank"
@@ -91,7 +91,7 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
             innovago.it
           </a>
         </p>
-        <div className="flex items-center gap-2 text-[11px] opacity-75">
+        <div className="flex flex-shrink-0 items-center gap-2 text-[11px] opacity-75">
           <span className="font-semibold">v{versionData.version}</span>
         </div>
       </div>
