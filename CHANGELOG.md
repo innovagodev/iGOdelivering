@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.41.1](https://github.com/innovagodev/iGOdelivering/compare/v1.41.0...v1.41.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **campi:** i campi numerici non accettano testo; partita IVA di 11 cifre; https:// proposto nel sito web ([ae6dc04](https://github.com/innovagodev/iGOdelivering/commit/ae6dc043f1c01cfc281301e9f3e3595cbbe5d62b))
+
 ## [1.41.0](https://github.com/innovagodev/iGOdelivering/compare/v1.40.0...v1.41.0) (2026-10-09)
 
 
