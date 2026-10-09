@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.48.0](https://github.com/innovagodev/iGOdelivering/compare/v1.47.2...v1.48.0) (2026-10-09)
+
+
+### Features
+
+* **dashboard:** pagina Storico ordini con periodo, filtri, totali ed esportazione; ultimi ordini in dashboard con stati corretti ([44ef5a5](https://github.com/innovagodev/iGOdelivering/commit/44ef5a5a8f9aa9db48f698dda927769dea1017d0))
+
 ### [1.47.2](https://github.com/innovagodev/iGOdelivering/compare/v1.47.1...v1.47.2) (2026-10-09)
 
 
