@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.47.2](https://github.com/innovagodev/iGOdelivering/compare/v1.47.1...v1.47.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ordini:** le schede non si sovrappongono piu' nella griglia a due colonne dei tablet ([bd67319](https://github.com/innovagodev/iGOdelivering/commit/bd673195cca759e5d8be48473ba8e38e4916b4b8))
+
 ### [1.47.1](https://github.com/innovagodev/iGOdelivering/compare/v1.47.0...v1.47.1) (2026-10-09)
 
 
