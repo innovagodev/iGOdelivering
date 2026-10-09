@@ -93,7 +93,6 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
         </p>
         <div className="flex items-center gap-2 text-[11px] opacity-75">
           <span className="font-semibold">v{versionData.version}</span>
-          <span className="text-border">|</span>
         </div>
       </div>
     </footer>
