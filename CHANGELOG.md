@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.42.0](https://github.com/innovagodev/iGOdelivering/compare/v1.41.3...v1.42.0) (2026-10-09)
+
+
+### Features
+
+* **profilo:** anteprima = la vetrina vera in tempo reale; sezioni nell'ordine della vetrina ([0109ca6](https://github.com/innovagodev/iGOdelivering/commit/0109ca685b007ac36c6dbc98e6190c2db375482c))
+
 ### [1.41.3](https://github.com/innovagodev/iGOdelivering/compare/v1.41.2...v1.41.3) (2026-10-09)
 
 
