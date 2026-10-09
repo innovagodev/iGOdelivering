@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
+import PrivacyNotice from '@/components/ui/PrivacyNotice';
 import {
   Eye,
   EyeOff,
@@ -272,6 +273,8 @@ export default function RegisterPage() {
                   <>Attiva il tuo Account</>
                 )}
               </button>
+
+              <PrivacyNotice action="account" className="text-center" />
 
               {!token && (
                 <p className="text-center text-xs text-[var(--danger)] mt-2 font-medium">

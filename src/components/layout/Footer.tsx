@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import versionData from '@/version.json';
+import { PRIVACY_URL } from '@/lib/legal';
 
 interface FooterProps {
   className?: string;
@@ -81,7 +82,7 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
     >
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-row items-center justify-between gap-3 text-[11px] sm:text-xs text-muted-foreground">
         <p className="min-w-0 truncate">
-          © {year} iGOdelivering. <span className="max-[359px]:hidden">Tecnologia di </span>
+          © {year} iGOdelivering. <span className="max-[419px]:hidden">Tecnologia di </span>
           <a
             href="https://www.innovago.it"
             target="_blank"
@@ -91,8 +92,16 @@ export default function Footer({ className = '', variant = 'full' }: FooterProps
             innovago.it
           </a>
         </p>
-        <div className="flex flex-shrink-0 items-center gap-2 text-[11px] opacity-75">
-          <span className="font-semibold">v{versionData.version}</span>
+        <div className="flex flex-shrink-0 items-center gap-2.5 text-[11px]">
+          <a
+            href={PRIVACY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground hover:text-primary transition-colors"
+          >
+            Privacy
+          </a>
+          <span className="font-semibold opacity-75">v{versionData.version}</span>
         </div>
       </div>
     </footer>

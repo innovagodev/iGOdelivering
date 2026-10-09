@@ -56,6 +56,7 @@ import { ScheduledOrdersConfig } from '@/types/wizard';
 import { usePromoCode } from '@/hooks/usePromoCode';
 import ProductDetailSheet from '@/components/menu/ProductDetailSheet';
 import Footer from '@/components/layout/Footer';
+import PrivacyNotice from '@/components/ui/PrivacyNotice';
 import { supabase } from '@/lib/supabase';
 import StripePayment from '@/components/menu/StripePayment';
 import {
@@ -3245,6 +3246,12 @@ function CheckoutModal({
               <span className="tabular-nums text-primary">€ {finalTotal.toFixed(2)}</span>
             </div>
           </div>
+
+          <PrivacyNotice
+            lang={lang === 'en' ? 'en' : 'it'}
+            action={bookingContext ? 'booking' : 'order'}
+            className="text-center"
+          />
 
           <div className="flex gap-3">
             <button
@@ -6557,6 +6564,12 @@ function StorefrontContent() {
                 </div>
               )}
             </div>
+
+            {!bookingConfirmed && (
+              <div className="px-5 pt-3 flex-shrink-0">
+                <PrivacyNotice lang={lang === 'en' ? 'en' : 'it'} action="booking" />
+              </div>
+            )}
 
             {/* ── Footer CTA ──────────────────────────────────────── */}
             {!bookingConfirmed && (
