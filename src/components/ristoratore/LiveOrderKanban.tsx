@@ -209,6 +209,101 @@ const extraLabel = (a: any) => {
   return price > 0 ? `${a.name} (+€${price.toFixed(2)})` : a.name;
 };
 
+interface FilterPill {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  tone?: 'danger';
+  badge?: number;
+  title?: string;
+  /** Un filo di separazione prima della pillola (gruppo diverso). */
+  dividerBefore?: boolean;
+}
+
+/**
+ * Fila di pillole filtro. Se non ci stanno scorre di lato: lo si capisce dalle sfumature
+ * ai bordi (compaiono solo dove c'è altro da vedere), la pillola toccata si porta al centro
+ * (magnetismo) e anche trascinando la fila le pillole si agganciano.
+ */
+function FilterPills({ pills, ariaLabel }: { pills: FilterPill[]; ariaLabel: string }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+
+  const update = () => {
+    const el = scroller.current;
+    if (!el) return;
+    setEdge({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  };
+  useEffect(() => {
+    update();
+    const el = scroller.current;
+    if (!el) return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pills.length]);
+
+  const centerOn = (btn: HTMLElement) => {
+    const el = scroller.current;
+    if (!el) return;
+    el.scrollTo({ left: Math.max(0, btn.offsetLeft - (el.clientWidth - btn.offsetWidth) / 2), behavior: 'smooth' });
+  };
+
+  return (
+    <div className="relative min-w-0 lg:flex-1">
+      <div
+        ref={scroller}
+        onScroll={update}
+        role="group"
+        aria-label={ariaLabel}
+        className="scrollbar-hide relative flex snap-x snap-proximity gap-1.5 overflow-x-auto py-0.5"
+      >
+        {pills.map((p) => (
+          <React.Fragment key={p.key}>
+            {p.dividerBefore && <span aria-hidden className="mx-1 h-5 w-px flex-shrink-0 self-center bg-border" />}
+            <button
+              type="button"
+              aria-pressed={p.active}
+              title={p.title}
+              onClick={(e) => {
+                p.onClick();
+                centerOn(e.currentTarget);
+              }}
+              className={`inline-flex h-10 flex-shrink-0 snap-center items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-all cursor-pointer active:scale-[0.97] ${
+                p.active
+                  ? p.tone === 'danger'
+                    ? 'bg-rose-500 text-white shadow-sm'
+                    : 'bg-foreground text-background shadow-sm'
+                  : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {p.icon}
+              {p.label}
+              {p.badge !== undefined && p.badge > 0 && (
+                <span
+                  className={`min-w-[1.375rem] rounded-full px-1.5 py-0.5 text-center text-xs font-extrabold tabular-nums ${
+                    p.active ? 'bg-white/25 text-inherit' : 'bg-rose-500 text-white'
+                  }`}
+                >
+                  {p.badge}
+                </span>
+              )}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+      {edge.left && (
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent" />
+      )}
+      {edge.right && (
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent" />
+      )}
+    </div>
+  );
+}
+
 export default function LiveOrderKanban() {
   const { user } = useAuth();
   const restaurantId = user?.restaurantId || '';
@@ -1144,9 +1239,9 @@ export default function LiveOrderKanban() {
         </div>
       </div>
 
-      {/* Filtri: ricerca, canale, ordini persi */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[12rem] flex-1 sm:max-w-sm">
+      {/* Filtri: ricerca e pillole (canale + ordini persi) */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="relative w-full lg:w-auto lg:min-w-[14rem] lg:max-w-sm lg:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -1156,45 +1251,29 @@ export default function LiveOrderKanban() {
             className="h-11 w-full rounded-xl border border-transparent bg-muted/60 pl-9 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
-        <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1" role="group" aria-label="Canale">
-          {channelFilters.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              aria-pressed={orderTypeFilter === f.key}
-              onClick={() => setOrderTypeFilter(f.key)}
-              className={`touch-target inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors cursor-pointer ${
-                orderTypeFilter === f.key
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {f.icon}
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          aria-pressed={showLost}
-          onClick={() => setShowLost((v) => !v)}
-          title="Ordini non accettati in tempo: restano un'ora"
-          className={`touch-target inline-flex h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-semibold transition-colors cursor-pointer ${
-            showLost ? 'bg-rose-500 text-white shadow-sm' : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
-        >
-          <Ban size={15} />
-          Persi
-          {lostCount > 0 && (
-            <span
-              className={`min-w-[1.375rem] rounded-full px-1.5 py-0.5 text-center text-xs font-extrabold tabular-nums ${
-                showLost ? 'bg-white/25 text-white' : 'bg-rose-500 text-white'
-              }`}
-            >
-              {lostCount}
-            </span>
-          )}
-        </button>
+        <FilterPills
+          ariaLabel="Filtri"
+          pills={[
+            ...channelFilters.map((f) => ({
+              key: f.key,
+              label: f.label,
+              icon: f.icon,
+              active: orderTypeFilter === f.key,
+              onClick: () => setOrderTypeFilter(f.key),
+            })),
+            {
+              key: 'lost',
+              label: 'Persi',
+              icon: <Ban size={15} />,
+              active: showLost,
+              tone: 'danger' as const,
+              badge: lostCount,
+              dividerBefore: true,
+              title: "Ordini non accettati in tempo: restano un'ora",
+              onClick: () => setShowLost((v) => !v),
+            },
+          ]}
+        />
       </div>
 
       {/* Schede delle colonne (pannello stretto: una colonna alla volta) */}
