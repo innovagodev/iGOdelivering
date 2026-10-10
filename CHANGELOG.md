@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.54.1](https://github.com/innovagodev/iGOdelivering/compare/v1.54.0...v1.54.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **audio:** un solo pulsante Suoni che mostra lo stato di ordini e prenotazioni ([cdf1e63](https://github.com/innovagodev/iGOdelivering/commit/cdf1e631a30cc560a0bbe516c3c76ef6bfc5e4fe))
+
 ## [1.54.0](https://github.com/innovagodev/iGOdelivering/compare/v1.53.2...v1.54.0) (2026-10-10)
 
 
