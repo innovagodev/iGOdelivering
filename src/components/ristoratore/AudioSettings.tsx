@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { SlidersHorizontal, Play } from 'lucide-react';
+import { SlidersHorizontal, Play, Bell } from 'lucide-react';
 import {
   DEFAULT_AUDIO_SETTINGS,
   useAudioNotification,
@@ -66,13 +66,23 @@ export default function AudioSettings() {
         </select>
         <button
           type="button"
-          onClick={() => playTestSound(kind)}
+          onClick={() => playTestSound(kind, 'first')}
           disabled={!isAudioEnabled}
-          title={isAudioEnabled ? 'Prova il suono' : 'Attiva prima i suoni del pannello'}
-          aria-label={`Prova il suono: ${title}`}
+          title={isAudioEnabled ? 'Prova il primo avviso (suono e voce)' : 'Attiva prima i suoni del pannello'}
+          aria-label={`Prova il primo avviso: ${title}`}
           className="touch-target inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-foreground hover:bg-border transition-colors disabled:opacity-50 cursor-pointer"
         >
           <Play size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => playTestSound(kind, 'reminder')}
+          disabled={!isAudioEnabled}
+          title={isAudioEnabled ? 'Prova il promemoria (solo suono)' : 'Attiva prima i suoni del pannello'}
+          aria-label={`Prova il promemoria: ${title}`}
+          className="touch-target inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted text-foreground hover:bg-border transition-colors disabled:opacity-50 cursor-pointer"
+        >
+          <Bell size={15} />
         </button>
       </div>
     </div>
@@ -100,10 +110,10 @@ export default function AudioSettings() {
           className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] space-y-4 rounded-2xl border border-border bg-card p-4 shadow-modal"
         >
           <div>
-            <p className="text-sm font-bold text-foreground">Ripetizione degli avvisi</p>
+            <p className="text-sm font-bold text-foreground">Promemoria dei suoni</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Ogni quanto si ripete il suono finché c&apos;è qualcosa da accettare. Vale solo su questo
-              dispositivo.
+              Il primo avviso di ogni ordine o prenotazione ha suono e voce (▶). Se resta da accettare, si ripete solo il
+              suono (🔔) con il ritmo scelto. Vale solo su questo dispositivo.
             </p>
           </div>
           {field(

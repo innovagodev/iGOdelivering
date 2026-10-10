@@ -27,7 +27,7 @@ interface AudioNotificationContextType {
   audioSettings: AudioSettings;
   setAudioSettings: (settings: AudioSettings) => void;
   /** Fa sentire l'avviso scelto (anche con i suoni spenti), per provare volume e voce. */
-  playTestSound: (kind: 'order' | 'booking') => void;
+  playTestSound: (kind: 'order' | 'booking', mode?: 'first' | 'reminder') => void;
 }
 
 const AudioNotificationContext = createContext<AudioNotificationContextType | undefined>(undefined);
@@ -40,6 +40,8 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   const [isMuted, setIsMuted] = useState(false);
   const [isBookingsMuted, setIsBookingsMuted] = useState(false);
   const [audioSettings, setAudioSettingsState] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
+  // Sempre aggiornato: le callback di Realtime restano quelle del primo disegno e vedrebbero i valori di allora.
+  const audioStateRef = useRef({ isMuted, isBookingsMuted, isAudioEnabled });
   const [orders, setOrders] = useState<any[]>([]);
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
@@ -122,8 +124,6 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     };
   }, []);
 
-  // Throttle guard for playAlert (new-order events from Supabase)
-  const lastPlayedTimeRef = useRef<number>(0);
 
   // Internal: play the alarm immediately, no throttle check.
   // Used by the repeat-alarm loop so it always fires at the right time.
@@ -205,32 +205,39 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     });
   };
 
-  // "Din" iniziale, diverso per i due avvisi, poi la voce:
+  // Un avviso è un "din" (diverso per i due tipi) e, solo la prima volta per ogni ordine o
+  // prenotazione, la voce. I promemoria successivi sono il solo din: la voce ripetuta stanca.
   //  ordine        → doppio din acuto e rapido (più urgente)
   //  prenotazione  → un solo din più pieno (meno incalzante)
-  const playClip = async (url: string, kind: 'order' | 'booking', fallback: () => void) => {
-    const buffer = await loadClip(url);
+  // Gli avvisi si mettono in coda: due ordini arrivati insieme non si coprono e nessuno si perde.
+  const nextFreeRef = useRef(0);
+  const CLIP_URL = { order: '/sounds/nuovo-ordine.mp3', booking: '/sounds/nuova-prenotazione.mp3' };
+  const playSignal = async (kind: 'order' | 'booking', withVoice: boolean, fallback: () => void) => {
     const ctx = getContext();
-    if (!buffer || !ctx) {
+    if (!ctx) {
       fallback();
       return;
     }
     const out = getMaster(ctx);
-    const t0 = ctx.currentTime + 0.03;
-    let voiceAt: number;
+    const dinLen = kind === 'order' ? 0.6 : 0.7;
+    const cached = clipCacheRef.current[CLIP_URL[kind]];
+    const voiceLen = withVoice ? (cached ? cached.duration : 2.3) : 0;
+    const t0 = Math.max(ctx.currentTime + 0.03, nextFreeRef.current);
     if (kind === 'order') {
       bell(ctx, out, 1318.5, t0, 0.55, 0.9);
       bell(ctx, out, 1568, t0 + 0.17, 0.7, 0.9);
-      voiceAt = t0 + 0.6;
     } else {
       bell(ctx, out, 659.25, t0, 1.0, 0.7);
       bell(ctx, out, 987.77, t0, 1.0, 0.55);
-      voiceAt = t0 + 0.7;
     }
+    nextFreeRef.current = t0 + dinLen + (withVoice ? voiceLen + 0.3 : 0.3);
+    if (!withVoice) return;
+    const buffer = await loadClip(CLIP_URL[kind]);
+    if (!buffer) return; // il din è già suonato
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(out);
-    source.start(voiceAt);
+    source.start(Math.max(t0 + dinLen, ctx.currentTime));
   };
   // Precarica le voci appena l'audio è attivo, così il primo avviso non arriva in ritardo.
   useEffect(() => {
@@ -240,14 +247,26 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAudioEnabled]);
 
+  // Primo avviso di un ordine: din e voce.
+  const lastVoiceAtRef = useRef(0);
   const playNow = () => {
-    if (isMuted || !isAudioEnabled) return;
-    void playClip('/sounds/nuovo-ordine.mp3', 'order', playOrderTones);
+    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    if (muted || !enabled) return;
+    lastVoiceAtRef.current = Date.now();
+    void playSignal('order', true, playOrderTones);
+  };
+
+  // Promemoria mentre l'ordine aspetta: solo il din.
+  const playOrderReminder = () => {
+    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    if (muted || !enabled) return;
+    void playSignal('order', false, playOrderTones);
   };
 
   // Segnale a toni degli ordini (ripiego).
   const playOrderTones = () => {
-    if (isMuted || !isAudioEnabled) return;
+    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    if (muted || !enabled) return;
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
@@ -296,13 +315,8 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   };
 
 
+  // Nuovo ordine: ogni ordine ha il suo avviso con la voce (gli avvisi vicini si mettono in coda).
   const playAlert = () => {
-    const now = Date.now();
-    // Throttle: prevent overlapping plays within 5 seconds
-    if (now - lastPlayedTimeRef.current < 5000) {
-      return;
-    }
-    lastPlayedTimeRef.current = now;
     playNow();
   };
 
@@ -322,9 +336,9 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     }
   };
 
-  const playTestSound = (kind: 'order' | 'booking') => {
-    if (kind === 'order') void playClip('/sounds/nuovo-ordine.mp3', 'order', playOrderTones);
-    else void playClip('/sounds/nuova-prenotazione.mp3', 'booking', playBookingChime);
+  const playTestSound = (kind: 'order' | 'booking', mode: 'first' | 'reminder' = 'first') => {
+    const fallback = kind === 'order' ? playOrderTones : playBookingChime;
+    void playSignal(kind, mode === 'first', fallback);
   };
 
   const handleSetIsBookingsMuted = (muted: boolean) => {
@@ -353,23 +367,20 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   );
   const hasUnaccepted = unacceptedOrders.length > 0;
 
-  // Ripete l'avviso (di norma ogni 8 secondi) finché ci sono ordini da accettare.
-  // Uses playNow() directly (no throttle) so it always fires immediately on mount
-  // and at exact 8-second intervals, regardless of when playAlert() was last called.
+  // Promemoria (di norma ogni 8 secondi, solo suono) finché ci sono ordini da accettare.
   useEffect(() => {
     if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isMuted || !hasUnaccepted) {
       return;
     }
 
-    // Play once immediately (bypass throttle)
-    playNow();
-    // Reset throttle reference so a manual playAlert() call works correctly afterwards
-    lastPlayedTimeRef.current = Date.now();
+    // All'apertura con ordini già in attesa: subito un promemoria (solo suono), se la voce di un
+    // ordine appena arrivato non è già suonata.
+    if (Date.now() - lastVoiceAtRef.current > 4000) playOrderReminder();
 
-    // Ripetizione scelta dal ristorante (0 = una sola volta, già suonata sopra).
+    // Promemoria scelto dal ristorante (0 = nessuno). Sempre senza voce.
     if (audioSettings.ordersEvery <= 0) return;
     const interval = setInterval(() => {
-      if (!isMuted) playNow();
+      if (!isMuted) playOrderReminder();
     }, audioSettings.ordersEvery * 1000);
 
     return () => {
@@ -542,17 +553,23 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   // ─── Prenotazioni: badge, suono e aggiornamento in tempo reale ──────────────
   // Il suono è diverso da quello degli ordini (tre note che salgono, più morbide della
   // sirena a due toni), così il ristoratore capisce a orecchio che cosa è arrivato.
-  const audioStateRef = useRef({ isBookingsMuted, isAudioEnabled });
-  audioStateRef.current = { isBookingsMuted, isAudioEnabled };
+  audioStateRef.current = { isMuted, isBookingsMuted, isAudioEnabled };
   const [pendingBookings, setPendingBookings] = useState<{ id: string; accept_deadline: string | null }[]>([]);
   const [bookingTick, setBookingTick] = useState(0);
   const seenBookingIdsRef = useRef<Set<string>>(new Set());
-  const lastBookingPlayedRef = useRef(0);
 
+  // Prima notifica di una prenotazione: din e voce.
   const playBookingNow = () => {
     const { isBookingsMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
     if (muted || !enabled) return;
-    void playClip('/sounds/nuova-prenotazione.mp3', 'booking', playBookingChime);
+    void playSignal('booking', true, playBookingChime);
+  };
+
+  // Promemoria: solo il din.
+  const playBookingReminder = () => {
+    const { isBookingsMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    if (muted || !enabled) return;
+    void playSignal('booking', false, playBookingChime);
   };
 
   // Campanello a tre note delle prenotazioni (ripiego).
@@ -588,9 +605,6 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   };
 
   const playBookingAlert = () => {
-    const now = Date.now();
-    if (now - lastBookingPlayedRef.current < 3000) return;
-    lastBookingPlayedRef.current = now;
     playBookingNow();
   };
 
@@ -623,7 +637,7 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   useEffect(() => {
     if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isBookingsMuted || livePendingCount === 0) return;
     if (audioSettings.bookingsEvery <= 0) return;
-    const id = setInterval(() => playBookingNow(), audioSettings.bookingsEvery * 1000);
+    const id = setInterval(() => playBookingReminder(), audioSettings.bookingsEvery * 1000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId, isAudioEnabled, isBookingsMuted, livePendingCount > 0, audioSettings.bookingsEvery]);
@@ -702,8 +716,8 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
           audioCtxRef.current = new AudioContextClass();
         }
         audioCtxRef.current.resume().then(() => {
-          // Play confirmation chime
-          playAlert();
+          // Prova: il primo avviso di un ordine
+          playTestSound('order', 'first');
           localStorage.setItem('iGO_audio_enabled', 'true');
           setIsAudioEnabled(true);
           setShowPopup(false);

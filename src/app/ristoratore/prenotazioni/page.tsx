@@ -343,12 +343,26 @@ export default function PrenotazioniPage() {
     }
   };
 
+  // Una conferma alla volta per prenotazione: un doppio clic non deve creare due ordini.
+  const updatingRef = React.useRef<Set<string>>(new Set());
+
   const handleUpdateStatus = async (
     id: string,
     newStatus: 'pending' | 'confirmed' | 'cancelled'
   ) => {
     const targetBooking = bookings.find((b) => b.id === id);
     if (!targetBooking) return;
+    if (updatingRef.current.has(id)) return;
+    updatingRef.current.add(id);
+    // Un'altra scheda del pannello potrebbe aver già creato l'ordine: si rilegge dal database.
+    if (newStatus === 'confirmed' && !targetBooking.linkedOrderId) {
+      const { data: fresh } = await supabase
+        .from('bookings')
+        .select('linked_order_id')
+        .eq('id', id)
+        .maybeSingle();
+      if (fresh?.linked_order_id) targetBooking.linkedOrderId = fresh.linked_order_id;
+    }
 
     let updatedLinkedOrderId = targetBooking.linkedOrderId;
 
@@ -408,7 +422,12 @@ export default function PrenotazioniPage() {
         if (orderData && targetBooking.preOrderItems) {
           const itemsPayload = targetBooking.preOrderItems.map((item: any) => ({
             order_id: orderData.id,
-            menu_item_id: item.id.startsWith('sf-') || item.id.startsWith('bk-') ? null : item.id,
+            // Solo un vero identificativo di piatto: altrimenti (id di prova o vecchi formati) l'inserimento falliva.
+            menu_item_id:
+              typeof item.id === 'string' &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id)
+                ? item.id
+                : null,
             name: item.name,
             price: item.price,
             qty: item.qty || 1,
@@ -418,7 +437,12 @@ export default function PrenotazioniPage() {
             selected_options: item.selectedOptions || [],
           }));
           const { error: itemsError } = await supabase.from('order_items').insert(itemsPayload);
-          if (itemsError) throw itemsError;
+          if (itemsError) {
+            // Niente ordini vuoti in cucina: si toglie quello appena creato (o si annulla se non si può togliere).
+            const { error: delError } = await supabase.from('orders').delete().eq('id', orderData.id);
+            if (delError) await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderData.id);
+            throw itemsError;
+          }
         }
 
         updatedLinkedOrderId = orderData.id;
@@ -445,7 +469,10 @@ export default function PrenotazioniPage() {
       await fetchBookings();
     } catch (e) {
       console.error('Error updating booking status:', e);
-      notify.error('Errore nel cambiare lo stato della prenotazione.');
+      const detail = (e as any)?.message ? ` (${String((e as any).message).slice(0, 120)})` : '';
+      notify.error(`Errore nel cambiare lo stato della prenotazione.${detail}`);
+    } finally {
+      updatingRef.current.delete(id);
     }
   };
 
@@ -538,217 +565,257 @@ export default function PrenotazioniPage() {
   };
 
   const renderBooking = (booking: TableBooking, opts: { history?: boolean } = {}) => {
-                    const day = new Date(`${booking.date}T12:00:00`);
-                    const occupied = booking.status !== 'cancelled' ? peakCovers(booking.date, booking.time) : null;
-                    const over = occupied !== null && capacity !== null && occupied > capacity;
-                    const hasPre = !!booking.preOrderItems && booking.preOrderItems.length > 0;
-                    return (
-                      <div
-                        key={booking.id}
-                        className={`p-4 grid gap-x-5 gap-y-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center hover:bg-muted/30 transition-colors border-l-4 ${
-                          booking.status === 'confirmed'
-                            ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
-                            : booking.status === 'cancelled'
-                              ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
-                              : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
-                        }`}
-                      >
-                        {/* Quando */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-card border border-border flex flex-col items-center justify-center shadow-sm flex-shrink-0">
-                            <span className="text-[11px] uppercase font-bold text-primary tracking-wider">
-                              {day.toLocaleDateString('it-IT', { month: 'short' })}
-                            </span>
-                            <span className="text-base font-extrabold text-foreground leading-none">
-                              {day.toLocaleDateString('it-IT', { day: 'numeric' })}
-                            </span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-xl font-extrabold text-foreground tabular-nums leading-none">
-                              {booking.time}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground capitalize mt-1">
-                              {day.toLocaleDateString('it-IT', { weekday: 'long' })}
-                            </span>
-                          </div>
+    const day = new Date(`${booking.date}T12:00:00`);
+    const occupied = booking.status !== 'cancelled' && !opts.history ? peakCovers(booking.date, booking.time) : null;
+    const over = occupied !== null && capacity !== null && occupied > capacity;
+    const hasPre = !!booking.preOrderItems && booking.preOrderItems.length > 0;
+    const preTotal = hasPre
+      ? booking.preOrderItems!.reduce((acc: number, item: any) => acc + item.price * item.qty, 0)
+      : 0;
+    const waiting = booking.status === 'pending' && !!booking.acceptDeadline;
+    const statusLabel =
+      booking.status === 'confirmed'
+        ? 'Confermata'
+        : booking.status === 'cancelled'
+          ? booking.expired
+            ? 'Scaduta'
+            : 'Annullata'
+          : 'In attesa';
+    const btn =
+      'inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95';
+    const ghost = `${btn} border border-border text-muted-foreground hover:bg-muted hover:text-foreground`;
+
+    // Azione principale a tutta larghezza; sotto le secondarie, tutte della stessa altezza.
+    let primary: React.ReactNode = null;
+    let secondary: React.ReactNode = null;
+    const edit = (
+      <button onClick={() => handleOpenEditModal(booking)} className={ghost} title="Modifica">
+        Modifica
+      </button>
+    );
+    const del = (
+      <button
+        onClick={() => handleDeleteBooking(booking.id)}
+        className={`${btn} border border-red-100 text-red-500 hover:bg-red-50 px-3.5`}
+        title="Elimina"
+        aria-label="Elimina prenotazione"
+      >
+        <Trash2 size={14} />
+      </button>
+    );
+    if (booking.status === 'pending' && !opts.history) {
+      primary = (
+        <button
+          onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
+          className={`${btn} w-full bg-green-600 hover:bg-green-700 text-white shadow-sm sm:text-sm py-3`}
+        >
+          <Check size={15} />
+          {hasPre ? 'Conferma e manda in cucina' : 'Conferma'}
+        </button>
+      );
+      secondary = (
+        <>
+          <button
+            onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
+            className={`${btn} bg-red-50 text-red-600 border border-red-200 hover:bg-red-100`}
+          >
+            <X size={13} />
+            Rifiuta
+          </button>
+          {edit}
+          {del}
+        </>
+      );
+    } else if (booking.status === 'cancelled') {
+      primary = (
+        <button
+          onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
+          className={`${btn} w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100`}
+        >
+          <Check size={13} />
+          Ripristina
+        </button>
+      );
+      secondary = (
+        <>
+          {edit}
+          {del}
+        </>
+      );
+    } else if (booking.status === 'confirmed' && !opts.history) {
+      secondary = (
+        <>
+          <button
+            onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
+            className={`${btn} bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100`}
+          >
+            <X size={13} />
+            Annulla
+          </button>
+          {edit}
+          {del}
+        </>
+      );
+    } else {
+      secondary = (
+        <>
+          {edit}
+          {del}
+        </>
+      );
+    }
+
+    return (
+      <div
+        key={booking.id}
+        className={`p-4 sm:p-5 grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_15.5rem] lg:items-start hover:bg-muted/30 transition-colors border-l-4 ${
+          booking.status === 'confirmed'
+            ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
+            : booking.status === 'cancelled'
+              ? 'border-l-muted-foreground/30 bg-muted/5 opacity-75'
+              : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
+        }`}
+      >
+        <div className="min-w-0 space-y-3">
+         <div className="flex gap-3 sm:gap-4">
+          {/* Giorno */}
+          <div className="flex w-14 sm:w-16 flex-shrink-0 flex-col items-center self-start rounded-xl border border-border bg-card py-2 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+              {day.toLocaleDateString('it-IT', { month: 'short' })}
+            </span>
+            <span className="text-xl font-extrabold leading-none text-foreground">
+              {day.toLocaleDateString('it-IT', { day: 'numeric' })}
+            </span>
+            <span className="mt-1 text-[11px] capitalize text-muted-foreground">
+              {day.toLocaleDateString('it-IT', { weekday: 'short' })}
+            </span>
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-2.5">
+            {/* Ora, nome, stato */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <span className="text-2xl font-extrabold tabular-nums leading-none text-foreground">{booking.time}</span>
+              <h3 className="min-w-0 max-w-full truncate text-base font-bold text-foreground">{booking.name}</h3>
+              <Badge
+                variant={booking.status === 'confirmed' ? 'success' : booking.status === 'cancelled' ? 'danger' : 'info'}
+                className="whitespace-nowrap px-2 py-0 text-[11px]"
+              >
+                {statusLabel}
+              </Badge>
+            </div>
+
+            {/* Quanti, scadenza, capienza */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                <Users size={13} />
+                {booking.guests} {booking.guests === 1 ? 'ospite' : 'ospiti'}
+              </span>
+              {waiting && (
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                  <Clock size={13} />
+                  Rispondi entro{' '}
+                  {new Date(booking.acceptDeadline as string).toLocaleTimeString('it-IT', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              )}
+              {occupied !== null && (
+                <span
+                  className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
+                    over ? 'bg-[var(--danger-bg)] text-[var(--danger)]' : 'bg-muted text-muted-foreground'
+                  }`}
+                  title="Coperti già occupati nella fascia di questa prenotazione"
+                >
+                  Fascia {occupied}
+                  {capacity !== null ? `/${capacity}` : ''} coperti
+                </span>
+              )}
+            </div>
+
+          </div>
+         </div>
+
+            {/* Contatti: a tutta larghezza sotto la testata */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted-foreground">
+              <a href={`tel:${booking.phone}`} className="inline-flex items-center gap-1.5 whitespace-nowrap hover:text-foreground">
+                <Phone size={14} className="text-muted-foreground/70" />
+                {booking.phone}
+              </a>
+              {booking.email ? (
+                <a href={`mailto:${booking.email}`} className="inline-flex min-w-0 items-center gap-1.5 hover:text-foreground">
+                  <Mail size={14} className="flex-shrink-0 text-muted-foreground/70" />
+                  <span className="truncate">{booking.email}</span>
+                </a>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap text-amber-600"
+                  title="Senza email non si può avvisare il cliente: richiamalo"
+                >
+                  <Mail size={14} /> senza email
+                </span>
+              )}
+            </div>
+
+            {/* Note e pre-ordine: affiancati quando c'è spazio */}
+            {(booking.notes || hasPre) && (
+              <div className={`grid grid-cols-[minmax(0,1fr)] items-start gap-2.5 ${booking.notes && hasPre ? "md:grid-cols-2" : ""}`}>
+                {booking.notes && (
+                  <div className="flex gap-2 rounded-lg border border-border/60 bg-background/80 px-3 py-2.5 text-sm">
+                    <MessageSquare size={14} className="mt-0.5 flex-shrink-0 text-primary/75" />
+                    <p className="italic leading-snug text-muted-foreground">&quot;{booking.notes}&quot;</p>
+                  </div>
+                )}
+                {hasPre && (
+                  <div className="space-y-1.5 rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2.5 text-sm dark:bg-green-950/10">
+                    <div className="flex items-center justify-between gap-2 text-[11px] font-bold uppercase tracking-wider text-green-700 dark:text-green-400">
+                      <span>Pre-ordine cibo</span>
+                      {booking.status === 'confirmed' && (
+                        <a
+                          href="/ristoratore/ordini"
+                          className="inline-flex items-center gap-0.5 rounded-full bg-green-600 px-2 py-0.5 text-[11px] font-bold text-white transition-colors hover:bg-green-700"
+                        >
+                          Vedi ordine &rarr;
+                        </a>
+                      )}
+                    </div>
+                    <div className="space-y-0.5 text-[13px] font-medium text-foreground">
+                      {booking.preOrderItems!.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between gap-3">
+                          <span className="min-w-0 truncate">
+                            {item.qty}× {item.name}
+                          </span>
+                          <span className="font-semibold tabular-nums text-muted-foreground">
+                            €{(item.price * item.qty).toFixed(2)}
+                          </span>
                         </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between border-t border-green-500/15 pt-1.5 text-[13px] font-bold tabular-nums text-green-700 dark:text-green-400">
+                      <span>Totale</span>
+                      <span>€{preTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+        </div>
 
-                        {/* Chi, quanti, contatti, note */}
-                        <div className="min-w-0 space-y-2">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <h3 className="font-bold text-foreground text-base truncate max-w-full">
-                              {booking.name}
-                            </h3>
-                            <Badge
-                              variant={
-                                booking.status === 'confirmed'
-                                  ? 'success'
-                                  : booking.status === 'cancelled'
-                                    ? 'danger'
-                                    : 'info'
-                              }
-                              className="text-[11px] px-2 py-0 whitespace-nowrap"
-                            >
-                              {booking.status === 'confirmed'
-                                ? 'Confermata'
-                                : booking.status === 'cancelled'
-                                  ? booking.expired
-                                    ? 'Scaduta'
-                                    : 'Cancellata'
-                                  : 'In attesa'}
-                            </Badge>
-                            {booking.status === 'pending' && booking.acceptDeadline && (
-                              <span className="text-[11px] font-semibold text-amber-600 whitespace-nowrap">
-                                Rispondi entro{' '}
-                                {new Date(booking.acceptDeadline).toLocaleTimeString('it-IT', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1 font-semibold text-foreground whitespace-nowrap">
-                              <Users size={12} className="text-primary" />
-                              {booking.guests} {booking.guests === 1 ? 'ospite' : 'ospiti'}
-                            </span>
-                            <a
-                              href={`tel:${booking.phone}`}
-                              className="inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground"
-                            >
-                              <Phone size={12} className="text-muted-foreground/70" />
-                              {booking.phone}
-                            </a>
-                            {booking.email ? (
-                              <a
-                                href={`mailto:${booking.email}`}
-                                className="inline-flex items-center gap-1 min-w-0 hover:text-foreground"
-                              >
-                                <Mail size={12} className="text-muted-foreground/70 flex-shrink-0" />
-                                <span className="truncate">{booking.email}</span>
-                              </a>
-                            ) : (
-                              <span
-                                className="inline-flex items-center gap-1 text-amber-600 whitespace-nowrap"
-                                title="Senza email non si può avvisare il cliente: richiamalo"
-                              >
-                                <Mail size={12} /> senza email
-                              </span>
-                            )}
-                            {occupied !== null && (
-                              <span className={`whitespace-nowrap ${over ? 'font-semibold text-[var(--danger)]' : ''}`}>
-                                Fascia {occupied}
-                                {capacity !== null ? `/${capacity}` : ''} coperti
-                              </span>
-                            )}
-                          </div>
-
-                          {booking.notes && (
-                            <div className="bg-background/80 px-2.5 py-2 rounded-lg border border-border/60 text-xs flex gap-1.5">
-                              <MessageSquare size={12} className="text-primary/75 flex-shrink-0 mt-0.5" />
-                              <p className="text-muted-foreground italic line-clamp-2 leading-tight">
-                                &quot;{booking.notes}&quot;
-                              </p>
-                            </div>
-                          )}
-                          {hasPre && (
-                            <div className="bg-green-500/5 dark:bg-green-950/10 px-2.5 py-2 rounded-lg border border-green-500/20 text-xs space-y-1">
-                              <div className="flex items-center justify-between gap-2 text-green-700 dark:text-green-400 font-bold text-[11px] uppercase tracking-wider">
-                                <span>Pre-ordine cibo</span>
-                                {booking.status === 'confirmed' && (
-                                  <a
-                                    href="/ristoratore/ordini"
-                                    className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[11px] px-2 py-0.5 rounded-full transition-colors"
-                                  >
-                                    Vedi ordine &rarr;
-                                  </a>
-                                )}
-                              </div>
-                              <div className="space-y-0.5 font-medium text-foreground text-[11px]">
-                                {booking.preOrderItems!.map((item: any, idx: number) => (
-                                  <div key={idx} className="flex justify-between gap-2">
-                                    <span className="truncate">
-                                      {item.qty}x {item.name}
-                                    </span>
-                                    <span className="font-semibold text-muted-foreground tabular-nums">
-                                      €{(item.price * item.qty).toFixed(2)}
-                                    </span>
-                                  </div>
-                                ))}
-                                <div className="border-t border-green-500/15 pt-1 mt-1 flex justify-between font-bold text-green-700 dark:text-green-400 tabular-nums">
-                                  <span>Totale</span>
-                                  <span>
-                                    €
-                                    {booking
-                                      .preOrderItems!.reduce(
-                                        (acc: number, item: any) => acc + item.price * item.qty,
-                                        0
-                                      )
-                                      .toFixed(2)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Azioni: su schermi stretti occupano tutta la riga */}
-                        <div className="flex items-center gap-2 lg:justify-end">
-                          {!opts.history && booking.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-                                className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm active:scale-95"
-                              >
-                                <Check size={13} />
-                                {hasPre ? 'Conferma e manda in cucina' : 'Conferma'}
-                              </button>
-                              <button
-                                onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
-                                className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
-                              >
-                                <X size={13} />
-                                Rifiuta
-                              </button>
-                            </>
-                          )}
-                          {!opts.history && booking.status === 'confirmed' && (
-                            <button
-                              onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
-                              className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
-                            >
-                              <X size={13} />
-                              Annulla
-                            </button>
-                          )}
-                          {booking.status === 'cancelled' && (
-                            <button
-                              onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-                              className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
-                            >
-                              <Check size={13} />
-                              Ripristina
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleOpenEditModal(booking)}
-                            className="flex-1 lg:flex-none px-3 py-2 border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer active:scale-95"
-                            title="Modifica"
-                          >
-                            Modifica
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(booking.id)}
-                            className="flex-shrink-0 p-2 border border-red-100 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:scale-95"
-                            title="Elimina"
-                            aria-label="Elimina prenotazione"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    );
+        {/* Azioni: sotto la scheda su telefono e tablet, a destra su schermi larghi */}
+        <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+          {primary && <div className="sm:flex-1 lg:flex-none">{primary}</div>}
+          <div
+            className={`grid gap-2 sm:flex-1 lg:flex-none ${
+              secondary && React.Children.count((secondary as any).props?.children) >= 3
+                ? 'grid-cols-[1fr_1fr_auto]'
+                : 'grid-cols-[1fr_auto]'
+            }`}
+          >
+            {secondary}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const todayStr = getTodayStr();
@@ -1097,7 +1164,7 @@ export default function PrenotazioniPage() {
                       setDateFilterType(e.target.value ? 'custom' : 'all');
                     }}
                     aria-label="Giorno specifico"
-                    className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[11.5rem] max-w-full"
+                    className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-full sm:w-[11.5rem]"
                   />
                 </div>
 
@@ -1157,7 +1224,7 @@ export default function PrenotazioniPage() {
                 {/* Storico: periodo, stato, totali, esportazione */}
                 <div className="bg-card border border-border rounded-xl p-4 shadow-card space-y-4">
                   <div className="flex flex-wrap items-end gap-3">
-                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1 min-w-0 flex-1 sm:flex-none">
                       Dal
                       <input
                         type="date"
@@ -1165,10 +1232,10 @@ export default function PrenotazioniPage() {
                         min={dateOffset(-366)}
                         max={histTo}
                         onChange={(e) => e.target.value && setHistFrom(e.target.value)}
-                        className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[11.5rem] max-w-full"
+                        className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-full sm:w-[11.5rem]"
                       />
                     </label>
-                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1 min-w-0 flex-1 sm:flex-none">
                       Al
                       <input
                         type="date"
@@ -1176,7 +1243,7 @@ export default function PrenotazioniPage() {
                         min={histFrom}
                         max={todayStr}
                         onChange={(e) => e.target.value && setHistTo(e.target.value)}
-                        className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[11.5rem] max-w-full"
+                        className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-full sm:w-[11.5rem]"
                       />
                     </label>
                     <FilterPills
