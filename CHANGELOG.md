@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.50.1](https://github.com/innovagodev/iGOdelivering/compare/v1.50.0...v1.50.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **vetrina:** testo costo consegna corretto e modi per tornare indietro dal passaggio Dati ([463c7bd](https://github.com/innovagodev/iGOdelivering/commit/463c7bdd35fdcf3edb7583097cc03faaf0af888d))
+
 ## [1.50.0](https://github.com/innovagodev/iGOdelivering/compare/v1.49.0...v1.50.0) (2026-10-10)
 
 
