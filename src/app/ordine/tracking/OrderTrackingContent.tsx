@@ -18,6 +18,7 @@ import {
   AlertCircle,
   XCircle,
   Navigation,
+  CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLang } from '@/context/LanguageContext';
@@ -32,7 +33,7 @@ import { mapsHref, safeHttpsHref, telHref, whatsappHref } from '@/lib/contacts';
  * senza passaggi che nessuno può far avanzare (niente "in consegna": non c'è alcun dato
  * sul corriere).
  */
-type Stage = 'sent' | 'preparing' | 'ready' | 'cancelled' | 'rejected' | 'expired';
+type Stage = 'sent' | 'scheduled' | 'preparing' | 'ready' | 'cancelled' | 'rejected' | 'expired';
 
 interface RestaurantInfo {
   name?: string;
@@ -46,7 +47,6 @@ interface RestaurantInfo {
   cap?: string | null;
 }
 
-const STAGE_ORDER: Stage[] = ['sent', 'preparing', 'ready'];
 
 const stageOf = (dbStatus: string): Stage => {
   switch (dbStatus) {
@@ -70,7 +70,8 @@ const stageOf = (dbStatus: string): Stage => {
   }
 };
 
-const isFinal = (s: Stage) => s !== 'sent' && s !== 'preparing';
+const isFinal = (s: Stage) => s === 'ready' || s === 'cancelled' || s === 'rejected' || s === 'expired';
+const isLive = (s: Stage) => s === 'sent' || s === 'scheduled' || s === 'preparing';
 
 const ROME = 'Europe/Rome';
 const timeOf = (iso: string) =>
@@ -83,7 +84,7 @@ const dayLabel = (iso: string) =>
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export default function OrderTrackingContent() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const tRef = React.useRef(t);
   tRef.current = t;
   const searchParams = useSearchParams();
@@ -128,10 +129,13 @@ export default function OrderTrackingContent() {
     setNotifPerm(await Notification.requestPermission());
   };
 
+  const [placedForLater, setPlacedForLater] = useState(false);
   const stageRef = React.useRef<Stage>('sent');
 
   const apply = React.useCallback((data: any, announce: boolean) => {
-    const next = stageOf(String(data.status || ''));
+    // Accettato ma per un altro giorno: programmato, non ancora in preparazione.
+    const next: Stage = data.scheduledLater ? 'scheduled' : stageOf(String(data.status || ''));
+    setPlacedForLater(!!data.placedForLater);
     setRawStatus(data.status || '');
     setStage(next);
     setUpdatedAt(data.updatedAt || null);
@@ -140,7 +144,7 @@ export default function OrderTrackingContent() {
     setPaymentMethod(data.paymentMethod || '');
     setPaymentStatus(data.paymentStatus || '');
 
-    if (announce && next !== stageRef.current) {
+    if (announce && next !== stageRef.current && next !== 'scheduled') {
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         const title =
           next === 'preparing'
@@ -259,7 +263,11 @@ export default function OrderTrackingContent() {
 
   const awaitingPayment = rawStatus === 'awaiting_payment';
   const finished = stage === 'ready';
-  const currentIdx = STAGE_ORDER.indexOf(stage);
+  const stageOrder: Stage[] =
+    placedForLater || stage === 'scheduled'
+      ? ['sent', 'scheduled', 'preparing', 'ready']
+      : ['sent', 'preparing', 'ready'];
+  const currentIdx = stageOrder.indexOf(stage);
 
   const typeLabel =
     orderType === 'domicilio'
@@ -343,16 +351,33 @@ export default function OrderTrackingContent() {
     );
   }
 
-  const steps: { id: Stage; label: string; desc: string; icon: React.ReactNode }[] = [
+  // "sabato 11 ottobre alle 20:00": quando il ristorante preparerà un ordine programmato.
+  const scheduledWhen = scheduledAt
+    ? `${new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'it-IT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        timeZone: ROME,
+      }).format(new Date(scheduledAt))} ${t('ord_at_time', { time: timeOf(scheduledAt) })}`
+    : '';
+
+  const allSteps: { id: Stage; label: string; desc: string; icon: React.ReactNode }[] = [
     {
       id: 'sent',
       label: t('ord_s_sent'),
       desc: stage === 'sent' ? t('ord_s_sent_wait') : t('ord_s_sent_done'),
       icon: <Send size={18} />,
     },
+    {
+      id: 'scheduled',
+      label: t('ord_s_scheduled'),
+      desc: t('ord_s_scheduled_d', { when: scheduledWhen }),
+      icon: <CalendarClock size={18} />,
+    },
     { id: 'preparing', label: t('ord_step_preparing'), desc: t('ord_step_preparing_d'), icon: <ChefHat size={18} /> },
     { id: 'ready', label: t('ord_s_ready'), desc: t(readyDesc), icon: <BellRing size={18} /> },
   ];
+  const steps = allSteps.filter((s) => stageOrder.includes(s.id));
 
   return (
     <div className="min-h-dvh bg-background flex flex-col items-center justify-start py-6 sm:py-10 px-4">
@@ -413,7 +438,7 @@ export default function OrderTrackingContent() {
                   </span>
                 </div>
               </div>
-              {!finished && (stage === 'sent' || stage === 'preparing') && !awaitingPayment && (
+              {!finished && isLive(stage) && !awaitingPayment && (
                 <div className="flex-shrink-0 text-right">
                   <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-1">
                     {whenLabel}
@@ -471,7 +496,7 @@ export default function OrderTrackingContent() {
         )}
 
         {/* ── Avanzamento ── */}
-        {!isLoading && !awaitingPayment && (stage === 'sent' || stage === 'preparing' || stage === 'ready') && (
+        {!isLoading && !awaitingPayment && (isLive(stage) || stage === 'ready') && (
           <div className="bg-card rounded-2xl border border-border shadow-sm px-5 sm:px-6 py-5">
             <h2 className="text-sm font-semibold text-foreground mb-5">{t('ord_status')}</h2>
             <div className="space-y-0">
@@ -525,7 +550,7 @@ export default function OrderTrackingContent() {
                       {isActive && (
                         <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary bg-secondary px-2 py-0.5 rounded-full">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                          {t('ord_in_progress')}
+                          {stage === 'scheduled' ? t('ord_scheduled_pill') : t('ord_in_progress')}
                         </span>
                       )}
                     </div>
@@ -558,7 +583,7 @@ export default function OrderTrackingContent() {
         </div>
         <div className="space-y-4 min-w-0">
         {/* ── Dove ritirare ── */}
-        {!isLoading && pickupMaps && (stage === 'sent' || stage === 'preparing' || stage === 'ready') && (
+        {!isLoading && pickupMaps && (isLive(stage) || stage === 'ready') && (
           <div className="bg-card rounded-2xl border border-border shadow-sm px-5 sm:px-6 py-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">

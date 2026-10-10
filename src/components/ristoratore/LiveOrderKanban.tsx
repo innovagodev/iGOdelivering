@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Bell,
   Ban,
+  CalendarClock,
   User,
   X,
   Check,
@@ -32,6 +33,8 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/hooks/useOrders';
 import { useAudioNotification } from '@/components/ristoratore/AudioNotificationProvider';
+import AudioSettings from '@/components/ristoratore/AudioSettings';
+import { isScheduledLater } from '@/lib/orderStatus';
 import { usePanelShell } from '@/components/layout/PanelShellContext';
 import FilterPills from '@/components/ui/FilterPills';
 import { romeDay } from '@/lib/dashboardStats';
@@ -97,8 +100,8 @@ const columns: ColumnDef[] = [
   },
   {
     key: 'accepted',
-    label: 'In corso',
-    hint: 'Gli ordini accettati restano qui finché non sono pronti',
+    label: 'In cucina',
+    hint: 'Gli ordini da preparare ora restano qui finché non sono pronti',
     icon: <ChefHat size={16} />,
     ui: {
       wrap: 'bg-sky-100/50 dark:bg-sky-500/[0.08]',
@@ -128,6 +131,22 @@ const columns: ColumnDef[] = [
 // Gli ordini non accettati in tempo ("persi") restano visibili un'ora dalla scadenza,
 // poi spariscono da soli; si possono anche nascondere prima.
 const LOST_VISIBLE_MS = 60 * 60 * 1000;
+
+// Ordini già accettati ma per un altro giorno: aspettano qui e passano in cucina da soli quel giorno.
+const scheduledColumn: ColumnDef = {
+  key: 'accepted',
+  label: 'Programmati',
+  hint: 'Confermati per un altro giorno: passano in cucina da soli quel giorno',
+  icon: <CalendarClock size={16} />,
+  ui: {
+    wrap: 'bg-violet-100/50 dark:bg-violet-500/[0.08]',
+    bar: 'bg-violet-500',
+    iconWrap: 'bg-violet-500/15 text-violet-700 dark:text-violet-400',
+    count: 'bg-violet-500 text-white',
+    tab: 'bg-violet-500 text-white shadow-sm',
+    accent: 'border-l-violet-500',
+  },
+};
 
 const lostColumn: ColumnDef = {
   key: 'pending',
@@ -222,6 +241,7 @@ export default function LiveOrderKanban() {
     'all'
   );
   const [showLost, setShowLost] = useState(false);
+  const [showScheduled, setShowScheduled] = useState(false);
   // "Nascondi" è una scelta di vista, per questo dispositivo: non cambia nulla nell'ordine.
   const dismissKey = `iGO_lost_dismissed_${restaurantId}`;
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -458,7 +478,12 @@ export default function LiveOrderKanban() {
       timestamp: enriched.created_at || enriched.timestamp || enriched.createdAt || new Date().toISOString(),
       address: enriched.customer_address || (enriched.customer && enriched.customer.address) || enriched.address || '',
       tableNumber: enriched.table_number || enriched.tableNumber,
-      isBookingPreOrder: enriched.type === 'prenotazione_tavolo' || (enriched.id && enriched.id.startsWith('PRE-')),
+      // Un ordine al tavolo senza numero di tavolo ma con un orario nasce da una prenotazione con pre-ordine
+      // (un ordine dal QR del tavolo ha sempre il numero e nessun orario).
+      isBookingPreOrder:
+        enriched.type === 'prenotazione_tavolo' ||
+        (enriched.id && enriched.id.startsWith('PRE-')) ||
+        (enriched.type === 'tavolo' && !enriched.table_number && !!enriched.scheduled_at),
       status: getOrderStatus(enriched),
       deliveryTime: enriched.deliveryTime || '',
       deliveryDate: enriched.deliveryDate || '',
@@ -570,7 +595,10 @@ export default function LiveOrderKanban() {
       getOrderStatus(o) === 'expired' &&
       isLostVisible(o)
   ).length;
-  const viewColumns = columns.map((c) => (c.key === 'pending' && showLost ? lostColumn : c));
+  const scheduledCount = orders.filter((o) => isScheduledLater(o)).length;
+  const viewColumns = columns.map((c) =>
+    c.key === 'pending' && showLost ? lostColumn : c.key === 'accepted' && showScheduled ? scheduledColumn : c
+  );
 
   const filteredOrders = (colKey: OrderStatus) => {
     return orders
@@ -581,13 +609,17 @@ export default function LiveOrderKanban() {
           const lost = getOrderStatus(o) === 'expired';
           return showLost ? lost && isLostVisible(o) : !lost;
         }
-        if (colKey === 'accepted')
-          return (
-            orderStatus === 'accepted' ||
-            orderStatus === 'preparing' ||
-            orderStatus === 'ready' ||
-            orderStatus === 'delivering'
-          );
+        if (colKey === 'accepted') {
+          if (
+            orderStatus !== 'accepted' &&
+            orderStatus !== 'preparing' &&
+            orderStatus !== 'ready' &&
+            orderStatus !== 'delivering'
+          )
+            return false;
+          // Programmati e in cucina sono due viste dello stesso passaggio: un ordine è in una sola.
+          return showScheduled ? isScheduledLater(o) : !isScheduledLater(o);
+        }
         if (colKey === 'completed')
           return (
             (orderStatus === 'completed' || orderStatus === 'delivered') &&
@@ -595,6 +627,11 @@ export default function LiveOrderKanban() {
           );
         return false;
       })
+      .sort((a, b) =>
+        colKey === 'accepted' && showScheduled
+          ? String(a.scheduled_at || '').localeCompare(String(b.scheduled_at || ''))
+          : 0
+      )
       .map(mapFlatOrder)
       .filter((order) => {
         const matchesSearch =
@@ -969,6 +1006,7 @@ export default function LiveOrderKanban() {
     }
 
     if (colKey === 'accepted') {
+      const later = isScheduledLater(order);
       return (
         <div className="flex gap-2">
           <button
@@ -981,6 +1019,7 @@ export default function LiveOrderKanban() {
             <X size={14} />
             Annulla
           </button>
+          {!later && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -991,6 +1030,7 @@ export default function LiveOrderKanban() {
             <CheckCheck size={14} />
             Completa
           </button>
+          )}
         </div>
       );
     }
@@ -1043,6 +1083,16 @@ export default function LiveOrderKanban() {
     iso ? new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }) : '';
   // Orario richiesto dal cliente. Senza orario scelto (scheduled_at vuoto) vale "appena possibile".
   const serviceWhen = (o: LiveOrder): { kind: string; scheduled: boolean; label: string } | null => {
+    // Pre-ordine di una prenotazione: l'orario è quello del tavolo.
+    if (o.isBookingPreOrder && o.scheduledAt) {
+      const d = new Date(o.scheduledAt);
+      const time = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+      const otherDay = romeDay(d) !== romeDay(new Date());
+      const day = otherDay
+        ? d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Rome' }) + ' '
+        : '';
+      return { kind: 'Tavolo', scheduled: true, label: `${day}alle ${time}` };
+    }
     if (o.type !== 'delivery' && o.type !== 'takeaway') return null;
     const kind = o.type === 'delivery' ? 'Consegna' : 'Ritiro';
     if (!o.scheduledAt) return { kind, scheduled: false, label: 'appena possibile' };
@@ -1119,8 +1169,8 @@ export default function LiveOrderKanban() {
           <button
             type="button"
             aria-pressed={!isMuted}
-            aria-label={isMuted ? 'Attiva i suoni' : 'Disattiva i suoni'}
-            title={isMuted ? 'Suoni disattivati' : 'Suoni attivi'}
+            aria-label={isMuted ? 'Attiva i suoni degli ordini' : 'Disattiva i suoni degli ordini'}
+            title={isMuted ? 'Suoni degli ordini disattivati' : 'Suoni degli ordini attivi'}
             onClick={() => setIsMuted(!isMuted)}
             className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors cursor-pointer ${
               isMuted
@@ -1131,6 +1181,7 @@ export default function LiveOrderKanban() {
             {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
             <span className="hidden sm:inline">{isMuted ? 'Suoni off' : 'Suoni on'}</span>
           </button>
+          <AudioSettings />
           <button
             type="button"
             aria-pressed={immersive}
@@ -1177,6 +1228,15 @@ export default function LiveOrderKanban() {
               dividerBefore: true,
               title: "Ordini non accettati in tempo: restano un'ora",
               onClick: () => setShowLost((v) => !v),
+            },
+            {
+              key: 'scheduled',
+              label: 'Programmati',
+              icon: <CalendarClock size={15} />,
+              active: showScheduled,
+              badge: scheduledCount,
+              title: 'Ordini già confermati per un altro giorno: passano in cucina da soli quel giorno',
+              onClick: () => setShowScheduled((v) => !v),
             },
           ]}
         />
@@ -2041,6 +2101,7 @@ export default function LiveOrderKanban() {
                     >
                       <X size={14} /> Annulla
                     </button>
+                    {!isScheduledLater(selectedOrder as any) && (
                     <button
                       onClick={() => {
                         completeOrder(selectedOrder.id);
@@ -2049,6 +2110,7 @@ export default function LiveOrderKanban() {
                     >
                       <CheckCheck size={14} /> Completa
                     </button>
+                    )}
                   </>
                 ) : null}
               </div>

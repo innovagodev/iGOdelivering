@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getStripe } from '@/lib/stripeServer';
 import { expireBooking, expireOrder } from '@/lib/orderPayments';
+import { isScheduledLater } from '@/lib/orderStatus';
+import { nowInZone } from '@/lib/serviceHours';
 
 /**
  * GET /api/order-status/[orderId]
@@ -129,6 +131,13 @@ export async function GET(
       scheduledAt: order.scheduled_at,
       createdAt: order.created_at,
       updatedAt: order.updated_at,
+      // Accettato ma da servire in un altro giorno: ancora "programmato", non in cucina.
+      scheduledLater: isScheduledLater({ status: order.status, scheduled_at: order.scheduled_at }),
+      // Ordinato fin dall'inizio per un giorno successivo (il tracker mostra il passaggio "programmato").
+      placedForLater:
+        !!order.scheduled_at &&
+        nowInZone('Europe/Rome', new Date(order.scheduled_at)).date >
+          nowInZone('Europe/Rome', new Date(order.created_at)).date,
       items: (order.order_items || []).map((item: any) => ({
         name: item.name,
         price: parseFloat(item.price) || 0,

@@ -133,7 +133,7 @@ export function useOrders(restaurantId: string) {
       );
 
       // Trigger order status email notification in the background
-      if (status === 'preparing' || status === 'cancelled') {
+      if (status === 'preparing' || status === 'cancelled' || status === 'delivered') {
         fetch('/api/order/send-status-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

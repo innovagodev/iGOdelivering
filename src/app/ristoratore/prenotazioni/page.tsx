@@ -3,11 +3,15 @@ import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
+import FilterPills from '@/components/ui/FilterPills';
+import AudioSettings from '@/components/ristoratore/AudioSettings';
+import { useAudioNotification } from '@/components/ristoratore/AudioNotificationProvider';
 import { useAuth } from '@/context/AuthContext';
 import { TableBooking } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { fetchAllPages } from '@/lib/fetchAll';
 import { phoneDigits } from '@/lib/fields';
+import { zonedToUtc } from '@/lib/serviceHours';
 import {
   Plus,
   Phone,
@@ -20,6 +24,10 @@ import {
   MessageSquare,
   AlertCircle,
   Store,
+  Search,
+  Download,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { notify, confirmAction } from '@/lib/notify';
 
@@ -33,6 +41,22 @@ export default function PrenotazioniPage() {
   const [dateFilterType, setDateFilterType] = useState<
     'all' | 'today' | 'tomorrow' | 'next7' | 'custom'
   >('all');
+
+  // ─── Vista: "Da oggi in poi" (si lavora qui) e "Storico" (si consulta) ─────────
+  const dateOffset = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [view, setView] = useState<'upcoming' | 'history'>('upcoming');
+  const [showClosed, setShowClosed] = useState(false);
+  const [search, setSearch] = useState('');
+  const [histFrom, setHistFrom] = useState(() => dateOffset(-30));
+  const [histTo, setHistTo] = useState(() => dateOffset(-1));
+  const [histStatus, setHistStatus] = useState<'all' | 'confirmed' | 'cancelled'>('all');
+  // Da quale giorno si leggono le prenotazioni: 30 giorni indietro, di più se lo Storico lo chiede.
+  const [since, setSince] = useState(() => dateOffset(-30));
+  const { isBookingsMuted, setIsBookingsMuted } = useAudioNotification();
 
   const getTodayStr = () => {
     const d = new Date();
@@ -196,9 +220,7 @@ export default function PrenotazioniPage() {
     setLoading(true);
     try {
       // Limit fetching to bookings starting from 30 days ago to keep query latency low
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+      const dateStr = since;
 
       // A pagine: oltre 1000 prenotazioni da 30 giorni fa in avanti verrebbero
       // tagliate in silenzio.
@@ -246,7 +268,13 @@ export default function PrenotazioniPage() {
   useEffect(() => {
     fetchBookings();
     fetchCapacity();
-  }, [restaurantId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, since]);
+
+  // Lo Storico può chiedere un periodo più lungo dei 30 giorni letti di default.
+  useEffect(() => {
+    if (histFrom && histFrom < since) setSince(histFrom);
+  }, [histFrom, since]);
 
   // Tempo reale: il provider audio (ristoratore/layout) ascolta le prenotazioni e avvisa qui
   // quando ne arriva una o ne cambia lo stato, così l'elenco non richiede il refresh a mano.
@@ -361,7 +389,9 @@ export default function PrenotazioniPage() {
             restaurant_id: restaurantId,
             order_number: generatedNumber,
             type: 'tavolo',
-            status: 'preparing', // "accettato" in cucina
+            status: 'preparing', // "accettato" in cucina: il ristorante l'ha già accettato confermando
+            // L'orario della prenotazione: la cucina sa per quando è l'ordine.
+            scheduled_at: zonedToUtc(targetBooking.date, toMinutes(targetBooking.time)).toISOString(),
             customer_name: targetBooking.name,
             customer_email: targetBooking.email || null,
             customer_phone: targetBooking.phone,
@@ -472,6 +502,14 @@ export default function PrenotazioniPage() {
           .eq('id', editingBooking.id);
         if (error) throw error;
 
+        // L'ordine del pre-ordine segue la prenotazione: stessa data e ora.
+        if (editingBooking.linkedOrderId && changedDetails) {
+          await supabase
+            .from('orders')
+            .update({ scheduled_at: zonedToUtc(date, toMinutes(newTime)).toISOString() })
+            .eq('id', editingBooking.linkedOrderId);
+        }
+
         setShowModal(false);
         if (statusChanged) {
           await handleUpdateStatus(editingBooking.id, status);
@@ -499,296 +537,7 @@ export default function PrenotazioniPage() {
     }
   };
 
-  const filteredBookings = bookings.filter((b) => {
-    const statusMatch = filterStatus === 'all' || b.status === filterStatus;
-
-    let dateMatch = true;
-    const todayStr = getTodayStr();
-    const tomorrowStr = getTomorrowStr();
-
-    if (dateFilterType === 'today') {
-      dateMatch = b.date === todayStr;
-    } else if (dateFilterType === 'tomorrow') {
-      dateMatch = b.date === tomorrowStr;
-    } else if (dateFilterType === 'next7') {
-      const bDate = new Date(b.date);
-      const today = new Date(todayStr);
-      const next7 = new Date(todayStr);
-      next7.setDate(next7.getDate() + 7);
-      dateMatch = bDate >= today && bDate <= next7;
-    } else if (dateFilterType === 'custom') {
-      dateMatch = !filterDate || b.date === filterDate;
-    }
-
-    return statusMatch && dateMatch;
-  });
-
-  return (
-    <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden relative">
-
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <PageTopbar
-          left={
-            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-              <Store size={16} className="text-primary flex-shrink-0" />
-              <span className="font-semibold text-foreground text-base truncate">
-                {user?.restaurantName || 'Il tuo ristorante'}
-              </span>
-            </div>
-          }
-        />
-
-        <main className="flex-1 min-h-0 overflow-y-auto">
-          <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
-            {isLoading || (loading && bookings.length === 0) ? (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
-                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground text-sm font-medium animate-pulse">
-                  Caricamento prenotazioni in corso...
-                </p>
-              </div>
-            ) : !restaurantId || restaurantId === 'r-001' ? (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8 bg-card border border-border rounded-2xl shadow-sm">
-                <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-4">
-                  <Store size={32} />
-                </div>
-                <h2 className="text-xl font-bold text-foreground">Nessun Ristorante Collegato</h2>
-                <p className="text-muted-foreground text-sm max-w-md mt-2">
-                  Il tuo account non è ancora collegato a un ristorante attivo. Contatta
-                  l'amministratore per completare la configurazione e l'attivazione del tuo profilo.
-                </p>
-              </div>
-            ) : (
-              <>
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">Gestione Prenotazioni</h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {user?.restaurantName || 'Il tuo ristorante'}
-                </p>
-              </div>
-              <button
-                onClick={handleOpenAddModal}
-                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover transition-colors cursor-pointer w-full sm:w-auto"
-              >
-                <Plus size={16} />
-                Nuova Prenotazione
-              </button>
-            </div>
-
-            {/* Quick stats & Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-card rounded-xl border border-border shadow-card p-4">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                  Totali
-                </p>
-                <p className="text-2xl font-bold tabular-nums text-foreground mt-1">
-                  {bookings.length}
-                </p>
-              </div>
-              <div className="bg-[var(--info-bg)] border border-[var(--info)]/20 rounded-xl p-4">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                  In Attesa
-                </p>
-                <p className="text-2xl font-bold tabular-nums text-[var(--info)] mt-1">
-                  {bookings.filter((b) => b.status === 'pending').length}
-                </p>
-              </div>
-              <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-4">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                  Confermate
-                </p>
-                <p className="text-2xl font-bold tabular-nums text-[var(--success)] mt-1">
-                  {bookings.filter((b) => b.status === 'confirmed').length}
-                </p>
-              </div>
-              <div className="bg-[var(--danger-bg)] border border-[var(--danger)]/20 rounded-xl p-4">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                  Cancellate
-                </p>
-                <p className="text-2xl font-bold tabular-nums text-[var(--danger)] mt-1">
-                  {bookings.filter((b) => b.status === 'cancelled').length}
-                </p>
-              </div>
-            </div>
-
-                {/* Capienza prenotazioni (C9) */}
-                <div
-                  className={`rounded-xl border p-4 shadow-card flex flex-col lg:flex-row gap-4 lg:items-end justify-between ${
-                    capacity === null
-                      ? 'bg-[var(--warning-bg)] border-[var(--warning)]/30'
-                      : 'bg-card border-border'
-                  }`}
-                >
-                  <div className="space-y-1 max-w-xl">
-                    <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                      <Users size={14} /> Capienza prenotazioni
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {capacity === null
-                        ? 'Capienza non impostata: le richieste non vengono filtrate e vanno valutate una per una. Impostala per rifiutare in automatico quelle che superano i posti disponibili.'
-                        : `Accetti fino a ${capacity} coperti in contemporanea; ogni prenotazione occupa i suoi posti per ${slotMinutes} minuti. Contano le richieste in attesa e quelle confermate.`}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
-                      Coperti
-                      <input
-                        type="number"
-                        min={1}
-                        inputMode="numeric"
-                        value={capacityInput}
-                        onChange={(e) => setCapacityInput(e.target.value)}
-                        placeholder="Nessun limite"
-                        className="w-32 px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground"
-                      />
-                    </label>
-                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
-                      Durata turno
-                      <select
-                        value={slotInput}
-                        onChange={(e) => setSlotInput(Number(e.target.value))}
-                        className="min-w-28 px-3 py-2 text-sm bg-card border border-border rounded-lg text-foreground"
-                      >
-                        {[60, 90, 120, 150, 180].map((m) => (
-                          <option key={m} value={m}>
-                            {m} min
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      onClick={saveCapacity}
-                      disabled={capacitySaving}
-                      className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
-                    >
-                      {capacitySaving ? 'Salvataggio…' : 'Salva'}
-                    </button>
-                    {capacityMessage && (
-                      <span className="text-xs text-muted-foreground w-full">
-                        {capacityMessage}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-            {/* Filters panel */}
-            <div className="bg-card border border-border rounded-xl p-4 flex flex-col xl:flex-row gap-4 items-stretch xl:items-center justify-between shadow-card">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setFilterStatus('all')}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${filterStatus === 'all' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground hover:bg-border'}`}
-                >
-                  Tutte
-                </button>
-                <button
-                  onClick={() => setFilterStatus('pending')}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${filterStatus === 'pending' ? 'bg-[var(--info-bg)] text-[var(--info)] border border-[var(--info)]/10' : 'bg-muted text-muted-foreground hover:bg-border'}`}
-                >
-                  In Attesa
-                </button>
-                <button
-                  onClick={() => setFilterStatus('confirmed')}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${filterStatus === 'confirmed' ? 'bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/10' : 'bg-muted text-muted-foreground hover:bg-border'}`}
-                >
-                  Confermate
-                </button>
-                <button
-                  onClick={() => setFilterStatus('cancelled')}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${filterStatus === 'cancelled' ? 'bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger)]/10' : 'bg-muted text-muted-foreground hover:bg-border'}`}
-                >
-                  Cancellate
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Quick Date Filters */}
-                <div className="flex items-center bg-muted p-1 rounded-lg overflow-x-auto max-w-full whitespace-nowrap scrollbar-hide">
-                  <button
-                    onClick={() => {
-                      setDateFilterType('today');
-                      setFilterDate(getTodayStr());
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${
-                      dateFilterType === 'today'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Oggi
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDateFilterType('tomorrow');
-                      setFilterDate(getTomorrowStr());
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${
-                      dateFilterType === 'tomorrow'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Domani
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDateFilterType('next7');
-                      setFilterDate('');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex-shrink-0 ${
-                      dateFilterType === 'next7'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Prossimi 7 Giorni
-                  </button>
-                  {dateFilterType !== 'all' && (
-                    <button
-                      onClick={() => {
-                        setDateFilterType('all');
-                        setFilterDate('');
-                      }}
-                      className="px-2 py-1 text-xs font-bold text-primary hover:underline ml-1 flex-shrink-0"
-                    >
-                      Azzera
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">
-                    Data specifica:
-                  </label>
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => {
-                      setFilterDate(e.target.value);
-                      setDateFilterType(e.target.value ? 'custom' : 'all');
-                    }}
-                    className="px-3 py-1.5 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[180px] max-w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* List */}
-            <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              {filteredBookings.length === 0 ? (
-                <div className="py-12 text-center">
-                  <AlertCircle size={32} className="text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-foreground">
-                    Nessuna prenotazione trovata
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Nessun record corrisponde ai filtri selezionati.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  {filteredBookings.map((booking) => {
+  const renderBooking = (booking: TableBooking, opts: { history?: boolean } = {}) => {
                     const day = new Date(`${booking.date}T12:00:00`);
                     const occupied = booking.status !== 'cancelled' ? peakCovers(booking.date, booking.time) : null;
                     const over = occupied !== null && capacity !== null && occupied > capacity;
@@ -912,7 +661,7 @@ export default function PrenotazioniPage() {
                                     href="/ristoratore/ordini"
                                     className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[11px] px-2 py-0.5 rounded-full transition-colors"
                                   >
-                                    In cucina &rarr;
+                                    Vedi ordine &rarr;
                                   </a>
                                 )}
                               </div>
@@ -946,14 +695,14 @@ export default function PrenotazioniPage() {
 
                         {/* Azioni: su schermi stretti occupano tutta la riga */}
                         <div className="flex items-center gap-2 lg:justify-end">
-                          {booking.status === 'pending' && (
+                          {!opts.history && booking.status === 'pending' && (
                             <>
                               <button
                                 onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm active:scale-95"
                               >
                                 <Check size={13} />
-                                Conferma
+                                {hasPre ? 'Conferma e manda in cucina' : 'Conferma'}
                               </button>
                               <button
                                 onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
@@ -964,7 +713,7 @@ export default function PrenotazioniPage() {
                               </button>
                             </>
                           )}
-                          {booking.status === 'confirmed' && (
+                          {!opts.history && booking.status === 'confirmed' && (
                             <button
                               onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
                               className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
@@ -1000,10 +749,496 @@ export default function PrenotazioniPage() {
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+  };
+
+  const todayStr = getTodayStr();
+  const tomorrowStr = getTomorrowStr();
+  const q = search.trim().toLowerCase();
+  const matchesSearch = (b: TableBooking) =>
+    !q || [b.name, b.phone, b.email || ''].some((v) => v.toLowerCase().includes(q));
+
+  const dateMatches = (b: TableBooking) => {
+    if (dateFilterType === 'today') return b.date === todayStr;
+    if (dateFilterType === 'tomorrow') return b.date === tomorrowStr;
+    if (dateFilterType === 'next7') return b.date >= todayStr && b.date <= dateOffset(7);
+    if (dateFilterType === 'custom') return !filterDate || b.date === filterDate;
+    return true;
+  };
+
+  const byDateTime = (a: TableBooking, b: TableBooking) =>
+    a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date);
+
+  // Da oggi in poi: le richieste da confermare in cima (anche se di un giorno già passato:
+  // non devono perdersi), poi le confermate per giorno. Le annullate e scadute stanno
+  // dietro una pillola, come gli ordini persi.
+  const pendingAll = bookings.filter((b) => b.status === 'pending');
+  const pendingList = pendingAll
+    .filter(matchesSearch)
+    .sort((a, b) =>
+      (a.acceptDeadline || '9999').localeCompare(b.acceptDeadline || '9999') || byDateTime(a, b)
+    );
+  const confirmedList = bookings
+    .filter((b) => b.status === 'confirmed' && b.date >= todayStr && dateMatches(b) && matchesSearch(b))
+    .sort(byDateTime);
+  const closedAll = bookings.filter((b) => b.status === 'cancelled' && b.date >= todayStr);
+  const closedList = closedAll.filter((b) => dateMatches(b) && matchesSearch(b)).sort(byDateTime);
+
+  const confirmedToday = bookings.filter((b) => b.status === 'confirmed' && b.date === todayStr);
+  const confirmedNext7 = bookings.filter(
+    (b) => b.status === 'confirmed' && b.date >= todayStr && b.date <= dateOffset(7)
+  );
+  const sumGuests = (list: TableBooking[]) => list.reduce((n, b) => n + (b.guests || 0), 0);
+
+  // Storico: tutto ciò che è già stato risolto nel periodo scelto.
+  const HISTORY_CAP = 300;
+  const histAll = bookings
+    .filter(
+      (b) =>
+        b.status !== 'pending' &&
+        b.date >= histFrom &&
+        b.date <= histTo &&
+        (histStatus === 'all' || b.status === histStatus) &&
+        matchesSearch(b)
+    )
+    .sort((a, b) => byDateTime(b, a));
+  const histShown = histAll.slice(0, HISTORY_CAP);
+  const histConfirmed = histAll.filter((b) => b.status === 'confirmed');
+  const histClosed = histAll.filter((b) => b.status === 'cancelled');
+
+  const groupByDay = (list: TableBooking[]) => {
+    const groups: { date: string; items: TableBooking[] }[] = [];
+    list.forEach((b) => {
+      const last = groups[groups.length - 1];
+      if (last && last.date === b.date) last.items.push(b);
+      else groups.push({ date: b.date, items: [b] });
+    });
+    return groups;
+  };
+  const dayHeading = (d: string) => {
+    const label = new Date(`${d}T12:00:00`).toLocaleDateString('it-IT', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+    return d === todayStr ? `Oggi · ${label}` : d === tomorrowStr ? `Domani · ${label}` : label;
+  };
+
+  // CSV come lo Storico ordini: BOM e punto e virgola, così Excel italiano lo apre bene.
+  const csvCell = (v: unknown) => {
+    let t = String(v ?? '').replace(/\r?\n/g, ' ');
+    if (/^[=+\-@]/.test(t)) t = `'${t}`;
+    return `"${t.replace(/"/g, '""')}"`;
+  };
+  const exportBookingsCsv = () => {
+    const head = ['Data', 'Ora', 'Nome', 'Telefono', 'Email', 'Persone', 'Stato', 'Note', 'Pre-ordine', 'Totale pre-ordine'];
+    const lines = histAll.map((b) =>
+      [
+        b.date.split('-').reverse().join('/'),
+        b.time,
+        b.name,
+        b.phone,
+        b.email || '',
+        b.guests,
+        b.status === 'confirmed' ? 'Confermata' : b.expired ? 'Scaduta' : 'Annullata',
+        b.notes || '',
+        (b.preOrderItems || []).map((i: any) => `${i.qty}x ${i.name}`).join(', '),
+        b.preOrderTotal ? b.preOrderTotal.toFixed(2).replace('.', ',') : '',
+      ]
+        .map(csvCell)
+        .join(';')
+    );
+    const csv = '﻿' + [head.map(csvCell).join(';'), ...lines].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `prenotazioni_${histFrom}_${histTo}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const sectionHeading = (text: React.ReactNode, extra?: React.ReactNode) => (
+    <div className="flex items-center justify-between gap-3 px-1">
+      <h2 className="text-sm font-bold text-foreground first-letter:uppercase">{text}</h2>
+      {extra}
+    </div>
+  );
+  const rowsBox = (list: TableBooking[], opts: { history?: boolean } = {}) => (
+    <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+      <div className="divide-y divide-border">{list.map((b) => renderBooking(b, opts))}</div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden relative">
+
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <PageTopbar
+          left={
+            <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+              <Store size={16} className="text-primary flex-shrink-0" />
+              <span className="font-semibold text-foreground text-base truncate">
+                {user?.restaurantName || 'Il tuo ristorante'}
+              </span>
             </div>
+          }
+          right={
+            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-pressed={!isBookingsMuted}
+              aria-label={isBookingsMuted ? 'Attiva i suoni delle prenotazioni' : 'Disattiva i suoni delle prenotazioni'}
+              title={isBookingsMuted ? 'Suoni delle prenotazioni disattivati' : 'Suoni delle prenotazioni attivi'}
+              onClick={() => setIsBookingsMuted(!isBookingsMuted)}
+              className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors cursor-pointer ${
+                isBookingsMuted
+                  ? 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                  : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
+              }`}
+            >
+              {isBookingsMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+              <span className="hidden sm:inline">{isBookingsMuted ? 'Suoni off' : 'Suoni on'}</span>
+            </button>
+            <AudioSettings />
+            </div>
+          }
+        />
+
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-screen-xl mx-auto px-6 lg:px-8 py-6 space-y-6">
+            {isLoading || (loading && bookings.length === 0) ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-muted-foreground text-sm font-medium animate-pulse">
+                  Caricamento prenotazioni in corso...
+                </p>
+              </div>
+            ) : !restaurantId || restaurantId === 'r-001' ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8 bg-card border border-border rounded-2xl shadow-sm">
+                <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-4">
+                  <Store size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Nessun Ristorante Collegato</h2>
+                <p className="text-muted-foreground text-sm max-w-md mt-2">
+                  Il tuo account non è ancora collegato a un ristorante attivo. Contatta
+                  l'amministratore per completare la configurazione e l'attivazione del tuo profilo.
+                </p>
+              </div>
+            ) : (
+              <>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Gestione Prenotazioni</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {user?.restaurantName || 'Il tuo ristorante'}
+                </p>
+              </div>
+              <button
+                onClick={handleOpenAddModal}
+                className="flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover transition-colors cursor-pointer w-full sm:w-auto"
+              >
+                <Plus size={16} />
+                Nuova Prenotazione
+              </button>
+            </div>
+
+            {/* Vista e ricerca */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div role="tablist" aria-label="Vista prenotazioni" className="inline-flex rounded-xl bg-muted p-1 self-start">
+                <button
+                  role="tab"
+                  aria-selected={view === 'upcoming'}
+                  onClick={() => setView('upcoming')}
+                  className={`touch-target inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer ${
+                    view === 'upcoming' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Da oggi in poi
+                  {pendingAll.length > 0 && (
+                    <span className="bg-primary text-white text-[11px] font-extrabold rounded-full min-w-5 h-5 px-1.5 inline-flex items-center justify-center">
+                      {pendingAll.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={view === 'history'}
+                  onClick={() => setView('history')}
+                  className={`touch-target px-4 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer ${
+                    view === 'history' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Storico
+                </button>
+              </div>
+              <div className="relative w-full sm:max-w-xs">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cerca nome, telefono o email"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            {view === 'upcoming' ? (
+              <>
+                {/* Numeri di oggi */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="bg-[var(--info-bg)] border border-[var(--info)]/20 rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Da confermare</p>
+                    <p className="text-2xl font-bold tabular-nums text-[var(--info)] mt-1">{pendingAll.length}</p>
+                  </div>
+                  <div className="bg-[var(--success-bg)] border border-[var(--success)]/20 rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Oggi</p>
+                    <p className="text-2xl font-bold tabular-nums text-[var(--success)] mt-1">{confirmedToday.length}</p>
+                  </div>
+                  <div className="bg-card rounded-xl border border-border shadow-card p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Coperti oggi</p>
+                    <p className="text-2xl font-bold tabular-nums text-foreground mt-1">{sumGuests(confirmedToday)}</p>
+                  </div>
+                  <div className="bg-card rounded-xl border border-border shadow-card p-4">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Prossimi 7 giorni</p>
+                    <p className="text-2xl font-bold tabular-nums text-foreground mt-1">
+                      {confirmedNext7.length}
+                      <span className="ml-1.5 text-xs font-semibold text-muted-foreground">
+                        · {sumGuests(confirmedNext7)} coperti
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Capienza prenotazioni (C9) */}
+                <div
+                  className={`rounded-xl border p-4 sm:p-5 shadow-card flex flex-col lg:flex-row gap-4 lg:gap-8 lg:items-center justify-between ${
+                    capacity === null
+                      ? 'bg-[var(--warning-bg)] border-[var(--warning)]/30'
+                      : 'bg-card border-border'
+                  }`}
+                >
+                  <div className="space-y-1.5 min-w-0 lg:flex-1 lg:max-w-2xl">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Users size={14} /> Capienza prenotazioni
+                    </p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {capacity === null
+                        ? 'Nessun limite impostato: ogni richiesta resta da valutare a mano. Indica quanti coperti accetti in contemporanea per rifiutare in automatico le richieste che superano i posti disponibili.'
+                        : `Accetti fino a ${capacity} coperti in contemporanea. Contano le richieste in attesa e quelle confermate.`}{' '}
+                      Il turno è il tempo in cui un tavolo resta occupato ({slotMinutes} minuti).
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-[11rem_9rem_auto] sm:justify-start gap-3 items-end lg:flex-shrink-0">
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1 min-w-0">
+                      Coperti
+                      <input
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        value={capacityInput}
+                        onChange={(e) => setCapacityInput(e.target.value)}
+                        placeholder="Nessun limite"
+                        className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/60"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1 min-w-0">
+                      Durata turno
+                      <select
+                        value={slotInput}
+                        onChange={(e) => setSlotInput(Number(e.target.value))}
+                        className="w-full px-3 py-2.5 text-sm bg-card border border-border rounded-lg text-foreground"
+                      >
+                        {Array.from(new Set([60, 90, 120, 150, 180, slotInput]))
+                          .sort((x, y) => x - y)
+                          .map((m) => (
+                            <option key={m} value={m}>
+                              {m} min
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <button
+                      onClick={saveCapacity}
+                      disabled={capacitySaving}
+                      className="col-span-2 sm:col-span-1 px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {capacitySaving ? 'Salvataggio…' : 'Salva'}
+                    </button>
+                    {capacityMessage && (
+                      <span className="col-span-2 sm:col-span-3 text-xs text-muted-foreground">
+                        {capacityMessage}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+
+                {/* Filtro per giorno */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <FilterPills
+                    ariaLabel="Filtra per giorno"
+                    pills={[
+                      { key: 'all', label: 'Tutti i giorni', active: dateFilterType === 'all', onClick: () => { setDateFilterType('all'); setFilterDate(''); } },
+                      { key: 'today', label: 'Oggi', active: dateFilterType === 'today', onClick: () => { setDateFilterType('today'); setFilterDate(getTodayStr()); } },
+                      { key: 'tomorrow', label: 'Domani', active: dateFilterType === 'tomorrow', onClick: () => { setDateFilterType('tomorrow'); setFilterDate(getTomorrowStr()); } },
+                      { key: 'next7', label: '7 giorni', active: dateFilterType === 'next7', onClick: () => { setDateFilterType('next7'); setFilterDate(''); } },
+                    ]}
+                  />
+                  <input
+                    type="date"
+                    value={filterDate}
+                    min={todayStr}
+                    onChange={(e) => {
+                      setFilterDate(e.target.value);
+                      setDateFilterType(e.target.value ? 'custom' : 'all');
+                    }}
+                    aria-label="Giorno specifico"
+                    className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[11.5rem] max-w-full"
+                  />
+                </div>
+
+                {pendingList.length > 0 && (
+                  <section className="space-y-2">
+                    {sectionHeading(`Da confermare (${pendingList.length})`)}
+                    {rowsBox(pendingList)}
+                  </section>
+                )}
+
+                {groupByDay(confirmedList).map((g) => (
+                  <section key={g.date} className="space-y-2">
+                    {sectionHeading(
+                      dayHeading(g.date),
+                      <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                        {g.items.length} {g.items.length === 1 ? 'prenotazione' : 'prenotazioni'} · {sumGuests(g.items)} coperti
+                      </span>
+                    )}
+                    {rowsBox(g.items)}
+                  </section>
+                ))}
+
+                {pendingList.length === 0 && confirmedList.length === 0 && (
+                  <div className="bg-card rounded-xl border border-border shadow-card py-12 text-center">
+                    <AlertCircle size={32} className="text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-foreground">Nessuna prenotazione in programma</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {q || dateFilterType !== 'all'
+                        ? 'Nessun risultato con i filtri scelti.'
+                        : 'Le nuove richieste compaiono qui in tempo reale.'}
+                    </p>
+                  </div>
+                )}
+
+                {closedAll.length > 0 && (
+                  <section className="space-y-2">
+                    <button
+                      onClick={() => setShowClosed((v) => !v)}
+                      aria-pressed={showClosed}
+                      className={`touch-target inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                        showClosed
+                          ? 'bg-[var(--danger-bg)] text-[var(--danger)]'
+                          : 'bg-muted text-muted-foreground hover:bg-border'
+                      }`}
+                    >
+                      Annullate e scadute
+                      <span className="rounded-full bg-card/70 px-1.5 text-[11px] tabular-nums">{closedAll.length}</span>
+                    </button>
+                    {showClosed && (closedList.length > 0 ? rowsBox(closedList) : (
+                      <p className="px-1 text-xs text-muted-foreground">Nessuna con i filtri scelti.</p>
+                    ))}
+                  </section>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Storico: periodo, stato, totali, esportazione */}
+                <div className="bg-card border border-border rounded-xl p-4 shadow-card space-y-4">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
+                      Dal
+                      <input
+                        type="date"
+                        value={histFrom}
+                        min={dateOffset(-366)}
+                        max={histTo}
+                        onChange={(e) => e.target.value && setHistFrom(e.target.value)}
+                        className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[11.5rem] max-w-full"
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-muted-foreground flex flex-col gap-1">
+                      Al
+                      <input
+                        type="date"
+                        value={histTo}
+                        min={histFrom}
+                        max={todayStr}
+                        onChange={(e) => e.target.value && setHistTo(e.target.value)}
+                        className="px-3 py-2 text-base bg-input border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring w-[11.5rem] max-w-full"
+                      />
+                    </label>
+                    <FilterPills
+                      ariaLabel="Filtra per stato"
+                      pills={[
+                        { key: 'all', label: 'Tutte', active: histStatus === 'all', onClick: () => setHistStatus('all') },
+                        { key: 'confirmed', label: 'Confermate', active: histStatus === 'confirmed', onClick: () => setHistStatus('confirmed') },
+                        { key: 'cancelled', label: 'Annullate e scadute', active: histStatus === 'cancelled', onClick: () => setHistStatus('cancelled') },
+                      ]}
+                    />
+                    <button
+                      onClick={exportBookingsCsv}
+                      disabled={histAll.length === 0}
+                      title="Scarica in CSV le prenotazioni filtrate (si apre con Excel)"
+                      className="touch-target ml-auto inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      <Download size={15} />
+                      Esporta CSV
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground tabular-nums">
+                    <span>
+                      <strong className="text-foreground">{histAll.length}</strong> prenotazioni
+                    </span>
+                    <span>
+                      <strong className="text-foreground">{histConfirmed.length}</strong> confermate ·{' '}
+                      <strong className="text-foreground">{sumGuests(histConfirmed)}</strong> coperti
+                    </span>
+                    <span>
+                      <strong className="text-foreground">{histClosed.length}</strong> annullate o scadute
+                    </span>
+                  </div>
+                </div>
+
+                {histAll.length === 0 ? (
+                  <div className="bg-card rounded-xl border border-border shadow-card py-12 text-center">
+                    <AlertCircle size={32} className="text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-foreground">Nessuna prenotazione nel periodo</p>
+                    <p className="text-xs text-muted-foreground mt-1">Cambia le date o i filtri.</p>
+                  </div>
+                ) : (
+                  <>
+                    {groupByDay(histShown).map((g) => (
+                      <section key={g.date} className="space-y-2">
+                        {sectionHeading(
+                          dayHeading(g.date),
+                          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                            {g.items.length} · {sumGuests(g.items)} coperti
+                          </span>
+                        )}
+                        {rowsBox(g.items, { history: true })}
+                      </section>
+                    ))}
+                    {histAll.length > HISTORY_CAP && (
+                      <p className="px-1 text-xs text-muted-foreground">
+                        Mostrate le prime {HISTORY_CAP} di {histAll.length}: restringi il periodo oppure esporta il CSV per averle tutte.
+                      </p>
+                    )}
+                  </>
+                )}
+              </>
+            )}
               </>
             )}
           </div>

@@ -7,11 +7,27 @@ import { supabase } from '@/lib/supabase';
 import { fetchAllPages } from '@/lib/fetchAll';
 import { STORAGE_KEYS } from '@/lib/storage-keys';
 
+/** Ogni quanti secondi si ripete l'avviso finché c'è qualcosa da fare; 0 = una sola volta. */
+export interface AudioSettings {
+  ordersEvery: number;
+  bookingsEvery: number;
+}
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = { ordersEvery: 8, bookingsEvery: 30 };
+const AUDIO_SETTINGS_KEY = 'iGO_audio_settings';
+
 interface AudioNotificationContextType {
   playAlert: () => void;
   isAudioEnabled: boolean;
   isMuted: boolean;
   setIsMuted: (muted: boolean) => void;
+  /** Le prenotazioni hanno il proprio interruttore, indipendente da quello degli ordini. */
+  isBookingsMuted: boolean;
+  setIsBookingsMuted: (muted: boolean) => void;
+  /** Impostazioni del ristorante, valide su questo dispositivo. */
+  audioSettings: AudioSettings;
+  setAudioSettings: (settings: AudioSettings) => void;
+  /** Fa sentire l'avviso scelto (anche con i suoni spenti), per provare volume e voce. */
+  playTestSound: (kind: 'order' | 'booking') => void;
 }
 
 const AudioNotificationContext = createContext<AudioNotificationContextType | undefined>(undefined);
@@ -22,6 +38,8 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   const [showPopup, setShowPopup] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isBookingsMuted, setIsBookingsMuted] = useState(false);
+  const [audioSettings, setAudioSettingsState] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
   const [orders, setOrders] = useState<any[]>([]);
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef(true);
@@ -35,6 +53,18 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
       
       if (storedMuted === 'true') {
         setIsMuted(true);
+      }
+      if (localStorage.getItem('iGO_audio_muted_bookings') === 'true') {
+        setIsBookingsMuted(true);
+      }
+      try {
+        const raw = JSON.parse(localStorage.getItem(AUDIO_SETTINGS_KEY) || 'null');
+        const ok = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 600;
+        if (raw && ok(raw.ordersEvery) && ok(raw.bookingsEvery)) {
+          setAudioSettingsState({ ordersEvery: raw.ordersEvery, bookingsEvery: raw.bookingsEvery });
+        }
+      } catch {
+        /* impostazioni non leggibili: restano quelle predefinite */
       }
       
       if (authorized === 'true') {
@@ -283,6 +313,27 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     }
   };
 
+  const handleSetAudioSettings = (next: AudioSettings) => {
+    setAudioSettingsState(next);
+    try {
+      localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(next));
+    } catch {
+      /* storage non disponibile */
+    }
+  };
+
+  const playTestSound = (kind: 'order' | 'booking') => {
+    if (kind === 'order') void playClip('/sounds/nuovo-ordine.mp3', 'order', playOrderTones);
+    else void playClip('/sounds/nuova-prenotazione.mp3', 'booking', playBookingChime);
+  };
+
+  const handleSetIsBookingsMuted = (muted: boolean) => {
+    setIsBookingsMuted(muted);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('iGO_audio_muted_bookings', muted ? 'true' : 'false');
+    }
+  };
+
   // Handle custom event trigger
   useEffect(() => {
     const handleEvent = () => {
@@ -302,7 +353,7 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   );
   const hasUnaccepted = unacceptedOrders.length > 0;
 
-  // Repeat alarm every 8 seconds while there are unaccepted orders.
+  // Ripete l'avviso (di norma ogni 8 secondi) finché ci sono ordini da accettare.
   // Uses playNow() directly (no throttle) so it always fires immediately on mount
   // and at exact 8-second intervals, regardless of when playAlert() was last called.
   useEffect(() => {
@@ -315,16 +366,17 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     // Reset throttle reference so a manual playAlert() call works correctly afterwards
     lastPlayedTimeRef.current = Date.now();
 
-    // Repeat every 8 seconds
+    // Ripetizione scelta dal ristorante (0 = una sola volta, già suonata sopra).
+    if (audioSettings.ordersEvery <= 0) return;
     const interval = setInterval(() => {
       if (!isMuted) playNow();
-    }, 8000);
+    }, audioSettings.ordersEvery * 1000);
 
     return () => {
       clearInterval(interval);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasUnaccepted, restaurantId, isAudioEnabled, isMuted]);
+  }, [hasUnaccepted, restaurantId, isAudioEnabled, isMuted, audioSettings.ordersEvery]);
 
   // Background realtime Supabase subscription
   useEffect(() => {
@@ -490,22 +542,22 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   // ─── Prenotazioni: badge, suono e aggiornamento in tempo reale ──────────────
   // Il suono è diverso da quello degli ordini (tre note che salgono, più morbide della
   // sirena a due toni), così il ristoratore capisce a orecchio che cosa è arrivato.
-  const audioStateRef = useRef({ isMuted, isAudioEnabled });
-  audioStateRef.current = { isMuted, isAudioEnabled };
+  const audioStateRef = useRef({ isBookingsMuted, isAudioEnabled });
+  audioStateRef.current = { isBookingsMuted, isAudioEnabled };
   const [pendingBookings, setPendingBookings] = useState<{ id: string; accept_deadline: string | null }[]>([]);
   const [bookingTick, setBookingTick] = useState(0);
   const seenBookingIdsRef = useRef<Set<string>>(new Set());
   const lastBookingPlayedRef = useRef(0);
 
   const playBookingNow = () => {
-    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    const { isBookingsMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
     if (muted || !enabled) return;
     void playClip('/sounds/nuova-prenotazione.mp3', 'booking', playBookingChime);
   };
 
   // Campanello a tre note delle prenotazioni (ripiego).
   const playBookingChime = () => {
-    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    const { isBookingsMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
     if (muted || !enabled) return;
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -569,11 +621,12 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
 
   // Finché ce ne sono in attesa il campanello si ripete, con calma.
   useEffect(() => {
-    if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isMuted || livePendingCount === 0) return;
-    const id = setInterval(() => playBookingNow(), 30000);
+    if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isBookingsMuted || livePendingCount === 0) return;
+    if (audioSettings.bookingsEvery <= 0) return;
+    const id = setInterval(() => playBookingNow(), audioSettings.bookingsEvery * 1000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restaurantId, isAudioEnabled, isMuted, livePendingCount > 0]);
+  }, [restaurantId, isAudioEnabled, isBookingsMuted, livePendingCount > 0, audioSettings.bookingsEvery]);
 
   useEffect(() => {
     if (!restaurantId || restaurantId === 'r-001') return;
@@ -662,7 +715,17 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   };
 
   return (
-    <AudioNotificationContext.Provider value={{ playAlert, isAudioEnabled, isMuted, setIsMuted: handleSetIsMuted }}>
+    <AudioNotificationContext.Provider value={{
+        playAlert,
+        isAudioEnabled,
+        isMuted,
+        setIsMuted: handleSetIsMuted,
+        isBookingsMuted,
+        setIsBookingsMuted: handleSetIsBookingsMuted,
+        audioSettings,
+        setAudioSettings: handleSetAudioSettings,
+        playTestSound,
+      }}>
       {children}
 
       {showPopup && (

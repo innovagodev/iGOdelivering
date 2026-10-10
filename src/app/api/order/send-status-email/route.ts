@@ -22,6 +22,17 @@ import { cookies } from 'next/headers';
  * una deroga senza sessione. Se un giorno la si aggiunge, va vincolata a un
  * ordine creato da pochi minuti, non a un orderId qualsiasi.
  */
+// I testi scritti da clienti e ristoratori (nome, note) non devono poter inserire HTML nell'email.
+const esc = (v: unknown) =>
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const ROME = 'Europe/Rome';
+const romeDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: ROME }).format(d);
+
 export async function POST(request: Request) {
   try {
     const { orderId, status } = await request.json();
@@ -81,7 +92,7 @@ export async function POST(request: Request) {
     // 3. Fetch order details with nested items and restaurant info
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .select('*, order_items(*), restaurants(name, slug, owner_id)')
+      .select('*, order_items(*), restaurants(name, slug, owner_id, address, city)')
       .eq('id', orderId)
       .single();
 
@@ -104,12 +115,13 @@ export async function POST(request: Request) {
     }
 
     const customerEmail = order.customer_email;
-    const customerName = order.customer_name || 'Cliente';
+    const customerName = esc(order.customer_name || 'Cliente');
     const orderNumber = order.order_number;
     const total = parseFloat(order.total) || 0;
     const type = order.type; // 'domicilio' or 'asporto'
     const scheduledAt = order.scheduled_at;
-    const restaurantName = order.restaurants?.name || 'iGOdelivering';
+    const restaurantNameRaw = order.restaurants?.name || 'iGOdelivering';
+    const restaurantName = esc(restaurantNameRaw);
     const restaurantSlug = order.restaurants?.slug || '';
 
     // Parse items for display
@@ -127,8 +139,8 @@ export async function POST(request: Request) {
               .join(', ')})`
           : '';
       const removed = item.removed_ingredients?.length > 0 ? ` (-${item.removed_ingredients.join(', ')})` : '';
-      const notes = item.note ? ` (Nota: ${item.note})` : '';
-      return `- ${item.qty}x ${item.name}${added}${removed}${notes} - € ${(parseFloat(item.price) * item.qty).toFixed(2)}`;
+      const notes = item.note ? ` (Nota: ${esc(item.note)})` : '';
+      return `- ${item.qty}x ${esc(item.name)}${added}${removed}${notes} - € ${(parseFloat(item.price) * item.qty).toFixed(2)}`;
     }).join('<br/>');
 
     // Parse scheduled info in both languages
@@ -136,15 +148,34 @@ export async function POST(request: Request) {
     let schedulingTextEn = 'As soon as possible (ASAP)';
     if (scheduledAt) {
       const d = new Date(scheduledAt);
-      const formattedDate = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const hours = d.getHours().toString().padStart(2, '0');
-      const minutes = d.getMinutes().toString().padStart(2, '0');
-      schedulingTextIt = `Programmato per il ${formattedDate} alle ${hours}:${minutes}`;
-      schedulingTextEn = `Scheduled for ${formattedDate} at ${hours}:${minutes}`;
+      const formattedDate = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: ROME });
+      const hhmm = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: ROME });
+      schedulingTextIt = `Programmato per il ${formattedDate} alle ${hhmm}`;
+      schedulingTextEn = `Scheduled for ${formattedDate} at ${hhmm}`;
     }
 
     const serviceIt = type === 'domicilio' ? 'Consegna a domicilio' : 'Asporto (Ritiro presso il locale)';
     const serviceEn = type === 'domicilio' ? 'Home Delivery' : 'Takeaway (Pickup at store)';
+
+    // Ordine per un altro giorno: all'accettazione il ristorante lo *conferma*, non lo sta ancora preparando.
+    const scheduledLater = !!scheduledAt && romeDay(new Date(scheduledAt)) > romeDay(new Date());
+    const whenIt = scheduledAt
+      ? new Date(scheduledAt).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: ROME }) +
+        ' alle ' +
+        new Date(scheduledAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: ROME })
+      : '';
+    const whenEn = scheduledAt
+      ? new Date(scheduledAt).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: ROME }) +
+        ' at ' +
+        new Date(scheduledAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: ROME })
+      : '';
+    const acceptedHeading = scheduledLater ? 'Ordine Confermato! / Order Confirmed!' : 'Ordine Accettato! / Order Accepted!';
+    const acceptedIt = scheduledLater
+      ? `Il ristorante ha confermato il tuo ordine per ${whenIt}. Lo preparerà quel giorno: ti avviseremo quando sarà pronto.`
+      : 'Siamo felici di informarti che il ristorante ha accettato il tuo ordine ed è ora in preparazione!';
+    const acceptedEn = scheduledLater
+      ? `The restaurant has confirmed your order for ${whenEn}. It will be prepared that day: we will let you know when it is ready.`
+      : 'We are happy to inform you that the restaurant has accepted your order and it is now in preparation!';
 
     // 6. Determine subject and html template based on status
     let subject = '';
@@ -156,17 +187,17 @@ export async function POST(request: Request) {
     const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/ordine/tracking?id=${encodeURIComponent(order.id)}`;
 
     if (status === 'preparing') {
-      subject = `Ordine Accettato - ${restaurantName} #${orderNumber}`;
+      subject = `${scheduledLater ? 'Ordine Confermato' : 'Ordine Accettato'} - ${restaurantNameRaw} #${orderNumber}`;
       emailHtml = `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
           <!-- Heading -->
-          <h2 style="color: #10b981; text-align: center; margin-top: 0; margin-bottom: 5px; font-size: 22px; font-weight: 800;">Ordine Accettato! / Order Accepted!</h2>
+          <h2 style="color: #10b981; text-align: center; margin-top: 0; margin-bottom: 5px; font-size: 22px; font-weight: 800;">${acceptedHeading}</h2>
           <p style="text-align: center; color: #64748b; font-size: 14px; margin-top: 0; margin-bottom: 25px;">Ristorante / Restaurant: <strong>${restaurantName}</strong></p>
 
           <!-- GREETING SECTION -->
           <div style="margin-bottom: 25px; line-height: 1.6; font-size: 15px;">
             <p style="margin: 0 0 8px 0; font-weight: 600; color: #0f172a;">Ciao ${customerName},</p>
-            <p style="margin: 0; color: #475569;">Siamo felici di informarti che il ristorante ha accettato il tuo ordine ed è ora in preparazione!</p>
+            <p style="margin: 0; color: #475569;">${acceptedIt}</p>
           </div>
 
           <!-- DIVIDER -->
@@ -175,7 +206,7 @@ export async function POST(request: Request) {
           <!-- ENGLISH GREETING -->
           <div style="margin-bottom: 25px; line-height: 1.6; font-size: 14px; color: #64748b; font-style: italic;">
             <p style="margin: 0 0 6px 0; font-weight: 600;">Hello ${customerName},</p>
-            <p style="margin: 0;">We are happy to inform you that the restaurant has accepted your order and it is now in preparation!</p>
+            <p style="margin: 0;">${acceptedEn}</p>
           </div>
 
           <!-- DETAILS CARD -->
@@ -212,8 +243,47 @@ export async function POST(request: Request) {
           </p>
         </div>
       `;
+    } else if (status === 'delivered' || status === 'completed') {
+      subject = `Il tuo ordine è pronto - ${restaurantNameRaw} #${orderNumber}`;
+      const pickupAddress = [order.restaurants?.address, order.restaurants?.city].filter(Boolean).join(', ');
+      const mapsUrl = pickupAddress
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pickupAddress)}`
+        : '';
+      const readyIt =
+        type === 'asporto'
+          ? `Il tuo ordine #${orderNumber} è pronto: puoi passare a ritirarlo.`
+          : `Il ristorante ha completato il tuo ordine #${orderNumber}.`;
+      const readyEn =
+        type === 'asporto'
+          ? `Your order #${orderNumber} is ready: you can come and collect it.`
+          : `The restaurant has completed your order #${orderNumber}.`;
+      emailHtml = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #334155;">
+          <h2 style="color: #10b981; text-align: center; margin-top: 0; margin-bottom: 5px; font-size: 22px; font-weight: 800;">Ordine Pronto! / Order Ready!</h2>
+          <p style="text-align: center; color: #64748b; font-size: 14px; margin-top: 0; margin-bottom: 25px;">Ristorante / Restaurant: <strong>${restaurantName}</strong></p>
+          <div style="margin-bottom: 10px; line-height: 1.6; font-size: 15px;">
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #0f172a;">Ciao ${customerName},</p>
+            <p style="margin: 0; color: #475569;">${readyIt}</p>
+          </div>
+          <div style="margin-bottom: 10px; line-height: 1.6; font-size: 14px; color: #64748b; font-style: italic;">
+            <p style="margin: 0;">${readyEn}</p>
+          </div>
+          ${type === 'asporto' && pickupAddress ? `
+          <div style="background-color: #f8fafc; padding: 16px 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #e2e8f0; font-size: 14px; line-height: 1.7;">
+            <p style="margin: 0;"><strong>Dove ritirare / Where to collect:</strong><br/>${esc(pickupAddress)}</p>
+            <p style="margin: 10px 0 0 0;"><a href="${mapsUrl}" style="color: #f97316; font-weight: bold; text-decoration: none;">Indicazioni stradali / Directions &rarr;</a></p>
+          </div>` : ''}
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${trackingUrl}" style="background-color: #f97316; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">Vedi l'ordine / View order</a>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0 15px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6;">
+            Grazie per aver ordinato tramite / Thank you for ordering via <strong>iGOdelivering</strong>.
+          </p>
+        </div>
+      `;
     } else if (status === 'cancelled' || status === 'rejected') {
-      subject = `Ordine Annullato - ${restaurantName} #${orderNumber}`;
+      subject = `Ordine Annullato - ${restaurantNameRaw} #${orderNumber}`;
       // Il rimborso si promette solo se c'è stato davvero: ordine pagato
       // online e rimborsato da /api/order/cancel (A10). Per contanti e POS
       // non è stato addebitato nulla.

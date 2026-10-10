@@ -6,6 +6,25 @@
  * una settimana fa mostrerebbe ordini ancora "da accettare".
  */
 
+import { nowInZone } from '@/lib/serviceHours';
+
+const romeDayOf = (d: Date | string) => nowInZone('Europe/Rome', new Date(d)).date;
+
+/**
+ * Accettato ma da servire in un altro giorno: finché non arriva quel giorno l'ordine è
+ * "programmato" e non è in cucina. A mezzanotte di Roma passa da solo in cucina; non serve
+ * uno stato in più nel database, si ricava dall'orario.
+ */
+export const isScheduledLater = (
+  o: { status?: string | null; scheduled_at?: string | null; scheduledAt?: string | null },
+  now = Date.now()
+): boolean => {
+  const st = String(o.status ?? '');
+  const at = o.scheduled_at || o.scheduledAt;
+  if (!at || (st !== 'accepted' && st !== 'preparing')) return false;
+  return romeDayOf(at) > romeDayOf(new Date(now));
+};
+
 export type OrderTone = 'success' | 'danger' | 'info' | 'warning' | 'primary' | 'neutral';
 
 export interface OrderLike {
@@ -18,6 +37,7 @@ export interface OrderLike {
 
 /** Stato effettivo: 'new'/'pending' scaduti e non incassati diventano 'expired'. */
 export const effectiveStatus = (o: OrderLike, now = Date.now()): string => {
+  if (isScheduledLater(o, now)) return 'scheduled';
   const st = String(o.status ?? '');
   if (st !== 'new' && st !== 'pending') return st;
   if (o.payment_status === 'paid' || o.payment_status === 'partially_refunded') return st;
@@ -29,10 +49,11 @@ export const effectiveStatus = (o: OrderLike, now = Date.now()): string => {
 export const STATUS_LABEL: Record<string, string> = {
   new: 'Da accettare',
   pending: 'Da accettare',
-  accepted: 'In corso',
-  preparing: 'In corso',
-  ready: 'In corso',
-  delivering: 'In corso',
+  scheduled: 'Programmato',
+  accepted: 'In cucina',
+  preparing: 'In cucina',
+  ready: 'In cucina',
+  delivering: 'In cucina',
   delivered: 'Consegnato',
   completed: 'Consegnato',
   cancelled: 'Annullato',
@@ -51,6 +72,8 @@ export const statusTone = (status: string): OrderTone => {
     case 'rejected':
     case 'expired':
       return 'danger';
+    case 'scheduled':
+      return 'primary';
     case 'accepted':
     case 'preparing':
     case 'ready':
