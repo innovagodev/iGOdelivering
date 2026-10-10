@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.53.1](https://github.com/innovagodev/iGOdelivering/compare/v1.53.0...v1.53.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **prenotazioni:** conferma più robusta, niente ordini vuoti né doppi, layout della scheda ridisegnato ([85e55ea](https://github.com/innovagodev/iGOdelivering/commit/85e55eac0393d0a486b7801426ce6d635a1a5820))
+
 ## [1.53.0](https://github.com/innovagodev/iGOdelivering/compare/v1.52.0...v1.53.0) (2026-10-10)
 
 
