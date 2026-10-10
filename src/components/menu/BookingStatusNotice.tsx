@@ -27,6 +27,8 @@ interface Props {
   initialDeadline?: string | null;
   initialMode?: string | null;
   restaurantPhone?: string;
+  /** Avvisa la finestra che lo contiene quando lo stato cambia (titolo, icona, testi). */
+  onStatusChange?: (status: Status) => void;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -37,6 +39,7 @@ export default function BookingStatusNotice({
   initialDeadline,
   initialMode,
   restaurantPhone,
+  onStatusChange,
 }: Props) {
   const [status, setStatus] = useState<Status>('pending');
   const [deadline, setDeadline] = useState<string | null>(initialDeadline ?? null);
@@ -44,6 +47,11 @@ export default function BookingStatusNotice({
   const [now, setNow] = useState(() => Date.now());
   const statusRef = useRef<Status>('pending');
   statusRef.current = status;
+
+  useEffect(() => {
+    onStatusChange?.(status);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   // Stato dal server.
   useEffect(() => {
@@ -88,7 +96,9 @@ export default function BookingStatusNotice({
       <div className="flex items-start gap-2 rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-left text-xs text-green-800 dark:text-green-300">
         <Check size={16} className="mt-0.5 flex-shrink-0" />
         <span className="font-semibold">
-          {it ? 'Prenotazione confermata dal ristorante!' : 'Booking confirmed by the restaurant!'}
+          {it
+            ? 'Ti aspettiamo! I dettagli sono anche nella tua email.'
+            : 'We look forward to seeing you! The details are also in your email.'}
         </span>
       </div>
     );

@@ -4166,6 +4166,8 @@ function StorefrontContent() {
   const bookingEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingEmail.trim());
   const [bookingNote, setBookingNote] = useState('');
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  // Com'è andata la richiesta (la aggiorna BookingStatusNotice): cambia titolo, icona e testi.
+  const [bookingOutcome, setBookingOutcome] = useState<'pending' | 'confirmed' | 'cancelled' | 'expired'>('pending');
   const [bookingWithPreOrder, setBookingWithPreOrder] = useState(false);
   const [bookingPreOrderItems, setBookingPreOrderItems] = useState<CartItem[]>([]);
   const [bookingStep, setBookingStep] = useState<'info' | 'preorder' | 'summary'>('info');
@@ -6405,11 +6407,20 @@ function StorefrontContent() {
               {bookingConfirmed ? (
                 <div className="px-6 py-10 text-center space-y-4">
                   <div className="flex items-center justify-center mx-auto">
-                    <Check size={48} className="text-[var(--success)]" />
+                    {bookingOutcome === 'cancelled' || bookingOutcome === 'expired' ? (
+                      <X size={48} className="text-[var(--danger)]" />
+                    ) : (
+                      <Check size={48} className="text-[var(--success)]" />
+                    )}
                   </div>
                   <div>
+                    {/* All'inizio conta che la richiesta sia partita; poi conta com'è andata. */}
                     <h4 className="text-lg font-bold text-foreground mb-1">
-                      {t('booking_sent')}
+                      {bookingOutcome === 'confirmed'
+                        ? t('booking_confirmed_title')
+                        : bookingOutcome === 'cancelled' || bookingOutcome === 'expired'
+                          ? t('booking_declined_title')
+                          : t('booking_sent')}
                     </h4>
                     {lastCreatedOrder?.id && lastCreatedOrder?.type === 'prenotazione_tavolo' ? (
                       <div className="mt-3">
@@ -6419,6 +6430,7 @@ function StorefrontContent() {
                           initialDeadline={lastCreatedOrder.accept_deadline}
                           initialMode={lastCreatedOrder.acceptance_mode}
                           restaurantPhone={restaurantSettings?.phone || ''}
+                          onStatusChange={setBookingOutcome}
                         />
                       </div>
                     ) : (
@@ -6426,9 +6438,12 @@ function StorefrontContent() {
                         {t('booking_sent_desc')}
                       </p>
                     )}
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {t('booking_email_notice', { email: bookingEmail.trim() })}
-                    </p>
+                    {/* "Ti scriveremo" ha senso solo finché si aspetta la risposta. */}
+                    {bookingOutcome === 'pending' && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {t('booking_email_notice', { email: bookingEmail.trim() })}
+                      </p>
+                    )}
                   </div>
                   <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2.5 text-sm">
                     <div className="flex items-center gap-2 text-foreground font-medium">
@@ -6691,6 +6706,7 @@ function StorefrontContent() {
                         JSON.stringify(trackedBooking)
                       );
 
+                      setBookingOutcome('pending');
                       setBookingConfirmed(true);
                     } catch (err: any) {
                       console.error('Error saving booking:', err);

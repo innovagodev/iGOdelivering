@@ -16,6 +16,8 @@ export const STORAGE_KEYS = {
   promos: (restaurantId: string) => `iGO_promos_${restaurantId}`,
   bookings: (restaurantId: string) => `iGO_bookings_${restaurantId}`,
   orders: (restaurantId: string) => `iGO_orders_${restaurantId}`,
+  /** Numero di prenotazioni in attesa di risposta: lo scrive il provider audio, lo legge la sidebar. */
+  pendingBookings: (restaurantId: string) => `iGO_pending_bookings_${restaurantId}`,
   tables: (restaurantId: string) => `iGO_tables_${restaurantId}`,
   serviceHours: (restaurantId: string) => `iGO_service_hours_${restaurantId}`,
   guestInfo: (restaurantId: string) => `iGO_guest_${restaurantId}`,

@@ -155,6 +155,7 @@ export default function Sidebar({
   const pathname = usePathname();
   const { user } = useAuth();
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
 
   // Sidebar adattiva: da 1024px è fissa, ma tra 1024 e 1280px (tablet in
   // orizzontale, laptop piccoli) parte compressa per lasciare spazio ai
@@ -228,6 +229,26 @@ export default function Sidebar({
     };
   }, [role, user]);
 
+  // Prenotazioni in attesa: il numero lo scrive il provider audio (Realtime).
+  useEffect(() => {
+    if (role !== 'ristoratore' || !user?.restaurantId) return;
+    const restaurantId = user.restaurantId;
+    const read = () => {
+      try {
+        setPendingBookingsCount(Number(localStorage.getItem(STORAGE_KEYS.pendingBookings(restaurantId))) || 0);
+      } catch {
+        /* storage non disponibile */
+      }
+    };
+    read();
+    window.addEventListener('iGO_bookings_count', read);
+    window.addEventListener('storage', read);
+    return () => {
+      window.removeEventListener('iGO_bookings_count', read);
+      window.removeEventListener('storage', read);
+    };
+  }, [role, user]);
+
   const handleToggleClick = () => {
     const next = !collapsed;
     try {
@@ -256,6 +277,9 @@ export default function Sidebar({
   const navItems = rawItems.map((item) => {
     if (item.id === 'nav-ordini') {
       return { ...item, badge: pendingOrdersCount };
+    }
+    if (item.id === 'nav-prenotazioni') {
+      return { ...item, badge: pendingBookingsCount };
     }
     return item;
   });

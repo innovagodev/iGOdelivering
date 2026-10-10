@@ -97,7 +97,126 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
 
   // Internal: play the alarm immediately, no throttle check.
   // Used by the repeat-alarm loop so it always fires at the right time.
+  // Voci registrate ("Nuovo ordine!", "Nuova prenotazione!"): si caricano una volta e si
+  // riproducono con lo stesso AudioContext già autorizzato dal clic. Se un file non si
+  // carica, suona il segnale a toni di prima.
+  const clipCacheRef = useRef<Record<string, AudioBuffer | null>>({});
+  const getContext = (): AudioContext | null => {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!audioCtxRef.current) audioCtxRef.current = new AudioContextClass();
+    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+    return audioCtxRef.current;
+  };
+  const loadClip = async (url: string): Promise<AudioBuffer | null> => {
+    const cache = clipCacheRef.current;
+    if (url in cache) return cache[url];
+    try {
+      const ctx = getContext();
+      if (!ctx) throw new Error('AudioContext non disponibile');
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      cache[url] = await ctx.decodeAudioData(await res.arrayBuffer());
+    } catch (e) {
+      console.warn('Audio non caricato, uso il segnale a toni:', url, e);
+      cache[url] = null;
+    }
+    return cache[url];
+  };
+  // Uscita comune con compressore e guadagno: alza il livello della voce, che da sola è più
+  // bassa di un allarme, senza distorcere. Il volume massimo resta quello del dispositivo.
+  const masterRef = useRef<AudioNode | null>(null);
+  const getMaster = (ctx: AudioContext): AudioNode => {
+    if (!masterRef.current) {
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -20;
+      comp.knee.value = 12;
+      comp.ratio.value = 8;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.2;
+      const gain = ctx.createGain();
+      gain.gain.value = 1.5;
+      // Limitatore in coda: i picchi non superano il fondo scala (niente distorsione).
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -3;
+      limiter.knee.value = 0;
+      limiter.ratio.value = 20;
+      limiter.attack.value = 0.001;
+      limiter.release.value = 0.08;
+      const trim = ctx.createGain();
+      trim.gain.value = 0.9;
+      comp.connect(gain);
+      gain.connect(limiter);
+      limiter.connect(trim);
+      trim.connect(ctx.destination);
+      masterRef.current = comp;
+    }
+    return masterRef.current;
+  };
+
+  // Campanella brillante: fondamentale e due armoniche, attacco netto, caduta rapida.
+  const bell = (ctx: AudioContext, out: AudioNode, freq: number, at: number, decay: number, peak: number) => {
+    [
+      [1, 1],
+      [2.76, 0.5],
+      [5.4, 0.25],
+    ].forEach(([ratio, amp]) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq * ratio;
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(peak * amp, at + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.001, at + decay);
+      osc.connect(g);
+      g.connect(out);
+      osc.start(at);
+      osc.stop(at + decay + 0.05);
+    });
+  };
+
+  // "Din" iniziale, diverso per i due avvisi, poi la voce:
+  //  ordine        → doppio din acuto e rapido (più urgente)
+  //  prenotazione  → un solo din più pieno (meno incalzante)
+  const playClip = async (url: string, kind: 'order' | 'booking', fallback: () => void) => {
+    const buffer = await loadClip(url);
+    const ctx = getContext();
+    if (!buffer || !ctx) {
+      fallback();
+      return;
+    }
+    const out = getMaster(ctx);
+    const t0 = ctx.currentTime + 0.03;
+    let voiceAt: number;
+    if (kind === 'order') {
+      bell(ctx, out, 1318.5, t0, 0.55, 0.9);
+      bell(ctx, out, 1568, t0 + 0.17, 0.7, 0.9);
+      voiceAt = t0 + 0.6;
+    } else {
+      bell(ctx, out, 659.25, t0, 1.0, 0.7);
+      bell(ctx, out, 987.77, t0, 1.0, 0.55);
+      voiceAt = t0 + 0.7;
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(out);
+    source.start(voiceAt);
+  };
+  // Precarica le voci appena l'audio è attivo, così il primo avviso non arriva in ritardo.
+  useEffect(() => {
+    if (!isAudioEnabled) return;
+    void loadClip('/sounds/nuovo-ordine.mp3');
+    void loadClip('/sounds/nuova-prenotazione.mp3');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAudioEnabled]);
+
   const playNow = () => {
+    if (isMuted || !isAudioEnabled) return;
+    void playClip('/sounds/nuovo-ordine.mp3', 'order', playOrderTones);
+  };
+
+  // Segnale a toni degli ordini (ripiego).
+  const playOrderTones = () => {
     if (isMuted || !isAudioEnabled) return;
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -367,6 +486,160 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
   }, [restaurantId]); // NOTE: isMuted intentionally excluded — toggling mute must NOT tear down and
   // recreate the Supabase channel, which would risk missing order events during reconnect.
   // isMuted is read via closure at playAlert() call time, which is sufficient.
+
+  // ─── Prenotazioni: badge, suono e aggiornamento in tempo reale ──────────────
+  // Il suono è diverso da quello degli ordini (tre note che salgono, più morbide della
+  // sirena a due toni), così il ristoratore capisce a orecchio che cosa è arrivato.
+  const audioStateRef = useRef({ isMuted, isAudioEnabled });
+  audioStateRef.current = { isMuted, isAudioEnabled };
+  const [pendingBookings, setPendingBookings] = useState<{ id: string; accept_deadline: string | null }[]>([]);
+  const [bookingTick, setBookingTick] = useState(0);
+  const seenBookingIdsRef = useRef<Set<string>>(new Set());
+  const lastBookingPlayedRef = useRef(0);
+
+  const playBookingNow = () => {
+    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    if (muted || !enabled) return;
+    void playClip('/sounds/nuova-prenotazione.mp3', 'booking', playBookingChime);
+  };
+
+  // Campanello a tre note delle prenotazioni (ripiego).
+  const playBookingChime = () => {
+    const { isMuted: muted, isAudioEnabled: enabled } = audioStateRef.current;
+    if (muted || !enabled) return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContextClass();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+      const note = (freq: number, at: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, at);
+        gain.gain.linearRampToValueAtTime(0.7, at + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, at + 0.55);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + 0.6);
+      };
+      // Do-mi-sol: un campanello, non un allarme.
+      note(523.25, ctx.currentTime);
+      note(659.25, ctx.currentTime + 0.18);
+      note(783.99, ctx.currentTime + 0.36);
+    } catch (e) {
+      console.error('Booking sound failed:', e);
+    }
+  };
+
+  const playBookingAlert = () => {
+    const now = Date.now();
+    if (now - lastBookingPlayedRef.current < 3000) return;
+    lastBookingPlayedRef.current = now;
+    playBookingNow();
+  };
+
+  // Una prenotazione con la scadenza passata non si può più confermare: non conta e non suona.
+  const livePendingBookings = pendingBookings.filter(
+    (b) => !b.accept_deadline || new Date(b.accept_deadline).getTime() > Date.now()
+  );
+  const livePendingCount = livePendingBookings.length;
+  void bookingTick;
+
+  // Scadenze: si rivaluta ogni 15 secondi senza rileggere il database.
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    const id = setInterval(() => setBookingTick((n) => n + 1), 15000);
+    return () => clearInterval(id);
+  }, [restaurantId]);
+
+  // Il numero per la sidebar.
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.pendingBookings(restaurantId), String(livePendingCount));
+    } catch {
+      /* storage non disponibile */
+    }
+    window.dispatchEvent(new CustomEvent('iGO_bookings_count'));
+  }, [restaurantId, livePendingCount]);
+
+  // Finché ce ne sono in attesa il campanello si ripete, con calma.
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001' || !isAudioEnabled || isMuted || livePendingCount === 0) return;
+    const id = setInterval(() => playBookingNow(), 30000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId, isAudioEnabled, isMuted, livePendingCount > 0]);
+
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    seenBookingIdsRef.current = new Set();
+
+    const readPending = async () => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('id, accept_deadline')
+        .eq('restaurant_id', restaurantId)
+        .eq('status', 'pending');
+      if (error || !data) return null;
+      return data as { id: string; accept_deadline: string | null }[];
+    };
+
+    // Lettura iniziale: quelle già in attesa non suonano all'apertura della pagina.
+    readPending().then((data) => {
+      if (!data) return;
+      data.forEach((b) => seenBookingIdsRef.current.add(b.id));
+      setPendingBookings(data);
+    });
+
+    // Raggruppa gli eventi ravvicinati in una sola rilettura e avvisa la pagina Prenotazioni.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (timer) return;
+      timer = setTimeout(async () => {
+        timer = null;
+        const data = await readPending();
+        if (data) setPendingBookings(data);
+        window.dispatchEvent(new CustomEvent('iGO_bookings_changed'));
+      }, 600);
+    };
+
+    const channel = supabase
+      .channel(`bookings-audio:${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings', filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          const rec = payload.new as any;
+          if (rec && rec.status === 'pending' && rec.id && !seenBookingIdsRef.current.has(rec.id)) {
+            seenBookingIdsRef.current.add(rec.id);
+            playBookingAlert();
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification('Nuova prenotazione!', {
+                  body: `${rec.guests || ''} persone · ${rec.date || ''} ${String(rec.time || '').slice(0, 5)}`,
+                  icon: '/favicon.ico',
+                });
+              } catch {
+                /* alcuni browser mobili non permettono Notification() qui */
+              }
+            }
+          }
+          scheduleRefetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId]);
 
   const handleEnableAudio = () => {
     try {

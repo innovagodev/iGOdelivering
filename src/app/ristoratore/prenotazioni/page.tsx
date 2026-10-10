@@ -248,6 +248,16 @@ export default function PrenotazioniPage() {
     fetchCapacity();
   }, [restaurantId]);
 
+  // Tempo reale: il provider audio (ristoratore/layout) ascolta le prenotazioni e avvisa qui
+  // quando ne arriva una o ne cambia lo stato, così l'elenco non richiede il refresh a mano.
+  useEffect(() => {
+    if (!restaurantId || restaurantId === 'r-001') return;
+    const onChanged = () => fetchBookings();
+    window.addEventListener('iGO_bookings_changed', onChanged);
+    return () => window.removeEventListener('iGO_bookings_changed', onChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId]);
+
   const handleOpenAddModal = () => {
     setEditingBooking(null);
     setName('');
