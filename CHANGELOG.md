@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.50.0](https://github.com/innovagodev/iGOdelivering/compare/v1.49.0...v1.50.0) (2026-10-10)
+
+
+### Features
+
+* **vetrina): barra della consegna gratuita nel passaggio Dati; feat(sicurezza:** intestazioni di sicurezza e limiti dei bucket immagini ([c868dfc](https://github.com/innovagodev/iGOdelivering/commit/c868dfc9cbd01f28cd3a2248a31c1e1efd83e2e6))
+
 ## [1.49.0](https://github.com/innovagodev/iGOdelivering/compare/v1.48.4...v1.49.0) (2026-10-09)
 
 
