@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.52.0](https://github.com/innovagodev/iGOdelivering/compare/v1.51.0...v1.52.0) (2026-10-10)
+
+
+### Features
+
+* **prenotazioni:** badge, tempo reale e avviso sonoro con voce; conferma del tavolo chiara per il cliente ([3031870](https://github.com/innovagodev/iGOdelivering/commit/30318701a613d27ff6b59a7789b38c4271e095a6))
+
 ## [1.51.0](https://github.com/innovagodev/iGOdelivering/compare/v1.50.1...v1.51.0) (2026-10-10)
 
 
