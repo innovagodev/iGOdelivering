@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import { SlidersHorizontal, Play, Bell } from 'lucide-react';
+import Toggle from '@/components/ui/Toggle';
 import {
   DEFAULT_AUDIO_SETTINGS,
   useAudioNotification,
@@ -18,7 +19,8 @@ const label = (seconds: number) =>
  * averle diverse) e le cambia solo chi è dentro il pannello del ristorante.
  */
 export default function AudioSettings() {
-  const { audioSettings, setAudioSettings, playTestSound, isAudioEnabled } = useAudioNotification();
+  const { audioSettings, setAudioSettings, playTestSound, isAudioEnabled, isMuted, setIsMuted, isBookingsMuted, setIsBookingsMuted } =
+    useAudioNotification();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -105,7 +107,19 @@ export default function AudioSettings() {
           aria-label="Impostazioni dei suoni"
           className="fixed inset-x-4 top-16 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-modal"
         >
-          <div>
+          <div className="space-y-2.5">
+            <p className="text-sm font-bold text-foreground">Suoni attivi</p>
+            {[
+              { label: 'Nuovi ordini', on: !isMuted, set: (v: boolean) => setIsMuted(!v) },
+              { label: 'Nuove prenotazioni', on: !isBookingsMuted, set: (v: boolean) => setIsBookingsMuted(!v) },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center justify-between gap-3">
+                <span className="text-sm text-foreground">{row.label}</span>
+                <Toggle checked={row.on} onChange={row.set} />
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border pt-3">
             <p className="text-sm font-bold text-foreground">Promemoria dei suoni</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Il primo avviso ha la voce, poi si ripete solo il suono. Vale su questo dispositivo.

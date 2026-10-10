@@ -184,31 +184,48 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
     return masterRef.current;
   };
 
-  // Campanella brillante: fondamentale e due armoniche, attacco netto, caduta rapida.
-  const bell = (ctx: AudioContext, out: AudioNode, freq: number, at: number, decay: number, peak: number) => {
-    [
-      [1, 1],
-      [2.76, 0.5],
-      [5.4, 0.25],
-    ].forEach(([ratio, amp]) => {
+  // Una nota come somma di parziali [rapporto, ampiezza, durata relativa]: attacco netto, caduta esponenziale.
+  // DESK = campanello da banco (metallico, brillante); PLUCK = pizzico d'arpa (elegante, morbido).
+  const DESK: number[][] = [
+    [1, 1],
+    [2.32, 0.55, 0.7],
+    [3.0, 0.35, 0.5],
+    [4.17, 0.25, 0.35],
+  ];
+  const PLUCK: number[][] = [
+    [1, 1],
+    [2, 0.35, 0.5],
+    [3, 0.12, 0.3],
+  ];
+  const bell = (
+    ctx: AudioContext,
+    out: AudioNode,
+    freq: number,
+    at: number,
+    decay: number,
+    peak: number,
+    partials: number[][]
+  ) => {
+    partials.forEach(([ratio, amp, rel]) => {
+      const dec = decay * (rel || 1);
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq * ratio;
       g.gain.setValueAtTime(0, at);
-      g.gain.linearRampToValueAtTime(peak * amp, at + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.001, at + decay);
+      g.gain.linearRampToValueAtTime(peak * amp, at + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.001, at + dec);
       osc.connect(g);
       g.connect(out);
       osc.start(at);
-      osc.stop(at + decay + 0.05);
+      osc.stop(at + dec + 0.05);
     });
   };
 
   // Un avviso è un "din" (diverso per i due tipi) e, solo la prima volta per ogni ordine o
   // prenotazione, la voce. I promemoria successivi sono il solo din: la voce ripetuta stanca.
-  //  ordine        → doppio din acuto e rapido (più urgente)
-  //  prenotazione  → un solo din più pieno (meno incalzante)
+  //  ordine        → "ding-ding" di campanello da banco, acuto e brillante
+  //  prenotazione  → arpeggio d'arpa di quattro note che salgono, elegante e morbido
   // Gli avvisi si mettono in coda: due ordini arrivati insieme non si coprono e nessuno si perde.
   const nextFreeRef = useRef(0);
   const CLIP_URL = { order: '/sounds/nuovo-ordine.mp3', booking: '/sounds/nuova-prenotazione.mp3' };
@@ -219,16 +236,15 @@ export function AudioNotificationProvider({ children }: { children: React.ReactN
       return;
     }
     const out = getMaster(ctx);
-    const dinLen = kind === 'order' ? 0.6 : 0.7;
+    const dinLen = kind === 'order' ? 0.6 : 0.75;
     const cached = clipCacheRef.current[CLIP_URL[kind]];
     const voiceLen = withVoice ? (cached ? cached.duration : 2.3) : 0;
     const t0 = Math.max(ctx.currentTime + 0.03, nextFreeRef.current);
     if (kind === 'order') {
-      bell(ctx, out, 1318.5, t0, 0.55, 0.9);
-      bell(ctx, out, 1568, t0 + 0.17, 0.7, 0.9);
+      bell(ctx, out, 2489, t0, 0.9, 0.9, DESK);
+      bell(ctx, out, 2489, t0 + 0.2, 1.1, 0.95, DESK);
     } else {
-      bell(ctx, out, 659.25, t0, 1.0, 0.7);
-      bell(ctx, out, 987.77, t0, 1.0, 0.55);
+      [1046.5, 1318.5, 1568, 2093].forEach((f, i) => bell(ctx, out, f, t0 + i * 0.1, 0.9 + i * 0.1, 0.7, PLUCK));
     }
     nextFreeRef.current = t0 + dinLen + (withVoice ? voiceLen + 0.3 : 0.3);
     if (!withVoice) return;

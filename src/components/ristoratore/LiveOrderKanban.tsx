@@ -1179,7 +1179,7 @@ export default function LiveOrderKanban() {
             }`}
           >
             {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-            <span className="hidden sm:inline">{isMuted ? 'Suoni off' : 'Suoni on'}</span>
+            <span className="hidden sm:inline">{isMuted ? 'Ordini off' : 'Ordini on'}</span>
           </button>
           <AudioSettings />
           <button

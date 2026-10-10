@@ -965,7 +965,7 @@ export default function PrenotazioniPage() {
               }`}
             >
               {isBookingsMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-              <span className="hidden sm:inline">{isBookingsMuted ? 'Suoni off' : 'Suoni on'}</span>
+              <span className="hidden sm:inline">{isBookingsMuted ? 'Prenotazioni off' : 'Prenotazioni on'}</span>
             </button>
             <AudioSettings />
             </div>
