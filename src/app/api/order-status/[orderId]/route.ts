@@ -22,10 +22,10 @@ import { expireBooking, expireOrder } from '@/lib/orderPayments';
  *
  * Response (order):
  *   { status, type: 'order', orderNumber, orderType, address, tableNumber,
- *     scheduledAt, createdAt,
+ *     scheduledAt, createdAt, updatedAt,
  *     items: [{ name, price, qty, note, addedIngredients, removedIngredients }],
  *     subtotal, deliveryFee, discount, total,
- *     restaurant: { name, slug } | null }
+ *     restaurant: { name, slug, phone, whatsapp, logoUrl, address, city, province, cap } | null }
  * Response (booking): { status, type: 'booking' }
  */
 export async function GET(
@@ -65,10 +65,10 @@ export async function GET(
     .select(
       `
       id, order_number, status, type, customer_address, table_number, scheduled_at,
-      created_at, subtotal, delivery_fee, discount, total,
+      created_at, updated_at, subtotal, delivery_fee, discount, total,
       payment_method, payment_status, payment_expires_at, accept_deadline, acceptance_mode,
       order_items ( name, price, qty, note, added_ingredients, removed_ingredients ),
-      restaurants ( name, slug )
+      restaurants ( name, slug, phone, whatsapp, logo_url, address, city, province, cap )
     `
     )
     .eq('id', orderId)
@@ -128,6 +128,7 @@ export async function GET(
       tableNumber: order.table_number,
       scheduledAt: order.scheduled_at,
       createdAt: order.created_at,
+      updatedAt: order.updated_at,
       items: (order.order_items || []).map((item: any) => ({
         name: item.name,
         price: parseFloat(item.price) || 0,
@@ -140,7 +141,20 @@ export async function GET(
       deliveryFee: parseFloat(order.delivery_fee) || 0,
       discount: parseFloat(order.discount) || 0,
       total: parseFloat(order.total) || 0,
-      restaurant: restaurant ? { name: restaurant.name, slug: restaurant.slug } : null,
+      // Solo dati già pubblici nella vetrina (contatti, logo, indirizzo del locale).
+      restaurant: restaurant
+        ? {
+            name: restaurant.name,
+            slug: restaurant.slug,
+            phone: restaurant.phone || null,
+            whatsapp: restaurant.whatsapp || null,
+            logoUrl: restaurant.logo_url || null,
+            address: restaurant.address || null,
+            city: restaurant.city || null,
+            province: restaurant.province || null,
+            cap: restaurant.cap || null,
+          }
+        : null,
     });
   }
 

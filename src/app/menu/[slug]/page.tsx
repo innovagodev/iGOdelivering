@@ -2251,7 +2251,7 @@ function CheckoutModal({
             restaurantId: rId,
             name: bookingContext.name,
             phone: bookingContext.phone,
-            email,
+            email: bookingContext.email || email,
             guests: bookingContext.guests,
             date: bookingContext.date,
             time: bookingContext.time,
@@ -4160,6 +4160,10 @@ function StorefrontContent() {
   const [bookingTime, setBookingTime] = useState('20:00');
   const [bookingName, setBookingName] = useState('');
   const [bookingPhone, setBookingPhone] = useState('');
+  // L'email è obbligatoria: è l'unico modo per dire al cliente se la prenotazione è
+  // stata confermata, modificata o annullata (niente SMS).
+  const [bookingEmail, setBookingEmail] = useState('');
+  const bookingEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bookingEmail.trim());
   const [bookingNote, setBookingNote] = useState('');
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [bookingWithPreOrder, setBookingWithPreOrder] = useState(false);
@@ -4172,6 +4176,7 @@ function StorefrontContent() {
     guests: number;
     name: string;
     phone: string;
+    email: string;
     note: string;
   } | null>(null);
 
@@ -4824,6 +4829,7 @@ function StorefrontContent() {
         const data = JSON.parse(saved);
         if (data.name) setBookingName(data.name);
         if (data.phone) setBookingPhone(data.phone);
+        if (data.email) setBookingEmail(data.email);
       }
       setBookingDate(getCurrentDateStr());
     } catch (err) {
@@ -6420,6 +6426,9 @@ function StorefrontContent() {
                         {t('booking_sent_desc')}
                       </p>
                     )}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {t('booking_email_notice', { email: bookingEmail.trim() })}
+                    </p>
                   </div>
                   <div className="bg-muted/60 rounded-2xl p-4 text-left space-y-2.5 text-sm">
                     <div className="flex items-center gap-2 text-foreground font-medium">
@@ -6575,6 +6584,29 @@ function StorefrontContent() {
                     </div>
                   </div>
 
+                  {/* Email */}
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      {t('checkout_email')} *
+                    </label>
+                    <input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={bookingEmail}
+                      onChange={(e) => setBookingEmail(e.target.value)}
+                      placeholder="mario.rossi@email.com"
+                      className="w-full px-3 py-2.5 text-sm bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--success)]/40 transition-colors"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {bookingEmail && !bookingEmailValid ? (
+                        <span className="text-[var(--danger)] font-semibold">{t('checkout_email_invalid')}</span>
+                      ) : (
+                        t('booking_email_hint')
+                      )}
+                    </p>
+                  </div>
+
                   {/* Notes */}
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
@@ -6607,14 +6639,15 @@ function StorefrontContent() {
                     !bookingTime ||
                     bookingGuests < 1 ||
                     !bookingName.trim() ||
-                    !bookingPhone.trim()
+                    !bookingPhone.trim() ||
+                    !bookingEmailValid
                   }
                   onClick={async () => {
                     // Submit Solo Tavolo
                     try {
                       localStorage.setItem(
                         'iGO_booking_info',
-                        JSON.stringify({ name: bookingName, phone: bookingPhone })
+                        JSON.stringify({ name: bookingName, phone: bookingPhone, email: bookingEmail.trim() })
                       );
                       const rId = restaurantSettings?.id;
                       if (!rId) {
@@ -6631,6 +6664,7 @@ function StorefrontContent() {
                           restaurantId: rId,
                           name: bookingName,
                           phone: bookingPhone,
+                          email: bookingEmail.trim(),
                           guests: bookingGuests,
                           date: bookingDate,
                           time: bookingTime,
@@ -6673,7 +6707,8 @@ function StorefrontContent() {
                     !bookingTime ||
                     bookingGuests < 1 ||
                     !bookingName.trim() ||
-                    !bookingPhone.trim()
+                    !bookingPhone.trim() ||
+                    !bookingEmailValid
                   }
                   onClick={async () => {
                     // Ordina anche il cibo
@@ -6692,11 +6727,20 @@ function StorefrontContent() {
                     setBookingContext({
                       name: bookingName.trim(),
                       phone: bookingPhone.trim(),
+                      email: bookingEmail.trim(),
                       guests: bookingGuests,
                       date: bookingDate,
                       time: bookingTime,
                       note: bookingNote.trim(),
                     });
+                    try {
+                      localStorage.setItem(
+                        'iGO_booking_info',
+                        JSON.stringify({ name: bookingName, phone: bookingPhone, email: bookingEmail.trim() })
+                      );
+                    } catch {
+                      /* storage non disponibile */
+                    }
                     // Un cliente già al tavolo (QR) non ha una modalità a cui tornare.
                     setDeliveryTypeBeforeBooking(deliveryType === 'tavolo' ? null : deliveryType);
                     setDeliveryType('tavolo');

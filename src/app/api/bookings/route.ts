@@ -81,7 +81,11 @@ export async function POST(request: Request) {
   const guests = body.guests;
 
   if (!name || !phone || normalizePhone(phone) === undefined) return reply(invalid);
-  if (email && !EMAIL_RE.test(email)) return reply(invalid);
+  // L'email è obbligatoria: senza SMS è l'unico canale per dire al cliente se la
+  // prenotazione è confermata, modificata o annullata.
+  if (!email || !EMAIL_RE.test(email)) {
+    return reply(fail(400, 'email_required', 'Inserisci un indirizzo email valido: ti scriveremo la risposta del ristorante.'));
+  }
   if (!Number.isInteger(guests) || (guests as number) < 1 || (guests as number) > 100) {
     return reply(invalid);
   }

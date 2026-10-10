@@ -279,6 +279,32 @@ export default function PrenotazioniPage() {
     setShowModal(true);
   };
 
+  // Avvisa il cliente per email (non ci sono SMS). Il server non invia nulla se la
+  // prenotazione non ha un indirizzo: in quel caso il ristoratore lo sa e richiama.
+  const sendBookingEmail = async (
+    id: string,
+    event: 'confirmed' | 'modified' | 'cancelled',
+    quietIfNoEmail = false
+  ) => {
+    try {
+      const res = await fetch('/api/booking/send-status-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: id, event }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'invio non riuscito');
+      if (data.skipped === 'no_email') {
+        if (!quietIfNoEmail) notify.info('Prenotazione senza email: avvisa il cliente al telefono.');
+        return;
+      }
+      notify.success('Email inviata al cliente.');
+    } catch (e) {
+      console.error('[prenotazioni] email al cliente:', e);
+      notify.error("Prenotazione aggiornata, ma l'email al cliente non è partita.");
+    }
+  };
+
   const handleUpdateStatus = async (
     id: string,
     newStatus: 'pending' | 'confirmed' | 'cancelled'
@@ -372,6 +398,9 @@ export default function PrenotazioniPage() {
 
       if (error) throw error;
 
+      // Il cliente sa com'è andata: confermata (con ordine e tracker se c'è il pre-ordine) o annullata.
+      if (newStatus !== 'pending') await sendBookingEmail(id, newStatus);
+
       // Refetch bookings to update state
       await fetchBookings();
     } catch (e) {
@@ -418,17 +447,41 @@ export default function PrenotazioniPage() {
       };
 
       if (editingBooking) {
+        const newTime = time.slice(0, 5);
+        const changedDetails =
+          date !== editingBooking.date ||
+          newTime !== editingBooking.time ||
+          (Number(guests) || 2) !== editingBooking.guests;
+        const statusChanged = status !== editingBooking.status;
+        // Lo stato lo cambia handleUpdateStatus (crea l'ordine del pre-ordine e avvisa il
+        // cliente): qui si salvano solo i dati, con lo stato com'era.
+        const { status: _ignored, ...dataOnly } = bookingPayload;
         const { error } = await supabase
           .from('bookings')
-          .update(bookingPayload)
+          .update(dataOnly)
           .eq('id', editingBooking.id);
         if (error) throw error;
+
+        setShowModal(false);
+        if (statusChanged) {
+          await handleUpdateStatus(editingBooking.id, status);
+        } else if (changedDetails && editingBooking.status === 'confirmed') {
+          await sendBookingEmail(editingBooking.id, 'modified');
+        }
       } else {
-        const { error } = await supabase.from('bookings').insert(bookingPayload);
+        const { data: created, error } = await supabase
+          .from('bookings')
+          .insert(bookingPayload)
+          .select('id')
+          .single();
         if (error) throw error;
+        setShowModal(false);
+        // Prenotazione presa dal locale (telefono, di persona): se c'è l'email, conferma al cliente.
+        if (created && status === 'confirmed' && email.trim()) {
+          await sendBookingEmail(created.id, 'confirmed', true);
+        }
       }
 
-      setShowModal(false);
       await fetchBookings();
     } catch (e) {
       console.error('Error saving booking:', e);
@@ -725,69 +778,48 @@ export default function PrenotazioniPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {filteredBookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className={`p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-muted/30 transition-all duration-200 border-l-4 ${
-                        booking.status === 'confirmed'
-                          ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
-                          : booking.status === 'cancelled'
-                            ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
-                            : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
-                      }`}
-                    >
-                      {/* Date & Time Widget */}
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="w-12 h-12 rounded-lg bg-card border border-border flex flex-col items-center justify-center shadow-sm">
-                          <span className="text-[11px] uppercase font-bold text-primary tracking-wider">
-                                {new Date(booking.date).toLocaleDateString('it-IT', {
-                                  month: 'short',
-                                })}
-                          </span>
-                          <span className="text-base font-extrabold text-foreground leading-none">
-                                {new Date(booking.date).toLocaleDateString('it-IT', {
-                                  day: 'numeric',
-                                })}
-                          </span>
+                  {filteredBookings.map((booking) => {
+                    const day = new Date(`${booking.date}T12:00:00`);
+                    const occupied = booking.status !== 'cancelled' ? peakCovers(booking.date, booking.time) : null;
+                    const over = occupied !== null && capacity !== null && occupied > capacity;
+                    const hasPre = !!booking.preOrderItems && booking.preOrderItems.length > 0;
+                    return (
+                      <div
+                        key={booking.id}
+                        className={`p-4 grid gap-x-5 gap-y-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center hover:bg-muted/30 transition-colors border-l-4 ${
+                          booking.status === 'confirmed'
+                            ? 'border-l-[var(--success)] bg-[var(--success-bg)]/5'
+                            : booking.status === 'cancelled'
+                              ? 'border-l-muted-foreground/30 bg-muted/5 opacity-70'
+                              : 'border-l-[var(--info)] bg-[var(--info-bg)]/5'
+                        }`}
+                      >
+                        {/* Quando */}
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-card border border-border flex flex-col items-center justify-center shadow-sm flex-shrink-0">
+                            <span className="text-[11px] uppercase font-bold text-primary tracking-wider">
+                              {day.toLocaleDateString('it-IT', { month: 'short' })}
+                            </span>
+                            <span className="text-base font-extrabold text-foreground leading-none">
+                              {day.toLocaleDateString('it-IT', { day: 'numeric' })}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-xl font-extrabold text-foreground tabular-nums leading-none">
+                              {booking.time}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground capitalize mt-1">
+                              {day.toLocaleDateString('it-IT', { weekday: 'long' })}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-foreground flex items-center gap-1">
-                            <Clock size={12} className="text-muted-foreground" />
-                            {booking.time}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {new Date(booking.date).toLocaleDateString('it-IT', {
-                              weekday: 'short',
-                            })}
-                          </span>
-                        </div>
-                      </div>
 
-                      {/* Guest & Customer Info */}
-                      <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-center">
-                        <div>
-                          <h3 className="font-bold text-foreground text-sm truncate flex items-center gap-1.5">
-                            {booking.name}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="primary" className="text-[11px] px-1.5 py-0">
-                              {booking.guests} {booking.guests === 1 ? 'ospite' : 'ospiti'}
-                            </Badge>
-                                {booking.status !== 'cancelled' &&
-                                  (() => {
-                                    const occupied = peakCovers(booking.date, booking.time);
-                                    const over = capacity !== null && occupied > capacity;
-                                    return (
-                                      <Badge
-                                        variant={over ? 'danger' : 'neutral'}
-                                        className="text-[11px] px-1.5 py-0"
-                                      >
-                                        {capacity !== null
-                                          ? `Fascia ${occupied}/${capacity} coperti`
-                                          : `Fascia ${occupied} coperti`}
-                                      </Badge>
-                                    );
-                                  })()}
+                        {/* Chi, quanti, contatti, note */}
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <h3 className="font-bold text-foreground text-base truncate max-w-full">
+                              {booking.name}
+                            </h3>
                             <Badge
                               variant={
                                 booking.status === 'confirmed'
@@ -796,7 +828,7 @@ export default function PrenotazioniPage() {
                                     ? 'danger'
                                     : 'info'
                               }
-                              className="text-[11px] px-1.5 py-0"
+                              className="text-[11px] px-2 py-0 whitespace-nowrap"
                             >
                               {booking.status === 'confirmed'
                                 ? 'Confermata'
@@ -807,7 +839,7 @@ export default function PrenotazioniPage() {
                                   : 'In attesa'}
                             </Badge>
                             {booking.status === 'pending' && booking.acceptDeadline && (
-                              <span className="text-[11px] font-semibold text-amber-600">
+                              <span className="text-[11px] font-semibold text-amber-600 whitespace-nowrap">
                                 Rispondi entro{' '}
                                 {new Date(booking.acceptDeadline).toLocaleTimeString('it-IT', {
                                   hour: '2-digit',
@@ -816,63 +848,81 @@ export default function PrenotazioniPage() {
                               </span>
                             )}
                           </div>
-                        </div>
 
-                        <div className="text-xs text-muted-foreground space-y-0.5">
-                          <p className="flex items-center gap-1">
-                            <Phone size={12} className="text-muted-foreground/70" />
-                            {booking.phone}
-                          </p>
-                          {booking.email && (
-                            <p className="flex items-center gap-1 truncate">
-                              <Mail size={12} className="text-muted-foreground/70" />
-                              {booking.email}
-                            </p>
-                          )}
-                        </div>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 font-semibold text-foreground whitespace-nowrap">
+                              <Users size={12} className="text-primary" />
+                              {booking.guests} {booking.guests === 1 ? 'ospite' : 'ospiti'}
+                            </span>
+                            <a
+                              href={`tel:${booking.phone}`}
+                              className="inline-flex items-center gap-1 whitespace-nowrap hover:text-foreground"
+                            >
+                              <Phone size={12} className="text-muted-foreground/70" />
+                              {booking.phone}
+                            </a>
+                            {booking.email ? (
+                              <a
+                                href={`mailto:${booking.email}`}
+                                className="inline-flex items-center gap-1 min-w-0 hover:text-foreground"
+                              >
+                                <Mail size={12} className="text-muted-foreground/70 flex-shrink-0" />
+                                <span className="truncate">{booking.email}</span>
+                              </a>
+                            ) : (
+                              <span
+                                className="inline-flex items-center gap-1 text-amber-600 whitespace-nowrap"
+                                title="Senza email non si può avvisare il cliente: richiamalo"
+                              >
+                                <Mail size={12} /> senza email
+                              </span>
+                            )}
+                            {occupied !== null && (
+                              <span className={`whitespace-nowrap ${over ? 'font-semibold text-[var(--danger)]' : ''}`}>
+                                Fascia {occupied}
+                                {capacity !== null ? `/${capacity}` : ''} coperti
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="lg:col-span-1 space-y-2">
                           {booking.notes && (
-                            <div className="bg-background/80 p-2.5 rounded-lg border border-border/60 text-xs flex gap-1.5 max-w-xs lg:max-w-none">
-                              <MessageSquare
-                                size={12}
-                                className="text-primary/75 flex-shrink-0 mt-0.5"
-                              />
+                            <div className="bg-background/80 px-2.5 py-2 rounded-lg border border-border/60 text-xs flex gap-1.5">
+                              <MessageSquare size={12} className="text-primary/75 flex-shrink-0 mt-0.5" />
                               <p className="text-muted-foreground italic line-clamp-2 leading-tight">
                                 &quot;{booking.notes}&quot;
                               </p>
                             </div>
                           )}
-                          {booking.preOrderItems && booking.preOrderItems.length > 0 && (
-                            <div className="bg-green-500/5 dark:bg-green-950/10 p-2.5 rounded-lg border border-green-500/20 text-xs space-y-1.5 max-w-xs lg:max-w-none">
-                              <div className="flex items-center justify-between gap-1 text-green-700 dark:text-green-400 font-bold text-[11px] uppercase tracking-wider">
-                                <span>Pre-Ordine Cibo</span>
+                          {hasPre && (
+                            <div className="bg-green-500/5 dark:bg-green-950/10 px-2.5 py-2 rounded-lg border border-green-500/20 text-xs space-y-1">
+                              <div className="flex items-center justify-between gap-2 text-green-700 dark:text-green-400 font-bold text-[11px] uppercase tracking-wider">
+                                <span>Pre-ordine cibo</span>
                                 {booking.status === 'confirmed' && (
                                   <a
                                     href="/ristoratore/ordini"
-                                    className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[11px] px-2 py-0.5 rounded-full transition-colors shadow-sm cursor-pointer border border-transparent"
+                                    className="inline-flex items-center gap-0.5 bg-green-600 hover:bg-green-700 text-white font-bold text-[11px] px-2 py-0.5 rounded-full transition-colors"
                                   >
                                     In cucina &rarr;
                                   </a>
                                 )}
                               </div>
-                              <div className="space-y-1 font-medium text-foreground text-[11px]">
-                                {booking.preOrderItems.map((item: any, idx: number) => (
+                              <div className="space-y-0.5 font-medium text-foreground text-[11px]">
+                                {booking.preOrderItems!.map((item: any, idx: number) => (
                                   <div key={idx} className="flex justify-between gap-2">
                                     <span className="truncate">
                                       {item.qty}x {item.name}
                                     </span>
-                                    <span className="font-semibold text-muted-foreground">
+                                    <span className="font-semibold text-muted-foreground tabular-nums">
                                       €{(item.price * item.qty).toFixed(2)}
                                     </span>
                                   </div>
                                 ))}
-                                <div className="border-t border-green-500/15 pt-1 mt-1 flex justify-between font-bold text-green-700 dark:text-green-400">
-                                  <span>Totale:</span>
+                                <div className="border-t border-green-500/15 pt-1 mt-1 flex justify-between font-bold text-green-700 dark:text-green-400 tabular-nums">
+                                  <span>Totale</span>
                                   <span>
                                     €
-                                    {booking.preOrderItems
-                                      .reduce(
+                                    {booking
+                                      .preOrderItems!.reduce(
                                         (acc: number, item: any) => acc + item.price * item.qty,
                                         0
                                       )
@@ -882,73 +932,65 @@ export default function PrenotazioniPage() {
                               </div>
                             </div>
                           )}
-                          {!booking.notes &&
-                            (!booking.preOrderItems || booking.preOrderItems.length === 0) && (
-                              <span className="text-xs text-muted-foreground/40 italic">
-                                Nessuna nota
-                              </span>
-                            )}
                         </div>
-                      </div>
 
-                      {/* Quick Actions & Modify/Delete */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {booking.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm shadow-green-600/10 active:scale-95"
-                            >
-                              <Check size={12} />
-                              Conferma
-                            </button>
+                        {/* Azioni: su schermi stretti occupano tutta la riga */}
+                        <div className="flex items-center gap-2 lg:justify-end">
+                          {booking.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer shadow-sm active:scale-95"
+                              >
+                                <Check size={13} />
+                                Conferma
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
+                              >
+                                <X size={13} />
+                                Rifiuta
+                              </button>
+                            </>
+                          )}
+                          {booking.status === 'confirmed' && (
                             <button
                               onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
+                              className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
                             >
-                              <X size={12} />
-                              Rifiuta
+                              <X size={13} />
+                              Annulla
                             </button>
-                          </>
-                        )}
-                        {booking.status === 'confirmed' && (
+                          )}
+                          {booking.status === 'cancelled' && (
+                            <button
+                              onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
+                              className="flex-1 lg:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
+                            >
+                              <Check size={13} />
+                              Ripristina
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
+                            onClick={() => handleOpenEditModal(booking)}
+                            className="flex-1 lg:flex-none px-3 py-2 border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer active:scale-95"
+                            title="Modifica"
                           >
-                            <X size={12} />
-                            Annulla
+                            Modifica
                           </button>
-                        )}
-                        {booking.status === 'cancelled' && (
                           <button
-                            onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer active:scale-95"
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="flex-shrink-0 p-2 border border-red-100 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:scale-95"
+                            title="Elimina"
+                            aria-label="Elimina prenotazione"
                           >
-                            <Check size={12} />
-                            Ripristina
+                            <Trash2 size={14} />
                           </button>
-                        )}
-
-                        <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
-
-                        <button
-                          onClick={() => handleOpenEditModal(booking)}
-                          className="px-2.5 py-1.5 border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer active:scale-95"
-                          title="Modifica"
-                        >
-                          Modifica
-                        </button>
-                        <button
-                          onClick={() => handleDeleteBooking(booking.id)}
-                          className="p-1.5 border border-red-100 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:scale-95"
-                          title="Elimina"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

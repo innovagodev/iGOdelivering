@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Check,
-  Clock,
   ChefHat,
+  Send,
+  BellRing,
+  Bell,
   Bike,
-  Home,
   MapPin,
   Phone,
   MessageCircle,
@@ -15,88 +16,71 @@ import {
   ChevronRight,
   Package,
   AlertCircle,
+  XCircle,
+  Navigation,
 } from 'lucide-react';
-import AppLogo from '@/components/ui/AppLogo';
 import Link from 'next/link';
 import { useLang } from '@/context/LanguageContext';
 import type { TranslationKey } from '@/lib/i18n';
+import { mapsHref, safeHttpsHref, telHref, whatsappHref } from '@/lib/contacts';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Tipi ────────────────────────────────────────────────────────────────────
 
-type TrackingStatus = 'confirmed' | 'preparing' | 'ready' | 'delivering' | 'delivered';
+/**
+ * Quello che il cliente può sapere davvero. Il ristorante muove l'ordine in tre soli
+ * stati (da accettare → in preparazione → completato): il tracker mostra solo quelli,
+ * senza passaggi che nessuno può far avanzare (niente "in consegna": non c'è alcun dato
+ * sul corriere).
+ */
+type Stage = 'sent' | 'preparing' | 'ready' | 'cancelled' | 'rejected' | 'expired';
 
-interface TrackingStep {
-  id: TrackingStatus;
-  label: TranslationKey;
-  description: TranslationKey;
-  icon: React.ReactNode;
+interface RestaurantInfo {
+  name?: string;
+  slug?: string;
+  phone?: string | null;
+  whatsapp?: string | null;
+  logoUrl?: string | null;
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  cap?: string | null;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+const STAGE_ORDER: Stage[] = ['sent', 'preparing', 'ready'];
 
-const STEPS: TrackingStep[] = [
-  {
-    id: 'confirmed',
-    label: 'ord_step_confirmed',
-    description: 'ord_step_confirmed_d',
-    icon: <Check size={18} />,
-  },
-  {
-    id: 'preparing',
-    label: 'ord_step_preparing',
-    description: 'ord_step_preparing_d',
-    icon: <ChefHat size={18} />,
-  },
-  {
-    id: 'ready',
-    label: 'ord_step_ready',
-    description: 'ord_step_ready_d',
-    icon: <Clock size={18} />,
-  },
-  {
-    id: 'delivering',
-    label: 'ord_step_delivering',
-    description: 'ord_step_delivering_d',
-    icon: <Bike size={18} />,
-  },
-  {
-    id: 'delivered',
-    label: 'ord_step_delivered',
-    description: 'ord_step_delivered_d',
-    icon: <Home size={18} />,
-  },
-];
-
-const STATUS_ORDER: TrackingStatus[] = [
-  'confirmed',
-  'preparing',
-  'ready',
-  'delivering',
-  'delivered',
-];
-
-// Map DB status → TrackingStatus
-const dbStatusToTracking = (dbStatus: string): TrackingStatus => {
+const stageOf = (dbStatus: string): Stage => {
   switch (dbStatus) {
-    case 'new':
-    case 'pending':
-      return 'confirmed';
     case 'accepted':
     case 'preparing':
       return 'preparing';
     case 'ready':
-      return 'ready';
     case 'delivering':
-      return 'delivering';
     case 'delivered':
     case 'completed':
-      return 'delivered';
+      return 'ready';
+    case 'cancelled':
+      return 'cancelled';
+    case 'rejected':
+      return 'rejected';
+    case 'expired':
+      return 'expired';
     default:
-      return 'confirmed';
+      // new, pending, awaiting_payment e qualunque stato sconosciuto: ancora da confermare
+      return 'sent';
   }
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const isFinal = (s: Stage) => s !== 'sent' && s !== 'preparing';
+
+const ROME = 'Europe/Rome';
+const timeOf = (iso: string) =>
+  new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: ROME }).format(new Date(iso));
+const dayOf = (iso: string) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: ROME }).format(new Date(iso));
+const dayLabel = (iso: string) =>
+  new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', timeZone: ROME }).format(new Date(iso));
+
+// ─── Componente ──────────────────────────────────────────────────────────────
 
 export default function OrderTrackingContent() {
   const { t } = useLang();
@@ -108,18 +92,22 @@ export default function OrderTrackingContent() {
   // riferimento leggibile, ma non è più la chiave di lookup.
   const orderId = searchParams.get('id') ?? '';
 
-  const [currentStatus, setCurrentStatus] = useState<TrackingStatus>('confirmed');
+  const [stage, setStage] = useState<Stage>('sent');
   // Stato grezzo del database: serve a distinguere un ordine ancora in attesa
   // di pagamento online ('awaiting_payment') o scaduto senza essere pagato.
   const [rawStatus, setRawStatus] = useState<string>('');
   // Esito del reindirizzamento di Stripe (metodi come PayPal o i bonifici
   // istantanei riportano qui il cliente con ?redirect_status=…).
   const redirectStatus = searchParams.get('redirect_status');
-  const [estimatedMinutes, setEstimatedMinutes] = useState<number | null>(null);
-  const [restaurantName, setRestaurantName] = useState<string>('');
+  const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
   const [orderNumber, setOrderNumber] = useState<string>('');
   const [orderType, setOrderType] = useState<string>('');
   const [address, setAddress] = useState<string>('');
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [acceptDeadline, setAcceptDeadline] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [paymentStatus, setPaymentStatus] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<'not_found' | 'fetch_failed' | null>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -128,17 +116,53 @@ export default function OrderTrackingContent() {
   const [discount, setDiscount] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<'unsupported' | NotificationPermission>('unsupported');
 
-  // Request browser notification permissions on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    }
+    if (typeof window !== 'undefined' && 'Notification' in window) setNotifPerm(Notification.permission);
   }, []);
 
-  // Fetch initial order data.
+  // I permessi si chiedono con un clic, non all'apertura: i browser li considerano invasivi.
+  const askNotifications = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    setNotifPerm(await Notification.requestPermission());
+  };
+
+  const stageRef = React.useRef<Stage>('sent');
+
+  const apply = React.useCallback((data: any, announce: boolean) => {
+    const next = stageOf(String(data.status || ''));
+    setRawStatus(data.status || '');
+    setStage(next);
+    setUpdatedAt(data.updatedAt || null);
+    setAcceptDeadline(data.acceptDeadline || null);
+    setScheduledAt(data.scheduledAt || null);
+    setPaymentMethod(data.paymentMethod || '');
+    setPaymentStatus(data.paymentStatus || '');
+
+    if (announce && next !== stageRef.current) {
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        const title =
+          next === 'preparing'
+            ? tRef.current('ord_step_preparing')
+            : next === 'ready'
+              ? tRef.current('ord_s_ready')
+              : next === 'cancelled'
+                ? tRef.current('ord_cancelled')
+                : next === 'rejected'
+                  ? tRef.current('ord_rejected')
+                  : tRef.current('ord_expired');
+        try {
+          new Notification(tRef.current('ord_notif_title', { label: title }), { icon: '/favicon.ico' });
+        } catch {
+          /* alcuni browser mobili non permettono Notification() fuori da un service worker */
+        }
+      }
+    }
+    stageRef.current = next;
+  }, []);
+
+  // Lettura iniziale.
   //
   // Passa da /api/order-status/[orderId], che gira lato server con la service
   // role key. Una query diretta su `orders` con la chiave anon non funziona: il
@@ -176,8 +200,7 @@ export default function OrderTrackingContent() {
         if (cancelled) return;
 
         setLoadError(null);
-        setRawStatus(data.status || '');
-        setCurrentStatus(dbStatusToTracking(data.status));
+        apply(data, false);
         setOrderNumber(data.orderNumber || '');
         setOrderType(data.orderType || '');
         setAddress(data.address || '');
@@ -186,12 +209,7 @@ export default function OrderTrackingContent() {
         setDiscount(data.discount || 0);
         setTotal(data.total || 0);
         setItems(data.items || []);
-        if (data.restaurant?.name) setRestaurantName(data.restaurant.name);
-
-        // Estimated minutes based on type
-        const mins =
-          data.orderType === 'domicilio' ? 35 : data.orderType === 'asporto' ? 20 : 15;
-        setEstimatedMinutes(mins);
+        setRestaurant(data.restaurant || null);
         setIsLoading(false);
       } catch (e) {
         if (cancelled) return;
@@ -206,17 +224,16 @@ export default function OrderTrackingContent() {
     return () => {
       cancelled = true;
     };
-  }, [orderId]);
+  }, [orderId, apply]);
 
-  // Poll the same server-side endpoint for status updates.
+  // Aggiornamenti: stesso endpoint, a intervalli.
   //
   // Sostituisce la subscription Realtime su `orders`: anche i postgres_changes
   // passano da RLS, quindi con la chiave anon il canale si sottoscrive ma non
-  // consegna mai un evento. È lo stesso polling già usato dal tracker in-pagina
-  // dopo il checkout.
+  // consegna mai un evento. Si ferma quando l'ordine è arrivato a uno stato finale.
   useEffect(() => {
-    if (!orderId || loadError) return;
-    if (currentStatus === 'delivered') return;
+    if (!orderId || loadError || isLoading) return;
+    if (isFinal(stage)) return;
 
     // In attesa della conferma del pagamento si controlla più spesso: il
     // webhook di Stripe arriva di norma entro pochi secondi.
@@ -228,36 +245,9 @@ export default function OrderTrackingContent() {
           cache: 'no-store',
         });
         if (!res.ok) return;
-
         const data = await res.json();
         if (!data?.status) return;
-
-        if (data.status !== rawStatus) setRawStatus(data.status);
-        const trackingStatus = dbStatusToTracking(data.status);
-        if (trackingStatus === currentStatus) return;
-
-        setCurrentStatus(trackingStatus);
-
-        // Update estimated minutes as order progresses
-        if (trackingStatus === 'preparing') setEstimatedMinutes(20);
-        else if (trackingStatus === 'ready') setEstimatedMinutes(10);
-        else if (trackingStatus === 'delivering') setEstimatedMinutes(5);
-        else if (trackingStatus === 'delivered') setEstimatedMinutes(0);
-
-        // Browser notification
-        if (
-          typeof window !== 'undefined' &&
-          'Notification' in window &&
-          Notification.permission === 'granted'
-        ) {
-          const step = STEPS.find((s) => s.id === trackingStatus);
-          if (step) {
-            new Notification(tRef.current('ord_notif_title', { label: tRef.current(step.label) }), {
-              body: tRef.current(step.description),
-              icon: '/favicon.ico',
-            });
-          }
-        }
+        apply(data, true);
       } catch (e) {
         console.error('[tracking] poll error:', e);
       }
@@ -265,10 +255,11 @@ export default function OrderTrackingContent() {
 
     const interval = setInterval(poll, POLL_MS);
     return () => clearInterval(interval);
-  }, [orderId, loadError, currentStatus, rawStatus]);
+  }, [orderId, loadError, isLoading, stage, rawStatus, apply]);
 
-  const currentIdx = STATUS_ORDER.indexOf(currentStatus);
-  const isDelivered = currentStatus === 'delivered';
+  const awaitingPayment = rawStatus === 'awaiting_payment';
+  const finished = stage === 'ready';
+  const currentIdx = STAGE_ORDER.indexOf(stage);
 
   const typeLabel =
     orderType === 'domicilio'
@@ -277,12 +268,40 @@ export default function OrderTrackingContent() {
         ? t('checkout_takeaway')
         : t('ord_type_table');
 
-  const TypeIcon =
-    orderType === 'domicilio'
-      ? Bike
-      : orderType === 'asporto'
-        ? ShoppingBag
-        : Utensils;
+  const TypeIcon = orderType === 'domicilio' ? Bike : orderType === 'asporto' ? ShoppingBag : Utensils;
+
+  // Quando: l'orario scelto dal cliente, oppure "appena possibile". Mai una stima inventata.
+  const whenLabel =
+    orderType === 'domicilio' ? t('ord_when_delivery') : orderType === 'asporto' ? t('ord_when_pickup') : t('ord_when_table');
+  const todayRome = dayOf(new Date().toISOString());
+  const whenValue = scheduledAt
+    ? `${dayOf(scheduledAt) === todayRome ? '' : `${dayLabel(scheduledAt)} `}${timeOf(scheduledAt)}`
+    : null;
+
+  const logoSrc = safeHttpsHref(restaurant?.logoUrl);
+  const callHref = restaurant?.phone ? telHref(restaurant.phone) : null;
+  const waHref = restaurant?.whatsapp ? whatsappHref(restaurant.whatsapp) : null;
+  const pickupMaps =
+    orderType === 'asporto'
+      ? mapsHref({ address: restaurant?.address, city: restaurant?.city, province: restaurant?.province, cap: restaurant?.cap })
+      : null;
+
+  const payChip = awaitingPayment
+    ? null
+    : paymentStatus === 'paid'
+      ? t('ord_paid_online')
+      : paymentMethod === 'cash' || paymentMethod === 'pos'
+        ? orderType === 'domicilio'
+          ? t('ord_pay_at_delivery_chip')
+          : orderType === 'asporto'
+            ? t('ord_pay_at_pickup_chip')
+            : t('ord_pay_at_table_chip')
+        : null;
+
+  const readyDesc: TranslationKey =
+    orderType === 'domicilio' ? 'ord_s_ready_delivery' : orderType === 'asporto' ? 'ord_s_ready_pickup' : 'ord_s_ready_table';
+
+  const deadlineFuture = acceptDeadline && new Date(acceptDeadline).getTime() > Date.now();
 
   // ── Errore: ordine non trovato o endpoint irraggiungibile ──
   // Prima questo caso era silenzioso (return anticipato senza stato d'errore) e
@@ -292,8 +311,7 @@ export default function OrderTrackingContent() {
     const isNotFound = loadError === 'not_found';
 
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center py-10 px-4">
-        <AppLogo className="h-8 mb-8" />
+      <div className="min-h-dvh bg-background flex flex-col items-center justify-center py-10 px-4">
         <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-sm px-6 py-8 text-center">
           <div className="w-12 h-12 rounded-full bg-muted border border-border flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={24} className="text-muted-foreground" />
@@ -302,9 +320,7 @@ export default function OrderTrackingContent() {
             {isNotFound ? t('ord_not_found') : t('ord_load_failed')}
           </h1>
           <p className="text-sm text-muted-foreground mb-6">
-            {isNotFound
-              ? t('ord_not_found_d')
-              : t('ord_load_failed_d')}
+            {isNotFound ? t('ord_not_found_d') : t('ord_load_failed_d')}
           </p>
           <div className="flex gap-3">
             {!isNotFound && (
@@ -327,85 +343,111 @@ export default function OrderTrackingContent() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-start py-10 px-4">
-      {/* Logo */}
-      <div className="mb-8">
-        <AppLogo className="h-8" />
-      </div>
+  const steps: { id: Stage; label: string; desc: string; icon: React.ReactNode }[] = [
+    {
+      id: 'sent',
+      label: t('ord_s_sent'),
+      desc: stage === 'sent' ? t('ord_s_sent_wait') : t('ord_s_sent_done'),
+      icon: <Send size={18} />,
+    },
+    { id: 'preparing', label: t('ord_step_preparing'), desc: t('ord_step_preparing_d'), icon: <ChefHat size={18} /> },
+    { id: 'ready', label: t('ord_s_ready'), desc: t(readyDesc), icon: <BellRing size={18} /> },
+  ];
 
-      <div className="w-full max-w-lg space-y-4">
+  return (
+    <div className="min-h-dvh bg-background flex flex-col items-center justify-start py-6 sm:py-10 px-4">
+      {/* Telefono: una colonna. Da lg: due colonne, a sinistra lo stato, a destra i dettagli. */}
+      <div className="w-full max-w-lg lg:max-w-5xl">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start">
+        <div className="space-y-4 min-w-0">
         {/* ── Pagamento online ── */}
-        {!isLoading && rawStatus === 'awaiting_payment' && redirectStatus === 'failed' && (
+        {!isLoading && awaitingPayment && redirectStatus === 'failed' && (
           <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900/40 px-5 py-4 text-sm text-red-700 dark:text-red-400">
             <p className="font-bold">{t('ord_pay_failed')}</p>
-            <p className="text-xs mt-1">
-              {t('ord_pay_failed_d')}
-            </p>
+            <p className="text-xs mt-1">{t('ord_pay_failed_d')}</p>
           </div>
         )}
-        {!isLoading && rawStatus === 'awaiting_payment' && redirectStatus !== 'failed' && (
+        {!isLoading && awaitingPayment && redirectStatus !== 'failed' && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900/40 px-5 py-4 text-sm text-blue-700 dark:text-blue-400 flex items-center gap-3">
             <span className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
             <div>
               <p className="font-bold">{t('ord_pay_confirming')}</p>
-              <p className="text-xs mt-0.5">
-                {t('ord_pay_confirming_d')}
-              </p>
+              <p className="text-xs mt-0.5">{t('ord_pay_confirming_d')}</p>
             </div>
-          </div>
-        )}
-        {!isLoading && rawStatus === 'expired' && (
-          <div className="rounded-2xl border border-border bg-muted/40 px-5 py-4 text-sm text-muted-foreground">
-            <p className="font-bold text-foreground">{t('ord_expired')}</p>
-            <p className="text-xs mt-1">
-              {t('ord_expired_d')}
-            </p>
           </div>
         )}
 
-        {/* ── Header Card ── */}
-        <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-5">
+        {/* ── Testata: ristorante e ordine ── */}
+        <div className="bg-card rounded-2xl border border-border shadow-sm px-5 sm:px-6 py-5">
           {isLoading ? (
             <div className="flex items-center gap-3 animate-pulse">
-              <div className="w-24 h-4 bg-muted rounded" />
-              <div className="w-32 h-4 bg-muted rounded" />
+              <div className="w-11 h-11 bg-muted rounded-full" />
+              <div className="space-y-2">
+                <div className="w-24 h-3 bg-muted rounded" />
+                <div className="w-32 h-3 bg-muted rounded" />
+              </div>
             </div>
           ) : (
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                  {t('ord_order')}
-                </p>
-                <h1 className="text-base font-bold text-foreground">{orderNumber || '—'}</h1>
-                {restaurantName && (
-                  <p className="text-sm text-muted-foreground mt-0.5">{restaurantName}</p>
+              <div className="flex items-start gap-3 min-w-0">
+                {logoSrc && (
+                  // Logo del ristorante, non quello di iGOdelivering.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoSrc}
+                    alt=""
+                    className="w-11 h-11 rounded-full object-cover border border-border bg-muted flex-shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
                 )}
-                <span className="inline-flex items-center gap-1 mt-1 text-xs text-muted-foreground bg-muted rounded px-2 py-0.5">
-                  <TypeIcon size={11} />
-                  {typeLabel}
-                </span>
+                <div className="min-w-0">
+                  {restaurant?.name && (
+                    <p className="text-sm font-bold text-foreground leading-tight truncate">{restaurant.name}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t('ord_order')} <span className="font-semibold text-foreground">{orderNumber || '—'}</span>
+                  </p>
+                  <span className="inline-flex items-center gap-1 mt-1.5 text-xs text-muted-foreground bg-muted rounded px-2 py-0.5">
+                    <TypeIcon size={11} />
+                    {typeLabel}
+                  </span>
+                </div>
               </div>
-              {!isDelivered && estimatedMinutes !== null && estimatedMinutes > 0 && (
+              {!finished && (stage === 'sent' || stage === 'preparing') && !awaitingPayment && (
                 <div className="flex-shrink-0 text-right">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">
-                    {t('ord_remaining')}
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-1">
+                    {whenLabel}
                   </p>
-                  <p className="text-2xl font-bold text-primary tabular-nums">
-                    {estimatedMinutes} min
-                  </p>
+                  {whenValue ? (
+                    <p className="text-2xl font-bold text-primary tabular-nums leading-none">{whenValue}</p>
+                  ) : (
+                    <p className="text-sm font-bold text-primary leading-tight max-w-[8rem]">
+                      {t('ord_asap').charAt(0).toUpperCase() + t('ord_asap').slice(1)}
+                    </p>
+                  )}
                 </div>
               )}
-              {isDelivered && (
-                <div className="flex-shrink-0 flex items-center justify-center">
-                  <Check size={24} className="text-[var(--success)]" />
+              {finished && (
+                <div className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-[var(--success)] text-white">
+                  <Check size={20} />
                 </div>
               )}
             </div>
           )}
 
-          {/* Address */}
-          {address && (
+          {!isLoading && (payChip || updatedAt) && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+              {payChip && (
+                <span className="inline-flex items-center rounded-full border border-border bg-muted/60 px-2.5 py-0.5 font-medium text-foreground">
+                  {payChip}
+                </span>
+              )}
+              {updatedAt && !awaitingPayment && <span>{t('ord_updated', { time: timeOf(updatedAt) })}</span>}
+            </div>
+          )}
+
+          {/* Indirizzo di consegna */}
+          {address && orderType === 'domicilio' && (
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground bg-muted rounded-lg px-3 py-2 border border-border">
               <MapPin size={14} className="text-primary flex-shrink-0" />
               <span className="truncate">{address}</span>
@@ -413,70 +455,137 @@ export default function OrderTrackingContent() {
           )}
         </div>
 
-        {/* ── Tracking Steps ── */}
-        <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-5">
-          <h2 className="text-sm font-semibold text-foreground mb-5">{t('ord_status')}</h2>
-          <div className="space-y-0">
-            {STEPS.map((step, idx) => {
-              const isDone = idx < currentIdx;
-              const isActive = idx === currentIdx;
-              const isPending = idx > currentIdx;
-              const isLast = idx === STEPS.length - 1;
-
-              return (
-                <div key={step.id} className="flex gap-4">
-                  {/* Connector column */}
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${isDone
-                        ? 'bg-[var(--success)] text-white'
-                        : isActive
-                          ? 'bg-primary text-white shadow-md ring-4 ring-primary/20'
-                          : 'bg-muted text-muted-foreground border border-border'
-                        }`}
-                    >
-                      {step.icon}
-                    </div>
-                    {!isLast && (
-                      <div
-                        className={`w-0.5 flex-1 my-1 min-h-[24px] transition-all duration-700 ${isDone ? 'bg-[var(--success)]' : 'bg-border'
-                          }`}
-                      />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className={`pb-5 flex-1 min-w-0 ${isLast ? 'pb-0' : ''}`}>
-                    <p
-                      className={`text-sm font-semibold leading-tight ${isPending ? 'text-muted-foreground' : 'text-foreground'
-                        }`}
-                    >
-                      {t(step.label)}
-                    </p>
-                    <p
-                      className={`text-xs mt-0.5 ${isPending ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
-                    >
-                      {t(step.description)}
-                    </p>
-                    {isActive && !isDelivered && (
-                      <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary bg-secondary px-2 py-0.5 rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        {t('ord_in_progress')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {/* ── Ordine non andato a buon fine ── */}
+        {!isLoading && (stage === 'cancelled' || stage === 'rejected' || stage === 'expired') && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900/40 px-5 py-4 text-sm text-red-700 dark:text-red-400 flex gap-3">
+            <XCircle size={20} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">
+                {stage === 'cancelled' ? t('ord_cancelled') : stage === 'rejected' ? t('ord_rejected') : t('ord_expired')}
+              </p>
+              <p className="text-xs mt-1">
+                {stage === 'cancelled' ? t('ord_cancelled_d') : stage === 'rejected' ? t('ord_rejected_d') : t('ord_expired_d')}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* ── Receipt Accordion ── */}
+        {/* ── Avanzamento ── */}
+        {!isLoading && !awaitingPayment && (stage === 'sent' || stage === 'preparing' || stage === 'ready') && (
+          <div className="bg-card rounded-2xl border border-border shadow-sm px-5 sm:px-6 py-5">
+            <h2 className="text-sm font-semibold text-foreground mb-5">{t('ord_status')}</h2>
+            <div className="space-y-0">
+              {steps.map((step, idx) => {
+                const isDone = idx < currentIdx || (finished && idx === currentIdx);
+                const isActive = idx === currentIdx && !finished;
+                const isPending = idx > currentIdx;
+                const isLast = idx === steps.length - 1;
+
+                return (
+                  <div key={step.id} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
+                          isDone
+                            ? 'bg-[var(--success)] text-white'
+                            : isActive
+                              ? 'bg-primary text-white shadow-md ring-4 ring-primary/20'
+                              : 'bg-muted text-muted-foreground border border-border'
+                        }`}
+                      >
+                        {isDone ? <Check size={18} /> : step.icon}
+                      </div>
+                      {!isLast && (
+                        <div
+                          className={`w-0.5 flex-1 my-1 min-h-[24px] transition-all duration-700 ${
+                            isDone ? 'bg-[var(--success)]' : 'bg-border'
+                          }`}
+                        />
+                      )}
+                    </div>
+
+                    <div className={`pb-5 flex-1 min-w-0 ${isLast ? 'pb-0' : ''}`}>
+                      <p
+                        className={`text-sm font-semibold leading-tight ${
+                          isPending ? 'text-muted-foreground' : 'text-foreground'
+                        }`}
+                      >
+                        {step.label}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${isPending ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}
+                      >
+                        {step.desc}
+                      </p>
+                      {isActive && step.id === 'sent' && deadlineFuture && (
+                        <p className="text-xs mt-1 text-muted-foreground">
+                          {t('ord_reply_by', { time: timeOf(acceptDeadline as string) })}
+                        </p>
+                      )}
+                      {isActive && (
+                        <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary bg-secondary px-2 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                          {t('ord_in_progress')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {notifPerm !== 'unsupported' && !finished && (
+              <div className="mt-5 pt-4 border-t border-border">
+                {notifPerm === 'default' ? (
+                  <button
+                    onClick={askNotifications}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl px-3 py-2 border border-border transition-colors"
+                  >
+                    <Bell size={15} className="text-primary" />
+                    {t('ord_notify_me')}
+                  </button>
+                ) : notifPerm === 'granted' ? (
+                  <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                    <Bell size={13} className="text-primary" />
+                    {t('ord_notify_on')}
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        )}
+
+        </div>
+        <div className="space-y-4 min-w-0">
+        {/* ── Dove ritirare ── */}
+        {!isLoading && pickupMaps && (stage === 'sent' || stage === 'preparing' || stage === 'ready') && (
+          <div className="bg-card rounded-2xl border border-border shadow-sm px-5 sm:px-6 py-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
+                {t('ord_pickup_where')}
+              </p>
+              <p className="text-sm font-semibold text-foreground truncate">
+                {[restaurant?.address, restaurant?.city].filter(Boolean).join(', ')}
+              </p>
+            </div>
+            <a
+              href={pickupMaps}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl px-3 py-2 border border-border transition-colors"
+            >
+              <Navigation size={14} className="text-primary" />
+              {t('ord_directions')}
+            </a>
+          </div>
+        )}
+
+        {/* ── Riepilogo ── */}
         {!isLoading && items.length > 0 && (
           <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
             <button
               onClick={() => setReceiptOpen((o) => !o)}
-              className="w-full flex items-center justify-between px-6 py-4 hover:bg-muted/50 transition-colors"
+              className="w-full flex items-center justify-between px-5 sm:px-6 py-4 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Package size={16} className="text-primary" />
@@ -489,8 +598,7 @@ export default function OrderTrackingContent() {
             </button>
 
             {receiptOpen && (
-              <div className="px-6 pb-5 border-t border-border pt-4">
-                {/* Items */}
+              <div className="px-5 sm:px-6 pb-5 border-t border-border pt-4">
                 <ul className="space-y-2 mb-4">
                   {items.map((item, i) => (
                     <li key={i} className="flex items-start justify-between gap-3 text-sm">
@@ -511,9 +619,7 @@ export default function OrderTrackingContent() {
                               − Senza {r}
                             </p>
                           ))}
-                          {item.note && (
-                            <p className="text-xs text-muted-foreground">{item.note}</p>
-                          )}
+                          {item.note && <p className="text-xs text-muted-foreground">{item.note}</p>}
                         </div>
                       </div>
                       <span className="font-medium text-foreground tabular-nums flex-shrink-0">
@@ -523,7 +629,6 @@ export default function OrderTrackingContent() {
                   ))}
                 </ul>
 
-                {/* Totals */}
                 <div className="border-t border-border pt-3 space-y-1.5 text-sm">
                   <div className="flex justify-between text-muted-foreground">
                     <span>{t('cart_subtotal')}</span>
@@ -551,34 +656,49 @@ export default function OrderTrackingContent() {
           </div>
         )}
 
-        {/* ── Support ── */}
-        <div className="bg-card rounded-2xl border border-border shadow-sm px-6 py-4">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">
-            {t('ord_support')}
-          </p>
-          <div className="flex gap-3">
-            <a
-              href="tel:+39"
-              className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors"
-            >
-              <Phone size={15} className="text-primary" />
-              {t('ord_call')}
-            </a>
-            <button className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors">
-              <MessageCircle size={15} className="text-primary" />
-              Chat
-            </button>
+        {/* ── Assistenza: solo i canali che il ristorante ha davvero ── */}
+        {!isLoading && (callHref || waHref) && (
+          <div className="bg-card rounded-2xl border border-border shadow-sm px-5 sm:px-6 py-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-3">
+              {t('ord_support')}
+            </p>
+            <div className="flex gap-3">
+              {callHref && (
+                <a
+                  href={callHref}
+                  className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors"
+                >
+                  <Phone size={15} className="text-primary" />
+                  {t('ord_call')}
+                </a>
+              )}
+              {waHref && (
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-muted hover:bg-border rounded-xl py-2.5 border border-border transition-colors"
+                >
+                  <MessageCircle size={15} className="text-primary" />
+                  {t('ord_whatsapp')}
+                </a>
+              )}
+            </div>
           </div>
+        )}
+
+        </div>
         </div>
 
-        {/* ── Back link ── */}
-        <div className="text-center pt-2">
+        {/* ── Ritorno al menu ── */}
+        <div className="text-center pt-6 space-y-2">
           <Link
-            href="/"
+            href={restaurant?.slug ? `/menu/${restaurant.slug}` : '/'}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
           >
-            {t('ord_home')}
+            {restaurant?.slug && restaurant?.name ? t('ord_back_menu', { name: restaurant.name }) : t('ord_home')}
           </Link>
+          <p className="text-[11px] text-muted-foreground/70">Tecnologia di iGOdelivering</p>
         </div>
       </div>
     </div>
