@@ -1,10 +1,13 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
+  /** Freccia "indietro" a sinistra del titolo: per i passaggi che hanno un passo precedente. */
+  onBack?: () => void;
+  backLabel?: string;
   title?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -21,6 +24,8 @@ const sizeClasses = {
 export default function Modal({
   open,
   onClose,
+  onBack,
+  backLabel = 'Indietro',
   title,
   children,
   size = 'md',
@@ -63,6 +68,16 @@ export default function Modal({
       >
         {(title || !hideClose) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10 rounded-t-2xl">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="-ml-2 mr-1 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label={backLabel}
+                title={backLabel}
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
             {title && <h2 className="text-lg font-semibold text-foreground">{title}</h2>}
             {!hideClose && (
               <button

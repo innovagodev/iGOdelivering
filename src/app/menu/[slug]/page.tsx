@@ -989,9 +989,15 @@ function CheckoutModal({
   bookingContext,
   setBookingContext,
   isCurrentlyClosed,
+  onBackToCart,
+  onBackToMenu,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Chiude il checkout e riapre il carrello (i dati inseriti restano nello stato della pagina). */
+  onBackToCart?: () => void;
+  /** Chiude il checkout e riporta al menu, con il carrello intatto. */
+  onBackToMenu?: () => void;
   cart: CartItem[];
   total: number;
   deliveryType: 'domicilio' | 'asporto' | 'tavolo';
@@ -2409,6 +2415,8 @@ function CheckoutModal({
     <Modal
       open={open}
       onClose={onClose}
+      onBack={step === 'details' && !bookingContext ? onBackToCart : undefined}
+      backLabel={t('checkout_edit_order')}
       size="lg"
       title={step === 'success' ? t('checkout_order_status') : t('checkout_title')}
     >
@@ -2825,6 +2833,15 @@ function CheckoutModal({
                             <p className="text-[11px] font-bold text-muted-foreground">
                               {t('cart_free_delivery_warning', { amount: `€ ${(matchedZone.freeDeliveryThreshold - itemsTotal).toFixed(2)}` })}
                             </p>
+                            {onBackToMenu && (
+                              <button
+                                type="button"
+                                onClick={onBackToMenu}
+                                className="text-[11px] font-bold text-primary underline underline-offset-2 hover:text-primary-hover"
+                              >
+                                {t('checkout_add_more_dishes')}
+                              </button>
+                            )}
                             <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                               <div
                                 className="bg-primary h-full rounded-full transition-all duration-500"
@@ -2968,13 +2985,24 @@ function CheckoutModal({
           {/* Il pulsante resta ancorato in fondo alla finestra: su tablet e
               telefoni in orizzontale non va cercato scorrendo il modulo. */}
           <div className="sticky bottom-0 -mx-6 -mb-5 px-6 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 bg-card border-t border-border/40">
-            <button
-              onClick={() => setStep('payment')}
-              disabled={!detailsValid || loading}
-              className="w-full py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
-            >
-              {t('checkout_next')}
-            </button>
+            <div className="flex gap-3">
+              {!bookingContext && onBackToCart && (
+                <button
+                  onClick={onBackToCart}
+                  disabled={loading}
+                  className="flex-1 py-3 border border-border/80 text-foreground font-bold rounded-lg hover:bg-muted transition-colors text-xs sm:text-sm"
+                >
+                  {t('checkout_edit_order')}
+                </button>
+              )}
+              <button
+                onClick={() => setStep('payment')}
+                disabled={!detailsValid || loading}
+                className="flex-[2_2_0%] py-3 bg-primary text-white text-sm sm:text-base font-bold rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm"
+              >
+                {t('checkout_next')}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -6179,6 +6207,11 @@ function StorefrontContent() {
       <CheckoutModal
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
+        onBackToCart={() => {
+          setCheckoutOpen(false);
+          setCartOpen(true);
+        }}
+        onBackToMenu={() => setCheckoutOpen(false)}
         cart={cart}
         total={total}
         deliveryType={deliveryType}
