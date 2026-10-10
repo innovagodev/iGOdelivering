@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.54.0](https://github.com/innovagodev/iGOdelivering/compare/v1.53.2...v1.54.0) (2026-10-10)
+
+
+### Features
+
+* **audio:** nuovi suoni (campanello da banco per gli ordini, arpa per le prenotazioni) e interruttori separati nelle impostazioni ([6475b05](https://github.com/innovagodev/iGOdelivering/commit/6475b056b3183621c2a8d868aa8f5485730624d6))
+
 ### [1.53.2](https://github.com/innovagodev/iGOdelivering/compare/v1.53.1...v1.53.2) (2026-10-10)
 
 
