@@ -1166,21 +1166,6 @@ export default function LiveOrderKanban() {
           </span>
         </h1>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-pressed={!isMuted}
-            aria-label={isMuted ? 'Attiva i suoni degli ordini' : 'Disattiva i suoni degli ordini'}
-            title={isMuted ? 'Suoni degli ordini disattivati' : 'Suoni degli ordini attivi'}
-            onClick={() => setIsMuted(!isMuted)}
-            className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors cursor-pointer ${
-              isMuted
-                ? 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
-            }`}
-          >
-            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-            <span className="hidden sm:inline">{isMuted ? 'Ordini off' : 'Ordini on'}</span>
-          </button>
           <AudioSettings />
           <button
             type="button"

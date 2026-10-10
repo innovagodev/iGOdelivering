@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { SlidersHorizontal, Play, Bell } from 'lucide-react';
+import { Volume2, VolumeX, Play, Bell } from 'lucide-react';
 import Toggle from '@/components/ui/Toggle';
 import {
   DEFAULT_AUDIO_SETTINGS,
@@ -22,6 +22,10 @@ export default function AudioSettings() {
   const { audioSettings, setAudioSettings, playTestSound, isAudioEnabled, isMuted, setIsMuted, isBookingsMuted, setIsBookingsMuted } =
     useAudioNotification();
   const [open, setOpen] = useState(false);
+  const onCount = (isMuted ? 0 : 1) + (isBookingsMuted ? 0 : 1);
+  const statusTitle = `Ordini: ${isMuted ? 'suoni spenti' : 'suoni attivi'} · Prenotazioni: ${
+    isBookingsMuted ? 'suoni spenti' : 'suoni attivi'
+  }`;
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,14 +95,20 @@ export default function AudioSettings() {
       <button
         type="button"
         aria-expanded={open}
-        aria-label="Impostazioni dei suoni"
-        title="Impostazioni dei suoni"
+        aria-label={`Suoni: ${statusTitle}`}
+        title={statusTitle}
         onClick={() => setOpen((o) => !o)}
-        className={`touch-target inline-flex h-10 w-10 items-center justify-center rounded-xl transition-colors cursor-pointer ${
-          open ? 'bg-muted text-foreground' : 'bg-muted/60 text-foreground/80 hover:bg-muted'
+        className={`touch-target relative inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors cursor-pointer ${
+          onCount === 2
+            ? 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
+            : onCount === 1
+              ? 'bg-amber-500/15 text-amber-800 hover:bg-amber-500/25 dark:text-amber-300'
+              : 'bg-muted/60 text-muted-foreground hover:bg-muted'
         }`}
       >
-        <SlidersHorizontal size={17} />
+        {onCount === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+        <span className="hidden sm:inline">{onCount === 2 ? 'Suoni' : onCount === 1 ? 'Suoni 1/2' : 'Suoni off'}</span>
+        {onCount === 1 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500 sm:hidden" />}
       </button>
 
       {open && (
@@ -108,7 +118,7 @@ export default function AudioSettings() {
           className="fixed inset-x-4 top-16 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-modal"
         >
           <div className="space-y-2.5">
-            <p className="text-sm font-bold text-foreground">Suoni attivi</p>
+            <p className="text-sm font-bold text-foreground">Suoni</p>
             {[
               { label: 'Nuovi ordini', on: !isMuted, set: (v: boolean) => setIsMuted(!v) },
               { label: 'Nuove prenotazioni', on: !isBookingsMuted, set: (v: boolean) => setIsBookingsMuted(!v) },

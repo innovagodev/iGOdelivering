@@ -951,24 +951,7 @@ export default function PrenotazioniPage() {
             </div>
           }
           right={
-            <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-pressed={!isBookingsMuted}
-              aria-label={isBookingsMuted ? 'Attiva i suoni delle prenotazioni' : 'Disattiva i suoni delle prenotazioni'}
-              title={isBookingsMuted ? 'Suoni delle prenotazioni disattivati' : 'Suoni delle prenotazioni attivi'}
-              onClick={() => setIsBookingsMuted(!isBookingsMuted)}
-              className={`touch-target inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors cursor-pointer ${
-                isBookingsMuted
-                  ? 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                  : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
-              }`}
-            >
-              {isBookingsMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-              <span className="hidden sm:inline">{isBookingsMuted ? 'Prenotazioni off' : 'Prenotazioni on'}</span>
-            </button>
             <AudioSettings />
-            </div>
           }
         />
 
