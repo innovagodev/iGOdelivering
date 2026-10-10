@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.53.0](https://github.com/innovagodev/iGOdelivering/compare/v1.52.0...v1.53.0) (2026-10-10)
+
+
+### Features
+
+* **prenotazioni:** vista da oggi in poi, storico con esportazione e interruttore audio indipendente ([d69b722](https://github.com/innovagodev/iGOdelivering/commit/d69b722c409df73b1bce0e2982915f07c172687e))
+
 ## [1.52.0](https://github.com/innovagodev/iGOdelivering/compare/v1.51.0...v1.52.0) (2026-10-10)
 
 
