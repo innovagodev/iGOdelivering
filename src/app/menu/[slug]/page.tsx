@@ -449,33 +449,6 @@ function CartSidebar({
           </ul>
 
           <div className="px-4 py-3 border-t border-border space-y-3 flex-shrink-0 bg-card">
-            {/* Dynamic Free Delivery Progress Bar */}
-            {deliveryType !== 'tavolo' && freeDeliveryActive && (
-              <div className="bg-muted/30 border border-border/40 rounded-xl p-2.5 space-y-1">
-                {subtotal < freeDeliveryThreshold ? (
-                  <>
-                    <p className="text-[11px] font-bold text-muted-foreground flex justify-between">
-                      <span>
-                        {t('cart_free_delivery_warning', { amount: `€ ${(freeDeliveryThreshold - subtotal).toFixed(2)}` })}
-                      </span>
-                    </p>
-                    <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                      <div
-                        className="bg-primary h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(100, (subtotal / freeDeliveryThreshold) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-[11px] font-extrabold text-[var(--success)] flex items-center gap-1">
-                    {t('cart_free_delivery_success')}
-                  </p>
-                )}
-              </div>
-            )}
-
             {/* Totals */}
             <div className="space-y-1.5 text-xs">
               {promoApplied && appliedPromoDetail && !promoIsDelivery && (
@@ -2844,6 +2817,27 @@ function CheckoutModal({
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
                         {t('checkout_cap_valid', { deliveryFee: currentDeliveryFee === 0 ? (lang === 'en' ? 'Free' : 'Gratis') : `€ ${currentDeliveryFee.toFixed(2)}` })}
                       </p>
+                    )}
+                    {cap.length === 5 && matchedZone && matchedZone.freeDeliveryThreshold > 0 && itemsTotal >= matchedZone.minOrder && (
+                      <div className="mt-2 bg-muted/30 border border-border/40 rounded-xl p-2.5 space-y-1">
+                        {itemsTotal < matchedZone.freeDeliveryThreshold ? (
+                          <>
+                            <p className="text-[11px] font-bold text-muted-foreground">
+                              {t('cart_free_delivery_warning', { amount: `€ ${(matchedZone.freeDeliveryThreshold - itemsTotal).toFixed(2)}` })}
+                            </p>
+                            <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="bg-primary h-full rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, (itemsTotal / matchedZone.freeDeliveryThreshold) * 100)}%` }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-[11px] font-extrabold text-[var(--success)]">
+                            {t('cart_free_delivery_success')}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
