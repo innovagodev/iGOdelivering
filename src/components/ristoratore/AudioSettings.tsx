@@ -9,12 +9,8 @@ import {
 const ORDER_OPTIONS = [0, 5, 8, 15, 30, 60];
 const BOOKING_OPTIONS = [0, 15, 30, 60, 120];
 
-const label = (seconds: number, predefinito: number) =>
-  seconds === 0
-    ? 'Una sola volta'
-    : `Ogni ${seconds >= 60 && seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} secondi`}${
-        seconds === predefinito ? ' (predefinito)' : ''
-      }`;
+const label = (seconds: number) =>
+  seconds === 0 ? 'Una sola volta' : `Ogni ${seconds >= 60 && seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`}`;
 
 /**
  * Impostazioni degli avvisi sonori: ogni quanto si ripete il suono finché c'è qualcosa da
@@ -56,11 +52,11 @@ export default function AudioSettings() {
         <select
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="min-w-0 flex-1 px-3 py-2.5 text-sm bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="min-w-0 flex-1 truncate pl-3 pr-8 py-2.5 text-sm bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {options.map((o) => (
             <option key={o} value={o}>
-              {label(o, predefinito)}
+              {label(o)}
             </option>
           ))}
         </select>
@@ -107,13 +103,12 @@ export default function AudioSettings() {
         <div
           role="dialog"
           aria-label="Impostazioni dei suoni"
-          className="absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] space-y-4 rounded-2xl border border-border bg-card p-4 shadow-modal"
+          className="fixed inset-x-4 top-16 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 space-y-4 rounded-2xl border border-border bg-card p-4 shadow-modal"
         >
           <div>
             <p className="text-sm font-bold text-foreground">Promemoria dei suoni</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Il primo avviso di ogni ordine o prenotazione ha suono e voce (▶). Se resta da accettare, si ripete solo il
-              suono (🔔) con il ritmo scelto. Vale solo su questo dispositivo.
+              Il primo avviso ha la voce, poi si ripete solo il suono. Vale su questo dispositivo.
             </p>
           </div>
           {field(
