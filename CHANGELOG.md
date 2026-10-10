@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.51.0](https://github.com/innovagodev/iGOdelivering/compare/v1.50.1...v1.51.0) (2026-10-10)
+
+
+### Features
+
+* **prenotazioni:** email obbligatoria e avvisi al cliente (conferma, modifica, annullo); elenco ridisegnato ([83e6f41](https://github.com/innovagodev/iGOdelivering/commit/83e6f4149515a6bf1510f6aa316d3fd0b7e4a291))
+
 ### [1.50.1](https://github.com/innovagodev/iGOdelivering/compare/v1.50.0...v1.50.1) (2026-10-10)
 
 
