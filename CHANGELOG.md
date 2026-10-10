@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.53.2](https://github.com/innovagodev/iGOdelivering/compare/v1.53.1...v1.53.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **audio:** impostazioni dei suoni leggibili e dentro lo schermo su telefono ([14745d6](https://github.com/innovagodev/iGOdelivering/commit/14745d668f1f02978c230022b6e429600e0e8630))
+
 ### [1.53.1](https://github.com/innovagodev/iGOdelivering/compare/v1.53.0...v1.53.1) (2026-10-10)
 
 
