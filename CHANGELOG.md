@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.56.0](https://github.com/innovagodev/iGOdelivering/compare/v1.55.1...v1.56.0) (2026-10-18)
+
+
+### Features
+
+* **admin:** sezione Utenti con stato invito, ultimo accesso e attività ordini ([4f36be8](https://github.com/innovagodev/iGOdelivering/commit/4f36be8a3e519deb89115a203d371008a6274f2c))
+
 ### [1.55.1](https://github.com/innovagodev/iGOdelivering/compare/v1.55.0...v1.55.1) (2026-10-18)
 
 
