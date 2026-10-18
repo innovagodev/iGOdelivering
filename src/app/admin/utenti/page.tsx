@@ -42,7 +42,7 @@ const FILTER_LABEL: Record<UserFilter, string> = {
 const ACCOUNT_LABEL: Record<AccountState, string> = {
   active: 'Attivo',
   suspended: 'Sospeso',
-  pending: 'Ristorante in bozza',
+  pending: 'In bozza',
   invited: 'Invitato',
   invite_expired: 'Invito scaduto',
 };
@@ -516,7 +516,7 @@ export default function AdminUtentiPage() {
   const renderLastOrder = (u: RestorateurUser) => {
     if (!u.userId || u.account === 'pending') return <span className="text-muted-foreground">—</span>;
     if (!u.lastOrderAt) {
-      return <span className={isIdle(u) ? 'text-[var(--warning)]' : ''}>Nessun ordine (90 gg)</span>;
+      return <span className={isIdle(u) ? 'text-[var(--warning)]' : ''}>Nessuno (90 gg)</span>;
     }
     const d = daysAgo(u.lastOrderAt)!;
     return (
@@ -529,101 +529,141 @@ export default function AdminUtentiPage() {
     );
   };
 
-  /** Azioni di supporto per chi non ha ancora attivato l'account. */
-  const renderInviteActions = (u: RestorateurUser, compact: boolean) => {
-    const busy = busyInviteId === u.id;
-    const pad = compact ? 'p-1.5' : 'p-2';
-    return (
-      <>
-        <button
-          onClick={() => handleCopyInviteLink(u)}
-          disabled={busy}
-          className={`${pad} rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50 disabled:opacity-50`}
-          title="Copia nuovo link di attivazione"
-          aria-label="Copia nuovo link di attivazione"
-        >
-          <Link2 size={14} />
-        </button>
-        <button
-          onClick={() => handleResendInvite(u)}
-          disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border disabled:opacity-50"
-          title="Reinvia email di attivazione"
-        >
-          <Send size={13} className="text-muted-foreground" />
-          {busy ? 'Invio…' : 'Reinvia invito'}
-        </button>
-      </>
-    );
+  type RowAction = {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    tone?: 'default' | 'primary' | 'warning' | 'success' | 'danger';
+    disabled?: boolean;
+  };
+
+  const TONE_CLASS: Record<NonNullable<RowAction['tone']>, string> = {
+    default: 'text-muted-foreground hover:bg-muted hover:text-foreground',
+    primary: 'text-primary border-primary/30 bg-primary/5 hover:bg-primary/10',
+    warning: 'text-muted-foreground hover:bg-[var(--warning-bg)] hover:text-[var(--warning)]',
+    success: 'text-muted-foreground hover:bg-[var(--success-bg)] hover:text-[var(--success)]',
+    danger: 'text-muted-foreground hover:bg-red-500/10 hover:text-red-600',
   };
 
   /** Azioni di riga: cambiano se l'account esiste già o è ancora in attesa di attivazione. */
-  const renderUserActions = (u: RestorateurUser, compact: boolean) => {
-    if (!u.userId) return renderInviteActions(u, compact);
+  const rowActions = (u: RestorateurUser): RowAction[] => {
+    if (!u.userId) {
+      const busy = busyInviteId === u.id;
+      return [
+        {
+          key: 'link',
+          label: 'Copia link',
+          icon: <Link2 size={15} />,
+          onClick: () => handleCopyInviteLink(u),
+          disabled: busy,
+        },
+        {
+          key: 'resend',
+          label: busy ? 'Invio…' : 'Reinvia invito',
+          icon: <Send size={15} />,
+          onClick: () => handleResendInvite(u),
+          tone: 'primary',
+          disabled: busy,
+        },
+      ];
+    }
+    return [
+      u.account === 'active'
+        ? {
+            key: 'suspend',
+            label: 'Sospendi',
+            icon: <UserX size={15} />,
+            onClick: () => handleToggleStatus(u.id, 'suspended'),
+            tone: 'warning',
+          }
+        : {
+            key: 'activate',
+            label: 'Attiva',
+            icon: <UserCheck size={15} />,
+            onClick: () => handleToggleStatus(u.id, 'active'),
+            tone: 'success',
+          },
+      {
+        key: 'edit',
+        label: 'Modifica',
+        icon: <Edit2 size={15} />,
+        onClick: () => handleOpenEditModal(u),
+      },
+      {
+        key: 'reset',
+        label: 'Reset password',
+        icon: <Key size={15} />,
+        onClick: () => handlePasswordReset(u),
+      },
+      {
+        key: 'delete',
+        label: 'Elimina',
+        icon: <Trash2 size={15} />,
+        onClick: () => handleOpenDeleteModal(u),
+        tone: 'danger',
+      },
+    ];
+  };
 
-    const pad = compact ? 'p-1.5' : 'p-2';
-    const icon = compact ? 14 : 15;
+  /** Tabella: solo icone, tutte della stessa misura. Schede: icona con etichetta. */
+  const renderActions = (u: RestorateurUser, variant: 'table' | 'card') => {
+    const actions = rowActions(u);
+    if (variant === 'table') {
+      return (
+        <div className="flex items-center justify-end gap-1.5">
+          {actions.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={a.onClick}
+              disabled={a.disabled}
+              title={a.label}
+              aria-label={a.label}
+              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/60 transition-colors disabled:opacity-50 ${TONE_CLASS[a.tone ?? 'default']}`}
+            >
+              {a.icon}
+            </button>
+          ))}
+        </div>
+      );
+    }
     return (
-      <>
-        {u.slug && u.account === 'active' && (
-          <a
-            href={`/menu/${encodeURIComponent(u.slug)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${pad} rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50`}
-            title="Apri la vetrina"
-            aria-label="Apri la vetrina"
-          >
-            <ExternalLink size={icon} />
-          </a>
-        )}
-        {u.account === 'active' ? (
+      <div className="grid grid-cols-2 gap-2">
+        {actions.map((a) => (
           <button
-            onClick={() => handleToggleStatus(u.id, 'suspended')}
-            className={`${pad} rounded-lg hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)] transition-colors border border-border/50`}
-            title="Sospendi Ristoratore"
-            aria-label="Sospendi Ristoratore"
+            key={a.key}
+            type="button"
+            onClick={a.onClick}
+            disabled={a.disabled}
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border/60 px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${TONE_CLASS[a.tone ?? 'default']}`}
           >
-            <UserX size={icon} />
+            {a.icon}
+            {a.label}
           </button>
-        ) : u.account === 'suspended' || u.account === 'pending' ? (
-          <button
-            onClick={() => handleToggleStatus(u.id, 'active')}
-            className={`${pad} rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50`}
-            title="Attiva Ristoratore"
-            aria-label="Attiva Ristoratore"
-          >
-            <UserCheck size={icon} />
-          </button>
-        ) : null}
-        <button
-          onClick={() => handleOpenEditModal(u)}
-          className={`${pad} rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50`}
-          title="Modifica Ristoratore"
-          aria-label="Modifica Ristoratore"
-        >
-          <Edit2 size={icon - 1} />
-        </button>
-        <button
-          onClick={() => handleOpenDeleteModal(u)}
-          className={`${pad} rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors border border-border/50`}
-          title="Elimina Ristoratore"
-          aria-label="Elimina Ristoratore"
-        >
-          <Trash2 size={icon - 1} />
-        </button>
-        <button
-          onClick={() => handlePasswordReset(u)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border"
-          title="Resetta Password"
-          aria-label="Resetta Password"
-        >
-          <Key size={13} className="text-muted-foreground" />
-          <span className={compact ? '' : 'hidden xl:inline'}>Reset Password</span>
-        </button>
-      </>
+        ))}
+      </div>
     );
   };
+
+  /** Nome del ristorante; per i ristoranti attivi è il link alla vetrina pubblica. */
+  const renderRestaurant = (u: RestorateurUser) =>
+    u.slug && u.account === 'active' ? (
+      <a
+        href={`/menu/${encodeURIComponent(u.slug)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Apri la vetrina"
+        className="inline-flex max-w-full items-center gap-1 font-medium text-foreground hover:text-primary hover:underline underline-offset-2"
+      >
+        <span className="truncate">{u.restaurantName}</span>
+        <ExternalLink size={12} className="shrink-0 text-muted-foreground" />
+      </a>
+    ) : (
+      <span className="block truncate font-medium text-foreground">{u.restaurantName}</span>
+    );
+
+  const ownerName = (u: RestorateurUser) => (u.userId ? u.name : 'In attesa di registrazione');
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
@@ -710,27 +750,30 @@ export default function AdminUtentiPage() {
 
             {/* Table Users (Desktop) & Cards (Mobile) */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-              {/* Desktop View */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+              {/* Desktop: tabella a colonne fisse, i testi lunghi si troncano e non vanno a capo */}
+              <div className="hidden lg:block">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col />
+                    <col />
+                    <col className="w-[8.5rem]" />
+                    <col className="w-[9.5rem]" />
+                    <col className="w-[9.5rem]" />
+                    <col className="w-[11rem]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
-                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Ristoratore
-                      </th>
-                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Ristorante Associato
-                      </th>
-                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Stato
-                      </th>
-                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
-                        Ultimo Accesso
-                      </th>
-                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
-                        Ultimo Ordine
-                      </th>
-                      <th className="text-right px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {['Ristoratore', 'Ristorante', 'Stato', 'Ultimo accesso', 'Ultimo ordine'].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            className="px-3 xl:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap"
+                          >
+                            {h}
+                          </th>
+                        )
+                      )}
+                      <th className="px-3 xl:px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Azioni
                       </th>
                     </tr>
@@ -745,28 +788,29 @@ export default function AdminUtentiPage() {
                     )}
                     {filteredUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-3 lg:px-5 py-4">
-                          <div>
-                            <p className="font-semibold text-sm text-foreground">{u.name}</p>
-                            <p className="text-xs text-muted-foreground">{u.email}</p>
-                          </div>
+                        <td className="px-3 xl:px-4 py-3 align-middle">
+                          <p
+                            className={`truncate text-sm font-semibold ${u.userId ? 'text-foreground' : 'italic text-muted-foreground'}`}
+                            title={ownerName(u)}
+                          >
+                            {ownerName(u)}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground" title={u.email}>
+                            {u.email}
+                          </p>
                         </td>
-                        <td className="px-3 lg:px-5 py-4">
-                          <span className="text-sm font-medium text-foreground">
-                            {u.restaurantName}
-                          </span>
+                        <td className="px-3 xl:px-4 py-3 align-middle text-sm">
+                          {renderRestaurant(u)}
                         </td>
-                        <td className="px-3 lg:px-5 py-4">{renderBadge(u)}</td>
-                        <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
-                          <div className="text-xs text-foreground">{renderLastLogin(u)}</div>
+                        <td className="px-3 xl:px-4 py-3 align-middle">{renderBadge(u)}</td>
+                        <td className="px-3 xl:px-4 py-3 align-middle text-xs text-foreground whitespace-nowrap">
+                          {renderLastLogin(u)}
                         </td>
-                        <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
-                          <div className="text-xs text-foreground">{renderLastOrder(u)}</div>
+                        <td className="px-3 xl:px-4 py-3 align-middle text-xs text-foreground whitespace-nowrap">
+                          {renderLastOrder(u)}
                         </td>
-                        <td className="px-3 lg:px-5 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {renderUserActions(u, false)}
-                          </div>
+                        <td className="px-3 xl:px-4 py-3 align-middle">
+                          {renderActions(u, 'table')}
                         </td>
                       </tr>
                     ))}
@@ -774,41 +818,43 @@ export default function AdminUtentiPage() {
                 </table>
               </div>
 
-              {/* Mobile View */}
-              <div className="md:hidden divide-y divide-border">
+              {/* Telefono e tablet: una scheda per ristoratore */}
+              <div className="lg:hidden divide-y divide-border">
                 {filteredUsers.length === 0 && (
                   <div className="py-16 text-center text-sm text-muted-foreground">
                     Nessun ristoratore trovato
                   </div>
                 )}
                 {filteredUsers.map((u) => (
-                  <div key={u.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
+                  <div key={u.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h4 className="font-semibold text-sm text-foreground">{u.name}</h4>
-                        <p className="text-xs text-muted-foreground break-all">{u.email}</p>
+                        <h4
+                          className={`truncate text-sm font-semibold ${u.userId ? 'text-foreground' : 'italic text-muted-foreground'}`}
+                        >
+                          {ownerName(u)}
+                        </h4>
+                        <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                       </div>
                       <div className="shrink-0">{renderBadge(u)}</div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
-                      <div className="col-span-2">
-                        <p className="text-muted-foreground mb-0.5">Ristorante Associato</p>
-                        <p className="font-medium text-foreground">{u.restaurantName}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3 rounded-lg bg-muted/40 p-3 text-xs">
+                      <div className="min-w-0">
+                        <p className="mb-0.5 text-muted-foreground">Ristorante</p>
+                        <div className="text-sm">{renderRestaurant(u)}</div>
                       </div>
                       <div>
-                        <p className="text-muted-foreground mb-0.5">Ultimo Accesso</p>
+                        <p className="mb-0.5 text-muted-foreground">Ultimo accesso</p>
                         <div className="font-medium text-foreground">{renderLastLogin(u)}</div>
                       </div>
                       <div>
-                        <p className="text-muted-foreground mb-0.5">Ultimo Ordine</p>
+                        <p className="mb-0.5 text-muted-foreground">Ultimo ordine</p>
                         <div className="font-medium text-foreground">{renderLastOrder(u)}</div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                      {renderUserActions(u, true)}
-                    </div>
+                    {renderActions(u, 'card')}
                   </div>
                 ))}
               </div>
