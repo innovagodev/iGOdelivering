@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import PageTopbar from '@/components/layout/PageTopbar';
+import { notify } from '@/lib/notify';
 import {
   ArrowLeft,
   ChevronRight,
@@ -487,12 +488,17 @@ export default function NewRestaurantPage() {
       const data = await response.json();
       if (!response.ok) {
         console.error('Failed to send activation email:', data.error);
-        return '';
+        notify.error(
+          `Email di attivazione NON inviata: ${data.error || 'errore sconosciuto'}. ` +
+            'Copia il link nella schermata di conferma e consegnalo al titolare, oppure reinvia da Utenti.'
+        );
+        return data.activationLink || '';
       }
       console.log('Activation email sent successfully.');
       return data.activationLink || '';
     } catch (err) {
       console.error('Error triggering activation email:', err);
+      notify.error("Email di attivazione NON inviata: errore di rete. Reinvia l'invito da Utenti.");
       return '';
     }
   };

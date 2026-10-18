@@ -223,6 +223,20 @@ export async function POST(request: Request) {
     const resendFrom = process.env.RESEND_FROM || 'iGOdelivering <noreply@igodelivering.it>';
 
     if (!resendApiKey || resendApiKey === 're_your_api_key_here') {
+      // In produzione "mail registrata in console" non è un successo: nessuno la
+      // riceve. Si risponde con un errore e si restituisce il link, così l'admin
+      // può comunque consegnarlo a mano.
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[activation] RESEND_API_KEY non configurata: email di attivazione NON inviata');
+        return NextResponse.json(
+          {
+            error: 'Servizio email non configurato sul server (RESEND_API_KEY)',
+            activationLink,
+          },
+          { status: 500 }
+        );
+      }
+
       console.log('------------------------------------------------------------');
       console.log('[EMAIL DISPATCH - MOCK FALLBACK] (RESEND_API_KEY non configurata)');
       console.log(`A: ${restaurant.email}`);
@@ -261,6 +275,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: resData.message || "Errore durante l'invio dell'email via Resend",
+          activationLink,
         },
         { status: 500 }
       );

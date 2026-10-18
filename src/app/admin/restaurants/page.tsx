@@ -187,9 +187,12 @@ export default function AdminRestaurantsPage() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({}));
         console.error('Failed to send activation email:', errData.error);
-        showFeedback("Ristorante pubblicato, ma non è stato possibile inviare l'email.", 'error');
+        showFeedback(
+          `Ristorante pubblicato, ma l'email non è partita: ${errData.error || 'errore sconosciuto'}. Reinvia l'invito da Utenti.`,
+          'error'
+        );
       } else {
         showFeedback('Ristorante pubblicato! Email di attivazione inviata.');
       }

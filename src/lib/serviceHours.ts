@@ -219,7 +219,13 @@ export type ScheduleCheck =
   | { ok: true }
   | {
       ok: false;
-      reason: 'closed_holiday' | 'suspended' | 'missing_time' | 'too_soon' | 'too_far' | 'out_of_hours';
+      reason:
+        | 'closed_holiday'
+        | 'suspended'
+        | 'missing_time'
+        | 'too_soon'
+        | 'too_far'
+        | 'out_of_hours';
     };
 
 /**
@@ -264,7 +270,9 @@ export const checkSchedule = (
 export const BOOKING_NOTICE_DEFAULTS = { minNoticeMinutes: 60, maxNoticeDays: 30 };
 
 /** Preavviso minimo di una prenotazione, in minuti (unità italiane "minuti"/"ore" comprese). */
-export const bookingNoticeMinutes = (scheduled: ScheduledOrdersConfig | null | undefined): number => {
+export const bookingNoticeMinutes = (
+  scheduled: ScheduledOrdersConfig | null | undefined
+): number => {
   const c = scheduled?.booking;
   if (!c || c.minNoticeValue === undefined || c.minNoticeValue === null) {
     return BOOKING_NOTICE_DEFAULTS.minNoticeMinutes;

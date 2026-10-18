@@ -1509,14 +1509,20 @@ export default function RestaurantConfigurePage() {
           });
 
           if (!emailResponse.ok) {
-            const errData = await emailResponse.json();
+            const errData = await emailResponse.json().catch(() => ({}));
             console.error('Failed to send activation email:', errData.error);
+            notify.error(
+              `Ristorante pubblicato, ma l'email di attivazione NON è partita: ${errData.error || 'errore sconosciuto'}. Reinvia l'invito da Utenti.`
+            );
           } else {
             console.log('Activation email sent successfully.');
             setInitialStatus('published');
           }
         } catch (mailErr) {
           console.error('Error triggering activation email:', mailErr);
+          notify.error(
+            "Ristorante pubblicato, ma l'email di attivazione NON è partita (errore di rete). Reinvia l'invito da Utenti."
+          );
         }
       } else if (effectiveStatus !== initialStatus) {
         setInitialStatus(effectiveStatus);

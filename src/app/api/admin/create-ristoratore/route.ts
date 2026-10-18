@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { mapAuthError } from '@/lib/authErrors';
 
 export async function POST(request: Request) {
   try {
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
 
     if (authError || !authUser.user) {
       return NextResponse.json(
-        { error: authError?.message || 'Errore creazione utente auth' },
+        { error: authError ? mapAuthError(authError) : 'Errore creazione utente auth' },
         { status: 400 }
       );
     }

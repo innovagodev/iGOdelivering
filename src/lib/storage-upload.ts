@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 /**
  * Carica un file immagine in un bucket di storage Supabase specifico.
  * Restituisce l'URL pubblico del file caricato.
- * 
+ *
  * @param file Il file File/Blob da caricare
  * @param bucket Il nome del bucket di storage (es. 'restaurant-logos')
  * @param path Il percorso/nome file all'interno del bucket

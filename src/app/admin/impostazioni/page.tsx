@@ -138,8 +138,8 @@ export default function AdminImpostazioniPage() {
     setPasswordError('');
     setPasswordSuccess(false);
 
-    if (newPassword.length < 6) {
-      setPasswordError('La password deve contenere almeno 6 caratteri.');
+    if (newPassword.length < 8) {
+      setPasswordError('La password deve contenere almeno 8 caratteri.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -372,7 +372,7 @@ export default function AdminImpostazioniPage() {
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Almeno 6 caratteri"
+                        placeholder="Almeno 8 caratteri"
                         className="w-full px-3.5 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-sm text-foreground"
                       />
                     </div>
