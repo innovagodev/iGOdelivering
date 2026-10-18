@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.56.1](https://github.com/innovagodev/iGOdelivering/compare/v1.56.0...v1.56.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **admin:** layout tabella Utenti senza ritorni a capo e con azioni uniformi ([763548a](https://github.com/innovagodev/iGOdelivering/commit/763548ac5321eab6eaad26162ff60c1f1ce5b927))
+
 ## [1.56.0](https://github.com/innovagodev/iGOdelivering/compare/v1.55.1...v1.56.0) (2026-10-18)
 
 
