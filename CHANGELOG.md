@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.55.1](https://github.com/innovagodev/iGOdelivering/compare/v1.55.0...v1.55.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **registrazione:** errori di Auth in italiano e link senza doppia barra ([12ac6ce](https://github.com/innovagodev/iGOdelivering/commit/12ac6ce72192dfcc2cf5cd721f7fda6844a50623))
+
 ## [1.55.0](https://github.com/innovagodev/iGOdelivering/compare/v1.54.1...v1.55.0) (2026-10-18)
 
 
