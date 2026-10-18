@@ -17,24 +17,89 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
+  Send,
+  Link2,
+  ExternalLink,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
+import { romeDay } from '@/lib/dashboardStats';
+import { IDLE_DAYS, type AccountState, type AdminUserRow } from '@/lib/adminUsers';
 
-interface RestorateurUser {
-  id: string;
-  name: string;
-  email: string;
-  restaurantName: string;
-  status: 'active' | 'suspended' | 'pending';
-  lastLogin: string;
-}
+type RestorateurUser = AdminUserRow;
+
+type UserFilter = 'all' | 'active' | 'invited' | 'never' | 'idle' | 'suspended' | 'pending';
+
+const FILTER_LABEL: Record<UserFilter, string> = {
+  all: 'Tutti',
+  active: 'Attivi',
+  invited: 'Da attivare',
+  never: 'Mai entrati',
+  idle: `Senza ordini da ${IDLE_DAYS} gg`,
+  suspended: 'Sospesi',
+  pending: 'In bozza',
+};
+
+const ACCOUNT_LABEL: Record<AccountState, string> = {
+  active: 'Attivo',
+  suspended: 'Sospeso',
+  pending: 'Ristorante in bozza',
+  invited: 'Invitato',
+  invite_expired: 'Invito scaduto',
+};
+
+const isInvite = (a: AccountState) => a === 'invited' || a === 'invite_expired';
+
+const NOW_DAY = () => romeDay(new Date());
+const daysBetween = (fromDay: string, toDay: string) =>
+  Math.round((Date.parse(toDay) - Date.parse(fromDay)) / 86_400_000);
+
+/** Giorni (di Roma) trascorsi da un istante; null se l'istante manca. */
+const daysAgo = (iso: string | null) => (iso ? daysBetween(romeDay(iso), NOW_DAY()) : null);
+
+const relativeDays = (n: number) =>
+  n <= 0 ? 'oggi' : n === 1 ? 'ieri' : `${n} giorni fa`;
+
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('it-IT', {
+    timeZone: 'Europe/Rome',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+/** Ristorante attivo che non riceve ordini da IDLE_DAYS giorni (o mai, nella finestra letta). */
+const isIdle = (u: RestorateurUser) => {
+  if (u.account !== 'active') return false;
+  const d = daysAgo(u.lastOrderAt);
+  return d === null || d >= IDLE_DAYS;
+};
+
+/** Titolare con account attivato che non ha mai fatto login. */
+const isNeverLoggedIn = (u: RestorateurUser) => !!u.userId && u.lastLogin === null;
+
+const matchesFilter = (u: RestorateurUser, f: UserFilter) => {
+  switch (f) {
+    case 'all':
+      return true;
+    case 'invited':
+      return isInvite(u.account);
+    case 'never':
+      return isNeverLoggedIn(u);
+    case 'idle':
+      return isIdle(u);
+    default:
+      return u.account === f;
+  }
+};
 
 export default function AdminUtentiPage() {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>(
-    'all'
-  );
+  const [statusFilter, setStatusFilter] = useState<UserFilter>('all');
   const [users, setUsers] = useState<RestorateurUser[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [busyInviteId, setBusyInviteId] = useState<string | null>(null);
   const [resettingUser, setResettingUser] = useState<RestorateurUser | null>(null);
   const [tempPassword, setTempPassword] = useState('');
   const [copied, setCopied] = useState(false);
@@ -238,13 +303,22 @@ export default function AdminUtentiPage() {
       // Add the new user to state
       const newUser: RestorateurUser = {
         id: data.user.id,
+        userId: data.user.id,
         name: data.user.name,
         email: data.user.email,
+        restaurantId: data.user.restaurantId ?? null,
         restaurantName: data.user.restaurantName,
-        status: 'active', // matches published status
-        lastLogin: 'Mai',
+        slug: data.user.slug ?? null,
+        account: 'active', // matches published status
+        lastLogin: null,
+        lastOrderAt: null,
+        orders30: 0,
       };
-      setUsers((prev) => [newUser, ...prev]);
+      // Se il ristorante era in attesa di attivazione, la riga "invitato" non ha più senso.
+      setUsers((prev) => [
+        newUser,
+        ...prev.filter((u) => !(u.userId === null && u.restaurantId === newUser.restaurantId)),
+      ]);
 
       setCreateSuccess(true);
       setTimeout(() => {
@@ -258,39 +332,82 @@ export default function AdminUtentiPage() {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, created_at, email, restaurants(id, name, status, email)')
-        .eq('role', 'ristoratore');
+      // L'elenco è costruito dal server: include i ristoranti invitati che non hanno
+      // ancora un profilo, e legge ultimo accesso e ordini con la service role.
+      const res = await fetch('/api/admin/utenti', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Errore ${res.status}`);
 
-      if (error) throw error;
-
-      const mappedUsers: RestorateurUser[] = (data || []).map((p: any) => {
-        const r = p.restaurants?.[0] || {};
-        return {
-          id: p.id,
-          name: p.name || 'Gestore',
-          email: p.email || r.email || '',
-          restaurantName: r.name || 'Nessun ristorante',
-          status:
-            r.status === 'suspended'
-              ? 'suspended'
-              : r.status === 'published'
-                ? 'active'
-                : 'pending',
-          lastLogin: 'Mai',
-        };
-      });
-
-      setUsers(mappedUsers);
-    } catch (err) {
+      setUsers(data.users || []);
+      setLoadError('');
+    } catch (err: any) {
       console.error('Error loading users:', err);
+      setLoadError(err?.message || 'Impossibile caricare i ristoratori.');
     }
   };
 
   useEffect(() => {
     loadUsers();
   }, []);
+
+  /**
+   * Genera un nuovo link e rimanda la mail di attivazione. Come per la copia del
+   * link, ogni invio ruota il token: i link inviati prima smettono di funzionare.
+   */
+  const handleResendInvite = async (u: RestorateurUser) => {
+    if (!u.restaurantId || busyInviteId) return;
+    setBusyInviteId(u.id);
+    try {
+      const res = await fetch('/api/admin/send-activation-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantId: u.restaurantId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        notify.error(data.error || "Impossibile inviare l'email di attivazione.");
+        return;
+      }
+      if (data.mocked) {
+        notify.error(
+          'Email NON inviata: il servizio di posta non è configurato sul server (RESEND_API_KEY).'
+        );
+        return;
+      }
+      notify.success(`Invito inviato a ${u.email}. I link precedenti non sono più validi.`);
+      loadUsers();
+    } catch (err) {
+      console.error('Error resending invite:', err);
+      notify.error("Impossibile inviare l'email di attivazione.");
+    } finally {
+      setBusyInviteId(null);
+    }
+  };
+
+  const handleCopyInviteLink = async (u: RestorateurUser) => {
+    if (!u.restaurantId || busyInviteId) return;
+    setBusyInviteId(u.id);
+    try {
+      const res = await fetch('/api/admin/activation-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantId: u.restaurantId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.activationLink) {
+        notify.error(data.error || 'Impossibile generare il link di attivazione.');
+        return;
+      }
+      await navigator.clipboard.writeText(data.activationLink);
+      notify.success('Nuovo link copiato. I link precedenti non sono più validi.');
+      loadUsers();
+    } catch (err) {
+      console.error('Error copying invite link:', err);
+      notify.error('Impossibile generare il link di attivazione.');
+    } finally {
+      setBusyInviteId(null);
+    }
+  };
 
   const handlePasswordReset = async (user: RestorateurUser) => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
@@ -341,7 +458,7 @@ export default function AdminUtentiPage() {
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id !== id) return u;
-          return { ...u, status: newStatus };
+          return { ...u, account: newStatus };
         })
       );
     } catch (err) {
@@ -355,9 +472,158 @@ export default function AdminUtentiPage() {
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
       u.restaurantName.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || u.status === statusFilter;
-    return matchSearch && matchStatus;
+    return matchSearch && matchesFilter(u, statusFilter);
   });
+
+  const filterCount = (f: UserFilter) => users.filter((u) => matchesFilter(u, f)).length;
+
+  const badgeClass = (a: AccountState) =>
+    a === 'active'
+      ? 'bg-[var(--success-bg)] text-[var(--success)]'
+      : a === 'suspended' || a === 'invite_expired'
+        ? 'bg-[var(--warning-bg)] text-[var(--warning)]'
+        : 'bg-muted text-muted-foreground';
+
+  const renderBadge = (u: RestorateurUser) => (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${badgeClass(u.account)}`}
+    >
+      {u.account === 'active' ? (
+        <CheckCircle size={12} />
+      ) : u.account === 'suspended' || u.account === 'invite_expired' ? (
+        <ShieldAlert size={12} />
+      ) : (
+        <Clock size={12} />
+      )}
+      {ACCOUNT_LABEL[u.account]}
+    </span>
+  );
+
+  /** Ultimo login: "Mai" solo per chi ha un account; chi non l'ha attivato non ha accessi. */
+  const renderLastLogin = (u: RestorateurUser) => {
+    if (!u.userId) return <span className="text-muted-foreground">—</span>;
+    if (!u.lastLogin) return <span>Mai</span>;
+    const d = daysAgo(u.lastLogin);
+    return (
+      <span title={formatDateTime(u.lastLogin)}>
+        {formatDateTime(u.lastLogin)}
+        {d !== null && <span className="block text-muted-foreground">{relativeDays(d)}</span>}
+      </span>
+    );
+  };
+
+  /** Ultimo ordine e ordini degli ultimi 30 giorni. Vale per i ristoranti attivi. */
+  const renderLastOrder = (u: RestorateurUser) => {
+    if (!u.userId || u.account === 'pending') return <span className="text-muted-foreground">—</span>;
+    if (!u.lastOrderAt) {
+      return <span className={isIdle(u) ? 'text-[var(--warning)]' : ''}>Nessun ordine (90 gg)</span>;
+    }
+    const d = daysAgo(u.lastOrderAt)!;
+    return (
+      <span title={formatDateTime(u.lastOrderAt)}>
+        {relativeDays(d)}
+        <span className="block text-muted-foreground">
+          {u.orders30} {u.orders30 === 1 ? 'ordine' : 'ordini'} in 30 gg
+        </span>
+      </span>
+    );
+  };
+
+  /** Azioni di supporto per chi non ha ancora attivato l'account. */
+  const renderInviteActions = (u: RestorateurUser, compact: boolean) => {
+    const busy = busyInviteId === u.id;
+    const pad = compact ? 'p-1.5' : 'p-2';
+    return (
+      <>
+        <button
+          onClick={() => handleCopyInviteLink(u)}
+          disabled={busy}
+          className={`${pad} rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50 disabled:opacity-50`}
+          title="Copia nuovo link di attivazione"
+          aria-label="Copia nuovo link di attivazione"
+        >
+          <Link2 size={14} />
+        </button>
+        <button
+          onClick={() => handleResendInvite(u)}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border disabled:opacity-50"
+          title="Reinvia email di attivazione"
+        >
+          <Send size={13} className="text-muted-foreground" />
+          {busy ? 'Invio…' : 'Reinvia invito'}
+        </button>
+      </>
+    );
+  };
+
+  /** Azioni di riga: cambiano se l'account esiste già o è ancora in attesa di attivazione. */
+  const renderUserActions = (u: RestorateurUser, compact: boolean) => {
+    if (!u.userId) return renderInviteActions(u, compact);
+
+    const pad = compact ? 'p-1.5' : 'p-2';
+    const icon = compact ? 14 : 15;
+    return (
+      <>
+        {u.slug && u.account === 'active' && (
+          <a
+            href={`/menu/${encodeURIComponent(u.slug)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${pad} rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50`}
+            title="Apri la vetrina"
+            aria-label="Apri la vetrina"
+          >
+            <ExternalLink size={icon} />
+          </a>
+        )}
+        {u.account === 'active' ? (
+          <button
+            onClick={() => handleToggleStatus(u.id, 'suspended')}
+            className={`${pad} rounded-lg hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)] transition-colors border border-border/50`}
+            title="Sospendi Ristoratore"
+            aria-label="Sospendi Ristoratore"
+          >
+            <UserX size={icon} />
+          </button>
+        ) : u.account === 'suspended' || u.account === 'pending' ? (
+          <button
+            onClick={() => handleToggleStatus(u.id, 'active')}
+            className={`${pad} rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50`}
+            title="Attiva Ristoratore"
+            aria-label="Attiva Ristoratore"
+          >
+            <UserCheck size={icon} />
+          </button>
+        ) : null}
+        <button
+          onClick={() => handleOpenEditModal(u)}
+          className={`${pad} rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50`}
+          title="Modifica Ristoratore"
+          aria-label="Modifica Ristoratore"
+        >
+          <Edit2 size={icon - 1} />
+        </button>
+        <button
+          onClick={() => handleOpenDeleteModal(u)}
+          className={`${pad} rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors border border-border/50`}
+          title="Elimina Ristoratore"
+          aria-label="Elimina Ristoratore"
+        >
+          <Trash2 size={icon - 1} />
+        </button>
+        <button
+          onClick={() => handlePasswordReset(u)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border"
+          title="Resetta Password"
+          aria-label="Resetta Password"
+        >
+          <Key size={13} className="text-muted-foreground" />
+          <span className={compact ? '' : 'hidden xl:inline'}>Reset Password</span>
+        </button>
+      </>
+    );
+  };
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 bg-background overflow-hidden">
@@ -407,28 +673,40 @@ export default function AdminUtentiPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                {(['all', 'active', 'pending', 'suspended'] as const).map((s) => (
-                  <button
-                    key={`filter-${s}`}
-                    onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                      statusFilter === s
-                        ? 'bg-primary text-white'
-                        : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {s === 'all'
-                      ? 'Tutti'
-                      : s === 'active'
-                        ? 'Attivi'
-                        : s === 'pending'
-                          ? 'In Attesa'
-                          : 'Sospesi'}
-                  </button>
-                ))}
-              </div>
             </div>
+
+            {/* Filtri con conteggio: i numeri dicono dove serve intervenire */}
+            <div className="flex flex-wrap items-center gap-2">
+              {(
+                ['all', 'active', 'invited', 'never', 'idle', 'suspended', 'pending'] as const
+              ).map((s) => (
+                <button
+                  key={`filter-${s}`}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                    statusFilter === s
+                      ? 'bg-primary text-white'
+                      : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {FILTER_LABEL[s]} <span className="opacity-70">({filterCount(s)})</span>
+                </button>
+              ))}
+            </div>
+
+            {loadError && (
+              <div className="bg-[var(--danger-bg)] border border-red-200 rounded-xl px-4 py-3 text-sm text-[var(--danger)] flex items-start gap-2">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <span className="flex-1">{loadError}</span>
+                <button
+                  type="button"
+                  onClick={loadUsers}
+                  className="font-semibold underline underline-offset-2"
+                >
+                  Riprova
+                </button>
+              </div>
+            )}
 
             {/* Table Users (Desktop) & Cards (Mobile) */}
             <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
@@ -449,6 +727,9 @@ export default function AdminUtentiPage() {
                       <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
                         Ultimo Accesso
                       </th>
+                      <th className="text-left px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">
+                        Ultimo Ordine
+                      </th>
                       <th className="text-right px-3 lg:px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Azioni
                       </th>
@@ -457,99 +738,38 @@ export default function AdminUtentiPage() {
                   <tbody className="divide-y divide-border">
                     {filteredUsers.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-16 text-center text-sm text-muted-foreground">
+                        <td colSpan={6} className="py-16 text-center text-sm text-muted-foreground">
                           Nessun ristoratore trovato
                         </td>
                       </tr>
                     )}
-                    {filteredUsers.map((u) => {
-                      return (
-                        <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-3 lg:px-5 py-4">
-                            <div>
-                              <p className="font-semibold text-sm text-foreground">{u.name}</p>
-                              <p className="text-xs text-muted-foreground">{u.email}</p>
-                            </div>
-                          </td>
-                          <td className="px-3 lg:px-5 py-4">
-                            <span className="text-sm font-medium text-foreground">
-                              {u.restaurantName}
-                            </span>
-                          </td>
-                          <td className="px-3 lg:px-5 py-4">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                u.status === 'active'
-                                  ? 'bg-[var(--success-bg)] text-[var(--success)]'
-                                  : u.status === 'pending'
-                                    ? 'bg-muted text-muted-foreground'
-                                    : 'bg-[var(--warning-bg)] text-[var(--warning)]'
-                              }`}
-                            >
-                              {u.status === 'active' ? (
-                                <CheckCircle size={12} />
-                              ) : u.status === 'pending' ? (
-                                <Clock size={12} />
-                              ) : (
-                                <ShieldAlert size={12} />
-                              )}
-                              {u.status === 'active'
-                                ? 'Attivo'
-                                : u.status === 'pending'
-                                  ? 'In Attesa'
-                                  : 'Sospeso'}
-                            </span>
-                          </td>
-                          <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
-                            <span className="text-xs text-muted-foreground">{u.lastLogin}</span>
-                          </td>
-                          <td className="px-3 lg:px-5 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {u.status === 'active' ? (
-                                <button
-                                  onClick={() => handleToggleStatus(u.id, 'suspended')}
-                                  className="p-2 rounded-lg hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)] transition-colors"
-                                  title="Sospendi Ristoratore"
-                                >
-                                  <UserX size={15} />
-                                </button>
-                              ) : u.status === 'suspended' || u.status === 'pending' ? (
-                                <button
-                                  onClick={() => handleToggleStatus(u.id, 'active')}
-                                  className="p-2 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors"
-                                  title="Attiva Ristoratore"
-                                >
-                                  <UserCheck size={15} />
-                                </button>
-                              ) : null}
-                              <button
-                                onClick={() => handleOpenEditModal(u)}
-                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
-                                title="Modifica Ristoratore"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleOpenDeleteModal(u)}
-                                className="p-2 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
-                                title="Elimina Ristoratore"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => handlePasswordReset(u)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border"
-                                title="Resetta Password"
-                                aria-label="Resetta Password"
-                              >
-                                <Key size={13} className="text-muted-foreground" />
-                                <span className="hidden xl:inline">Reset Password</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {filteredUsers.map((u) => (
+                      <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-3 lg:px-5 py-4">
+                          <div>
+                            <p className="font-semibold text-sm text-foreground">{u.name}</p>
+                            <p className="text-xs text-muted-foreground">{u.email}</p>
+                          </div>
+                        </td>
+                        <td className="px-3 lg:px-5 py-4">
+                          <span className="text-sm font-medium text-foreground">
+                            {u.restaurantName}
+                          </span>
+                        </td>
+                        <td className="px-3 lg:px-5 py-4">{renderBadge(u)}</td>
+                        <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
+                          <div className="text-xs text-foreground">{renderLastLogin(u)}</div>
+                        </td>
+                        <td className="px-3 lg:px-5 py-4 hidden lg:table-cell">
+                          <div className="text-xs text-foreground">{renderLastOrder(u)}</div>
+                        </td>
+                        <td className="px-3 lg:px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {renderUserActions(u, false)}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -561,93 +781,36 @@ export default function AdminUtentiPage() {
                     Nessun ristoratore trovato
                   </div>
                 )}
-                {filteredUsers.map((u) => {
-                  return (
-                    <div key={u.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-semibold text-sm text-foreground">{u.name}</h4>
-                          <p className="text-xs text-muted-foreground">{u.email}</p>
-                        </div>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            u.status === 'active'
-                              ? 'bg-[var(--success-bg)] text-[var(--success)]'
-                              : u.status === 'pending'
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-[var(--warning-bg)] text-[var(--warning)]'
-                          }`}
-                        >
-                          {u.status === 'active' ? (
-                            <CheckCircle size={12} />
-                          ) : u.status === 'pending' ? (
-                            <Clock size={12} />
-                          ) : (
-                            <ShieldAlert size={12} />
-                          )}
-                          {u.status === 'active'
-                            ? 'Attivo'
-                            : u.status === 'pending'
-                              ? 'In Attesa'
-                              : 'Sospeso'}
-                        </span>
+                {filteredUsers.map((u) => (
+                  <div key={u.id} className="p-4 space-y-3 hover:bg-muted/10 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-sm text-foreground">{u.name}</h4>
+                        <p className="text-xs text-muted-foreground break-all">{u.email}</p>
                       </div>
+                      <div className="shrink-0">{renderBadge(u)}</div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
-                        <div>
-                          <p className="text-muted-foreground mb-0.5">Ristorante Associato</p>
-                          <p className="font-medium text-foreground">{u.restaurantName}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground mb-0.5">Ultimo Accesso</p>
-                          <p className="font-medium text-foreground">{u.lastLogin}</p>
-                        </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border/40 py-2">
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground mb-0.5">Ristorante Associato</p>
+                        <p className="font-medium text-foreground">{u.restaurantName}</p>
                       </div>
-
-                      <div className="flex items-center justify-end gap-2 pt-1">
-                        {u.status === 'active' ? (
-                          <button
-                            onClick={() => handleToggleStatus(u.id, 'suspended')}
-                            className="p-1.5 rounded-lg hover:bg-[var(--warning-bg)] text-muted-foreground hover:text-[var(--warning)] transition-colors border border-border/50"
-                            title="Sospendi Ristoratore"
-                          >
-                            <UserX size={14} />
-                          </button>
-                        ) : u.status === 'suspended' || u.status === 'pending' ? (
-                          <button
-                            onClick={() => handleToggleStatus(u.id, 'active')}
-                            className="p-1.5 rounded-lg hover:bg-[var(--success-bg)] text-muted-foreground hover:text-[var(--success)] transition-colors border border-border/50"
-                            title="Attiva Ristoratore"
-                          >
-                            <UserCheck size={14} />
-                          </button>
-                        ) : null}
-                        <button
-                          onClick={() => handleOpenEditModal(u)}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
-                          title="Modifica Ristoratore"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDeleteModal(u)}
-                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-600 transition-colors border border-border/50"
-                          title="Elimina Ristoratore"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handlePasswordReset(u)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-secondary text-foreground hover:bg-muted rounded-lg transition-colors border border-border/50"
-                          title="Resetta Password"
-                        >
-                          <Key size={13} className="text-muted-foreground" />
-                          Reset Password
-                        </button>
+                      <div>
+                        <p className="text-muted-foreground mb-0.5">Ultimo Accesso</p>
+                        <div className="font-medium text-foreground">{renderLastLogin(u)}</div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-0.5">Ultimo Ordine</p>
+                        <div className="font-medium text-foreground">{renderLastOrder(u)}</div>
                       </div>
                     </div>
-                  );
-                })}
+
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                      {renderUserActions(u, true)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
