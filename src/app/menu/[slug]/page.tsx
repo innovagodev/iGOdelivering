@@ -5802,6 +5802,7 @@ function StorefrontContent() {
         lang={lang === 'en' ? 'en' : 'it'}
         status={status}
         hoursText={isMounted ? formattedTodayHours : null}
+        onBook={deliveryType !== 'tavolo' ? () => setShowBookingModal(true) : undefined}
         contacts={{
           phone: restaurantSettings.phone,
           whatsapp: restaurantSettings.whatsapp,
@@ -6974,17 +6975,6 @@ function StorefrontContent() {
           Minimali: tondi, il carrello si allarga solo per totale e badge. */}
       {!cartOpen && !checkoutOpen && !isDetailSheetOpen && (
         <div className="sm:hidden fixed z-40 right-[max(0.75rem,env(safe-area-inset-right))] bottom-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-2.5">
-          {deliveryType !== 'tavolo' && (
-            <button
-              type="button"
-              onClick={() => setShowBookingModal(true)}
-              aria-label={lang === 'en' ? 'Book a table' : 'Prenota tavolo'}
-              title={lang === 'en' ? 'Book a table' : 'Prenota tavolo'}
-              className="w-11 h-11 rounded-full flex items-center justify-center bg-card text-[var(--success)] border border-border shadow-lg shadow-black/10 active:scale-90 transition-all"
-            >
-              <CalendarCheck size={19} />
-            </button>
-          )}
           <button
             id="floating-cart-button"
             type="button"

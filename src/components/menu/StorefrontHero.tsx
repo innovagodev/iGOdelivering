@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bike, Clock, Globe, MapPin, MessageCircle, Navigation, Phone, X } from 'lucide-react';
+import { Bike, CalendarCheck, Clock, Globe, MapPin, MessageCircle, Navigation, Phone, X } from 'lucide-react';
 import AppImage from '@/components/ui/AppImage';
 import { FacebookIcon, InstagramIcon } from '@/components/ui/BrandIcons';
 import { useLenisRef } from '@/components/layout/LenisProvider';
@@ -42,6 +42,8 @@ export interface StorefrontHeroProps {
   /** Riquadri di stato e orari di oggi: assenti nell'anteprima del profilo. */
   status?: { label: string; color: string };
   hoursText?: string | null;
+  /** Se presente, su telefono compare il pulsante "Prenota" accanto a "Contatti". */
+  onBook?: () => void;
 }
 
 // Le classi sono scritte per intero (non composte): Tailwind le trova solo così.
@@ -53,13 +55,14 @@ const c = {
   p: 'text-[clamp(0.8125rem,0.75rem+0.3vw,1rem)]',
   pills: 'gap-x-3 sm:gap-x-5 text-xs sm:text-sm',
   pillText: 'text-[11px] sm:text-xs',
-  topButton: 'absolute right-3 top-3 z-20 inline-flex h-10 sm:hidden',
   sideButton: 'hidden sm:inline-flex h-11 flex-shrink-0',
 } as const;
 
 const L = {
   it: {
     contacts: 'Contatti',
+    book: 'Prenota',
+    bookAria: 'Prenota un tavolo',
     call: 'Chiama',
     whatsapp: 'WhatsApp',
     directions: 'Indicazioni',
@@ -71,6 +74,8 @@ const L = {
   },
   en: {
     contacts: 'Contact',
+    book: 'Book',
+    bookAria: 'Book a table',
     call: 'Call',
     whatsapp: 'WhatsApp',
     directions: 'Directions',
@@ -224,8 +229,8 @@ function ContactsSheet({ rows, lang, onClose }: { rows: ContactRow[]; lang: 'it'
 }
 
 export default function StorefrontHero(props: StorefrontHeroProps) {
-  const { name, tagline, image, imageAlt, address, deliveryFee, deliveryLabel, lang, status, hoursText } = props;
-    const t = L[lang];
+  const { name, tagline, image, imageAlt, address, deliveryFee, deliveryLabel, lang, status, hoursText, onBook } = props;
+  const t = L[lang];
   const [open, setOpen] = useState(false);
   const rows = useRows(props);
   const maps = mapsHref(props);
@@ -244,6 +249,19 @@ export default function StorefrontHero(props: StorefrontHeroProps) {
         {t.contacts}
       </button>
     ) : null;
+
+  // Solo telefono: pieno e colorato, così si distingue da "Contatti" (vetro).
+  const bookButton = onBook ? (
+    <button
+      type="button"
+      onClick={onBook}
+      aria-label={t.bookAria}
+      className="inline-flex h-10 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-bold text-white shadow-md shadow-black/20 transition-all active:scale-95"
+    >
+      <CalendarCheck size={14} />
+      {t.book}
+    </button>
+  ) : null;
 
   const addressPill = (
     <>
@@ -271,8 +289,13 @@ export default function StorefrontHero(props: StorefrontHeroProps) {
         }}
       />
 
-      {/* Telefono: un solo pulsante in alto a destra, nessuna fila in più nella testata. */}
-      {contactsButton(c.topButton)}
+      {/* Telefono: "Prenota" e "Contatti" affiancati in alto a destra, nessuna fila in più nella testata. */}
+      {(onBook || hasContacts) && (
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2 sm:hidden">
+          {bookButton}
+          {contactsButton('inline-flex h-10')}
+        </div>
+      )}
 
       <div className={`relative ${c.pad} text-white z-10 w-full`}>
         <div className={`max-w-screen-2xl mx-auto flex ${c.row}`}>
