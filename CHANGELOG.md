@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.55.0](https://github.com/innovagodev/iGOdelivering/compare/v1.54.1...v1.55.0) (2026-10-18)
+
+
+### Features
+
+* **vetrina:** pulsante Prenota in alto accanto a Contatti su telefono ([eab4584](https://github.com/innovagodev/iGOdelivering/commit/eab458408601b1a8f013c58537ea484ce4be242e))
+
 ### [1.54.1](https://github.com/innovagodev/iGOdelivering/compare/v1.54.0...v1.54.1) (2026-10-10)
 
 
