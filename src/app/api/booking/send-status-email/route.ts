@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { absoluteUrl } from '@/lib/siteUrl';
 
 /**
  * POST /api/booking/send-status-email  { bookingId, event }
@@ -96,7 +97,6 @@ export async function POST(request: Request) {
     const time = esc(String(booking.time || '').slice(0, 5));
     const guests = Number(booking.guests) || 0;
     const notes = booking.notes ? esc(booking.notes) : '';
-    const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it';
 
     // Pre-ordine: solo se la conferma ha generato un ordine. Mai su un annullamento.
     let orderBlock = '';
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
               ).toFixed(2)}`
           )
           .join('<br/>');
-        trackingUrl = `${site}/ordine/tracking?id=${encodeURIComponent(order.id)}`;
+        trackingUrl = absoluteUrl(`/ordine/tracking?id=${encodeURIComponent(order.id)}`);
         orderBlock = `
           <p style="font-size: 13px; font-weight: bold; margin: 16px 0 8px 0; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">Il tuo ordine / Your order ${esc(order.order_number)}</p>
           <div style="font-size: 14px; color: #334155; line-height: 1.6; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #edf2f7;">
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
     const cta = trackingUrl
       ? `<a href="${trackingUrl}" style="background-color: #f97316; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">Segui il tuo ordine / Track your order</a>`
       : event === 'cancelled'
-        ? `<a href="${site}/menu/${encodeURIComponent(restaurant?.slug || '')}" style="background-color: #475569; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">Prenota di nuovo / Book again</a>`
+        ? `<a href="${absoluteUrl(`/menu/${encodeURIComponent(restaurant?.slug || '')}`)}" style="background-color: #475569; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">Prenota di nuovo / Book again</a>`
         : '';
 
     const html = `

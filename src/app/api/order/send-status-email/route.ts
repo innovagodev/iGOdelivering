@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { absoluteUrl } from '@/lib/siteUrl';
 
 /**
  * POST /api/order/send-status-email  { orderId, status }
@@ -184,7 +185,7 @@ export async function POST(request: Request) {
     // Il link di tracking usa l'UUID, non `order_number`: quest'ultimo è corto e
     // sequenziale per ristorante, quindi indovinabile. Resta mostrato nel testo
     // dell'email come riferimento leggibile per il cliente.
-    const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/ordine/tracking?id=${encodeURIComponent(order.id)}`;
+    const trackingUrl = absoluteUrl(`/ordine/tracking?id=${encodeURIComponent(order.id)}`);
 
     if (status === 'preparing') {
       subject = `${scheduledLater ? 'Ordine Confermato' : 'Ordine Accettato'} - ${restaurantNameRaw} #${orderNumber}`;
@@ -334,7 +335,7 @@ export async function POST(request: Request) {
 
           <!-- BACK TO MENU CTA -->
           <div style="text-align: center; margin-top: 30px; margin-bottom: 25px;">
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://igodelivering.it'}/menu/${restaurantSlug}" style="background-color: #475569; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">
+            <a href="${absoluteUrl(`/menu/${restaurantSlug}`)}" style="background-color: #475569; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 14px;">
               Torna al Menu / Back to Menu
             </a>
           </div>

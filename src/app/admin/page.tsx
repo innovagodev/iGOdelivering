@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { supabase } from '@/lib/supabase';
+import { mapAuthError } from '@/lib/authErrors';
 import { Eye, EyeOff, Mail, Lock, AlertTriangle } from 'lucide-react';
 
 interface LoginForm {
@@ -34,9 +35,7 @@ export default function AdminLoginPage() {
       });
 
       if (error) {
-        setLoginError(
-          error.message === 'Invalid login credentials' ? 'Credenziali non valide.' : error.message
-        );
+        setLoginError(mapAuthError(error));
         setLoginLoading(false);
         return;
       }

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { adminClient } from '@/lib/orderServer';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 /**
  * Parte server dell'integrazione Stripe Connect (piano pagamenti, fase 2).
@@ -28,8 +29,7 @@ export function getStripe(): Stripe | null {
   return stripeSingleton;
 }
 
-export const siteUrl = (request: Request) =>
-  process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+export const siteUrl = (request: Request) => getSiteUrl(new URL(request.url).origin);
 
 // ─── Stato del collegamento ─────────────────────────────────────────────────
 

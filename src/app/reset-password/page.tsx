@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { supabase } from '@/lib/supabase';
+import { mapAuthError } from '@/lib/authErrors';
 import { Eye, EyeOff, Lock, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface ResetPasswordForm {
@@ -101,7 +102,7 @@ export default function ResetPasswordPage() {
       });
 
       if (updateError) {
-        setError(updateError.message);
+        setError(mapAuthError(updateError));
         setLoading(false);
         return;
       }

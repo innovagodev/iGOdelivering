@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { issueActivationLink } from '@/lib/activationToken';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 /**
  * POST /api/admin/activation-link  { restaurantId }
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+    const siteUrl = getSiteUrl(new URL(request.url).origin);
     const issued = await issueActivationLink(supabaseAdmin, restaurant, siteUrl);
 
     if ('error' in issued) {

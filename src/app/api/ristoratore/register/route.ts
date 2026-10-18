@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { ACTIVATION_INVALID_MESSAGE } from '@/lib/activationToken';
+import { mapAuthError } from '@/lib/authErrors';
 
 /**
  * Messaggio per il caso in cui la registrazione è fallita E la pulizia non è
@@ -277,7 +278,7 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json(
-        { error: authError?.message || "Impossibile creare l'utente in Auth" },
+        { error: authError ? mapAuthError(authError) : "Impossibile creare l'utente in Auth" },
         { status: 400 }
       );
     }

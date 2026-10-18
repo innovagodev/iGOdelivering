@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import PageTopbar from '@/components/layout/PageTopbar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { mapAuthError } from '@/lib/authErrors';
 import { Save, Check, AlertTriangle, Settings2, User, Lock, Mail, Shield } from 'lucide-react';
 
 export default function AdminImpostazioniPage() {
@@ -159,7 +160,7 @@ export default function AdminImpostazioniPage() {
       setTimeout(() => setPasswordSuccess(false), 3000);
     } catch (err: any) {
       console.error(err);
-      setPasswordError(err.message || "Errore durante l'aggiornamento della password.");
+      setPasswordError(mapAuthError(err));
     } finally {
       setPasswordUpdating(false);
     }

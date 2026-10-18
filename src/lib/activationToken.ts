@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { absoluteUrl } from '@/lib/siteUrl';
 
 /**
  * Durata di validità di un link di attivazione.
@@ -60,9 +61,10 @@ export async function issueActivationLink(
     return { error: 'Impossibile generare il link di attivazione' };
   }
 
-  const activationLink =
-    `${siteUrl}/register?token=${encodeURIComponent(token)}` +
-    `&email=${encodeURIComponent(restaurant.email)}`;
+  const activationLink = absoluteUrl(
+    `/register?token=${encodeURIComponent(token)}&email=${encodeURIComponent(restaurant.email)}`,
+    siteUrl
+  );
 
   return { activationLink, expiresAt };
 }

@@ -222,8 +222,13 @@ export default function RegisterPage() {
                     minLength: { value: 8, message: 'Minimo 8 caratteri' },
                   })}
                 />
-                {errors.password && (
+                {errors.password ? (
                   <p className="mt-1.5 text-xs text-[var(--danger)]">{errors.password.message}</p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Minimo 8 caratteri. Evita password banali come 12345678: meglio mescolare
+                    lettere, numeri e simboli.
+                  </p>
                 )}
               </div>
 

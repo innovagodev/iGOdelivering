@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLogo from '@/components/ui/AppLogo';
 import { supabase } from '@/lib/supabase';
+import { mapAuthError } from '@/lib/authErrors';
 import { Eye, EyeOff, Mail, Lock, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface LoginForm {
@@ -80,7 +81,7 @@ export default function LoginPage() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) {
-        setLoginError(error.message);
+        setLoginError(mapAuthError(error));
         setLoginLoading(false);
         return;
       }
@@ -115,9 +116,7 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setLoginError(
-          error.message === 'Invalid login credentials' ? 'Credenziali non valide.' : error.message
-        );
+        setLoginError(mapAuthError(error));
         setLoginLoading(false);
         return;
       }
@@ -184,7 +183,7 @@ export default function LoginPage() {
       });
 
       if (error) {
-        setLoginError(error.message);
+        setLoginError(mapAuthError(error));
         setLoginLoading(false);
         return;
       }
